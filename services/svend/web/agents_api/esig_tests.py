@@ -18,15 +18,15 @@ from django.test import TestCase, override_settings
 
 from accounts.constants import Tier
 from agents_api.models import (
+    FMEA,
     CAPAReport,
     ControlledDocument,
     ElectronicSignature,
-    FMEA,
     InternalAudit,
     ManagementReview,
     NonconformanceRecord,
-    TrainingRequirement,
     TrainingRecord,
+    TrainingRequirement,
 )
 
 User = get_user_model()
@@ -40,9 +40,7 @@ def _post(client, url, data=None):
 
 def _make_team_user(email, **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(
-        username=username, email=email, password=PASSWORD, **kwargs
-    )
+    user = User.objects.create_user(username=username, email=email, password=PASSWORD, **kwargs)
     user.tier = Tier.TEAM
     user.save(update_fields=["tier"])
     return user
@@ -50,9 +48,7 @@ def _make_team_user(email, **kwargs):
 
 def _make_free_user(email, **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(
-        username=username, email=email, password=PASSWORD, **kwargs
-    )
+    user = User.objects.create_user(username=username, email=email, password=PASSWORD, **kwargs)
     user.tier = Tier.FREE
     user.save(update_fields=["tier"])
     return user
@@ -60,18 +56,25 @@ def _make_free_user(email, **kwargs):
 
 def _create_ncr(user):
     return NonconformanceRecord.objects.create(
-        owner=user, title="Test NCR", description="Test desc", severity="minor",
+        owner=user,
+        title="Test NCR",
+        description="Test desc",
+        severity="minor",
     )
 
 
 def _sign(client, doc_type, doc_id, meaning="approved", password=PASSWORD, reason=""):
-    return _post(client, "/api/iso/signatures/", {
-        "document_type": doc_type,
-        "document_id": str(doc_id),
-        "meaning": meaning,
-        "password": password,
-        "reason": reason,
-    })
+    return _post(
+        client,
+        "/api/iso/signatures/",
+        {
+            "document_type": doc_type,
+            "document_id": str(doc_id),
+            "meaning": meaning,
+            "password": password,
+            "reason": reason,
+        },
+    )
 
 
 def _err_msg(resp):
@@ -86,6 +89,7 @@ def _err_msg(resp):
 # Re-authentication (21 CFR Part 11 §11.100)
 # =============================================================================
 
+
 @SECURE_OFF
 class ESignatureAuthTest(TestCase):
     """Re-authentication enforcement."""
@@ -96,11 +100,15 @@ class ESignatureAuthTest(TestCase):
         self.ncr = _create_ncr(self.user)
 
     def test_sign_requires_password(self):
-        resp = _post(self.client, "/api/iso/signatures/", {
-            "document_type": "ncr",
-            "document_id": str(self.ncr.id),
-            "meaning": "approved",
-        })
+        resp = _post(
+            self.client,
+            "/api/iso/signatures/",
+            {
+                "document_type": "ncr",
+                "document_id": str(self.ncr.id),
+                "meaning": "approved",
+            },
+        )
         self.assertEqual(resp.status_code, 400)
         self.assertIn("password", _err_msg(resp))
 
@@ -132,6 +140,7 @@ class ESignatureAuthTest(TestCase):
 # =============================================================================
 # CRUD — Signing
 # =============================================================================
+
 
 @SECURE_OFF
 class ESignatureCrudTest(TestCase):
@@ -185,6 +194,7 @@ class ESignatureCrudTest(TestCase):
 # Uniqueness
 # =============================================================================
 
+
 @SECURE_OFF
 class ESignatureUniquenessTest(TestCase):
     """Duplicate prevention."""
@@ -217,6 +227,7 @@ class ESignatureUniquenessTest(TestCase):
 # =============================================================================
 # Immutability (CFR Part 11)
 # =============================================================================
+
 
 @SECURE_OFF
 class ESignatureImmutabilityTest(TestCase):
@@ -267,6 +278,7 @@ class ESignatureImmutabilityTest(TestCase):
 # List / Query
 # =============================================================================
 
+
 @SECURE_OFF
 class ESignatureListTest(TestCase):
     """Query signatures."""
@@ -303,6 +315,7 @@ class ESignatureListTest(TestCase):
 # Verify Endpoints
 # =============================================================================
 
+
 @SECURE_OFF
 class ESignatureVerifyTest(TestCase):
     """Verification endpoints."""
@@ -331,6 +344,7 @@ class ESignatureVerifyTest(TestCase):
 # All 7 Signable Document Types
 # =============================================================================
 
+
 @SECURE_OFF
 class ESignatureDocumentTypesTest(TestCase):
     """Verify signing works for all 7 QMS document types."""
@@ -346,45 +360,57 @@ class ESignatureDocumentTypesTest(TestCase):
 
     def test_sign_capa(self):
         capa = CAPAReport.objects.create(
-            owner=self.user, title="Test CAPA", priority="medium",
+            owner=self.user,
+            title="Test CAPA",
+            priority="medium",
         )
         resp = _sign(self.client, "capa", capa.id, "approved")
         self.assertEqual(resp.status_code, 201)
 
     def test_sign_document(self):
         doc = ControlledDocument.objects.create(
-            owner=self.user, title="SOP-001", content="Standard operating procedure",
+            owner=self.user,
+            title="SOP-001",
+            content="Standard operating procedure",
         )
         resp = _sign(self.client, "document", doc.id, "approved")
         self.assertEqual(resp.status_code, 201)
 
     def test_sign_review(self):
         review = ManagementReview.objects.create(
-            owner=self.user, title="Q1 Review", meeting_date="2026-03-01",
+            owner=self.user,
+            title="Q1 Review",
+            meeting_date="2026-03-01",
         )
         resp = _sign(self.client, "review", review.id, "witnessed")
         self.assertEqual(resp.status_code, 201)
 
     def test_sign_audit(self):
         audit = InternalAudit.objects.create(
-            owner=self.user, title="Audit-001", scheduled_date="2026-03-15",
+            owner=self.user,
+            title="Audit-001",
+            scheduled_date="2026-03-15",
         )
         resp = _sign(self.client, "audit", audit.id, "approved")
         self.assertEqual(resp.status_code, 201)
 
     def test_sign_training(self):
         req = TrainingRequirement.objects.create(
-            owner=self.user, name="GMP Basics",
+            owner=self.user,
+            name="GMP Basics",
         )
         record = TrainingRecord.objects.create(
-            requirement=req, employee_name="John Doe", employee_email="john@test.com",
+            requirement=req,
+            employee_name="John Doe",
+            employee_email="john@test.com",
         )
         resp = _sign(self.client, "training", record.id, "approved")
         self.assertEqual(resp.status_code, 201)
 
     def test_sign_fmea(self):
         fmea = FMEA.objects.create(
-            owner=self.user, title="Process FMEA-001",
+            owner=self.user,
+            title="Process FMEA-001",
         )
         resp = _sign(self.client, "fmea", fmea.id, "reviewed")
         self.assertEqual(resp.status_code, 201)

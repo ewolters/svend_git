@@ -20,9 +20,9 @@ import pandas as pd
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods
 
-from accounts.permissions import gated_paid, require_auth
+from accounts.permissions import gated_paid
+
 from .dsw.common import (
-    _auto_train,
     _bayesian_model_beliefs,
     _build_ml_diagnostics,
     _clean_for_ml,
@@ -43,6 +43,7 @@ def _read_csv_safe(file_or_path):
     where the C parser ignores the encoding param on wrapped streams.
     """
     import io
+
     if hasattr(file_or_path, "read"):
         raw = file_or_path.read()
         try:
@@ -144,8 +145,9 @@ def _compute_feature_stats(X_train, feature_names, feature_info):
     This enables Mahalanobis distance (how far is a point from training data?)
     and correlation-aware optimization constraints.
     """
-    numeric_cols = [f for f in feature_names
-                    if f in X_train.columns and feature_info.get(f, {}).get("type") == "numeric"]
+    numeric_cols = [
+        f for f in feature_names if f in X_train.columns and feature_info.get(f, {}).get("type") == "numeric"
+    ]
 
     if len(numeric_cols) < 2:
         return {}
@@ -167,7 +169,7 @@ def _compute_feature_stats(X_train, feature_names, feature_info):
     # Store strong correlations (|r| > 0.5) as warnings
     strong_corrs = []
     for i, c1 in enumerate(numeric_cols):
-        for c2 in numeric_cols[i+1:]:
+        for c2 in numeric_cols[i + 1 :]:
             r = float(corr.loc[c1, c2])
             if abs(r) > 0.5:
                 strong_corrs.append({"f1": c1, "f2": c2, "r": round(r, 3)})
@@ -182,17 +184,19 @@ def _compute_feature_stats(X_train, feature_names, feature_info):
     }
 
 
-def _build_training_interpretation(task, metrics, model_type, y_test, y_pred,
-                                    top_features, target, original_shape, clean_shape):
+def _build_training_interpretation(
+    task, metrics, model_type, y_test, y_pred, top_features, target, original_shape, clean_shape
+):
     """Build a plain-language interpretation of ML training results."""
     lines = []
 
     if task == "classification":
         acc = metrics.get("accuracy", 0)
-        f1 = metrics.get("f1", metrics.get("f1_weighted", 0))
+        metrics.get("f1", metrics.get("f1_weighted", 0))
 
         # Baseline comparison
         from collections import Counter
+
         class_counts = Counter(y_test)
         majority_pct = max(class_counts.values()) / len(y_test) if len(y_test) > 0 else 0
         lift = acc - majority_pct
@@ -215,17 +219,19 @@ def _build_training_interpretation(task, metrics, model_type, y_test, y_pred,
         # Class imbalance
         if majority_pct > 0.8:
             minority = class_counts.most_common()[-1]
-            lines.append(f"⚠ Class imbalance: '{minority[0]}' is only {minority[1]/len(y_test):.0%} of the data. F1 score is more reliable than accuracy here.")
+            lines.append(
+                f"⚠ Class imbalance: '{minority[0]}' is only {minority[1] / len(y_test):.0%} of the data. F1 score is more reliable than accuracy here."
+            )
 
     elif task == "regression":
         r2 = metrics.get("r2", 0)
         rmse = metrics.get("rmse", 0)
 
         y_range = float(np.ptp(y_test)) if len(y_test) > 0 else 1
-        y_mean = float(np.mean(y_test)) if len(y_test) > 0 else 0
+        float(np.mean(y_test)) if len(y_test) > 0 else 0
         rmse_pct = rmse / y_range * 100 if y_range > 0 else 0
 
-        lines.append(f"Your {model_type} predicts '{target}' with R²={r2:.3f} (explains {r2*100:.0f}% of variation).")
+        lines.append(f"Your {model_type} predicts '{target}' with R²={r2:.3f} (explains {r2 * 100:.0f}% of variation).")
         lines.append(f"Average prediction error: ±{rmse:.4f} ({rmse_pct:.0f}% of data range).")
 
         if r2 >= 0.8:
@@ -233,7 +239,9 @@ def _build_training_interpretation(task, metrics, model_type, y_test, y_pred,
         elif r2 >= 0.5:
             lines.append("Moderate fit. Useful for identifying trends, but predictions have notable uncertainty.")
         elif r2 >= 0.2:
-            lines.append("Weak fit. The model captures some patterns but misses most variation. Try adding more features.")
+            lines.append(
+                "Weak fit. The model captures some patterns but misses most variation. Try adding more features."
+            )
         else:
             lines.append("⚠ Very weak fit. These features may not meaningfully predict the target.")
 
@@ -243,7 +251,9 @@ def _build_training_interpretation(task, metrics, model_type, y_test, y_pred,
         removed = orig_rows - clean_rows
         pct = removed / orig_rows * 100
         if pct > 20:
-            lines.append(f"⚠ Triage removed {removed} rows ({pct:.0f}%). This may bias the model if removed rows differ systematically.")
+            lines.append(
+                f"⚠ Triage removed {removed} rows ({pct:.0f}%). This may bias the model if removed rows differ systematically."
+            )
         else:
             lines.append(f"Triage cleaned {removed} rows ({pct:.0f}% of data).")
 
@@ -279,7 +289,9 @@ def _build_retrain_interpretation(task, metrics, old_metrics, comparison, model_
         elif delta > -0.02:
             lines.append("Model performance is stable. The new data is consistent with previous training data.")
         else:
-            lines.append("⚠ Model degraded. Possible causes: data distribution shift, data quality issues, or the new data introduces new patterns the model hasn't seen.")
+            lines.append(
+                "⚠ Model degraded. Possible causes: data distribution shift, data quality issues, or the new data introduces new patterns the model hasn't seen."
+            )
     else:
         old_r2 = old_metrics.get("r2", 0)
         new_r2 = metrics.get("r2", 0)
@@ -306,7 +318,8 @@ def _build_retrain_interpretation(task, metrics, old_metrics, comparison, model_
 
 def _compute_subgroup_diagnostics(X_test, y_test, y_pred, feature_info, task):
     """Slice test set by categorical features and report per-segment metrics."""
-    from sklearn.metrics import accuracy_score, f1_score, r2_score, mean_squared_error
+    from sklearn.metrics import accuracy_score, r2_score
+
     results = []
     if not feature_info:
         return results
@@ -335,31 +348,37 @@ def _compute_subgroup_diagnostics(X_test, y_test, y_pred, feature_info, task):
             if n < 5:
                 continue
             yt = y_test[mask]
-            yp = y_pred[mask] if hasattr(y_pred, '__getitem__') else np.array(y_pred)[mask]
+            yp = y_pred[mask] if hasattr(y_pred, "__getitem__") else np.array(y_pred)[mask]
             if task == "classification":
                 val = float(accuracy_score(yt, yp))
             else:
                 val = float(r2_score(yt, yp)) if n > 1 else 0.0
             flag = "warning" if overall_metric and val < overall_metric * 0.85 else "ok"
-            segments.append({
-                "value": str(cat_name), "n": n,
-                "metric": metric_name, "score": round(val, 4), "flag": flag,
-            })
+            segments.append(
+                {
+                    "value": str(cat_name),
+                    "n": n,
+                    "metric": metric_name,
+                    "score": round(val, 4),
+                    "flag": flag,
+                }
+            )
 
         if segments:
-            results.append({
-                "feature": col,
-                "overall": round(overall_metric, 4) if overall_metric else 0,
-                "metric": metric_name,
-                "segments": segments,
-            })
+            results.append(
+                {
+                    "feature": col,
+                    "overall": round(overall_metric, 4) if overall_metric else 0,
+                    "metric": metric_name,
+                    "segments": segments,
+                }
+            )
 
     return results
 
 
 def _compute_threshold_analysis(y_test, model, X_test, class_names=None):
     """Sweep classification thresholds and compute metrics at each."""
-    from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
     if not hasattr(model, "predict_proba"):
         return None
 
@@ -387,17 +406,27 @@ def _compute_threshold_analysis(y_test, model, X_test, class_names=None):
         rec = tp / (tp + fn) if (tp + fn) > 0 else 0
         f1 = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0
         acc = (tp + tn) / len(y_true) if len(y_true) > 0 else 0
-        rows.append({
-            "threshold": t, "tp": tp, "fp": fp, "tn": tn, "fn": fn,
-            "precision": round(prec, 4), "recall": round(rec, 4),
-            "f1": round(f1, 4), "accuracy": round(acc, 4),
-        })
+        rows.append(
+            {
+                "threshold": t,
+                "tp": tp,
+                "fp": fp,
+                "tn": tn,
+                "fn": fn,
+                "precision": round(prec, 4),
+                "recall": round(rec, 4),
+                "f1": round(f1, 4),
+                "accuracy": round(acc, 4),
+            }
+        )
 
     # Find optimal thresholds
     best_f1 = max(rows, key=lambda r: r["f1"])
     best_acc = max(rows, key=lambda r: r["accuracy"])
     # Youden's J = sensitivity + specificity - 1 = recall + (tn/(tn+fp)) - 1
-    best_youden = max(rows, key=lambda r: r["recall"] + (r["tn"] / (r["tn"] + r["fp"]) if (r["tn"] + r["fp"]) > 0 else 0) - 1)
+    best_youden = max(
+        rows, key=lambda r: r["recall"] + (r["tn"] / (r["tn"] + r["fp"]) if (r["tn"] + r["fp"]) > 0 else 0) - 1
+    )
 
     names = class_names or ["0", "1"]
     return {
@@ -451,37 +480,48 @@ def autopilot_clean_train(request):
 
         # Step 1: Triage clean
         df_clean, cleaning_summary = triage_clean_df(df, triage_config)
-        steps.append({
-            "name": "Triage Clean",
-            "status": "completed",
-            "summary": cleaning_summary,
-        })
+        steps.append(
+            {
+                "name": "Triage Clean",
+                "status": "completed",
+                "summary": cleaning_summary,
+            }
+        )
 
         # Step 2: Train model with recipe
-        model, metrics, importances, task, X_test, y_test, y_pred, recipe = \
-            train_with_recipe(df_clean, target)
+        model, metrics, importances, task, X_test, y_test, y_pred, recipe = train_with_recipe(df_clean, target)
 
-        steps.append({
-            "name": "Auto-Train",
-            "status": "completed",
-            "model_type": type(model).__name__,
-            "task": task,
-            "metrics": metrics,
-        })
+        steps.append(
+            {
+                "name": "Auto-Train",
+                "status": "completed",
+                "model_type": type(model).__name__,
+                "task": task,
+                "metrics": metrics,
+            }
+        )
 
         # Step 3: Diagnostic plots
         feature_names = recipe["features"]
         label_map = recipe.get("label_map")
         diag_plots = _build_ml_diagnostics(
-            model, X_test, y_test, y_pred, feature_names, task,
-            label_map=label_map, model_name=type(model).__name__,
+            model,
+            X_test,
+            y_test,
+            y_pred,
+            feature_names,
+            task,
+            label_map=label_map,
+            model_name=type(model).__name__,
         )
 
-        steps.append({
-            "name": "Diagnostics",
-            "status": "completed",
-            "plot_count": len(diag_plots),
-        })
+        steps.append(
+            {
+                "name": "Diagnostics",
+                "status": "completed",
+                "plot_count": len(diag_plots),
+            }
+        )
 
         # Bayesian model beliefs
         X_full, y_full, _ = _clean_for_ml(df_clean, target)
@@ -512,14 +552,19 @@ def autopilot_clean_train(request):
                 recipe["threshold_analysis"] = ta_ct
 
         model_key = str(uuid.uuid4())
-        cache_model(request.user.id, model_key, model, {
-            "model_type": type(model).__name__,
-            "metrics": metrics,
-            "features": feature_names,
-            "target": target,
-            "training_config": recipe,
-            "data_lineage": data_lineage,
-        })
+        cache_model(
+            request.user.id,
+            model_key,
+            model,
+            {
+                "model_type": type(model).__name__,
+                "metrics": metrics,
+                "features": feature_names,
+                "target": target,
+                "training_config": recipe,
+                "data_lineage": data_lineage,
+            },
+        )
 
         saved_model = save_model_to_disk(
             user=request.user,
@@ -538,14 +583,18 @@ def autopilot_clean_train(request):
         # Synara evidence
         if project_id:
             _create_ml_evidence(
-                request.user, project_id, type(model).__name__,
-                metrics, importances, task, target,
+                request.user,
+                project_id,
+                type(model).__name__,
+                metrics,
+                importances,
+                task,
+                target,
             )
 
         elapsed = time.time() - start
 
-        primary_metric = metrics.get("accuracy") or metrics.get("r2", "N/A")
-        metric_name = "Accuracy" if task == "classification" else "R²"
+        metrics.get("accuracy") or metrics.get("r2", "N/A")
 
         result_data = {
             "pipeline": "clean_train",
@@ -570,10 +619,7 @@ def autopilot_clean_train(request):
 
         response = {
             "result_id": result_id,
-            "pipeline_stages": [
-                {"name": s["name"], "success": s.get("status") == "completed"}
-                for s in steps
-            ],
+            "pipeline_stages": [{"name": s["name"], "success": s.get("status") == "completed"} for s in steps],
             "cleaning": cleaning_summary,
             "model_type": type(model).__name__,
             "task": task,
@@ -587,12 +633,22 @@ def autopilot_clean_train(request):
             "confidence_gauge": belief_result["gauge_plot"],
             "permutation_plot": belief_result.get("permutation_plot"),
             "interpretation": _build_training_interpretation(
-                task, metrics, type(model).__name__, y_test, y_pred,
-                importances[:5] if importances else [], target,
-                original_shape, list(df_clean.shape),
+                task,
+                metrics,
+                type(model).__name__,
+                y_test,
+                y_pred,
+                importances[:5] if importances else [],
+                target,
+                original_shape,
+                list(df_clean.shape),
             ),
             "subgroup_diagnostics": _compute_subgroup_diagnostics(
-                X_test, y_test, y_pred, recipe.get("feature_info", {}), task,
+                X_test,
+                y_test,
+                y_pred,
+                recipe.get("feature_info", {}),
+                task,
             ),
         }
 
@@ -665,11 +721,13 @@ def autopilot_full_pipeline(request):
 
         # Step 1: Triage clean
         df_clean, cleaning_summary = triage_clean_df(df, triage_config)
-        steps.append({
-            "name": "Triage Clean",
-            "status": "completed",
-            "summary": cleaning_summary,
-        })
+        steps.append(
+            {
+                "name": "Triage Clean",
+                "status": "completed",
+                "summary": cleaning_summary,
+            }
+        )
 
         # Step 2: Model comparison
         feature_names = [c for c in df_clean.columns if c != target]
@@ -691,7 +749,9 @@ def autopilot_full_pipeline(request):
 
             roster = {
                 "RandomForest": RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1),
-                "LogisticRegression": Pipeline([("scaler", StandardScaler()), ("lr", LogisticRegression(max_iter=500, random_state=42))]),
+                "LogisticRegression": Pipeline(
+                    [("scaler", StandardScaler()), ("lr", LogisticRegression(max_iter=500, random_state=42))]
+                ),
                 "LDA": LinearDiscriminantAnalysis(),
                 "GaussianNB": GaussianNB(),
             }
@@ -700,7 +760,11 @@ def autopilot_full_pipeline(request):
         else:
             from sklearn.ensemble import RandomForestRegressor
             from sklearn.linear_model import (
-                BayesianRidge, ElasticNet, Lasso, LinearRegression, Ridge,
+                BayesianRidge,
+                ElasticNet,
+                Lasso,
+                LinearRegression,
+                Ridge,
             )
 
             roster = {
@@ -717,6 +781,7 @@ def autopilot_full_pipeline(request):
         # Try adding XGBoost/LightGBM
         try:
             import xgboost as xgb
+
             if task_type == "classification":
                 roster["XGBoost"] = xgb.XGBClassifier(n_estimators=100, random_state=42, verbosity=0)
             else:
@@ -725,6 +790,7 @@ def autopilot_full_pipeline(request):
             pass
         try:
             import lightgbm as lgb
+
             if task_type == "classification":
                 roster["LightGBM"] = lgb.LGBMClassifier(n_estimators=100, random_state=42, verbosity=-1)
             else:
@@ -737,8 +803,12 @@ def autopilot_full_pipeline(request):
         for name, model_obj in roster.items():
             try:
                 cv_results = cross_validate(
-                    model_obj, X, y, cv=min(cv_folds, len(X)),
-                    scoring=scoring, return_train_score=True,
+                    model_obj,
+                    X,
+                    y,
+                    cv=min(cv_folds, len(X)),
+                    scoring=scoring,
+                    return_train_score=True,
                 )
                 row = {"model": name}
                 for metric_key in scoring:
@@ -756,27 +826,34 @@ def autopilot_full_pipeline(request):
         best_name = best_row["model"]
         best_model_obj = roster[best_name]
 
-        steps.append({
-            "name": "Model Compare",
-            "status": "completed",
-            "models_tested": len(comparison),
-            "best_model": best_name,
-            "comparison": comparison,
-        })
+        steps.append(
+            {
+                "name": "Model Compare",
+                "status": "completed",
+                "models_tested": len(comparison),
+                "best_model": best_name,
+                "comparison": comparison,
+            }
+        )
 
         # Step 3: Train best model on full train set
         from sklearn.model_selection import train_test_split
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42
-        )
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         best_model_obj.fit(X_train, y_train)
         y_pred = best_model_obj.predict(X_test)
 
         # Compute metrics
         from sklearn.metrics import (
-            accuracy_score, f1_score, mean_squared_error, r2_score,
-            matthews_corrcoef, brier_score_loss, average_precision_score,
+            accuracy_score,
+            average_precision_score,
+            brier_score_loss,
+            f1_score,
+            matthews_corrcoef,
+            mean_squared_error,
+            r2_score,
         )
+
         if task_type == "classification":
             metrics = {
                 "accuracy": float(accuracy_score(y_test, y_pred)),
@@ -801,13 +878,21 @@ def autopilot_full_pipeline(request):
         importances = []
         if hasattr(best_model_obj, "feature_importances_"):
             for i, imp in enumerate(best_model_obj.feature_importances_):
-                importances.append({"feature": feature_names[i] if i < len(feature_names) else f"f{i}", "importance": float(imp)})
+                importances.append(
+                    {"feature": feature_names[i] if i < len(feature_names) else f"f{i}", "importance": float(imp)}
+                )
             importances.sort(key=lambda x: x["importance"], reverse=True)
 
         # Diagnostic plots
         diag_plots = _build_ml_diagnostics(
-            best_model_obj, X_test, y_test, y_pred, feature_names, task_type,
-            label_map=label_map, model_name=best_name,
+            best_model_obj,
+            X_test,
+            y_test,
+            y_pred,
+            feature_names,
+            task_type,
+            label_map=label_map,
+            model_name=best_name,
         )
         all_plots.extend(diag_plots)
 
@@ -823,8 +908,8 @@ def autopilot_full_pipeline(request):
             if isinstance(best_model_obj, SkPipeline):
                 # Transform test data through all steps except the final estimator
                 shap_X_test = best_model_obj[:-1].transform(X_test)
-                if hasattr(shap_X_test, 'values'):
-                    shap_X_test = pd.DataFrame(shap_X_test, columns=feature_names[:shap_X_test.shape[1]])
+                if hasattr(shap_X_test, "values"):
+                    shap_X_test = pd.DataFrame(shap_X_test, columns=feature_names[: shap_X_test.shape[1]])
                 shap_model = best_model_obj[-1]  # final estimator
 
             if hasattr(shap_model, "predict"):
@@ -839,44 +924,53 @@ def autopilot_full_pipeline(request):
                 # Normalize shape: SHAP can return list, 3D array, or 2D array
                 if isinstance(shap_values, list):
                     shap_values = shap_values[1] if len(shap_values) > 1 else shap_values[0]
-                elif hasattr(shap_values, 'ndim') and shap_values.ndim == 3:
+                elif hasattr(shap_values, "ndim") and shap_values.ndim == 3:
                     # (n_samples, n_features, n_classes) — take last class for binary
                     shap_values = shap_values[:, :, -1]
 
                 # SHAP importance bar chart
                 mean_abs = np.abs(shap_values).mean(axis=0)
                 sorted_idx = np.argsort(mean_abs)[::-1][:15]
-                shap_plots.append({
-                    "title": "SHAP Feature Importance",
-                    "data": [{
-                        "type": "bar",
-                        "x": [float(mean_abs[i]) for i in sorted_idx],
-                        "y": [feature_names[i] if i < len(feature_names) else f"f{i}" for i in sorted_idx],
-                        "orientation": "h",
-                        "marker": {"color": "rgba(74, 159, 110, 0.7)"},
-                    }],
-                    "layout": {"yaxis": {"autorange": "reversed"}, "xaxis": {"title": "Mean |SHAP|"}},
-                })
+                shap_plots.append(
+                    {
+                        "title": "SHAP Feature Importance",
+                        "data": [
+                            {
+                                "type": "bar",
+                                "x": [float(mean_abs[i]) for i in sorted_idx],
+                                "y": [feature_names[i] if i < len(feature_names) else f"f{i}" for i in sorted_idx],
+                                "orientation": "h",
+                                "marker": {"color": "rgba(74, 159, 110, 0.7)"},
+                            }
+                        ],
+                        "layout": {"yaxis": {"autorange": "reversed"}, "xaxis": {"title": "Mean |SHAP|"}},
+                    }
+                )
 
                 all_plots.extend(shap_plots)
 
-                steps.append({
-                    "name": "SHAP Explain",
-                    "status": "completed",
-                    "plot_count": len(shap_plots),
-                })
+                steps.append(
+                    {
+                        "name": "SHAP Explain",
+                        "status": "completed",
+                        "plot_count": len(shap_plots),
+                    }
+                )
         except Exception as e:
             logger.warning(f"SHAP explain skipped: {e}")
-            steps.append({
-                "name": "SHAP Explain",
-                "status": "skipped",
-                "reason": str(e),
-            })
+            steps.append(
+                {
+                    "name": "SHAP Explain",
+                    "status": "skipped",
+                    "reason": str(e),
+                }
+            )
 
         # Step 5: Optuna tuning
         tuning_result = None
         try:
             import optuna
+
             optuna.logging.set_verbosity(optuna.logging.WARNING)
 
             def objective(trial):
@@ -916,6 +1010,7 @@ def autopilot_full_pipeline(request):
                     return best_row.get(f"test_{primary_score}_mean", 0)
 
                 from sklearn.model_selection import cross_val_score
+
                 scores = cross_val_score(m, X, y, cv=min(cv_folds, len(X)), scoring=primary_score)
                 return float(scores.mean())
 
@@ -962,26 +1057,29 @@ def autopilot_full_pipeline(request):
 
                 tuning_result["tuned_metrics"] = metrics
 
-            steps.append({
-                "name": "Hyperparameter Tune",
-                "status": "completed",
-                "result": tuning_result,
-            })
+            steps.append(
+                {
+                    "name": "Hyperparameter Tune",
+                    "status": "completed",
+                    "result": tuning_result,
+                }
+            )
 
         except Exception as e:
-            steps.append({
-                "name": "Hyperparameter Tune",
-                "status": "skipped",
-                "reason": str(e),
-            })
+            steps.append(
+                {
+                    "name": "Hyperparameter Tune",
+                    "status": "skipped",
+                    "reason": str(e),
+                }
+            )
 
         # Save final model
         result_id = f"dsw_{uuid.uuid4().hex[:8]}"
         # Convert label_map keys to strings for JSON serialization
         json_label_map = None
         if label_map:
-            json_label_map = {str(k): int(v) if isinstance(v, (int, np.integer)) else v
-                              for k, v in label_map.items()}
+            json_label_map = {str(k): int(v) if isinstance(v, (int, np.integer)) else v for k, v in label_map.items()}
 
         training_config = {
             "features": feature_names,
@@ -1016,14 +1114,19 @@ def autopilot_full_pipeline(request):
                 training_config["threshold_analysis"] = ta_fp
 
         model_key = str(uuid.uuid4())
-        cache_model(request.user.id, model_key, best_model_obj, {
-            "model_type": type(best_model_obj).__name__,
-            "metrics": metrics,
-            "features": feature_names,
-            "target": target,
-            "training_config": training_config,
-            "data_lineage": data_lineage,
-        })
+        cache_model(
+            request.user.id,
+            model_key,
+            best_model_obj,
+            {
+                "model_type": type(best_model_obj).__name__,
+                "metrics": metrics,
+                "features": feature_names,
+                "target": target,
+                "training_config": training_config,
+                "data_lineage": data_lineage,
+            },
+        )
 
         saved_model = save_model_to_disk(
             user=request.user,
@@ -1041,21 +1144,29 @@ def autopilot_full_pipeline(request):
 
         if project_id:
             _create_ml_evidence(
-                request.user, project_id, type(best_model_obj).__name__,
-                metrics, importances, task_type, target,
+                request.user,
+                project_id,
+                type(best_model_obj).__name__,
+                metrics,
+                importances,
+                task_type,
+                target,
             )
 
         # Bayesian model beliefs
         belief_result = _bayesian_model_beliefs(
-            metrics, X, y, importances, task_type,
+            metrics,
+            X,
+            y,
+            importances,
+            task_type,
             model=best_model_obj,
             cv_std=best_row.get(f"test_{primary_score}_std"),
         )
 
         elapsed = time.time() - start
 
-        primary_metric = metrics.get("accuracy") or metrics.get("r2", "N/A")
-        metric_name = "Accuracy" if task_type == "classification" else "R²"
+        metrics.get("accuracy") or metrics.get("r2", "N/A")
 
         result_data = {
             "pipeline": "full_pipeline",
@@ -1082,18 +1193,33 @@ def autopilot_full_pipeline(request):
 
         response = {
             "result_id": result_id,
-            "pipeline_stages": [
-                {"name": s["name"], "success": s.get("status") == "completed"}
-                for s in steps
-            ],
+            "pipeline_stages": [{"name": s["name"], "success": s.get("status") == "completed"} for s in steps],
             "cleaning": cleaning_summary,
             "comparison": comparison,
             "tuning": tuning_result,
             "model_type": type(best_model_obj).__name__,
             "task": task_type,
             "metrics": metrics,
-            "shap_plots": [p for p in all_plots if "SHAP" in (p.get("title") or p.get("layout", {}).get("title", {}).get("text", "") if isinstance(p.get("layout", {}).get("title"), dict) else p.get("layout", {}).get("title", ""))],
-            "plots": [p for p in all_plots if "SHAP" not in (p.get("title") or p.get("layout", {}).get("title", {}).get("text", "") if isinstance(p.get("layout", {}).get("title"), dict) else p.get("layout", {}).get("title", ""))],
+            "shap_plots": [
+                p
+                for p in all_plots
+                if "SHAP"
+                in (
+                    p.get("title") or p.get("layout", {}).get("title", {}).get("text", "")
+                    if isinstance(p.get("layout", {}).get("title"), dict)
+                    else p.get("layout", {}).get("title", "")
+                )
+            ],
+            "plots": [
+                p
+                for p in all_plots
+                if "SHAP"
+                not in (
+                    p.get("title") or p.get("layout", {}).get("title", {}).get("text", "")
+                    if isinstance(p.get("layout", {}).get("title"), dict)
+                    else p.get("layout", {}).get("title", "")
+                )
+            ],
             "recipe": training_config,
             "saved_model_id": str(saved_model.id) if saved_model else None,
             "model_confidence": belief_result["model_confidence"],
@@ -1102,12 +1228,22 @@ def autopilot_full_pipeline(request):
             "confidence_gauge": belief_result["gauge_plot"],
             "permutation_plot": belief_result.get("permutation_plot"),
             "interpretation": _build_training_interpretation(
-                task_type, metrics, type(best_model_obj).__name__, y_test, y_pred,
-                importances[:5] if importances else [], target,
-                original_shape, list(df_clean.shape),
+                task_type,
+                metrics,
+                type(best_model_obj).__name__,
+                y_test,
+                y_pred,
+                importances[:5] if importances else [],
+                target,
+                original_shape,
+                list(df_clean.shape),
             ),
             "subgroup_diagnostics": _compute_subgroup_diagnostics(
-                X_test, y_test, y_pred, training_config.get("feature_info", {}), task_type,
+                X_test,
+                y_test,
+                y_pred,
+                training_config.get("feature_info", {}),
+                task_type,
             ),
         }
 
@@ -1164,37 +1300,48 @@ def autopilot_augment_train(request):
 
         # Step 1: Forge augment
         augmented_df, forge_report = forge_augment_df(df, n_synthetic)
-        steps.append({
-            "name": "Forge Augment",
-            "status": "completed",
-            "report": forge_report,
-        })
+        steps.append(
+            {
+                "name": "Forge Augment",
+                "status": "completed",
+                "report": forge_report,
+            }
+        )
 
         # Step 2: Train on augmented data
-        model, metrics, importances, task, X_test, y_test, y_pred, recipe = \
-            train_with_recipe(augmented_df, target)
+        model, metrics, importances, task, X_test, y_test, y_pred, recipe = train_with_recipe(augmented_df, target)
 
-        steps.append({
-            "name": "Auto-Train",
-            "status": "completed",
-            "model_type": type(model).__name__,
-            "task": task,
-            "metrics": metrics,
-        })
+        steps.append(
+            {
+                "name": "Auto-Train",
+                "status": "completed",
+                "model_type": type(model).__name__,
+                "task": task,
+                "metrics": metrics,
+            }
+        )
 
         # Step 3: Diagnostics
         feature_names = recipe["features"]
         label_map = recipe.get("label_map")
         diag_plots = _build_ml_diagnostics(
-            model, X_test, y_test, y_pred, feature_names, task,
-            label_map=label_map, model_name=type(model).__name__,
+            model,
+            X_test,
+            y_test,
+            y_pred,
+            feature_names,
+            task,
+            label_map=label_map,
+            model_name=type(model).__name__,
         )
 
-        steps.append({
-            "name": "Diagnostics",
-            "status": "completed",
-            "plot_count": len(diag_plots),
-        })
+        steps.append(
+            {
+                "name": "Diagnostics",
+                "status": "completed",
+                "plot_count": len(diag_plots),
+            }
+        )
 
         # Bayesian model beliefs
         X_full, y_full, _ = _clean_for_ml(augmented_df, target)
@@ -1226,14 +1373,19 @@ def autopilot_augment_train(request):
                 recipe["threshold_analysis"] = ta_at
 
         model_key = str(uuid.uuid4())
-        cache_model(request.user.id, model_key, model, {
-            "model_type": type(model).__name__,
-            "metrics": metrics,
-            "features": feature_names,
-            "target": target,
-            "training_config": recipe,
-            "data_lineage": data_lineage,
-        })
+        cache_model(
+            request.user.id,
+            model_key,
+            model,
+            {
+                "model_type": type(model).__name__,
+                "metrics": metrics,
+                "features": feature_names,
+                "target": target,
+                "training_config": recipe,
+                "data_lineage": data_lineage,
+            },
+        )
 
         saved_model = save_model_to_disk(
             user=request.user,
@@ -1251,14 +1403,18 @@ def autopilot_augment_train(request):
 
         if project_id:
             _create_ml_evidence(
-                request.user, project_id, type(model).__name__,
-                metrics, importances, task, target,
+                request.user,
+                project_id,
+                type(model).__name__,
+                metrics,
+                importances,
+                task,
+                target,
             )
 
         elapsed = time.time() - start
 
-        primary_metric = metrics.get("accuracy") or metrics.get("r2", "N/A")
-        metric_name = "Accuracy" if task == "classification" else "R²"
+        metrics.get("accuracy") or metrics.get("r2", "N/A")
 
         result_data = {
             "pipeline": "augment_train",
@@ -1284,10 +1440,7 @@ def autopilot_augment_train(request):
 
         response = {
             "result_id": result_id,
-            "pipeline_stages": [
-                {"name": s["name"], "success": s.get("status") == "completed"}
-                for s in steps
-            ],
+            "pipeline_stages": [{"name": s["name"], "success": s.get("status") == "completed"} for s in steps],
             "augmentation": forge_report,
             "model_type": type(model).__name__,
             "task": task,
@@ -1301,12 +1454,22 @@ def autopilot_augment_train(request):
             "confidence_gauge": belief_result["gauge_plot"],
             "permutation_plot": belief_result.get("permutation_plot"),
             "interpretation": _build_training_interpretation(
-                task, metrics, type(model).__name__, y_test, y_pred,
-                importances[:5] if importances else [], target,
-                original_shape, list(augmented_df.shape),
+                task,
+                metrics,
+                type(model).__name__,
+                y_test,
+                y_pred,
+                importances[:5] if importances else [],
+                target,
+                original_shape,
+                list(augmented_df.shape),
             ),
             "subgroup_diagnostics": _compute_subgroup_diagnostics(
-                X_test, y_test, y_pred, recipe.get("feature_info", {}), task,
+                X_test,
+                y_test,
+                y_pred,
+                recipe.get("feature_info", {}),
+                task,
             ),
         }
 
@@ -1344,7 +1507,6 @@ def retrain_model(request, model_id):
         return JsonResponse({"error": "No training recipe found for this model"}, status=400)
 
     try:
-        import pickle
         from pathlib import Path
 
         start = time.time()
@@ -1356,7 +1518,9 @@ def retrain_model(request, model_id):
         elif saved.data_lineage and saved.data_lineage.get("data_path"):
             data_path = Path(saved.data_lineage["data_path"])
             if not data_path.exists():
-                return JsonResponse({"error": "Original training data no longer available. Upload new data."}, status=400)
+                return JsonResponse(
+                    {"error": "Original training data no longer available. Upload new data."}, status=400
+                )
             df = _read_csv_safe(data_path)
             data_source = str(data_path)
         else:
@@ -1381,15 +1545,22 @@ def retrain_model(request, model_id):
             forge_applied = True
 
         # Train
-        model, metrics, importances, task, X_test, y_test, y_pred, new_recipe = \
-            train_with_recipe(df, target, config={"task_type": recipe.get("task_type")})
+        model, metrics, importances, task, X_test, y_test, y_pred, new_recipe = train_with_recipe(
+            df, target, config={"task_type": recipe.get("task_type")}
+        )
 
         # Diagnostic plots
         feature_names = new_recipe["features"]
         label_map = new_recipe.get("label_map")
         diag_plots = _build_ml_diagnostics(
-            model, X_test, y_test, y_pred, feature_names, task,
-            label_map=label_map, model_name=type(model).__name__,
+            model,
+            X_test,
+            y_test,
+            y_pred,
+            feature_names,
+            task,
+            label_map=label_map,
+            model_name=type(model).__name__,
         )
 
         # Save as new version
@@ -1419,14 +1590,19 @@ def retrain_model(request, model_id):
         project_id = saved.project_id or request.POST.get("project_id")
 
         model_key = str(uuid.uuid4())
-        cache_model(request.user.id, model_key, model, {
-            "model_type": type(model).__name__,
-            "metrics": metrics,
-            "features": feature_names,
-            "target": target,
-            "training_config": new_recipe,
-            "data_lineage": data_lineage,
-        })
+        cache_model(
+            request.user.id,
+            model_key,
+            model,
+            {
+                "model_type": type(model).__name__,
+                "metrics": metrics,
+                "features": feature_names,
+                "target": target,
+                "training_config": new_recipe,
+                "data_lineage": data_lineage,
+            },
+        )
 
         new_saved = save_model_to_disk(
             user=request.user,
@@ -1445,8 +1621,13 @@ def retrain_model(request, model_id):
 
         if project_id:
             _create_ml_evidence(
-                request.user, str(project_id), type(model).__name__,
-                metrics, importances, task, target,
+                request.user,
+                str(project_id),
+                type(model).__name__,
+                metrics,
+                importances,
+                task,
+                target,
             )
 
         elapsed = time.time() - start
@@ -1501,9 +1682,15 @@ def retrain_model(request, model_id):
             "plots": diag_plots,
             "version": new_saved.version if new_saved else saved.version + 1,
             "saved_model_id": str(new_saved.id) if new_saved else None,
-            "interpretation": _build_retrain_interpretation(task, metrics, old_metrics, comparison, type(model).__name__, target),
+            "interpretation": _build_retrain_interpretation(
+                task, metrics, old_metrics, comparison, type(model).__name__, target
+            ),
             "subgroup_diagnostics": _compute_subgroup_diagnostics(
-                X_test, y_test, y_pred, new_recipe.get("feature_info", {}), task,
+                X_test,
+                y_test,
+                y_pred,
+                new_recipe.get("feature_info", {}),
+                task,
             ),
         }
 

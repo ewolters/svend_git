@@ -2,7 +2,6 @@
 
 from ._datasets import SHARED_DATASET  # noqa: F401
 
-
 CASE_CLINICAL_TRIAL = {
     "id": "case-clinical-trial",
     "title": "Case: Clinical Trial Analysis",
@@ -13,7 +12,7 @@ CASE_CLINICAL_TRIAL = {
             "Compare ITT vs per-protocol response rates",
             "Assess the impact of 21% vs 9% dropout rates",
             "Run a sensitivity analysis with different dropout assumptions",
-            "Evaluate the unplanned subgroup analysis for severe vs mild disease"
+            "Evaluate the unplanned subgroup analysis for severe vs mild disease",
         ],
         "dsw_type": "stats:ttest",
         "dsw_config": {"var1": "diameter_mm", "mu": 25.0},
@@ -108,7 +107,7 @@ Tempting to conclude "drug works for severe patients." But:
             "show_dropout_impact": True,
             "compare_itt_pp": True,
             "allow_subgroup_analysis": True,
-        }
+        },
     },
     "key_takeaways": [
         "ITT analysis preserves randomization; PP analysis shows efficacy in compliers",
@@ -121,14 +120,14 @@ Tempting to conclude "drug works for severe patients." But:
         {
             "question": "If we only analyze completers and find a bigger effect, is that good news for the drug?",
             "answer": "Not necessarily. Completers in the drug group may be systematically different (healthier, more tolerant of side effects) from completers in placebo group. The comparison is no longer randomized. The larger effect could be selection bias, not drug efficacy.",
-            "hint": "What kind of person completes despite side effects?"
+            "hint": "What kind of person completes despite side effects?",
         },
         {
             "question": "The subgroup analysis suggests the drug works for severe but not mild disease. What would you tell the company?",
             "answer": "This finding is exploratory, not confirmatory. It could be a chance finding (multiple comparisons). The interaction test should be performed. A new trial specifically in severe patients would be needed to confirm. They should NOT claim efficacy only in severe patients based on this.",
-            "hint": "Was this subgroup analysis prespecified?"
-        }
-    ]
+            "hint": "Was this subgroup analysis prespecified?",
+        },
+    ],
 }
 
 
@@ -143,7 +142,7 @@ CASE_AB_TEST = {
             "Examine the week-over-week trend for novelty effects",
             "Break down results by new vs returning users",
             "Check the sample ratio mismatch diagnostic",
-            "Draft your recommendation: ship, iterate, or kill"
+            "Draft your recommendation: ship, iterate, or kill",
         ],
         "dsw_type": "stats:descriptive",
         "dsw_config": {},
@@ -262,7 +261,7 @@ Recommendation: Ship the change, but monitor metrics for the next month to confi
             "show_novelty_detection": True,
             "show_segment_breakdown": True,
             "show_sample_ratio_check": True,
-        }
+        },
     },
     "key_takeaways": [
         "Revenue per user is usually the right primary metric",
@@ -275,13 +274,13 @@ Recommendation: Ship the change, but monitor metrics for the next month to confi
         {
             "question": "Conversion is up 9.4% but AOV is down 3.5%. Should we ship the new design?",
             "answer": "Look at revenue per user: $2.87 vs $2.72 = +5.5%. Net positive, so probably ship. But investigate WHY AOV dropped - are we attracting lower-value customers or just converting customers who would have bought less anyway?",
-            "hint": "What metric captures the full picture?"
+            "hint": "What metric captures the full picture?",
         },
         {
             "question": "Week 1 showed +26% lift but week 4 showed +3%. Which is the true effect?",
             "answer": "Week 4 is closer to the true long-term effect. Week 1 was inflated by novelty (users exploring the new design). Ideally, run longer and wait for stabilization. The 9.4% overall is an overestimate.",
-            "hint": "What causes the decay pattern?"
-        }
+            "hint": "What causes the decay pattern?",
+        },
     ],
     "tool_steps": [
         {
@@ -300,8 +299,18 @@ Recommendation: Ship the change, but monitor metrics for the next month to confi
                     {"name": "order_value", "type": "numeric", "mean": 85, "std": 30},
                 ],
                 "injections": [
-                    {"type": "mean_shift", "column": "converted", "condition": {"column": "variant", "equals": "treatment"}, "shift": 0.003},
-                    {"type": "mean_shift", "column": "order_value", "condition": {"column": "variant", "equals": "treatment"}, "shift": -3},
+                    {
+                        "type": "mean_shift",
+                        "column": "converted",
+                        "condition": {"column": "variant", "equals": "treatment"},
+                        "shift": 0.003,
+                    },
+                    {
+                        "type": "mean_shift",
+                        "column": "order_value",
+                        "condition": {"column": "variant", "equals": "treatment"},
+                        "shift": -3,
+                    },
                 ],
             },
             "editable_fields": ["n_rows"],
@@ -385,7 +394,7 @@ CASE_MANUFACTURING = {
             "Correlate the timing with potential causes",
             "Compare Machine #3 output to other machines",
             "Calculate Cp and Cpk after the fix",
-            "Set up ongoing monitoring with Western Electric rules"
+            "Set up ongoing monitoring with Western Electric rules",
         ],
         "dsw_type": "spc:capability",
         "dsw_config": {"var": "diameter_mm", "lsl": 24.85, "usl": 25.15, "target": 25.0},
@@ -503,12 +512,12 @@ Current status:
         {
             "question": "After fixing Machine #3, the process shows Cp=1.45 but Cpk=0.95. What does this tell you and what action is needed?",
             "answer": "Cp=1.45 means the process spread is well within spec limits (process is capable in terms of variability). But Cpk=0.95 (less than 1.33) means the process is off-center — the mean is shifted toward one spec limit. Action: adjust the process mean to center it within the specification. Once centered, Cpk should approach Cp, and both will be above 1.33.",
-            "hint": "Cp measures spread, Cpk measures spread + centering"
+            "hint": "Cp measures spread, Cpk measures spread + centering",
         },
         {
             "question": "Your control chart shows 7 consecutive points above the centerline but all within control limits. Is the process in control?",
             "answer": "No — this violates the Western Electric run rule (7+ consecutive points on one side of the centerline indicates a non-random pattern). Even though individual points are within control limits, the run signals a small but persistent shift in the process mean. Investigate what changed. Don't wait for a point to exceed the control limits.",
-            "hint": "Western Electric rules detect non-random patterns even within control limits"
+            "hint": "Western Electric rules detect non-random patterns even within control limits",
         },
     ],
     "tool_steps": [
@@ -527,8 +536,18 @@ Current status:
                     {"name": "diameter_mm", "type": "numeric", "mean": 10.002, "std": 0.012},
                 ],
                 "injections": [
-                    {"type": "mean_shift", "column": "diameter_mm", "condition": {"column": "day", "gte": 8}, "shift": 0.016},
-                    {"type": "variance_increase", "column": "diameter_mm", "condition": {"column": "day", "gte": 8}, "factor": 1.75},
+                    {
+                        "type": "mean_shift",
+                        "column": "diameter_mm",
+                        "condition": {"column": "day", "gte": 8},
+                        "shift": 0.016,
+                    },
+                    {
+                        "type": "variance_increase",
+                        "column": "diameter_mm",
+                        "condition": {"column": "day", "gte": 8},
+                        "factor": 1.75,
+                    },
                 ],
             },
             "editable_fields": [],
@@ -560,11 +579,26 @@ Current status:
             "action": "add_chain_step",
             "config": {
                 "steps": [
-                    {"why": "Why did defect rate increase?", "because": "Widget diameters shifted above spec (mean 10.018 vs 10.002)"},
-                    {"why": "Why did diameters shift?", "because": "Machine #3 was producing oversized widgets after Tuesday maintenance"},
-                    {"why": "Why was Machine #3 out of calibration?", "because": "Recalibration during maintenance introduced a systematic offset"},
-                    {"why": "Why wasn't the calibration error caught?", "because": "No post-maintenance verification run was performed"},
-                    {"why": "Why is there no post-maintenance verification?", "because": "Maintenance procedure lacks a mandatory verification step with control chart check"},
+                    {
+                        "why": "Why did defect rate increase?",
+                        "because": "Widget diameters shifted above spec (mean 10.018 vs 10.002)",
+                    },
+                    {
+                        "why": "Why did diameters shift?",
+                        "because": "Machine #3 was producing oversized widgets after Tuesday maintenance",
+                    },
+                    {
+                        "why": "Why was Machine #3 out of calibration?",
+                        "because": "Recalibration during maintenance introduced a systematic offset",
+                    },
+                    {
+                        "why": "Why wasn't the calibration error caught?",
+                        "because": "No post-maintenance verification run was performed",
+                    },
+                    {
+                        "why": "Why is there no post-maintenance verification?",
+                        "because": "Maintenance procedure lacks a mandatory verification step with control chart check",
+                    },
                 ],
             },
             "editable_fields": [],
@@ -653,7 +687,7 @@ CASE_OBSERVATIONAL = {
             "List measured and unmeasured confounders",
             "Evaluate the dose-response relationship",
             "Check the decaf finding for mechanistic clues",
-            "Write a one-paragraph calibrated conclusion"
+            "Write a one-paragraph calibrated conclusion",
         ],
         "dsw_type": "stats:regression",
         "dsw_config": {"response": "diameter_mm", "predictors": ["weight_g", "roughness_ra"]},
@@ -782,14 +816,12 @@ If caffeine is the mechanism, decaf shouldn't help.
         {
             "question": "The study adjusts for 15 confounders (smoking, BMI, exercise, etc.) and the association persists. Does this prove causation?",
             "answer": "No. Adjustment for measured confounders doesn't rule out unmeasured confounders. There could be health-conscious behaviors not captured in the 15 variables (sleep quality, stress management, social connections). Also, residual confounding exists even for measured variables — BMI and exercise are measured imprecisely. The persistence after adjustment strengthens the association but doesn't establish causation.",
-            "hint": "You can only adjust for what you measure, and even that's imperfect"
+            "hint": "You can only adjust for what you measure, and even that's imperfect",
         },
         {
             "question": "How would you design a study that COULD establish whether coffee causes longer life?",
             "answer": "The gold standard would be a randomized controlled trial: randomly assign people to drink coffee vs not, follow for decades, measure mortality. This is practically impossible (decades of compliance, ethical concerns about forcing/prohibiting coffee). Pragmatic alternatives: (1) Mendelian randomization using genetic variants that affect coffee metabolism as instruments, (2) long-term randomized trial with a shorter-term biomarker proxy, (3) triangulation across multiple natural experiments with different sources of bias.",
-            "hint": "What study design eliminates confounding by definition?"
+            "hint": "What study design eliminates confounding by definition?",
         },
-    ]
+    ],
 }
-
-

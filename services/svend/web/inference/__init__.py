@@ -1,10 +1,10 @@
 """Inference bridge to Cognition-Typed Qwen pipeline."""
 
 from .pipeline import (
-    get_pipeline,
-    process_query,
     CognitionPipelineManager,
     InferenceResult,
+    get_pipeline,
+    process_query,
 )
 
 __all__ = [

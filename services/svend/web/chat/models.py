@@ -1,6 +1,7 @@
 """Chat models for conversations and messages."""
 
 import uuid
+
 from django.conf import settings
 from django.db import models
 
@@ -381,7 +382,7 @@ class TrainingCandidate(models.Model):
                 "difficulty": self.difficulty,
                 "source": "production_candidate",
                 "candidate_id": str(self.id),
-            }
+            },
         }
 
 

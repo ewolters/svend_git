@@ -35,8 +35,7 @@ import hashlib
 import json
 import logging
 import uuid
-from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any
 
 from django.db import models
 from django.utils import timezone
@@ -72,7 +71,7 @@ class SynaraEntityManager(models.Manager):
         """Return only soft-deleted records."""
         return super().get_queryset().filter(is_deleted=True)
 
-    def for_tenant(self, tenant_id: "UUID"):
+    def for_tenant(self, tenant_id: UUID):
         """Filter queryset for specific tenant (SEC-001 §5.2)."""
         return self.get_queryset().filter(tenant_id=tenant_id)
 
@@ -83,6 +82,7 @@ class SynaraEntityAllManager(models.Manager):
 
     Use when you need to query deleted records explicitly.
     """
+
     pass
 
 
@@ -115,12 +115,7 @@ class SynaraEntity(models.Model):
     # PRIMARY KEY
     # =========================================================================
 
-    id = models.UUIDField(
-        primary_key=True,
-        default=uuid.uuid4,
-        editable=False,
-        help_text="Primary key (UUID v4)"
-    )
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, help_text="Primary key (UUID v4)")
 
     # =========================================================================
     # CORRELATION TRACKING (CTG-001 §5)
@@ -131,14 +126,11 @@ class SynaraEntity(models.Model):
         unique=True,
         db_index=True,
         editable=False,
-        help_text="Unique correlation ID for CTG tracing (CTG-001 §5)"
+        help_text="Unique correlation ID for CTG tracing (CTG-001 §5)",
     )
 
     parent_correlation_id = models.UUIDField(
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="Parent entity correlation ID for causal chain (CTG-001 §5)"
+        null=True, blank=True, db_index=True, help_text="Parent entity correlation ID for causal chain (CTG-001 §5)"
     )
 
     # =========================================================================
@@ -149,70 +141,38 @@ class SynaraEntity(models.Model):
         db_index=True,
         null=True,
         blank=True,
-        help_text="Tenant ID for multi-tenant isolation (SEC-001 §5.2). Null for system-wide entities."
+        help_text="Tenant ID for multi-tenant isolation (SEC-001 §5.2). Null for system-wide entities.",
     )
 
     # =========================================================================
     # AUDIT TIMESTAMPS (AUD-001)
     # =========================================================================
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="Record creation timestamp (AUD-001)"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="Record creation timestamp (AUD-001)")
 
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        help_text="Last modification timestamp (AUD-001)"
-    )
+    updated_at = models.DateTimeField(auto_now=True, help_text="Last modification timestamp (AUD-001)")
 
-    created_by = models.CharField(
-        max_length=255,
-        blank=True,
-        default="",
-        help_text="User ID who created this record"
-    )
+    created_by = models.CharField(max_length=255, blank=True, default="", help_text="User ID who created this record")
 
     updated_by = models.CharField(
-        max_length=255,
-        blank=True,
-        default="",
-        help_text="User ID who last modified this record"
+        max_length=255, blank=True, default="", help_text="User ID who last modified this record"
     )
 
     # =========================================================================
     # SOFT DELETE (DAT-001 §9)
     # =========================================================================
 
-    is_deleted = models.BooleanField(
-        default=False,
-        db_index=True,
-        help_text="Soft delete flag (DAT-001 §9)"
-    )
+    is_deleted = models.BooleanField(default=False, db_index=True, help_text="Soft delete flag (DAT-001 §9)")
 
-    deleted_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Deletion timestamp (DAT-001 §9)"
-    )
+    deleted_at = models.DateTimeField(null=True, blank=True, help_text="Deletion timestamp (DAT-001 §9)")
 
-    deleted_by = models.CharField(
-        max_length=255,
-        blank=True,
-        default="",
-        help_text="User ID who deleted this record"
-    )
+    deleted_by = models.CharField(max_length=255, blank=True, default="", help_text="User ID who deleted this record")
 
     # =========================================================================
     # EXTENSIBILITY (MOD-001 §10)
     # =========================================================================
 
-    metadata = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Extensible metadata (MOD-001 §10)"
-    )
+    metadata = models.JSONField(default=dict, blank=True, help_text="Extensible metadata (MOD-001 §10)")
 
     # =========================================================================
     # MANAGERS
@@ -237,10 +197,11 @@ class SynaraEntity(models.Model):
                 lifecycle_states = ['draft', 'submitted', 'approved', 'paid']
                 terminal_states = ['paid', 'denied', 'voided']
         """
+
         event_domain: str = ""
-        emit_events: List[str] = []
-        lifecycle_states: List[str] = []
-        terminal_states: List[str] = []
+        emit_events: list[str] = []
+        lifecycle_states: list[str] = []
+        terminal_states: list[str] = []
         require_governance: bool = False
 
     # =========================================================================
@@ -308,11 +269,11 @@ class SynaraEntity(models.Model):
     # EVENT EMISSION (EVT-001)
     # =========================================================================
 
-    def _get_synara_meta(self) -> Type["SynaraEntity.SynaraMeta"]:
+    def _get_synara_meta(self) -> type[SynaraEntity.SynaraMeta]:
         """Get SynaraMeta from class or parent."""
         return getattr(self.__class__, "SynaraMeta", SynaraEntity.SynaraMeta)
 
-    def _emit_event(self, action: str, payload: Optional[Dict[str, Any]] = None):
+    def _emit_event(self, action: str, payload: dict[str, Any] | None = None):
         """
         Emit domain event through Synara event system.
 
@@ -348,7 +309,7 @@ class SynaraEntity(models.Model):
                     "event_name": event_name,
                     "correlation_id": str(self.correlation_id),
                     "tenant_id": str(self.tenant_id),
-                }
+                },
             )
         except ImportError:
             # Kernel not available, log locally
@@ -358,12 +319,12 @@ class SynaraEntity(models.Model):
                     "event_name": event_name,
                     "payload": event_payload,
                     "correlation_id": str(self.correlation_id),
-                }
+                },
             )
         except Exception as e:
             logger.warning(f"Failed to emit event {event_name}: {e}")
 
-    def _build_event_payload(self, action: str) -> Dict[str, Any]:
+    def _build_event_payload(self, action: str) -> dict[str, Any]:
         """
         Build standard event payload.
 
@@ -380,7 +341,7 @@ class SynaraEntity(models.Model):
             "timestamp": timezone.now().isoformat(),
         }
 
-    def emit_event(self, action: str, payload: Optional[Dict[str, Any]] = None):
+    def emit_event(self, action: str, payload: dict[str, Any] | None = None):
         """
         Public method to emit custom events.
 
@@ -395,10 +356,10 @@ class SynaraEntity(models.Model):
 
     def create_ctg_edge(
         self,
-        child_correlation_id: "UUID",
+        child_correlation_id: UUID,
         causal_type: str = "causal",
-        event_name: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        event_name: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ):
         """
         Create a CTG edge to a child entity.
@@ -427,7 +388,7 @@ class SynaraEntity(models.Model):
         except Exception as e:
             logger.warning(f"Failed to create CTG edge: {e}")
 
-    def get_causal_parents(self) -> List["UUID"]:
+    def get_causal_parents(self) -> list[UUID]:
         """
         Get all parent correlation IDs from CTG.
 
@@ -444,7 +405,7 @@ class SynaraEntity(models.Model):
         except ImportError:
             return []
 
-    def get_causal_children(self) -> List["UUID"]:
+    def get_causal_children(self) -> list[UUID]:
         """
         Get all child correlation IDs from CTG.
 
@@ -465,7 +426,7 @@ class SynaraEntity(models.Model):
     # UTILITY METHODS
     # =========================================================================
 
-    def to_dict(self, include_metadata: bool = True) -> Dict[str, Any]:
+    def to_dict(self, include_metadata: bool = True) -> dict[str, Any]:
         """
         Serialize entity to dictionary.
 
@@ -506,11 +467,9 @@ class SynaraRegistryManager(models.Manager):
         """Include inactive registry entries."""
         return super().get_queryset()
 
-    def for_tenant(self, tenant_id: "UUID"):
+    def for_tenant(self, tenant_id: UUID):
         """Filter for specific tenant."""
-        return self.get_queryset().filter(
-            models.Q(tenant_id=tenant_id) | models.Q(tenant_id__isnull=True)
-        )
+        return self.get_queryset().filter(models.Q(tenant_id=tenant_id) | models.Q(tenant_id__isnull=True))
 
 
 class SynaraRegistry(models.Model):
@@ -548,72 +507,37 @@ class SynaraRegistry(models.Model):
     # REGISTRY IDENTIFICATION
     # =========================================================================
 
-    code = models.CharField(
-        max_length=100,
-        db_index=True,
-        help_text="Unique code (e.g., 'submitted', 'approved')"
-    )
+    code = models.CharField(max_length=100, db_index=True, help_text="Unique code (e.g., 'submitted', 'approved')")
 
-    label = models.CharField(
-        max_length=255,
-        help_text="Display label for UI"
-    )
+    label = models.CharField(max_length=255, help_text="Display label for UI")
 
-    description = models.TextField(
-        blank=True,
-        default="",
-        help_text="Detailed description"
-    )
+    description = models.TextField(blank=True, default="", help_text="Detailed description")
 
     # =========================================================================
     # DISPLAY & ORDERING
     # =========================================================================
 
-    display_order = models.PositiveIntegerField(
-        default=0,
-        db_index=True,
-        help_text="UI display order (lower = first)"
-    )
+    display_order = models.PositiveIntegerField(default=0, db_index=True, help_text="UI display order (lower = first)")
 
     icon = models.CharField(
-        max_length=50,
-        blank=True,
-        default="",
-        help_text="Icon name for UI (e.g., 'check', 'clock')"
+        max_length=50, blank=True, default="", help_text="Icon name for UI (e.g., 'check', 'clock')"
     )
 
-    color = models.CharField(
-        max_length=7,
-        blank=True,
-        default="",
-        help_text="Hex color for UI (e.g., '#4CAF50')"
-    )
+    color = models.CharField(max_length=7, blank=True, default="", help_text="Hex color for UI (e.g., '#4CAF50')")
 
     # =========================================================================
     # TENANT ISOLATION
     # =========================================================================
 
-    tenant_id = models.UUIDField(
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="Tenant ID (null for global entries)"
-    )
+    tenant_id = models.UUIDField(null=True, blank=True, db_index=True, help_text="Tenant ID (null for global entries)")
 
     # =========================================================================
     # LIFECYCLE
     # =========================================================================
 
-    is_active = models.BooleanField(
-        default=True,
-        db_index=True,
-        help_text="Active entries appear in dropdowns"
-    )
+    is_active = models.BooleanField(default=True, db_index=True, help_text="Active entries appear in dropdowns")
 
-    is_system = models.BooleanField(
-        default=False,
-        help_text="System entries cannot be deleted by users"
-    )
+    is_system = models.BooleanField(default=False, help_text="System entries cannot be deleted by users")
 
     # =========================================================================
     # AUDIT
@@ -626,11 +550,7 @@ class SynaraRegistry(models.Model):
     # EXTENSIBILITY
     # =========================================================================
 
-    metadata = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Additional configuration"
-    )
+    metadata = models.JSONField(default=dict, blank=True, help_text="Additional configuration")
 
     # =========================================================================
     # MANAGERS
@@ -663,7 +583,7 @@ class SynaraRegistry(models.Model):
         self.save(update_fields=["is_active", "updated_at"])
 
     @classmethod
-    def get_by_code(cls, code: str, tenant_id: Optional["UUID"] = None):
+    def get_by_code(cls, code: str, tenant_id: UUID | None = None):
         """
         Get registry entry by code.
 
@@ -685,7 +605,7 @@ class SynaraRegistry(models.Model):
             raise cls.DoesNotExist(f"Registry entry '{code}' not found")
 
     @classmethod
-    def get_choices(cls, tenant_id: Optional["UUID"] = None) -> List[tuple]:
+    def get_choices(cls, tenant_id: UUID | None = None) -> list[tuple]:
         """
         Get choices for Django form/serializer fields.
 
@@ -693,12 +613,10 @@ class SynaraRegistry(models.Model):
         """
         qs = cls.objects.all()
         if tenant_id:
-            qs = qs.filter(
-                models.Q(tenant_id=tenant_id) | models.Q(tenant_id__isnull=True)
-            )
+            qs = qs.filter(models.Q(tenant_id=tenant_id) | models.Q(tenant_id__isnull=True))
         return list(qs.values_list("code", "label"))
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize for API response."""
         return {
             "id": str(self.id),
@@ -757,17 +675,11 @@ class SynaraImmutableLog(models.Model):
     # =========================================================================
 
     correlation_id = models.UUIDField(
-        default=uuid.uuid4,
-        db_index=True,
-        editable=False,
-        help_text="Correlation ID for tracing"
+        default=uuid.uuid4, db_index=True, editable=False, help_text="Correlation ID for tracing"
     )
 
     parent_correlation_id = models.UUIDField(
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="Parent entity correlation ID"
+        null=True, blank=True, db_index=True, help_text="Parent entity correlation ID"
     )
 
     # =========================================================================
@@ -775,95 +687,50 @@ class SynaraImmutableLog(models.Model):
     # =========================================================================
 
     tenant_id = models.UUIDField(
-        db_index=True,
-        null=True,
-        blank=True,
-        help_text="Tenant ID (SEC-001 §5.2). Null for system-wide logs."
+        db_index=True, null=True, blank=True, help_text="Tenant ID (SEC-001 §5.2). Null for system-wide logs."
     )
 
     # =========================================================================
     # AUDIT CONTEXT
     # =========================================================================
 
-    event_name = models.CharField(
-        max_length=255,
-        db_index=True,
-        help_text="Event name (EVT-001 format)"
-    )
+    event_name = models.CharField(max_length=255, db_index=True, help_text="Event name (EVT-001 format)")
 
-    actor = models.CharField(
-        max_length=255,
-        default="system",
-        help_text="User or system that performed the action"
-    )
+    actor = models.CharField(max_length=255, default="system", help_text="User or system that performed the action")
 
-    actor_ip = models.GenericIPAddressField(
-        null=True,
-        blank=True,
-        help_text="IP address of actor"
-    )
+    actor_ip = models.GenericIPAddressField(null=True, blank=True, help_text="IP address of actor")
 
     # =========================================================================
     # PAYLOAD
     # =========================================================================
 
-    before_snapshot = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="State before change"
-    )
+    before_snapshot = models.JSONField(default=dict, blank=True, help_text="State before change")
 
-    after_snapshot = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="State after change"
-    )
+    after_snapshot = models.JSONField(default=dict, blank=True, help_text="State after change")
 
-    changes = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Delta of changes"
-    )
+    changes = models.JSONField(default=dict, blank=True, help_text="Delta of changes")
 
-    reason = models.TextField(
-        blank=True,
-        default="",
-        help_text="Reason for change"
-    )
+    reason = models.TextField(blank=True, default="", help_text="Reason for change")
 
-    metadata = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Additional context"
-    )
+    metadata = models.JSONField(default=dict, blank=True, help_text="Additional context")
 
     # =========================================================================
     # INTEGRITY (21 CFR Part 11)
     # =========================================================================
 
     entry_hash = models.CharField(
-        max_length=64,
-        db_index=True,
-        editable=False,
-        help_text="SHA-256 hash of entry content"
+        max_length=64, db_index=True, editable=False, help_text="SHA-256 hash of entry content"
     )
 
     previous_hash = models.CharField(
-        max_length=64,
-        blank=True,
-        default="",
-        help_text="Hash of previous entry (chain link)"
+        max_length=64, blank=True, default="", help_text="Hash of previous entry (chain link)"
     )
 
     # =========================================================================
     # TIMESTAMP
     # =========================================================================
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="Immutable creation timestamp"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="Immutable creation timestamp")
 
     class Meta:
         abstract = True
@@ -894,8 +761,7 @@ class SynaraImmutableLog(models.Model):
         Per 21 CFR Part 11: Audit records cannot be deleted.
         """
         raise PermissionError(
-            f"{self.__class__.__name__} records are immutable audit artifacts "
-            "and cannot be deleted. See AUD-001."
+            f"{self.__class__.__name__} records are immutable audit artifacts and cannot be deleted. See AUD-001."
         )
 
     def _compute_hash_chain(self):
@@ -905,9 +771,7 @@ class SynaraImmutableLog(models.Model):
         Links this entry to the previous entry in the chain.
         """
         # Get previous entry for this tenant
-        previous = self.__class__.objects.filter(
-            tenant_id=self.tenant_id
-        ).order_by("-created_at").first()
+        previous = self.__class__.objects.filter(tenant_id=self.tenant_id).order_by("-created_at").first()
 
         if previous:
             self.previous_hash = previous.entry_hash
@@ -946,7 +810,7 @@ class SynaraImmutableLog(models.Model):
         return self.entry_hash == expected_hash
 
     @classmethod
-    def verify_chain(cls, tenant_id: "UUID", limit: int = 1000) -> Dict[str, Any]:
+    def verify_chain(cls, tenant_id: UUID, limit: int = 1000) -> dict[str, Any]:
         """
         Verify hash chain integrity for a tenant.
 
@@ -968,17 +832,21 @@ class SynaraImmutableLog(models.Model):
 
             # Verify entry hash
             if not entry.verify_integrity():
-                failures.append({
-                    "entry_id": str(entry.id),
-                    "error": "entry_hash_mismatch",
-                })
+                failures.append(
+                    {
+                        "entry_id": str(entry.id),
+                        "error": "entry_hash_mismatch",
+                    }
+                )
 
             # Verify chain link
             if entry.previous_hash != previous_hash:
-                failures.append({
-                    "entry_id": str(entry.id),
-                    "error": "chain_link_broken",
-                })
+                failures.append(
+                    {
+                        "entry_id": str(entry.id),
+                        "error": "chain_link_broken",
+                    }
+                )
 
             previous_hash = entry.entry_hash
 

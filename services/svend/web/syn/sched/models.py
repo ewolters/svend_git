@@ -21,15 +21,12 @@ Models:
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
 import uuid
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
-from django.db import models, transaction
-
+from django.db import models
 from django.utils import timezone
 
 from syn.core.base_models import SynaraEntity
@@ -46,7 +43,6 @@ from syn.sched.types import (
     TaskContext,
     TaskPriority,
     TaskState,
-    TenantQuota,
     get_cascade_limit,
 )
 
@@ -340,11 +336,7 @@ class CognitiveTask(SynaraEntity):
 
         Formula: (confidence * 0.3) + (urgency * 0.4) + ((1 - governance_risk) * 0.3)
         """
-        self.priority_score = (
-            self.confidence_score * 0.3
-            + self.urgency * 0.4
-            + (1 - self.governance_risk) * 0.3
-        )
+        self.priority_score = self.confidence_score * 0.3 + self.urgency * 0.4 + (1 - self.governance_risk) * 0.3
 
     # =========================================================================
     # State Transitions (SCH-001 §task_states)
@@ -363,10 +355,7 @@ class CognitiveTask(SynaraEntity):
         Returns True if transition succeeded.
         """
         if not self.can_transition_to(new_state):
-            logger.warning(
-                f"Invalid state transition: {self.state} -> {new_state.value} "
-                f"for task {self.id}"
-            )
+            logger.warning(f"Invalid state transition: {self.state} -> {new_state.value} for task {self.id}")
             return False
 
         old_state = self.state
@@ -408,7 +397,7 @@ class CognitiveTask(SynaraEntity):
     # Retry Logic (SCH-002 §retry_strategies)
     # =========================================================================
 
-    def schedule_retry(self) -> Optional[datetime]:
+    def schedule_retry(self) -> datetime | None:
         """
         Schedule next retry attempt per SCH-002 §12.
 
@@ -479,19 +468,19 @@ class CognitiveTask(SynaraEntity):
         cls,
         tenant_id: uuid.UUID,
         task_name: str,
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
         priority: TaskPriority = TaskPriority.NORMAL,
         queue: QueueType = QueueType.CORE,
-        correlation_id: Optional[uuid.UUID] = None,
-        parent_task: Optional["CognitiveTask"] = None,
+        correlation_id: uuid.UUID | None = None,
+        parent_task: CognitiveTask | None = None,
         urgency: float = 0.5,
         confidence_score: float = 1.0,
         governance_risk: float = 0.0,
-        deadline: Optional[datetime] = None,
+        deadline: datetime | None = None,
         timeout_seconds: int = 60,
         retry_strategy: RetryStrategy = RetryStrategy.EXPONENTIAL,
         max_attempts: int = 3,
-    ) -> "CognitiveTask":
+    ) -> CognitiveTask:
         """
         Factory method to create a new cognitive task.
 
@@ -510,8 +499,7 @@ class CognitiveTask(SynaraEntity):
             limit = get_cascade_limit(cascade_depth)
             if limit == 0:
                 raise ValueError(
-                    f"Cascade depth {cascade_depth} exceeds maximum "
-                    f"allowed depth {CASCADE_BUDGET['max_depth']}"
+                    f"Cascade depth {cascade_depth} exceeds maximum allowed depth {CASCADE_BUDGET['max_depth']}"
                 )
 
         task = cls(
@@ -659,15 +647,13 @@ class TaskExecution(SynaraEntity):
         self,
         success: bool,
         result: Any = None,
-        error_message: Optional[str] = None,
-        error_type: Optional[str] = None,
-        error_traceback: Optional[str] = None,
+        error_message: str | None = None,
+        error_type: str | None = None,
+        error_traceback: str | None = None,
     ) -> None:
         """Mark execution as complete."""
         self.completed_at = timezone.now()
-        self.duration_ms = int(
-            (self.completed_at - self.started_at).total_seconds() * 1000
-        )
+        self.duration_ms = int((self.completed_at - self.started_at).total_seconds() * 1000)
         self.is_success = success
         self.result = result
         self.error_message = error_message
@@ -824,12 +810,9 @@ class Schedule(SynaraEntity):
     @property
     def cron_expression(self) -> str:
         """Get full cron expression."""
-        return (
-            f"{self.cron_minute} {self.cron_hour} {self.cron_day_of_month} "
-            f"{self.cron_month} {self.cron_day_of_week}"
-        )
+        return f"{self.cron_minute} {self.cron_hour} {self.cron_day_of_month} {self.cron_month} {self.cron_day_of_week}"
 
-    def calculate_next_run(self, from_time: Optional[datetime] = None) -> Optional[datetime]:
+    def calculate_next_run(self, from_time: datetime | None = None) -> datetime | None:
         """Calculate next run time based on schedule type."""
         from_time = from_time or timezone.now()
 
@@ -846,6 +829,7 @@ class Schedule(SynaraEntity):
         if self.schedule_type == ScheduleType.CRON.value:
             try:
                 from croniter import croniter
+
                 cron_expr = self.cron_expression
                 cron = croniter(cron_expr, from_time)
                 return cron.get_next(datetime)
@@ -886,7 +870,7 @@ class Schedule(SynaraEntity):
         task_name: str,
         cron: CronSchedule,
         **kwargs,
-    ) -> "Schedule":
+    ) -> Schedule:
         """Create a cron-based schedule."""
         schedule = cls(
             tenant_id=tenant_id,
@@ -914,7 +898,7 @@ class Schedule(SynaraEntity):
         task_name: str,
         interval: IntervalSchedule,
         **kwargs,
-    ) -> "Schedule":
+    ) -> Schedule:
         """Create an interval-based schedule."""
         schedule = cls(
             tenant_id=tenant_id,
@@ -1062,7 +1046,7 @@ class DeadLetterEntry(SynaraEntity):
         cls,
         task: CognitiveTask,
         failure_reason: str,
-    ) -> "DeadLetterEntry":
+    ) -> DeadLetterEntry:
         """Create DLQ entry from a failed task."""
         # Get last execution for error details
         last_execution = task.executions.order_by("-attempt_number").first()
@@ -1090,7 +1074,7 @@ class DeadLetterEntry(SynaraEntity):
 
         return entry
 
-    def reprocess(self, modified_payload: Optional[Dict[str, Any]] = None) -> CognitiveTask:
+    def reprocess(self, modified_payload: dict[str, Any] | None = None) -> CognitiveTask:
         """
         Create a new task from this DLQ entry for reprocessing.
 
@@ -1266,7 +1250,7 @@ class CircuitBreakerState(SynaraEntity):
             else:
                 self.save()
 
-    def can_execute(self) -> Tuple[bool, str]:
+    def can_execute(self) -> tuple[bool, str]:
         """
         Check if execution is allowed through this circuit.
 
@@ -1278,9 +1262,7 @@ class CircuitBreakerState(SynaraEntity):
         if self.state == CircuitState.OPEN.value:
             # Check if recovery timeout has passed
             if self.opened_at:
-                recovery_time = self.opened_at + timedelta(
-                    seconds=self.recovery_timeout_seconds
-                )
+                recovery_time = self.opened_at + timedelta(seconds=self.recovery_timeout_seconds)
                 if timezone.now() >= recovery_time:
                     self._half_open_circuit()
                     return True, "Circuit half-open (testing)"
@@ -1341,8 +1323,8 @@ class CircuitBreakerState(SynaraEntity):
     def get_or_create_for_service(
         cls,
         service_name: str,
-        config: Optional[CircuitBreakerConfig] = None,
-    ) -> "CircuitBreakerState":
+        config: CircuitBreakerConfig | None = None,
+    ) -> CircuitBreakerState:
         """Get or create circuit breaker state for a service."""
         config = config or CircuitBreakerConfig()
 

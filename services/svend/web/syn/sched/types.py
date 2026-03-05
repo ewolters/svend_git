@@ -11,12 +11,11 @@ Version:      1.0.0
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional
-import uuid
-
+from typing import Any
 
 # =============================================================================
 # TASK STATE (SCH-001 §core_concepts)
@@ -55,7 +54,7 @@ class TaskState(str, Enum):
         return self in (TaskState.RUNNING, TaskState.RETRYING)
 
     @classmethod
-    def valid_transitions(cls) -> Dict["TaskState", List["TaskState"]]:
+    def valid_transitions(cls) -> dict[TaskState, list[TaskState]]:
         """Valid state transitions."""
         return {
             cls.PENDING: [cls.SCHEDULED, cls.CANCELLED],
@@ -162,6 +161,7 @@ class RetryConfig:
 
         if self.jitter:
             import random
+
             jitter_factor = random.uniform(0.5, 1.5)
             delay = delay * jitter_factor
 
@@ -284,7 +284,7 @@ class CronSchedule:
         return f"{self.minute} {self.hour} {self.day_of_month} {self.month} {self.day_of_week}"
 
     @classmethod
-    def from_expression(cls, expr: str) -> "CronSchedule":
+    def from_expression(cls, expr: str) -> CronSchedule:
         """Parse cron expression string."""
         parts = expr.strip().split()
         if len(parts) != 5:
@@ -298,22 +298,22 @@ class CronSchedule:
         )
 
     @classmethod
-    def every_hour(cls) -> "CronSchedule":
+    def every_hour(cls) -> CronSchedule:
         """Run every hour at minute 0."""
         return cls(minute="0")
 
     @classmethod
-    def every_minute(cls) -> "CronSchedule":
+    def every_minute(cls) -> CronSchedule:
         """Run every minute."""
         return cls()
 
     @classmethod
-    def daily_at(cls, hour: int, minute: int = 0) -> "CronSchedule":
+    def daily_at(cls, hour: int, minute: int = 0) -> CronSchedule:
         """Run daily at specified time."""
         return cls(minute=str(minute), hour=str(hour))
 
     @classmethod
-    def weekdays_at(cls, hour: int, minute: int = 0) -> "CronSchedule":
+    def weekdays_at(cls, hour: int, minute: int = 0) -> CronSchedule:
         """Run on weekdays (Mon-Fri) at specified time."""
         return cls(minute=str(minute), hour=str(hour), day_of_week="1-5")
 
@@ -334,12 +334,7 @@ class IntervalSchedule:
     @property
     def total_seconds(self) -> int:
         """Total interval in seconds."""
-        return (
-            self.seconds
-            + self.minutes * 60
-            + self.hours * 3600
-            + self.days * 86400
-        )
+        return self.seconds + self.minutes * 60 + self.hours * 3600 + self.days * 86400
 
     @property
     def as_timedelta(self) -> timedelta:
@@ -366,15 +361,15 @@ class TaskContext:
     # Identity
     task_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     correlation_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    tenant_id: Optional[str] = None
+    tenant_id: str | None = None
 
     # Lineage
-    root_correlation_id: Optional[str] = None
-    parent_task_id: Optional[str] = None
+    root_correlation_id: str | None = None
+    parent_task_id: str | None = None
     cascade_depth: int = 0
 
     # Cognitive attributes
-    reflex_source: Optional[str] = None
+    reflex_source: str | None = None
     confidence_score: float = 1.0
     urgency: float = 0.5
     governance_risk: float = 0.0
@@ -385,8 +380,8 @@ class TaskContext:
 
     # Timing
     created_at: datetime = field(default_factory=datetime.utcnow)
-    scheduled_at: Optional[datetime] = None
-    deadline: Optional[datetime] = None
+    scheduled_at: datetime | None = None
+    deadline: datetime | None = None
 
     # Execution tracking
     attempts: int = 0
@@ -405,11 +400,7 @@ class TaskContext:
         Score formula: (confidence * 0.3) + (urgency * 0.4) + ((1 - governance_risk) * 0.3)
         Higher score = higher priority.
         """
-        self.priority_score = (
-            self.confidence_score * 0.3
-            + self.urgency * 0.4
-            + (1 - self.governance_risk) * 0.3
-        )
+        self.priority_score = self.confidence_score * 0.3 + self.urgency * 0.4 + (1 - self.governance_risk) * 0.3
 
     def increment_attempt(self) -> None:
         """Increment attempt counter."""
@@ -427,7 +418,7 @@ class TaskContext:
             return False
         return datetime.utcnow() > self.deadline
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""
         return {
             "task_id": self.task_id,
@@ -450,7 +441,7 @@ class TaskContext:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TaskContext":
+    def from_dict(cls, data: dict[str, Any]) -> TaskContext:
         """Deserialize from dictionary."""
         ctx = cls(
             task_id=data.get("task_id", str(uuid.uuid4())),

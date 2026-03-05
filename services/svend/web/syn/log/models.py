@@ -7,13 +7,11 @@ Compliance: NIST SP 800-53 AU-2, AU-3, AU-9 / ISO 27001 A.12.4.1-4
 
 import uuid
 
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-
 from django.utils import timezone
 
 from syn.core.base_models import SynaraEntity, SynaraImmutableLog
-
 
 # =============================================================================
 # Log Level Constants (LOG-001 §5.2, RFC 5424 aligned)
@@ -69,77 +67,56 @@ class LogStream(SynaraEntity):
     """
 
     id = models.UUIDField(
-        primary_key=True,
-        default=uuid.uuid4,
-        editable=False,
-        help_text="Unique log stream identifier"
+        primary_key=True, default=uuid.uuid4, editable=False, help_text="Unique log stream identifier"
     )
     correlation_id = models.UUIDField(
         default=uuid.uuid4,
         editable=False,
         db_index=True,
-        help_text="Correlation ID for causal trace graph (CTG-001 §5)"
+        help_text="Correlation ID for causal trace graph (CTG-001 §5)",
     )
     name = models.CharField(
         max_length=100,
         unique=True,
         db_index=True,
-        help_text="Unique stream name (e.g., 'application', 'security', 'audit')"
+        help_text="Unique stream name (e.g., 'application', 'security', 'audit')",
     )
-    description = models.TextField(
-        blank=True,
-        help_text="Human-readable description of this log stream"
-    )
+    description = models.TextField(blank=True, help_text="Human-readable description of this log stream")
     tenant_id = models.UUIDField(
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="Tenant identifier for multi-tenant isolation (SEC-001 §5.2)"
+        null=True, blank=True, db_index=True, help_text="Tenant identifier for multi-tenant isolation (SEC-001 §5.2)"
     )
     retention_days = models.PositiveIntegerField(
         default=90,
         validators=[MinValueValidator(1), MaxValueValidator(3650)],
-        help_text="Number of days to retain logs in hot storage"
+        help_text="Number of days to retain logs in hot storage",
     )
     archive_days = models.PositiveIntegerField(
         default=365,
         validators=[MinValueValidator(1), MaxValueValidator(3650)],
-        help_text="Number of days to retain logs in archive storage"
+        help_text="Number of days to retain logs in archive storage",
     )
     min_level = models.CharField(
         max_length=10,
         choices=LOG_LEVEL_CHOICES,
         default="INFO",
-        help_text="Minimum log level to capture for this stream"
+        help_text="Minimum log level to capture for this stream",
     )
     is_aggregation_enabled = models.BooleanField(
-        default=True,
-        help_text="Whether to compute aggregated metrics for this stream"
+        default=True, help_text="Whether to compute aggregated metrics for this stream"
     )
     aggregation_sink = models.CharField(
         max_length=20,
         choices=AGGREGATION_SINK_CHOICES,
         null=True,
         blank=True,
-        help_text="External aggregation sink for this stream"
+        help_text="External aggregation sink for this stream",
     )
-    is_siem_enabled = models.BooleanField(
-        default=False,
-        help_text="Whether to forward logs to SIEM (SEC-002 §8)"
-    )
+    is_siem_enabled = models.BooleanField(default=False, help_text="Whether to forward logs to SIEM (SEC-002 §8)")
     is_active = models.BooleanField(
-        default=True,
-        db_index=True,
-        help_text="Whether this stream is actively accepting logs"
+        default=True, db_index=True, help_text="Whether this stream is actively accepting logs"
     )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="When this stream was created"
-    )
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        help_text="When this stream was last updated"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, help_text="When this stream was created")
+    updated_at = models.DateTimeField(auto_now=True, help_text="When this stream was last updated")
 
     class Meta(SynaraEntity.Meta):
         db_table = "syn_log_stream"
@@ -183,85 +160,47 @@ class LogEntry(SynaraImmutableLog):
     - ISO 27001 A.12.4.1: Event logging
     """
 
-    id = models.UUIDField(
-        primary_key=True,
-        default=uuid.uuid4,
-        editable=False,
-        help_text="Unique log entry identifier"
-    )
-    timestamp = models.DateTimeField(
-        default=timezone.now,
-        db_index=True,
-        help_text="Log event timestamp (UTC)"
-    )
-    level = models.CharField(
-        max_length=10,
-        choices=LOG_LEVEL_CHOICES,
-        db_index=True,
-        help_text="Log severity level"
-    )
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, help_text="Unique log entry identifier")
+    timestamp = models.DateTimeField(default=timezone.now, db_index=True, help_text="Log event timestamp (UTC)")
+    level = models.CharField(max_length=10, choices=LOG_LEVEL_CHOICES, db_index=True, help_text="Log severity level")
     level_numeric = models.SmallIntegerField(
-        db_index=True,
-        help_text="Numeric log level for range queries (10=DEBUG, 50=CRITICAL)"
+        db_index=True, help_text="Numeric log level for range queries (10=DEBUG, 50=CRITICAL)"
     )
     logger = models.CharField(
-        max_length=255,
-        db_index=True,
-        help_text="Logger name (module path, e.g., 'syn.cortex.publisher')"
+        max_length=255, db_index=True, help_text="Logger name (module path, e.g., 'syn.cortex.publisher')"
     )
-    message = models.TextField(
-        help_text="Human-readable log message"
-    )
-    correlation_id = models.UUIDField(
-        db_index=True,
-        help_text="Request/operation correlation ID (CTG-001 §5)"
-    )
+    message = models.TextField(help_text="Human-readable log message")
+    correlation_id = models.UUIDField(db_index=True, help_text="Request/operation correlation ID (CTG-001 §5)")
     tenant_id = models.UUIDField(
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="Tenant identifier for multi-tenant isolation (SEC-001 §5.2)"
+        null=True, blank=True, db_index=True, help_text="Tenant identifier for multi-tenant isolation (SEC-001 §5.2)"
     )
     context = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Structured context (user_id, operation, request_id, etc.)"
+        default=dict, blank=True, help_text="Structured context (user_id, operation, request_id, etc.)"
     )
     metadata = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="System metadata (hostname, process_id, thread_id, etc.)"
+        default=dict, blank=True, help_text="System metadata (hostname, process_id, thread_id, etc.)"
     )
     exception = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="Exception details for error logs (type, message, traceback)"
+        null=True, blank=True, help_text="Exception details for error logs (type, message, traceback)"
     )
     layer = models.SmallIntegerField(
         null=True,
         blank=True,
         db_index=True,
         validators=[MinValueValidator(1), MaxValueValidator(10)],
-        help_text="SBL-001 biological layer (1-10)"
+        help_text="SBL-001 biological layer (1-10)",
     )
     source = models.CharField(
         max_length=20,
         choices=LOG_SOURCE_CHOICES,
         default="application",
         db_index=True,
-        help_text="Log source (application, reflex, primitive)"
+        help_text="Log source (application, reflex, primitive)",
     )
     stream = models.ForeignKey(
-        LogStream,
-        on_delete=models.PROTECT,
-        related_name="entries",
-        help_text="Parent log stream"
+        LogStream, on_delete=models.PROTECT, related_name="entries", help_text="Parent log stream"
     )
-    is_archived = models.BooleanField(
-        default=False,
-        db_index=True,
-        help_text="Archived to cold storage"
-    )
+    is_archived = models.BooleanField(default=False, db_index=True, help_text="Archived to cold storage")
 
     class Meta(SynaraImmutableLog.Meta):
         db_table = "syn_log_entry"
@@ -319,78 +258,44 @@ class LogAlert(SynaraEntity):
     ]
 
     id = models.UUIDField(
-        primary_key=True,
-        default=uuid.uuid4,
-        editable=False,
-        help_text="Unique alert configuration identifier"
+        primary_key=True, default=uuid.uuid4, editable=False, help_text="Unique alert configuration identifier"
     )
     correlation_id = models.UUIDField(
         default=uuid.uuid4,
         editable=False,
         db_index=True,
-        help_text="Correlation ID for causal trace graph (CTG-001 §5)"
+        help_text="Correlation ID for causal trace graph (CTG-001 §5)",
     )
-    name = models.CharField(
-        max_length=100,
-        db_index=True,
-        help_text="Alert configuration name"
-    )
+    name = models.CharField(max_length=100, db_index=True, help_text="Alert configuration name")
     stream = models.ForeignKey(
-        LogStream,
-        on_delete=models.CASCADE,
-        related_name="alerts",
-        help_text="Log stream to monitor"
+        LogStream, on_delete=models.CASCADE, related_name="alerts", help_text="Log stream to monitor"
     )
     level = models.CharField(
-        max_length=10,
-        choices=ALERT_LEVEL_CHOICES,
-        default="ERROR",
-        help_text="Log level to trigger alert"
+        max_length=10, choices=ALERT_LEVEL_CHOICES, default="ERROR", help_text="Log level to trigger alert"
     )
     threshold_count = models.PositiveIntegerField(
-        default=10,
-        validators=[MinValueValidator(1)],
-        help_text="Number of matching logs to trigger alert"
+        default=10, validators=[MinValueValidator(1)], help_text="Number of matching logs to trigger alert"
     )
     threshold_window_minutes = models.PositiveIntegerField(
         default=5,
         validators=[MinValueValidator(1), MaxValueValidator(1440)],
-        help_text="Time window for threshold evaluation (minutes)"
+        help_text="Time window for threshold evaluation (minutes)",
     )
     reflex_event = models.CharField(
-        max_length=100,
-        default="log.alert.triggered",
-        help_text="Reflex event to emit when triggered"
+        max_length=100, default="log.alert.triggered", help_text="Reflex event to emit when triggered"
     )
     cooldown_minutes = models.PositiveIntegerField(
         default=15,
         validators=[MinValueValidator(1), MaxValueValidator(1440)],
-        help_text="Cooldown period between alerts (minutes)"
+        help_text="Cooldown period between alerts (minutes)",
     )
-    is_enabled = models.BooleanField(
-        default=True,
-        db_index=True,
-        help_text="Whether this alert is active"
-    )
+    is_enabled = models.BooleanField(default=True, db_index=True, help_text="Whether this alert is active")
     tenant_id = models.UUIDField(
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="Tenant identifier for multi-tenant isolation (SEC-001 §5.2)"
+        null=True, blank=True, db_index=True, help_text="Tenant identifier for multi-tenant isolation (SEC-001 §5.2)"
     )
-    last_triggered_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="When this alert was last triggered"
-    )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="When this alert was created"
-    )
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        help_text="When this alert was last updated"
-    )
+    last_triggered_at = models.DateTimeField(null=True, blank=True, help_text="When this alert was last triggered")
+    created_at = models.DateTimeField(auto_now_add=True, help_text="When this alert was created")
+    updated_at = models.DateTimeField(auto_now=True, help_text="When this alert was last updated")
 
     class Meta(SynaraEntity.Meta):
         db_table = "syn_log_alert"
@@ -407,13 +312,16 @@ class LogAlert(SynaraEntity):
         emit_events = ["created", "updated", "deleted"]
 
     def __str__(self):
-        return f"{self.name} ({self.stream.name}: {self.level} >= {self.threshold_count}/{self.threshold_window_minutes}m)"
+        return (
+            f"{self.name} ({self.stream.name}: {self.level} >= {self.threshold_count}/{self.threshold_window_minutes}m)"
+        )
 
     def is_in_cooldown(self) -> bool:
         """Check if alert is currently in cooldown period."""
         if not self.last_triggered_at:
             return False
         from datetime import timedelta
+
         cooldown_end = self.last_triggered_at + timedelta(minutes=self.cooldown_minutes)
         return timezone.now() < cooldown_end
 
@@ -435,64 +343,34 @@ class LogMetric(SynaraEntity):
     - TEL-001 §5: Metrics integration
     """
 
-    id = models.UUIDField(
-        primary_key=True,
-        default=uuid.uuid4,
-        editable=False,
-        help_text="Unique metric identifier"
-    )
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, help_text="Unique metric identifier")
     correlation_id = models.UUIDField(
         default=uuid.uuid4,
         editable=False,
         db_index=True,
-        help_text="Correlation ID for causal trace graph (CTG-001 §5)"
+        help_text="Correlation ID for causal trace graph (CTG-001 §5)",
     )
-    bucket_start = models.DateTimeField(
-        db_index=True,
-        help_text="Start of the aggregation bucket"
-    )
+    bucket_start = models.DateTimeField(db_index=True, help_text="Start of the aggregation bucket")
     bucket_duration_minutes = models.PositiveSmallIntegerField(
         default=5,
         validators=[MinValueValidator(1), MaxValueValidator(60)],
-        help_text="Duration of the bucket in minutes"
+        help_text="Duration of the bucket in minutes",
     )
     stream = models.ForeignKey(
-        LogStream,
-        on_delete=models.CASCADE,
-        related_name="metrics",
-        help_text="Log stream for this metric"
+        LogStream, on_delete=models.CASCADE, related_name="metrics", help_text="Log stream for this metric"
     )
     tenant_id = models.UUIDField(
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="Tenant identifier for multi-tenant isolation (SEC-001 §5.2)"
+        null=True, blank=True, db_index=True, help_text="Tenant identifier for multi-tenant isolation (SEC-001 §5.2)"
     )
     logger = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="Logger name (if aggregating per logger)"
+        max_length=255, null=True, blank=True, db_index=True, help_text="Logger name (if aggregating per logger)"
     )
     level = models.CharField(
-        max_length=10,
-        choices=LOG_LEVEL_CHOICES,
-        db_index=True,
-        help_text="Log level for this metric bucket"
+        max_length=10, choices=LOG_LEVEL_CHOICES, db_index=True, help_text="Log level for this metric bucket"
     )
-    count = models.PositiveIntegerField(
-        default=0,
-        help_text="Total log entries in this bucket"
-    )
-    error_count = models.PositiveIntegerField(
-        default=0,
-        help_text="Error-level log entries in this bucket"
-    )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="When this metric was created"
-    )
+    count = models.PositiveIntegerField(default=0, help_text="Total log entries in this bucket")
+    error_count = models.PositiveIntegerField(default=0, help_text="Error-level log entries in this bucket")
+    created_at = models.DateTimeField(auto_now_add=True, help_text="When this metric was created")
 
     class Meta(SynaraEntity.Meta):
         db_table = "syn_log_metric"
@@ -517,6 +395,7 @@ class LogMetric(SynaraEntity):
     def bucket_end(self):
         """Calculate bucket end time."""
         from datetime import timedelta
+
         return self.bucket_start + timedelta(minutes=self.bucket_duration_minutes)
 
     @property
@@ -576,10 +455,7 @@ class RequestMetric(models.Model):
         verbose_name_plural = "Request Metrics"
 
     def __str__(self):
-        return (
-            f"{self.method} {self.path_pattern} {self.status_class} "
-            f"@ {self.bucket_start}: {self.request_count} reqs"
-        )
+        return f"{self.method} {self.path_pattern} {self.status_class} @ {self.bucket_start}: {self.request_count} reqs"
 
     @property
     def avg_duration_ms(self):

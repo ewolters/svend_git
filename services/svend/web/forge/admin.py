@@ -1,7 +1,8 @@
 """Forge admin."""
 
 from django.contrib import admin
-from .models import APIKey, Job, UsageLog, SchemaTemplate
+
+from .models import APIKey, Job, SchemaTemplate, UsageLog
 
 
 @admin.register(APIKey)

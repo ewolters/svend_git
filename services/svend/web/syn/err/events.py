@@ -19,8 +19,7 @@ Event Categories
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
-
+from typing import Any
 
 # =============================================================================
 # EVENT DEFINITIONS (EVT-001 §4)
@@ -33,10 +32,10 @@ class EventDefinition:
 
     name: str
     description: str
-    payload_schema: Dict[str, Any]
+    payload_schema: dict[str, Any]
     category: str
     severity: str = "INFO"
-    compliance_refs: List[str] = field(default_factory=list)
+    compliance_refs: list[str] = field(default_factory=list)
 
 
 # =============================================================================
@@ -559,7 +558,7 @@ RATE_LIMIT_EXCEEDED = EventDefinition(
 # =============================================================================
 
 
-ERR_EVENTS_CATALOG: Dict[str, EventDefinition] = {
+ERR_EVENTS_CATALOG: dict[str, EventDefinition] = {
     # Error events
     "error.logged": ERROR_LOGGED,
     "error.critical": ERROR_CRITICAL,
@@ -581,11 +580,11 @@ ERR_EVENTS_CATALOG: Dict[str, EventDefinition] = {
 }
 
 
-def get_event_definition(event_name: str) -> Optional[EventDefinition]:
+def get_event_definition(event_name: str) -> EventDefinition | None:
     """Get event definition by name."""
     return ERR_EVENTS_CATALOG.get(event_name)
 
 
-def list_event_names() -> List[str]:
+def list_event_names() -> list[str]:
     """List all registered event names."""
     return list(ERR_EVENTS_CATALOG.keys())

@@ -20,9 +20,8 @@ Isolation Benefits:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Optional
 
 
 class ResourceClass(Enum):
@@ -81,7 +80,7 @@ class WorkerConfig:
     default_workers: int = 2
     max_concurrent_per_worker: int = 1
     memory_limit_mb: int = 512
-    cpu_affinity: Optional[list] = None
+    cpu_affinity: list | None = None
     timeout_multiplier: float = 1.0
     process_isolation: bool = True
     recycle_after_tasks: int = 1000
@@ -93,7 +92,7 @@ class WorkerConfig:
 
 
 # Default configurations per resource class (SCH-003 §3.3)
-WORKER_CONFIGS: Dict[ResourceClass, WorkerConfig] = {
+WORKER_CONFIGS: dict[ResourceClass, WorkerConfig] = {
     ResourceClass.CPU_BOUND: WorkerConfig(
         resource_class=ResourceClass.CPU_BOUND,
         min_workers=1,
@@ -162,7 +161,7 @@ def get_worker_config(resource_class: ResourceClass) -> WorkerConfig:
     return WORKER_CONFIGS.get(resource_class, WORKER_CONFIGS[ResourceClass.MIXED])
 
 
-def infer_resource_class(task_name: str, metadata: Optional[dict] = None) -> ResourceClass:
+def infer_resource_class(task_name: str, metadata: dict | None = None) -> ResourceClass:
     """
     Infer resource class from task name and metadata.
 
@@ -190,26 +189,58 @@ def infer_resource_class(task_name: str, metadata: Optional[dict] = None) -> Res
 
     # CPU-bound patterns
     cpu_patterns = [
-        "compute", "process", "transform", "encrypt", "decrypt",
-        "compress", "decompress", "render", "analyze", "calculate",
-        "ml.", "ai.", "matrix", "algorithm"
+        "compute",
+        "process",
+        "transform",
+        "encrypt",
+        "decrypt",
+        "compress",
+        "decompress",
+        "render",
+        "analyze",
+        "calculate",
+        "ml.",
+        "ai.",
+        "matrix",
+        "algorithm",
     ]
     if any(pattern in task_lower for pattern in cpu_patterns):
         return ResourceClass.CPU_BOUND
 
     # IO-bound patterns
     io_patterns = [
-        "fetch", "http", "api", "request", "db.", "query",
-        "database", "file", "upload", "download", "stream",
-        "external", "webhook", "notification", "email", "sms"
+        "fetch",
+        "http",
+        "api",
+        "request",
+        "db.",
+        "query",
+        "database",
+        "file",
+        "upload",
+        "download",
+        "stream",
+        "external",
+        "webhook",
+        "notification",
+        "email",
+        "sms",
     ]
     if any(pattern in task_lower for pattern in io_patterns):
         return ResourceClass.IO_BOUND
 
     # Lightweight patterns
     lightweight_patterns = [
-        "emit", "metric", "log", "cache", "invalidate",
-        "ping", "heartbeat", "health", "status", "counter"
+        "emit",
+        "metric",
+        "log",
+        "cache",
+        "invalidate",
+        "ping",
+        "heartbeat",
+        "health",
+        "status",
+        "counter",
     ]
     if any(pattern in task_lower for pattern in lightweight_patterns):
         return ResourceClass.LIGHTWEIGHT

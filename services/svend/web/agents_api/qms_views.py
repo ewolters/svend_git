@@ -5,15 +5,21 @@ into a single unified health view. Pure computation — no LLM required.
 """
 
 import logging
+
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
+
 from .models import (
+    FMEA,
+    A3Report,
     CAPAReport,
-    FMEA, FMEARow, RCASession, A3Report, ValueStreamMap,
+    FMEARow,
     HoshinProject,
+    RCASession,
+    ValueStreamMap,
 )
 
 logger = logging.getLogger(__name__)
@@ -46,9 +52,7 @@ def qms_dashboard(request):
     # --- RCA ---
     rca_sessions = RCASession.objects.filter(owner=user)
     rca_total = rca_sessions.count()
-    rca_by_status = dict(
-        rca_sessions.values_list("status").annotate(c=Count("id")).values_list("status", "c")
-    )
+    rca_by_status = dict(rca_sessions.values_list("status").annotate(c=Count("id")).values_list("status", "c"))
     # Average chain depth
     rca_active = rca_sessions.exclude(status="draft")
     avg_chain_depth = 0
@@ -62,8 +66,15 @@ def qms_dashboard(request):
     # --- A3 ---
     a3_reports = A3Report.objects.filter(owner=user)
     a3_total = a3_reports.count()
-    a3_sections = ["background", "current_condition", "goal", "root_cause",
-                   "countermeasures", "implementation_plan", "follow_up"]
+    a3_sections = [
+        "background",
+        "current_condition",
+        "goal",
+        "root_cause",
+        "countermeasures",
+        "implementation_plan",
+        "follow_up",
+    ]
     avg_completion = 0
     if a3_total > 0:
         completions = []
@@ -95,6 +106,7 @@ def qms_dashboard(request):
     }
     try:
         from core.models import Membership
+
         membership = Membership.objects.filter(user=user).first()
         if membership:
             hoshin_projects = HoshinProject.objects.filter(site__tenant=membership.tenant)
@@ -106,9 +118,7 @@ def qms_dashboard(request):
                 on_track = active_hp.filter(
                     Q(hoshin_status="active"),
                 ).count()
-                hoshin_data["on_track_pct"] = round(
-                    on_track / max(active_hp.count() + delayed, 1) * 100
-                )
+                hoshin_data["on_track_pct"] = round(on_track / max(active_hp.count() + delayed, 1) * 100)
             # Savings aggregation
             for hp in hoshin_projects:
                 hoshin_data["target_savings"] += float(hp.annual_savings_target or 0)
@@ -122,9 +132,7 @@ def qms_dashboard(request):
     capas = CAPAReport.objects.filter(owner=user)
     capa_total = capas.count()
     capa_open = capas.exclude(status="closed").count()
-    capa_overdue = capas.exclude(status="closed").filter(
-        due_date__lt=__import__("datetime").date.today()
-    ).count()
+    capa_overdue = capas.exclude(status="closed").filter(due_date__lt=__import__("datetime").date.today()).count()
     capa_critical = capas.filter(priority="critical").exclude(status="closed").count()
     capa_by_status = {}
     for row in capas.values("status").annotate(c=Count("id")):
@@ -152,39 +160,41 @@ def qms_dashboard(request):
     else:
         health = "at_risk"
 
-    return JsonResponse({
-        "fmea": {
-            "total": fmea_count,
-            "active_fmeas": active_fmeas,
-            "critical_rows": critical_rows,
-            "high_rows": high_rows,
-            "medium_rows": medium_rows,
-            "low_rows": low_rows,
-            "rows_without_actions": rows_without_actions,
-        },
-        "rca": {
-            "total": rca_total,
-            "avg_chain_depth": avg_chain_depth,
-            "by_status": rca_by_status,
-        },
-        "a3": {
-            "total": a3_total,
-            "avg_completion": avg_completion,
-        },
-        "vsm": {
-            "total": vsm_total,
-            "with_future_state": with_future,
-            "avg_pce": avg_pce,
-            "bottleneck_count": bottleneck_count,
-        },
-        "hoshin": hoshin_data,
-        "capa": {
-            "total": capa_total,
-            "open": capa_open,
-            "overdue": capa_overdue,
-            "critical_open": capa_critical,
-            "by_status": capa_by_status,
-        },
-        "overall_score": overall,
-        "overall_health": health,
-    })
+    return JsonResponse(
+        {
+            "fmea": {
+                "total": fmea_count,
+                "active_fmeas": active_fmeas,
+                "critical_rows": critical_rows,
+                "high_rows": high_rows,
+                "medium_rows": medium_rows,
+                "low_rows": low_rows,
+                "rows_without_actions": rows_without_actions,
+            },
+            "rca": {
+                "total": rca_total,
+                "avg_chain_depth": avg_chain_depth,
+                "by_status": rca_by_status,
+            },
+            "a3": {
+                "total": a3_total,
+                "avg_completion": avg_completion,
+            },
+            "vsm": {
+                "total": vsm_total,
+                "with_future_state": with_future,
+                "avg_pce": avg_pce,
+                "bottleneck_count": bottleneck_count,
+            },
+            "hoshin": hoshin_data,
+            "capa": {
+                "total": capa_total,
+                "open": capa_open,
+                "overdue": capa_overdue,
+                "critical_open": capa_critical,
+                "by_status": capa_by_status,
+            },
+            "overall_score": overall,
+            "overall_health": health,
+        }
+    )

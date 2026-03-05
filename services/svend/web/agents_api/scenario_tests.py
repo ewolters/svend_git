@@ -12,7 +12,7 @@ from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from accounts.constants import Tier
-from core.models import Project, Hypothesis, Evidence, EvidenceLink
+from core.models import Project
 
 User = get_user_model()
 
@@ -21,9 +21,7 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _make_user(email, tier=Tier.FREE, password="testpass123!", **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(
-        username=username, email=email, password=password, **kwargs
-    )
+    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -93,7 +91,7 @@ class FMEAScenarioTest(TestCase):
         self.assertEqual(row["severity"], 8)
         self.assertEqual(row["occurrence"], 4)
         self.assertEqual(row["detection"], 6)
-        row_id = row["id"]
+        row["id"]
 
         # Add a second row with lower risk
         resp = c.post(
@@ -241,7 +239,9 @@ class RCAScenarioTest(TestCase):
         updated = resp.json()["session"]
         self.assertEqual(updated["status"], "investigating")
         self.assertEqual(len(updated["chain"]), 5)
-        self.assertEqual(updated["root_cause"], "Management prioritized production over maintenance, deferring PM schedule")
+        self.assertEqual(
+            updated["root_cause"], "Management prioritized production over maintenance, deferring PM schedule"
+        )
 
     # -- Scenario 2: 5-why chain depth verification --
 
@@ -438,9 +438,12 @@ class ReportScenarioTest(TestCase):
 
         # CAPA should have specific sections initialized (all empty)
         expected_sections = [
-            "problem_description", "root_cause_analysis",
-            "corrective_actions", "preventive_actions",
-            "verification_plan", "effectiveness_check",
+            "problem_description",
+            "root_cause_analysis",
+            "corrective_actions",
+            "preventive_actions",
+            "verification_plan",
+            "effectiveness_check",
         ]
         for key in expected_sections:
             self.assertIn(key, report["sections"])
@@ -482,9 +485,15 @@ class ReportScenarioTest(TestCase):
 
         # 8D should have D0 through D8 sections
         expected_8d_keys = [
-            "d0_preparation", "d1_team", "d2_problem",
-            "d3_containment", "d4_root_cause", "d5_corrective",
-            "d6_implementation", "d7_preventive", "d8_recognition",
+            "d0_preparation",
+            "d1_team",
+            "d2_problem",
+            "d3_containment",
+            "d4_root_cause",
+            "d5_corrective",
+            "d6_implementation",
+            "d7_preventive",
+            "d8_recognition",
         ]
         for key in expected_8d_keys:
             self.assertIn(key, report["sections"], f"8D missing section: {key}")
@@ -513,8 +522,26 @@ class SPCScenarioTest(TestCase):
 
         # In-control data (normal distribution around 10, sigma ~1)
         data = [
-            10.2, 9.8, 10.1, 10.3, 9.9, 10.0, 10.2, 9.7, 10.1, 10.0,
-            9.8, 10.3, 10.1, 9.9, 10.2, 10.0, 9.8, 10.1, 10.3, 9.9,
+            10.2,
+            9.8,
+            10.1,
+            10.3,
+            9.9,
+            10.0,
+            10.2,
+            9.7,
+            10.1,
+            10.0,
+            9.8,
+            10.3,
+            10.1,
+            9.9,
+            10.2,
+            10.0,
+            9.8,
+            10.1,
+            10.3,
+            9.9,
         ]
 
         resp = c.post(
@@ -542,9 +569,36 @@ class SPCScenarioTest(TestCase):
 
         # Data centered around 50, spread ~2, specs 45-55
         data = [
-            49.5, 50.2, 50.1, 49.8, 50.3, 50.0, 49.7, 50.4, 49.9, 50.1,
-            50.2, 49.6, 50.3, 49.8, 50.0, 50.1, 49.9, 50.2, 49.7, 50.3,
-            50.0, 49.8, 50.1, 50.4, 49.6, 50.2, 49.9, 50.0, 50.3, 49.7,
+            49.5,
+            50.2,
+            50.1,
+            49.8,
+            50.3,
+            50.0,
+            49.7,
+            50.4,
+            49.9,
+            50.1,
+            50.2,
+            49.6,
+            50.3,
+            49.8,
+            50.0,
+            50.1,
+            49.9,
+            50.2,
+            49.7,
+            50.3,
+            50.0,
+            49.8,
+            50.1,
+            50.4,
+            49.6,
+            50.2,
+            49.9,
+            50.0,
+            50.3,
+            49.7,
         ]
 
         resp = c.post(
@@ -557,7 +611,7 @@ class SPCScenarioTest(TestCase):
         self.assertTrue(result["success"])
 
         # Should have capability indices
-        cap = result.get("capability", result)
+        result.get("capability", result)
         # The response has capability data embedded in the summary/response
         # Verify it contains the key structure
         self.assertIn("summary", result)
@@ -731,6 +785,7 @@ class AutopilotScenarioTest(TestCase):
 
         # Missing target (send file but no target)
         import io
+
         csv_content = "x,y\n1,2\n3,4\n5,6\n7,8\n9,10\n11,12\n13,14\n15,16\n17,18\n19,20\n"
         csv_file = io.BytesIO(csv_content.encode())
         csv_file.name = "data.csv"
@@ -882,7 +937,7 @@ class CrossSystemIntegrationTest(TestCase):
         )
         self.assertEqual(resp.status_code, 200)
         a3_report = resp.json()["report"]
-        a3_id = a3_report["id"]
+        a3_report["id"]
 
         # A3 should have RCA content in root_cause
         self.assertIn("inspection does not test material hardness", a3_report["root_cause"])

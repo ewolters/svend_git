@@ -4,7 +4,7 @@ import secrets
 import uuid
 
 from django.conf import settings
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
 from django.db.models.signals import post_delete
@@ -66,19 +66,20 @@ class DSWResult(models.Model):
     def get_summary(self):
         """Return a brief summary of the result for import previews."""
         import json
+
         try:
             data = json.loads(self.data)
             # Try to extract key findings
             summary_parts = []
             if self.title:
                 summary_parts.append(self.title)
-            if 'analysis' in data:
+            if "analysis" in data:
                 summary_parts.append(f"Analysis: {data['analysis']}")
-            if 'summary' in data:
+            if "summary" in data:
                 # Direct summary field
-                return data['summary']
-            if 'findings' in data and isinstance(data['findings'], list):
-                summary_parts.extend(data['findings'][:3])
+                return data["summary"]
+            if "findings" in data and isinstance(data["findings"], list):
+                summary_parts.extend(data["findings"][:3])
             return " | ".join(summary_parts) if summary_parts else self.result_type
         except (json.JSONDecodeError, KeyError):
             return self.title or self.result_type
@@ -204,6 +205,7 @@ class Problem(models.Model):
 
     class DMAICPhase(models.TextChoices):
         """Six Sigma DMAIC phases."""
+
         DEFINE = "define", "Define"
         MEASURE = "measure", "Measure"
         ANALYZE = "analyze", "Analyze"
@@ -212,6 +214,7 @@ class Problem(models.Model):
 
     class Methodology(models.TextChoices):
         """Problem-solving methodology."""
+
         NONE = "none", "None/General"
         DMAIC = "dmaic", "Six Sigma DMAIC"
         DOE = "doe", "Design of Experiments"
@@ -227,11 +230,11 @@ class Problem(models.Model):
 
     # Phase 1 migration: link to canonical core.Project
     core_project = models.ForeignKey(
-        'core.Project',
+        "core.Project",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='legacy_problems',
+        related_name="legacy_problems",
         help_text="Canonical core.Project (Phase 1 migration — dual-write)",
     )
 
@@ -248,132 +251,70 @@ class Problem(models.Model):
         max_length=20,
         choices=Methodology.choices,
         default=Methodology.NONE,
-        help_text="Problem-solving methodology being used"
+        help_text="Problem-solving methodology being used",
     )
     dmaic_phase = models.CharField(
-        max_length=20,
-        choices=DMAICPhase.choices,
-        blank=True,
-        help_text="Current DMAIC phase (if using Six Sigma)"
+        max_length=20, choices=DMAICPhase.choices, blank=True, help_text="Current DMAIC phase (if using Six Sigma)"
     )
     phase_history = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="History of phase transitions [{phase, entered_at, notes}]"
+        default=list, blank=True, help_text="History of phase transitions [{phase, entered_at, notes}]"
     )
 
     # The Effect (what user observes)
-    effect_description = models.TextField(
-        help_text="What are you observing? The symptom, outcome, or situation."
-    )
+    effect_description = models.TextField(help_text="What are you observing? The symptom, outcome, or situation.")
     effect_magnitude = models.CharField(
-        max_length=100,
-        blank=True,
-        help_text="How big is the effect? (e.g., '40% increase', 'severe', '$50k loss')"
+        max_length=100, blank=True, help_text="How big is the effect? (e.g., '40% increase', 'severe', '$50k loss')"
     )
-    effect_first_observed = models.CharField(
-        max_length=100,
-        blank=True,
-        help_text="When did you first notice this?"
-    )
+    effect_first_observed = models.CharField(max_length=100, blank=True, help_text="When did you first notice this?")
     effect_confidence = models.CharField(
-        max_length=20,
-        default="medium",
-        help_text="How confident are you that this effect is real?"
+        max_length=20, default="medium", help_text="How confident are you that this effect is real?"
     )
 
     # Context
     domain = models.CharField(
-        max_length=100,
-        blank=True,
-        help_text="Domain area (e.g., 'manufacturing', 'SaaS', 'healthcare')"
+        max_length=100, blank=True, help_text="Domain area (e.g., 'manufacturing', 'SaaS', 'healthcare')"
     )
-    stakeholders = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Who is affected or involved?"
-    )
-    constraints = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Constraints on the investigation or solution"
-    )
+    stakeholders = models.JSONField(default=list, blank=True, help_text="Who is affected or involved?")
+    constraints = models.JSONField(default=list, blank=True, help_text="Constraints on the investigation or solution")
     prior_beliefs = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Initial beliefs about the cause [{belief, confidence}]"
+        default=list, blank=True, help_text="Initial beliefs about the cause [{belief, confidence}]"
     )
-    can_experiment = models.BooleanField(
-        default=True,
-        help_text="Can you run controlled experiments?"
-    )
-    available_data = models.TextField(
-        blank=True,
-        help_text="What data do you have access to?"
-    )
+    can_experiment = models.BooleanField(default=True, help_text="Can you run controlled experiments?")
+    available_data = models.TextField(blank=True, help_text="What data do you have access to?")
 
     # Hypotheses: [{id, cause, mechanism, probability, testable, evidence_for, evidence_against, status}]
-    hypotheses = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="List of causal hypotheses being investigated"
-    )
+    hypotheses = models.JSONField(default=list, blank=True, help_text="List of causal hypotheses being investigated")
 
     # Evidence: [{id, type, summary, supports, weakens, source, timestamp, agent, metadata}]
     evidence = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Evidence gathered from research, analysis, experiments"
+        default=list, blank=True, help_text="Evidence gathered from research, analysis, experiments"
     )
 
     # Dead ends: [{hypothesis_id, hypothesis_text, why_rejected, timestamp}]
-    dead_ends = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Hypotheses we've ruled out"
-    )
+    dead_ends = models.JSONField(default=list, blank=True, help_text="Hypotheses we've ruled out")
 
     # Current understanding
     probable_causes = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Most likely causes [{cause, probability, confidence}]"
+        default=list, blank=True, help_text="Most likely causes [{cause, probability, confidence}]"
     )
-    key_uncertainties = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="What we still don't know"
-    )
-    recommended_next_steps = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Suggested next actions"
-    )
+    key_uncertainties = models.JSONField(default=list, blank=True, help_text="What we still don't know")
+    recommended_next_steps = models.JSONField(default=list, blank=True, help_text="Suggested next actions")
 
     # Bias tracking
     bias_warnings = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Cognitive biases detected [{type, description, timestamp}]"
+        default=list, blank=True, help_text="Cognitive biases detected [{type, description, timestamp}]"
     )
 
     # Interview state (for save/resume)
     interview_state = models.JSONField(
         null=True,
         blank=True,
-        help_text="Saved interview progress {current_section, current_question, answers, bias_warnings}"
+        help_text="Saved interview progress {current_section, current_question, answers, bias_warnings}",
     )
 
     # Resolution (when status=resolved)
-    resolution_summary = models.TextField(
-        blank=True,
-        help_text="What did we learn? What was the probable cause?"
-    )
-    resolution_confidence = models.CharField(
-        max_length=20,
-        blank=True,
-        help_text="Confidence in the resolution"
-    )
+    resolution_summary = models.TextField(blank=True, help_text="What did we learn? What was the probable cause?")
+    resolution_confidence = models.CharField(max_length=20, blank=True, help_text="Confidence in the resolution")
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -393,6 +334,7 @@ class Problem(models.Model):
         """Add a new hypothesis."""
         import uuid as uuid_lib
         from datetime import datetime
+
         hypothesis = {
             "id": str(uuid_lib.uuid4())[:8],
             "cause": cause,
@@ -408,8 +350,14 @@ class Problem(models.Model):
         self.save(update_fields=["hypotheses", "updated_at"])
         return hypothesis
 
-    def add_evidence(self, summary: str, evidence_type: str = "observation",
-                     source: str = "", supports: list = None, weakens: list = None) -> dict:
+    def add_evidence(
+        self,
+        summary: str,
+        evidence_type: str = "observation",
+        source: str = "",
+        supports: list = None,
+        weakens: list = None,
+    ) -> dict:
         """Add evidence and optionally link to hypotheses."""
         import uuid as uuid_lib
         from datetime import datetime
@@ -445,8 +393,8 @@ class Problem(models.Model):
         updater = get_updater()
 
         # Default LRs for simple support/weaken classification
-        SUPPORT_LR = 2.0   # Moderate support
-        WEAKEN_LR = 0.5    # Moderate opposition
+        SUPPORT_LR = 2.0  # Moderate support
+        WEAKEN_LR = 0.5  # Moderate opposition
 
         for hyp in self.hypotheses:
             hyp_id = hyp["id"]
@@ -472,9 +420,7 @@ class Problem(models.Model):
 
         # Top hypotheses become probable causes
         self.probable_causes = [
-            {"cause": h["cause"], "probability": h["probability"]}
-            for h in sorted_hyps[:3]
-            if h["probability"] > 0.2
+            {"cause": h["cause"], "probability": h["probability"]} for h in sorted_hyps[:3] if h["probability"] > 0.2
         ]
 
         self.save(update_fields=["probable_causes", "updated_at"])
@@ -487,12 +433,14 @@ class Problem(models.Model):
             if hyp["id"] == hypothesis_id:
                 hyp["status"] = "rejected"
 
-                self.dead_ends.append({
-                    "hypothesis_id": hypothesis_id,
-                    "hypothesis_text": hyp["cause"],
-                    "why_rejected": reason,
-                    "timestamp": datetime.now().isoformat(),
-                })
+                self.dead_ends.append(
+                    {
+                        "hypothesis_id": hypothesis_id,
+                        "hypothesis_text": hyp["cause"],
+                        "why_rejected": reason,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
 
                 self.update_understanding()
                 self.save(update_fields=["hypotheses", "dead_ends", "probable_causes", "updated_at"])
@@ -519,11 +467,13 @@ class Problem(models.Model):
         if not self.phase_history:
             self.phase_history = []
 
-        self.phase_history.append({
-            "phase": new_phase,
-            "entered_at": datetime.now().isoformat(),
-            "notes": notes,
-        })
+        self.phase_history.append(
+            {
+                "phase": new_phase,
+                "entered_at": datetime.now().isoformat(),
+                "notes": notes,
+            }
+        )
         self.dmaic_phase = new_phase
         self.save(update_fields=["dmaic_phase", "phase_history", "updated_at"])
 
@@ -615,10 +565,13 @@ class Problem(models.Model):
         """Read evidence from core.Evidence via EvidenceLinks, fall back to JSON blob."""
         if self.core_project:
             from core.models.hypothesis import Evidence, EvidenceLink
+
             # Get distinct evidence linked to any hypothesis in this project
-            evidence_ids = EvidenceLink.objects.filter(
-                hypothesis__project=self.core_project
-            ).values_list("evidence_id", flat=True).distinct()
+            evidence_ids = (
+                EvidenceLink.objects.filter(hypothesis__project=self.core_project)
+                .values_list("evidence_id", flat=True)
+                .distinct()
+            )
             evidences = Evidence.objects.filter(id__in=evidence_ids).order_by("-created_at")
             return [
                 {
@@ -627,12 +580,10 @@ class Problem(models.Model):
                     "summary": e.summary,
                     "source": e.source_description,
                     "supports": [
-                        str(link.hypothesis_id)[:8]
-                        for link in e.hypothesis_links.filter(likelihood_ratio__gt=1.0)
+                        str(link.hypothesis_id)[:8] for link in e.hypothesis_links.filter(likelihood_ratio__gt=1.0)
                     ],
                     "weakens": [
-                        str(link.hypothesis_id)[:8]
-                        for link in e.hypothesis_links.filter(likelihood_ratio__lt=1.0)
+                        str(link.hypothesis_id)[:8] for link in e.hypothesis_links.filter(likelihood_ratio__lt=1.0)
                     ],
                     "timestamp": e.created_at.isoformat(),
                 }
@@ -658,9 +609,9 @@ class Problem(models.Model):
     def get_probable_causes(self) -> list[dict]:
         """Read probable causes from core.Hypothesis by probability, fall back to JSON blob."""
         if self.core_project:
-            active = self.core_project.hypotheses.filter(
-                status__in=["active", "uncertain"]
-            ).order_by("-current_probability")[:3]
+            active = self.core_project.hypotheses.filter(status__in=["active", "uncertain"]).order_by(
+                "-current_probability"
+            )[:3]
             return [
                 {"cause": h.statement, "probability": h.current_probability}
                 for h in active
@@ -746,9 +697,9 @@ class Problem(models.Model):
         Called when evidence is added to the Problem.
         Creates the Evidence record and links it to relevant hypotheses.
         """
-        project = self.ensure_core_project()
+        self.ensure_core_project()
 
-        from core.models.hypothesis import Evidence, EvidenceLink, Hypothesis
+        from core.models.hypothesis import Evidence, EvidenceLink
 
         # Map evidence types
         source_map = {
@@ -776,7 +727,7 @@ class Problem(models.Model):
                     hypothesis=core_hyp,
                     evidence=core_evidence,
                     likelihood_ratio=2.0,  # Moderate support (matches _update_probabilities)
-                    reasoning=f"Evidence supports this hypothesis (from Problem sync)",
+                    reasoning="Evidence supports this hypothesis (from Problem sync)",
                     is_manual=False,
                 )
                 core_hyp.apply_evidence(link)
@@ -788,7 +739,7 @@ class Problem(models.Model):
                     hypothesis=core_hyp,
                     evidence=core_evidence,
                     likelihood_ratio=0.5,  # Moderate opposition (matches _update_probabilities)
-                    reasoning=f"Evidence opposes this hypothesis (from Problem sync)",
+                    reasoning="Evidence opposes this hypothesis (from Problem sync)",
                     is_manual=False,
                 )
                 core_hyp.apply_evidence(link)
@@ -853,6 +804,7 @@ class CacheEntry(models.Model):
     @property
     def is_expired(self) -> bool:
         from django.utils import timezone
+
         if self.expires_at is None:
             return False
         return timezone.now() > self.expires_at
@@ -861,6 +813,7 @@ class CacheEntry(models.Model):
 # =============================================================================
 # LLM Usage Tracking & Rate Limiting
 # =============================================================================
+
 
 class LLMUsage(models.Model):
     """Track LLM API usage per user for rate limiting and cost control."""
@@ -889,28 +842,28 @@ class LLMUsage(models.Model):
     def get_daily_usage(cls, user, date=None):
         """Get total requests for a user on a given date."""
         from django.utils import timezone
+
         if date is None:
             date = timezone.now().date()
         return cls.objects.filter(user=user, date=date).aggregate(
-            total_requests=models.Sum('request_count'),
-            total_input_tokens=models.Sum('input_tokens'),
-            total_output_tokens=models.Sum('output_tokens'),
+            total_requests=models.Sum("request_count"),
+            total_input_tokens=models.Sum("input_tokens"),
+            total_output_tokens=models.Sum("output_tokens"),
         )
 
     @classmethod
     def record_usage(cls, user, model, input_tokens=0, output_tokens=0):
         """Record an LLM request. Returns updated usage."""
         from django.utils import timezone
+
         today = timezone.now().date()
 
         usage, created = cls.objects.get_or_create(
-            user=user,
-            date=today,
-            model=model,
-            defaults={'request_count': 0, 'input_tokens': 0, 'output_tokens': 0}
+            user=user, date=today, model=model, defaults={"request_count": 0, "input_tokens": 0, "output_tokens": 0}
         )
 
         from django.db.models import F
+
         cls.objects.filter(pk=usage.pk).update(
             request_count=F("request_count") + 1,
             input_tokens=F("input_tokens") + input_tokens,
@@ -939,7 +892,7 @@ def check_rate_limit(user):
     """
     from django.utils import timezone
 
-    tier = getattr(user, 'subscription_tier', 'FREE') or 'FREE'
+    tier = getattr(user, "subscription_tier", "FREE") or "FREE"
     overrides = RateLimitOverride.get_overrides()
     if tier.upper() in overrides:
         limit = overrides[tier.upper()]["llm"]
@@ -947,20 +900,19 @@ def check_rate_limit(user):
         limit = LLM_RATE_LIMITS.get(tier.upper(), LLM_RATE_LIMITS["FREE"])
 
     usage = LLMUsage.get_daily_usage(user, timezone.now().date())
-    current = usage['total_requests'] or 0
+    current = usage["total_requests"] or 0
 
     return (current < limit, limit - current, limit)
 
 
 class RateLimitOverride(models.Model):
     """Runtime-configurable rate limit overrides (staff-editable from dashboard)."""
+
     tier = models.CharField(max_length=20, unique=True)
     daily_llm_limit = models.PositiveIntegerField(help_text="Max LLM requests/day")
     daily_query_limit = models.PositiveIntegerField(help_text="Max query requests/day")
     updated_at = models.DateTimeField(auto_now=True)
-    updated_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
-    )
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
 
     class Meta:
         db_table = "agents_api_ratelimitoverride"
@@ -970,6 +922,7 @@ class RateLimitOverride(models.Model):
 
     def save(self, *args, **kwargs):
         from django.core.cache import cache
+
         super().save(*args, **kwargs)
         cache.delete("rate_limit_overrides")
 
@@ -977,13 +930,11 @@ class RateLimitOverride(models.Model):
     def get_overrides(cls):
         """Cache-backed lookup. Returns {tier: {llm: N, query: N}}."""
         from django.core.cache import cache
+
         key = "rate_limit_overrides"
         result = cache.get(key)
         if result is None:
-            result = {
-                o.tier: {"llm": o.daily_llm_limit, "query": o.daily_query_limit}
-                for o in cls.objects.all()
-            }
+            result = {o.tier: {"llm": o.daily_llm_limit, "query": o.daily_query_limit} for o in cls.objects.all()}
             cache.set(key, result, 300)
         return result
 
@@ -992,11 +943,13 @@ class RateLimitOverride(models.Model):
 # Whiteboard - Collaborative Boards
 # =============================================================================
 
+
 def generate_room_code():
     """Generate a 6-character room code."""
     import random
     import string
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+    return "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
 
 class Board(models.Model):
@@ -1052,6 +1005,7 @@ class Board(models.Model):
         super().save(*args, **kwargs)
         # Atomic version increment after save to prevent race conditions
         from django.db.models import F
+
         type(self).objects.filter(pk=self.pk).update(version=F("version") + 1)
         self.refresh_from_db(fields=["version"])
 
@@ -1165,6 +1119,7 @@ class BoardGuestInvite(models.Model):
     @property
     def is_expired(self):
         from django.utils import timezone
+
         return timezone.now() > self.expires_at
 
     @property
@@ -1174,12 +1129,14 @@ class BoardGuestInvite(models.Model):
     @classmethod
     def generate_token(cls):
         import secrets
+
         return secrets.token_hex(32)
 
 
 # =============================================================================
 # Methods - A3, DMAIC, 8D, etc.
 # =============================================================================
+
 
 class A3Report(models.Model):
     """Toyota-style A3 problem-solving report.
@@ -1218,49 +1175,26 @@ class A3Report(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
 
     # Left column (Plan)
-    background = models.TextField(
-        blank=True,
-        help_text="Why does this matter? Business context, impact."
-    )
-    current_condition = models.TextField(
-        blank=True,
-        help_text="What's happening now? Data, metrics, observations."
-    )
-    goal = models.TextField(
-        blank=True,
-        help_text="What are we trying to achieve? Target condition, metrics."
-    )
-    root_cause = models.TextField(
-        blank=True,
-        help_text="Why is this happening? 5-why, fishbone findings."
-    )
+    background = models.TextField(blank=True, help_text="Why does this matter? Business context, impact.")
+    current_condition = models.TextField(blank=True, help_text="What's happening now? Data, metrics, observations.")
+    goal = models.TextField(blank=True, help_text="What are we trying to achieve? Target condition, metrics.")
+    root_cause = models.TextField(blank=True, help_text="Why is this happening? 5-why, fishbone findings.")
 
     # Right column (Do/Check/Act)
     countermeasures = models.TextField(
-        blank=True,
-        help_text="What will we do about it? Actions to address root causes."
+        blank=True, help_text="What will we do about it? Actions to address root causes."
     )
-    implementation_plan = models.TextField(
-        blank=True,
-        help_text="Who, what, when? Action items with owners and dates."
-    )
-    follow_up = models.TextField(
-        blank=True,
-        help_text="How will we verify? Check dates, success metrics."
-    )
+    implementation_plan = models.TextField(blank=True, help_text="Who, what, when? Action items with owners and dates.")
+    follow_up = models.TextField(blank=True, help_text="How will we verify? Check dates, success metrics.")
 
     # Imported content references (for traceability)
     imported_from = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="References to imported content: {section: [{source, id, summary}]}"
+        default=dict, blank=True, help_text="References to imported content: {section: [{source, id, summary}]}"
     )
 
     # Embedded diagrams (SVG snapshots from whiteboards)
     embedded_diagrams = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Embedded SVG diagrams: {section: [{id, svg, board_name, room_code}]}"
+        default=dict, blank=True, help_text="Embedded SVG diagrams: {section: [{id, svg, board_name, room_code}]}"
     )
 
     # Timestamps
@@ -1367,6 +1301,7 @@ class Report(models.Model):
 
     def get_type_name(self):
         from .report_types import REPORT_TYPES
+
         rt = REPORT_TYPES.get(self.report_type, {})
         return rt.get("name", self.report_type.upper())
 
@@ -1389,6 +1324,7 @@ class Report(models.Model):
 # =============================================================================
 # FMEA (Failure Mode and Effects Analysis)
 # =============================================================================
+
 
 class FMEA(models.Model):
     """Failure Mode and Effects Analysis study.
@@ -1500,10 +1436,14 @@ class FMEARow(models.Model):
     prevention_controls = models.TextField(blank=True)
     detection_controls = models.TextField(blank=True)
     failure_mode_class = models.CharField(
-        max_length=20, choices=FailureModeClass.choices, blank=True,
+        max_length=20,
+        choices=FailureModeClass.choices,
+        blank=True,
     )
     control_type = models.CharField(
-        max_length=20, choices=ControlType.choices, blank=True,
+        max_length=20,
+        choices=ControlType.choices,
+        blank=True,
     )
     detection = models.IntegerField(default=1, validators=[MinValueValidator(1), MaxValueValidator(10)])
 
@@ -1514,7 +1454,9 @@ class FMEARow(models.Model):
     recommended_action = models.TextField(blank=True)
     action_owner = models.CharField(max_length=255, blank=True)
     action_status = models.CharField(
-        max_length=20, choices=ActionStatus.choices, default=ActionStatus.NOT_STARTED,
+        max_length=20,
+        choices=ActionStatus.choices,
+        default=ActionStatus.NOT_STARTED,
     )
 
     # Revised scores (after corrective actions)
@@ -1530,7 +1472,8 @@ class FMEARow(models.Model):
     hypothesis_link = models.ForeignKey(
         "core.Hypothesis",
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="fmea_rows",
         help_text="Hypothesis this failure mode relates to",
     )
@@ -1547,6 +1490,7 @@ class FMEARow(models.Model):
 
     def save(self, *args, **kwargs):
         from django.core.exceptions import ValidationError
+
         # Validate S/O/D range (1-10) — reject invalid instead of silent clamp
         for field_name in ("severity", "occurrence", "detection"):
             val = getattr(self, field_name)
@@ -1653,6 +1597,7 @@ class FMEARow(models.Model):
 # Root Cause Analysis (RCA) - Special Cause Investigation
 # =============================================================================
 
+
 class RCASession(models.Model):
     """Root Cause Analysis session for special cause investigation.
 
@@ -1716,10 +1661,7 @@ class RCASession(models.Model):
     event = models.TextField(help_text="Description of the incident")
 
     # Causal chain: [{claim, critique, accepted, error_labels}]
-    chain = models.JSONField(
-        default=list,
-        help_text="Causal chain steps with critiques"
-    )
+    chain = models.JSONField(default=list, help_text="Causal chain steps with critiques")
 
     # Conclusions
     root_cause = models.TextField(blank=True, help_text="Stated root cause")
@@ -1735,11 +1677,7 @@ class RCASession(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     # Embedding for similarity search (stored as bytes for portability)
-    embedding = models.BinaryField(
-        null=True,
-        blank=True,
-        help_text="Embedding vector for similarity search"
-    )
+    embedding = models.BinaryField(null=True, blank=True, help_text="Embedding vector for similarity search")
 
     class Meta:
         db_table = "rca_sessions"
@@ -1774,8 +1712,8 @@ class RCASession(models.Model):
 
     def generate_embedding(self):
         """Generate and store embedding for this RCA session."""
+
         from .embeddings import generate_rca_embedding
-        import numpy as np
 
         embedding = generate_rca_embedding(
             event=self.event,
@@ -1819,6 +1757,7 @@ class RCASession(models.Model):
 # Value Stream Map (VSM)
 # =============================================================================
 
+
 class ValueStreamMap(models.Model):
     """Value Stream Map for lean process analysis.
 
@@ -1858,12 +1797,17 @@ class ValueStreamMap(models.Model):
     name = models.CharField(max_length=255, default="Untitled VSM")
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.CURRENT)
     fiscal_year = models.CharField(
-        max_length=10, blank=True, default="",
+        max_length=10,
+        blank=True,
+        default="",
         help_text="Fiscal year scope, e.g. '2026'. Empty = unscoped.",
     )
     paired_with = models.OneToOneField(
-        "self", on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="paired_map",
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="paired_map",
         help_text="Current <-> Future state pairing",
     )
     product_family = models.CharField(max_length=255, blank=True, help_text="Product or service being mapped")
@@ -1914,8 +1858,9 @@ class ValueStreamMap(models.Model):
 
     # Metric history for timeline tracking
     metric_snapshots = models.JSONField(
-        default=list, blank=True,
-        help_text="[{timestamp, lead_time, process_time, pce, takt_time, step_count, inventory_count}]"
+        default=list,
+        blank=True,
+        help_text="[{timestamp, lead_time, process_time, pce, takt_time, step_count, inventory_count}]",
     )
 
     # Canvas state
@@ -1989,6 +1934,7 @@ class ValueStreamMap(models.Model):
 
         # Append metric snapshot if values changed
         from datetime import datetime, timezone
+
         snap = {
             "lead_time": round(self.total_lead_time or 0, 4),
             "process_time": round(self.total_process_time or 0, 1),
@@ -1999,11 +1945,13 @@ class ValueStreamMap(models.Model):
         }
         snapshots = self.metric_snapshots or []
         last = snapshots[-1] if snapshots else None
-        changed = (not last or
-                   last.get("lead_time") != snap["lead_time"] or
-                   last.get("process_time") != snap["process_time"] or
-                   last.get("pce") != snap["pce"] or
-                   last.get("takt_time") != snap["takt_time"])
+        changed = (
+            not last
+            or last.get("lead_time") != snap["lead_time"]
+            or last.get("process_time") != snap["process_time"]
+            or last.get("pce") != snap["pce"]
+            or last.get("takt_time") != snap["takt_time"]
+        )
         if changed and (snap["step_count"] > 0 or snap["inventory_count"] > 0):
             snap["timestamp"] = datetime.now(timezone.utc).isoformat()
             snapshots.append(snap)
@@ -2272,7 +2220,8 @@ class Site(models.Model):
     )
     name = models.CharField(max_length=255)
     code = models.CharField(
-        max_length=20, blank=True,
+        max_length=20,
+        blank=True,
         help_text="Short site code, e.g. PLT-01",
     )
     business_unit = models.CharField(max_length=255, blank=True)
@@ -2322,17 +2271,25 @@ class SiteAccess(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     site = models.ForeignKey(
-        Site, on_delete=models.CASCADE, related_name="access_list",
+        Site,
+        on_delete=models.CASCADE,
+        related_name="access_list",
     )
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="site_access",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="site_access",
     )
     role = models.CharField(
-        max_length=20, choices=SiteRole.choices, default=SiteRole.MEMBER,
+        max_length=20,
+        choices=SiteRole.choices,
+        default=SiteRole.MEMBER,
     )
     granted_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, related_name="+",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="+",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -2359,6 +2316,7 @@ class SiteAccess(models.Model):
 
 def _current_year():
     from datetime import date
+
     return date.today().year
 
 
@@ -2411,61 +2369,82 @@ class HoshinProject(models.Model):
     site = models.ForeignKey(
         Site,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="hoshin_projects",
     )
     project_class = models.CharField(
-        max_length=20, choices=ProjectClass.choices, default=ProjectClass.PROJECT,
+        max_length=20,
+        choices=ProjectClass.choices,
+        default=ProjectClass.PROJECT,
     )
     project_type = models.CharField(
-        max_length=20, choices=ProjectType.choices, default=ProjectType.MATERIAL,
+        max_length=20,
+        choices=ProjectType.choices,
+        default=ProjectType.MATERIAL,
     )
     opportunity = models.CharField(
-        max_length=20, choices=Opportunity.choices, default=Opportunity.BUDGETED_NEW,
+        max_length=20,
+        choices=Opportunity.choices,
+        default=Opportunity.BUDGETED_NEW,
     )
     hoshin_status = models.CharField(
-        max_length=20, choices=HoshinStatus.choices, default=HoshinStatus.PROPOSED,
+        max_length=20,
+        choices=HoshinStatus.choices,
+        default=HoshinStatus.PROPOSED,
     )
     fiscal_year = models.IntegerField(default=_current_year, help_text="Fiscal year")
     annual_savings_target = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0,
+        max_digits=12,
+        decimal_places=2,
+        default=0,
         help_text="Target annual savings in dollars",
     )
     calculation_method = models.CharField(
-        max_length=30, blank=True,
+        max_length=30,
+        blank=True,
         help_text="waste_pct, time_reduction, headcount, claims, freight, energy, direct, layout, custom",
     )
     custom_formula = models.CharField(
-        max_length=500, blank=True, default="",
+        max_length=500,
+        blank=True,
+        default="",
         help_text="Custom formula e.g. '(baseline - actual) * volume * rate'",
     )
     custom_formula_desc = models.CharField(
-        max_length=200, blank=True, default="",
+        max_length=200,
+        blank=True,
+        default="",
         help_text="Human-readable description of the custom formula",
     )
     kaizen_charter = models.JSONField(
-        default=dict, blank=True,
+        default=dict,
+        blank=True,
         help_text="Kaizen event logistics: {event_date, end_date, location, schedule, "
-                  "event_type, primary_metric, primary_baseline, primary_target, "
-                  "secondary_metric, secondary_baseline, secondary_target, "
-                  "process_start, process_end}",
+        "event_type, primary_metric, primary_baseline, primary_target, "
+        "secondary_metric, secondary_baseline, secondary_target, "
+        "process_start, process_end}",
     )
     monthly_actuals = models.JSONField(
-        default=list, blank=True,
+        default=list,
+        blank=True,
         help_text="Monthly savings: [{month, baseline, actual, volume, cost_per_unit, savings}]",
     )
     baseline_data = models.JSONField(
-        default=list, blank=True,
+        default=list,
+        blank=True,
         help_text="Prior year baselines: [{month, metric_value, volume, cost_per_unit}]",
     )
     source_vsm = models.ForeignKey(
         ValueStreamMap,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="hoshin_projects",
     )
     source_burst_id = models.CharField(
-        max_length=50, blank=True,
+        max_length=50,
+        blank=True,
         help_text="ID of originating kaizen burst in source_vsm.kaizen_bursts",
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -2553,7 +2532,9 @@ class ActionItem(models.Model):
     description = models.TextField(blank=True)
     owner_name = models.CharField(max_length=255, blank=True)
     status = models.CharField(
-        max_length=20, choices=Status.choices, default=Status.NOT_STARTED,
+        max_length=20,
+        choices=Status.choices,
+        default=Status.NOT_STARTED,
     )
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
@@ -2562,16 +2543,20 @@ class ActionItem(models.Model):
     depends_on = models.ForeignKey(
         "self",
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         related_name="dependents",
     )
     sort_order = models.IntegerField(default=0)
     source_type = models.CharField(
-        max_length=20, blank=True, default="",
+        max_length=20,
+        blank=True,
+        default="",
         help_text="Origin: hoshin, a3, rca, fmea, report, or blank for manual",
     )
     source_id = models.UUIDField(
-        null=True, blank=True,
+        null=True,
+        blank=True,
         help_text="ID of the source object (A3Report, RCASession, FMEARow, etc.)",
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -2641,19 +2626,27 @@ class Employee(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "core.Tenant", on_delete=models.CASCADE, related_name="employees",
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        related_name="employees",
     )
     name = models.CharField(max_length=255)
     email = models.EmailField()
     role = models.CharField(max_length=255, blank=True)
     department = models.CharField(max_length=255, blank=True)
     site = models.ForeignKey(
-        Site, on_delete=models.SET_NULL, null=True, blank=True,
+        Site,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="employees",
     )
     user_link = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="employee_profile",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="employee_profile",
     )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -2715,20 +2708,28 @@ class ResourceCommitment(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     employee = models.ForeignKey(
-        Employee, on_delete=models.CASCADE, related_name="commitments",
+        Employee,
+        on_delete=models.CASCADE,
+        related_name="commitments",
     )
     project = models.ForeignKey(
-        HoshinProject, on_delete=models.CASCADE, related_name="commitments",
+        HoshinProject,
+        on_delete=models.CASCADE,
+        related_name="commitments",
     )
     role = models.CharField(max_length=30, choices=ROLE_CHOICES)
     start_date = models.DateField()
     end_date = models.DateField()
     hours_per_day = models.DecimalField(max_digits=4, decimal_places=1, default=8)
     status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default="requested",
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="requested",
     )
     requested_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
         related_name="requested_commitments",
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -2789,7 +2790,9 @@ class ActionToken(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     employee = models.ForeignKey(
-        Employee, on_delete=models.CASCADE, related_name="action_tokens",
+        Employee,
+        on_delete=models.CASCADE,
+        related_name="action_tokens",
     )
     action_type = models.CharField(max_length=30, choices=ACTION_CHOICES)
     scoped_to = models.JSONField(default=dict)
@@ -2805,18 +2808,22 @@ class ActionToken(models.Model):
         if not self.token:
             self.token = secrets.token_urlsafe(32)
         if not self.expires_at:
-            from django.utils import timezone
             from datetime import timedelta
+
+            from django.utils import timezone
+
             self.expires_at = timezone.now() + timedelta(hours=72)
         super().save(*args, **kwargs)
 
     @property
     def is_valid(self):
         from django.utils import timezone
+
         return self.used_at is None and self.expires_at > timezone.now()
 
     def use(self):
         from django.utils import timezone
+
         self.used_at = timezone.now()
         self.save(update_fields=["used_at"])
 
@@ -2856,7 +2863,8 @@ class StrategicObjective(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "core.Tenant", on_delete=models.CASCADE,
+        "core.Tenant",
+        on_delete=models.CASCADE,
         related_name="strategic_objectives",
     )
     title = models.CharField(max_length=500)
@@ -2865,16 +2873,22 @@ class StrategicObjective(models.Model):
     start_year = models.IntegerField(help_text="First fiscal year of this objective")
     end_year = models.IntegerField(help_text="Target completion fiscal year")
     target_metric = models.CharField(
-        max_length=255, blank=True,
+        max_length=255,
+        blank=True,
         help_text="Metric catalog key, e.g. 'waste_pct', 'dollar_savings', 'spc_capability'. "
-                  "Links to HoshinKPI.METRIC_CATALOG for unit, direction, and aggregation.",
+        "Links to HoshinKPI.METRIC_CATALOG for unit, direction, and aggregation.",
     )
     target_value = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True,
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
     )
     target_unit = models.CharField(max_length=50, blank=True, help_text="Auto-filled from metric catalog")
     status = models.CharField(
-        max_length=20, choices=Status.choices, default=Status.DRAFT,
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
     )
     sort_order = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -2926,30 +2940,45 @@ class AnnualObjective(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "core.Tenant", on_delete=models.CASCADE,
+        "core.Tenant",
+        on_delete=models.CASCADE,
         related_name="annual_objectives",
     )
     strategic_objective = models.ForeignKey(
-        StrategicObjective, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="annual_objectives",
+        StrategicObjective,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="annual_objectives",
     )
     site = models.ForeignKey(
-        Site, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="annual_objectives",
+        Site,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="annual_objectives",
     )
     fiscal_year = models.IntegerField(default=_current_year)
     title = models.CharField(max_length=500)
     description = models.TextField(blank=True)
     owner_name = models.CharField(max_length=255, blank=True)
     target_value = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True,
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
     )
     actual_value = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True,
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
     )
     target_unit = models.CharField(max_length=50, blank=True)
     status = models.CharField(
-        max_length=20, choices=Status.choices, default=Status.ON_TRACK,
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ON_TRACK,
     )
     sort_order = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -3028,14 +3057,18 @@ class HoshinKPI(models.Model):
         "dollar_savings": {
             "label": "Total Dollar Savings",
             "group": "Dollar Savings",
-            "unit": "$", "direction": "up", "aggregation": "sum",
+            "unit": "$",
+            "direction": "up",
+            "aggregation": "sum",
             "derived_field": "ytd_savings",
             "calc": "Σ project.monthly_actuals[].savings — all calc methods",
         },
         "waste_pct": {
             "label": "Waste/Scrap Savings",
             "group": "Dollar Savings",
-            "unit": "$", "direction": "up", "aggregation": "sum",
+            "unit": "$",
+            "direction": "up",
+            "aggregation": "sum",
             "derived_field": "ytd_savings",
             "filter_method": "waste_pct",
             "calc": "(Baseline% − Actual%) × Volume × CostPerUnit → $",
@@ -3043,7 +3076,9 @@ class HoshinKPI(models.Model):
         "time_reduction": {
             "label": "Cycle Time Savings",
             "group": "Dollar Savings",
-            "unit": "$", "direction": "up", "aggregation": "sum",
+            "unit": "$",
+            "direction": "up",
+            "aggregation": "sum",
             "derived_field": "ytd_savings",
             "filter_method": "time_reduction",
             "calc": "(BaselineSec − ActualSec) / 3600 × Volume × LaborRate → $",
@@ -3051,7 +3086,9 @@ class HoshinKPI(models.Model):
         "headcount": {
             "label": "Headcount Savings",
             "group": "Dollar Savings",
-            "unit": "$", "direction": "up", "aggregation": "sum",
+            "unit": "$",
+            "direction": "up",
+            "aggregation": "sum",
             "derived_field": "ytd_savings",
             "filter_method": "headcount",
             "calc": "(BaselineHC − ActualHC) × CostPerEmployee → $",
@@ -3059,7 +3096,9 @@ class HoshinKPI(models.Model):
         "claims": {
             "label": "Quality Claims Savings",
             "group": "Dollar Savings",
-            "unit": "$", "direction": "up", "aggregation": "sum",
+            "unit": "$",
+            "direction": "up",
+            "aggregation": "sum",
             "derived_field": "ytd_savings",
             "filter_method": "claims",
             "calc": "(Baseline% − Actual%) × SalesDollars → $",
@@ -3067,7 +3106,9 @@ class HoshinKPI(models.Model):
         "freight": {
             "label": "Freight/Logistics Savings",
             "group": "Dollar Savings",
-            "unit": "$", "direction": "up", "aggregation": "sum",
+            "unit": "$",
+            "direction": "up",
+            "aggregation": "sum",
             "derived_field": "ytd_savings",
             "filter_method": "freight",
             "calc": "(BaselineCost − ActualCost) × ShipmentCount → $",
@@ -3075,7 +3116,9 @@ class HoshinKPI(models.Model):
         "energy": {
             "label": "Energy Savings",
             "group": "Dollar Savings",
-            "unit": "$", "direction": "up", "aggregation": "sum",
+            "unit": "$",
+            "direction": "up",
+            "aggregation": "sum",
             "derived_field": "ytd_savings",
             "filter_method": "energy",
             "calc": "(BaselineUsage − ActualUsage) × CostPerUnit → $ (usage in any unit: kWh, therms, etc.)",
@@ -3083,7 +3126,9 @@ class HoshinKPI(models.Model):
         "direct": {
             "label": "Direct Cost Savings",
             "group": "Dollar Savings",
-            "unit": "$", "direction": "up", "aggregation": "sum",
+            "unit": "$",
+            "direction": "up",
+            "aggregation": "sum",
             "derived_field": "ytd_savings",
             "filter_method": "direct",
             "calc": "BaselineCost − ActualCost → $",
@@ -3095,28 +3140,36 @@ class HoshinKPI(models.Model):
         "scrap_rate": {
             "label": "Scrap/Waste Rate",
             "group": "Process Rates",
-            "unit": "%", "direction": "down", "aggregation": "weighted_avg",
+            "unit": "%",
+            "direction": "down",
+            "aggregation": "weighted_avg",
             "derived_field": "raw_metric",
             "calc": "Σ(actual% × volume) / Σ(volume) → % (volume-weighted avg)",
         },
         "defect_rate": {
             "label": "Defect Rate",
             "group": "Process Rates",
-            "unit": "ppm", "direction": "down", "aggregation": "weighted_avg",
+            "unit": "ppm",
+            "direction": "down",
+            "aggregation": "weighted_avg",
             "derived_field": "raw_metric",
             "calc": "Σ(actual_ppm × volume) / Σ(volume) → ppm (volume-weighted avg)",
         },
         "first_pass_yield": {
             "label": "First Pass Yield",
             "group": "Process Rates",
-            "unit": "%", "direction": "up", "aggregation": "weighted_avg",
+            "unit": "%",
+            "direction": "up",
+            "aggregation": "weighted_avg",
             "derived_field": "raw_metric",
             "calc": "Σ(actual% × volume) / Σ(volume) → % (volume-weighted avg)",
         },
         "oee": {
             "label": "OEE",
             "group": "Process Rates",
-            "unit": "%", "direction": "up", "aggregation": "weighted_avg",
+            "unit": "%",
+            "direction": "up",
+            "aggregation": "weighted_avg",
             "derived_field": "raw_metric",
             "calc": "Σ(OEE% × volume) / Σ(volume) → % (volume-weighted avg)",
         },
@@ -3126,28 +3179,36 @@ class HoshinKPI(models.Model):
         "spc_capability": {
             "label": "Process Capability (Cpk)",
             "group": "SPC Metrics",
-            "unit": "index", "direction": "up", "aggregation": "latest",
+            "unit": "index",
+            "direction": "up",
+            "aggregation": "latest",
             "calculator_field": "cpk",
             "calc": "Latest DSWResult.data.cpk → dimensionless index (≥1.33 capable)",
         },
         "spc_ppk": {
             "label": "Process Performance (Ppk)",
             "group": "SPC Metrics",
-            "unit": "index", "direction": "up", "aggregation": "latest",
+            "unit": "index",
+            "direction": "up",
+            "aggregation": "latest",
             "calculator_field": "ppk",
             "calc": "Latest DSWResult.data.ppk → dimensionless index (≥1.33 capable)",
         },
         "spc_yield": {
             "label": "Process Yield",
             "group": "SPC Metrics",
-            "unit": "%", "direction": "up", "aggregation": "latest",
+            "unit": "%",
+            "direction": "up",
+            "aggregation": "latest",
             "calculator_field": "yield_percent",
             "calc": "Latest DSWResult.data.yield_percent → % (from capability study)",
         },
         "spc_gage_rr": {
             "label": "Gage R&R",
             "group": "SPC Metrics",
-            "unit": "%", "direction": "down", "aggregation": "latest",
+            "unit": "%",
+            "direction": "down",
+            "aggregation": "latest",
             "calculator_field": "grr_percent",
             "calc": "Latest DSWResult.data.grr_percent → % of tolerance (<10% excellent, <30% acceptable)",
         },
@@ -3155,53 +3216,75 @@ class HoshinKPI(models.Model):
         "manual": {
             "label": "Manual Entry",
             "group": "Other",
-            "unit": "", "direction": "up", "aggregation": "manual",
+            "unit": "",
+            "direction": "up",
+            "aggregation": "manual",
             "calc": "User-entered value, no automatic calculation",
         },
     }
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "core.Tenant", on_delete=models.CASCADE,
+        "core.Tenant",
+        on_delete=models.CASCADE,
         related_name="hoshin_kpis",
     )
     fiscal_year = models.IntegerField(default=_current_year)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     target_value = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True,
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
     )
     actual_value = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True,
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
     )
     unit = models.CharField(max_length=50, blank=True, help_text="$, %, ppm, etc.")
     frequency = models.CharField(
-        max_length=20, choices=Frequency.choices, default=Frequency.MONTHLY,
+        max_length=20,
+        choices=Frequency.choices,
+        default=Frequency.MONTHLY,
     )
     direction = models.CharField(
-        max_length=10, default="up",
+        max_length=10,
+        default="up",
         help_text="'up' = higher is better, 'down' = lower is better",
     )
     aggregation = models.CharField(
-        max_length=20, choices=Aggregation.choices, default=Aggregation.SUM,
+        max_length=20,
+        choices=Aggregation.choices,
+        default=Aggregation.SUM,
         help_text="How this KPI aggregates across projects in the X-matrix rollup",
     )
     derived_from = models.ForeignKey(
-        HoshinProject, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="derived_kpis",
+        HoshinProject,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="derived_kpis",
         help_text="If set, actual_value is computed from this project's data",
     )
     derived_field = models.CharField(
-        max_length=30, blank=True, default="ytd_savings",
+        max_length=30,
+        blank=True,
+        default="ytd_savings",
         help_text="Which project field to pull: ytd_savings, savings_pct, raw_metric",
     )
     calculator_result_type = models.CharField(
-        max_length=60, blank=True, default="",
-        help_text="DSWResult.result_type to pull from, e.g. spc_capability. "
-                  "Used with aggregation=latest.",
+        max_length=60,
+        blank=True,
+        default="",
+        help_text="DSWResult.result_type to pull from, e.g. spc_capability. Used with aggregation=latest.",
     )
     calculator_field = models.CharField(
-        max_length=60, blank=True, default="",
+        max_length=60,
+        blank=True,
+        default="",
         help_text="JSON path within DSWResult.data to extract, e.g. cpk, yield_percent",
     )
     sort_order = models.IntegerField(default=0)
@@ -3250,13 +3333,19 @@ class HoshinKPI(models.Model):
             if self.calculator_result_type and hasattr(proj, "project_id"):
                 try:
                     from agents_api.models import DSWResult
-                    result = DSWResult.objects.filter(
-                        user=proj.project.user,
-                        result_type=self.calculator_result_type,
-                        project=proj.project,
-                    ).order_by("-created_at").first()
+
+                    result = (
+                        DSWResult.objects.filter(
+                            user=proj.project.user,
+                            result_type=self.calculator_result_type,
+                            project=proj.project,
+                        )
+                        .order_by("-created_at")
+                        .first()
+                    )
                     if result and result.data:
                         import json as _json
+
                         data = _json.loads(result.data) if isinstance(result.data, str) else result.data
                         field = self.calculator_field or "cpk"
                         # Check top-level, then statistics sub-dict
@@ -3330,7 +3419,8 @@ class XMatrixCorrelation(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "core.Tenant", on_delete=models.CASCADE,
+        "core.Tenant",
+        on_delete=models.CASCADE,
         related_name="xmatrix_correlations",
     )
     fiscal_year = models.IntegerField(default=_current_year)
@@ -3339,7 +3429,9 @@ class XMatrixCorrelation(models.Model):
     col_id = models.UUIDField(help_text="ID of the column-axis item")
     strength = models.CharField(max_length=10, choices=Strength.choices)
     source = models.CharField(
-        max_length=10, choices=Source.choices, default=Source.MANUAL,
+        max_length=10,
+        choices=Source.choices,
+        default=Source.MANUAL,
     )
     is_confirmed = models.BooleanField(
         default=False,
@@ -3375,27 +3467,25 @@ class XMatrixCorrelation(models.Model):
 # Correlation cleanup signals — prevent UUID orphaning
 # ---------------------------------------------------------------------------
 
+
 @receiver(post_delete, sender=StrategicObjective)
 @receiver(post_delete, sender=AnnualObjective)
 @receiver(post_delete, sender=HoshinKPI)
 def _cleanup_xmatrix_correlations(sender, instance, **kwargs):
     """Delete all correlations referencing a deleted X-matrix entity."""
-    XMatrixCorrelation.objects.filter(
-        Q(row_id=instance.id) | Q(col_id=instance.id)
-    ).delete()
+    XMatrixCorrelation.objects.filter(Q(row_id=instance.id) | Q(col_id=instance.id)).delete()
 
 
 @receiver(post_delete, sender=HoshinProject)
 def _cleanup_project_correlations(sender, instance, **kwargs):
     """Delete all correlations referencing a deleted HoshinProject."""
-    XMatrixCorrelation.objects.filter(
-        Q(row_id=instance.id) | Q(col_id=instance.id)
-    ).delete()
+    XMatrixCorrelation.objects.filter(Q(row_id=instance.id) | Q(col_id=instance.id)).delete()
 
 
 # ---------------------------------------------------------------------------
 # ISO 9001 Quality Management System — Team/Enterprise tier
 # ---------------------------------------------------------------------------
+
 
 class NonconformanceRecord(models.Model):
     """NCR tracker per ISO 9001 clause 10.2."""
@@ -3423,7 +3513,8 @@ class NonconformanceRecord(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
         related_name="ncrs",
     )
     title = models.CharField(max_length=300)
@@ -3443,37 +3534,57 @@ class NonconformanceRecord(models.Model):
 
     # Optional project link
     project = models.ForeignKey(
-        "core.Project", on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="ncrs",
+        "core.Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ncrs",
     )
 
     # Workflow fields
     raised_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="raised_ncrs",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="raised_ncrs",
     )
     assigned_to = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="assigned_ncrs",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_ncrs",
     )
     approved_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="approved_ncrs",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_ncrs",
     )
 
     # Cross-tool links
     rca_session = models.ForeignKey(
-        "agents_api.RCASession", on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="ncrs",
+        "agents_api.RCASession",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ncrs",
     )
     capa_report = models.ForeignKey(
-        "agents_api.Report", on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="ncrs",
+        "agents_api.Report",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ncrs",
     )
 
     # Evidence attachments
     files = models.ManyToManyField(
-        "files.UserFile", blank=True, related_name="ncrs",
+        "files.UserFile",
+        blank=True,
+        related_name="ncrs",
     )
 
     # Valid status transitions (forward and backward)
@@ -3536,17 +3647,26 @@ class NonconformanceRecord(models.Model):
         if self.raised_by:
             d["raised_by"] = {"id": self.raised_by_id, "name": self.raised_by.display_name or self.raised_by.email}
         if self.assigned_to:
-            d["assigned_to"] = {"id": self.assigned_to_id, "name": self.assigned_to.display_name or self.assigned_to.email}
+            d["assigned_to"] = {
+                "id": self.assigned_to_id,
+                "name": self.assigned_to.display_name or self.assigned_to.email,
+            }
         if self.approved_by:
-            d["approved_by"] = {"id": self.approved_by_id, "name": self.approved_by.display_name or self.approved_by.email}
+            d["approved_by"] = {
+                "id": self.approved_by_id,
+                "name": self.approved_by.display_name or self.approved_by.email,
+            }
         try:
             d["status_changes"] = [sc.to_dict() for sc in self.status_changes.order_by("created_at")]
         except Exception:
             pass
         try:
-            d["field_changes"] = [fc.to_dict() for fc in QMSFieldChange.objects.filter(
-                record_type="ncr", record_id=self.id
-            ).select_related("changed_by")[:50]]
+            d["field_changes"] = [
+                fc.to_dict()
+                for fc in QMSFieldChange.objects.filter(record_type="ncr", record_id=self.id).select_related(
+                    "changed_by"
+                )[:50]
+            ]
         except Exception:
             d["field_changes"] = []
         return d
@@ -3557,14 +3677,17 @@ class NCRStatusChange(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     ncr = models.ForeignKey(
-        NonconformanceRecord, on_delete=models.CASCADE,
+        NonconformanceRecord,
+        on_delete=models.CASCADE,
         related_name="status_changes",
     )
     from_status = models.CharField(max_length=20)
     to_status = models.CharField(max_length=20)
     changed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
     )
     note = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -3632,12 +3755,16 @@ class CAPAReport(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
         related_name="capa_reports",
     )
     project = models.ForeignKey(
-        "core.Project", on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="capa_reports",
+        "core.Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="capa_reports",
     )
 
     title = models.CharField(max_length=300)
@@ -3649,8 +3776,11 @@ class CAPAReport(models.Model):
     source_id = models.UUIDField(null=True, blank=True, help_text="UUID of the source record")
 
     assigned_to = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="assigned_capas",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_capas",
     )
     due_date = models.DateField(null=True, blank=True)
 
@@ -3664,12 +3794,18 @@ class CAPAReport(models.Model):
     effectiveness_check_date = models.DateField(null=True, blank=True)
     is_recurrence_checked = models.BooleanField(default=False, db_column="recurrence_check")
     cost_of_poor_quality = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True,
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
     )
 
     rca_session = models.ForeignKey(
-        "agents_api.RCASession", on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="capa_reports",
+        "agents_api.RCASession",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="capa_reports",
     )
 
     closed_at = models.DateTimeField(null=True, blank=True)
@@ -3730,9 +3866,7 @@ class CAPAReport(models.Model):
                 "name": getattr(self.assigned_to, "display_name", "") or self.assigned_to.email,
             }
         try:
-            d["status_changes"] = [
-                sc.to_dict() for sc in self.status_changes.order_by("created_at")
-            ]
+            d["status_changes"] = [sc.to_dict() for sc in self.status_changes.order_by("created_at")]
         except Exception:
             d["status_changes"] = []
         return d
@@ -3743,14 +3877,17 @@ class CAPAStatusChange(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     capa = models.ForeignKey(
-        CAPAReport, on_delete=models.CASCADE,
+        CAPAReport,
+        on_delete=models.CASCADE,
         related_name="status_changes",
     )
     from_status = models.CharField(max_length=20)
     to_status = models.CharField(max_length=20)
     changed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
     )
     note = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -3782,7 +3919,8 @@ class InternalAudit(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
         related_name="internal_audits",
     )
     title = models.CharField(max_length=300)
@@ -3821,9 +3959,12 @@ class InternalAudit(models.Model):
             "field_changes": [],
         }
         try:
-            d["field_changes"] = [fc.to_dict() for fc in QMSFieldChange.objects.filter(
-                record_type="audit", record_id=self.id
-            ).select_related("changed_by")[:50]]
+            d["field_changes"] = [
+                fc.to_dict()
+                for fc in QMSFieldChange.objects.filter(record_type="audit", record_id=self.id).select_related(
+                    "changed_by"
+                )[:50]
+            ]
         except Exception:
             pass
         return d
@@ -3857,8 +3998,11 @@ class AuditFinding(models.Model):
 
     # Optional link to NCR created from this finding
     ncr = models.ForeignKey(
-        NonconformanceRecord, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="audit_findings",
+        NonconformanceRecord,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="audit_findings",
     )
 
     class Meta:
@@ -3885,7 +4029,8 @@ class TrainingRequirement(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
         related_name="training_requirements",
     )
     name = models.CharField(max_length=300)
@@ -3894,12 +4039,16 @@ class TrainingRequirement(models.Model):
     frequency_months = models.IntegerField(default=0, help_text="0 = one-time")
     is_mandatory = models.BooleanField(default=False)
     document = models.ForeignKey(
-        "agents_api.ControlledDocument", on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="training_requirements",
+        "agents_api.ControlledDocument",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="training_requirements",
         help_text="Linked controlled document (nullable for informal training)",
     )
     document_version = models.CharField(
-        max_length=20, blank=True,
+        max_length=20,
+        blank=True,
         help_text="Document version when training was last aligned",
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -3954,7 +4103,9 @@ class TrainingRecord(models.Model):
         help_text="TWI competency: 0=None, 1=Awareness, 2=Supervised, 3=Competent, 4=Trainer",
     )
     artifacts = models.ManyToManyField(
-        "files.UserFile", blank=True, related_name="training_records",
+        "files.UserFile",
+        blank=True,
+        related_name="training_records",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -3965,15 +4116,19 @@ class TrainingRecord(models.Model):
     def is_expiring_soon(self):
         if not self.expires_at:
             return False
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
+
         return self.expires_at <= timezone.now() + timedelta(days=30)
 
     @property
     def certification_status(self):
         """Compute certification status from status + expires_at (TRN-001 §3)."""
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
+
         if self.status in ("not_started", "in_progress"):
             return "incomplete"
         if self.status == "expired":
@@ -4012,15 +4167,18 @@ class TrainingRecordChange(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     record = models.ForeignKey(
-        TrainingRecord, on_delete=models.CASCADE,
+        TrainingRecord,
+        on_delete=models.CASCADE,
         related_name="changes",
     )
     field_name = models.CharField(max_length=50)
     old_value = models.TextField(blank=True)
     new_value = models.TextField(blank=True)
     changed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -4058,7 +4216,8 @@ class ManagementReview(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
         related_name="management_reviews",
     )
     title = models.CharField(max_length=300)
@@ -4066,9 +4225,15 @@ class ManagementReview(models.Model):
     meeting_date = models.DateField()
     attendees = models.JSONField(default=list, blank=True, help_text="List of attendee names")
     # ISO 9001:2015 clause 9.3.2 inputs
-    inputs = models.JSONField(default=dict, blank=True, help_text="Prior actions, audit results, customer feedback, process performance, NCRs, risks, opportunities")
+    inputs = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Prior actions, audit results, customer feedback, process performance, NCRs, risks, opportunities",
+    )
     # ISO 9001:2015 clause 9.3.3 outputs
-    outputs = models.JSONField(default=dict, blank=True, help_text="Improvement opportunities, resource needs, changes to QMS")
+    outputs = models.JSONField(
+        default=dict, blank=True, help_text="Improvement opportunities, resource needs, changes to QMS"
+    )
     minutes = models.TextField(blank=True)
     data_snapshot = models.JSONField(default=dict, blank=True, help_text="Auto-captured QMS metrics at review time")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -4107,7 +4272,8 @@ class ControlledDocument(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
         related_name="controlled_documents",
     )
     title = models.CharField(max_length=300)
@@ -4119,8 +4285,11 @@ class ControlledDocument(models.Model):
     review_due_date = models.DateField(null=True, blank=True)
     approved_by = models.CharField(max_length=200, blank=True)
     approved_by_user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="approved_documents",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_documents",
     )
     approved_at = models.DateTimeField(null=True, blank=True)
     content = models.TextField(blank=True)
@@ -4131,13 +4300,18 @@ class ControlledDocument(models.Model):
 
     # Evidence attachments
     files = models.ManyToManyField(
-        "files.UserFile", blank=True, related_name="controlled_documents",
+        "files.UserFile",
+        blank=True,
+        related_name="controlled_documents",
     )
 
     # Study linkage — set when created via "Request Document Update" action
     source_study = models.ForeignKey(
-        "core.Project", on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="controlled_documents",
+        "core.Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="controlled_documents",
     )
 
     # Valid status transitions
@@ -4213,9 +4387,12 @@ class ControlledDocument(models.Model):
         except Exception:
             pass
         try:
-            d["field_changes"] = [fc.to_dict() for fc in QMSFieldChange.objects.filter(
-                record_type="document", record_id=self.id
-            ).select_related("changed_by")[:50]]
+            d["field_changes"] = [
+                fc.to_dict()
+                for fc in QMSFieldChange.objects.filter(record_type="document", record_id=self.id).select_related(
+                    "changed_by"
+                )[:50]
+            ]
         except Exception:
             d["field_changes"] = []
         return d
@@ -4226,15 +4403,18 @@ class DocumentRevision(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     document = models.ForeignKey(
-        ControlledDocument, on_delete=models.CASCADE,
+        ControlledDocument,
+        on_delete=models.CASCADE,
         related_name="revisions",
     )
     version = models.CharField(max_length=20)
     change_summary = models.TextField(blank=True)
     content_snapshot = models.TextField(blank=True, help_text="Content at this revision")
     changed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -4266,14 +4446,17 @@ class DocumentStatusChange(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     document = models.ForeignKey(
-        ControlledDocument, on_delete=models.CASCADE,
+        ControlledDocument,
+        on_delete=models.CASCADE,
         related_name="status_changes",
     )
     from_status = models.CharField(max_length=20)
     to_status = models.CharField(max_length=20)
     changed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
     )
     note = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -4324,7 +4507,8 @@ class SupplierRecord(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
         related_name="supplier_records",
     )
     name = models.CharField(max_length=300)
@@ -4338,11 +4522,13 @@ class SupplierRecord(models.Model):
     last_evaluation_date = models.DateField(null=True, blank=True)
     next_evaluation_date = models.DateField(null=True, blank=True)
     quality_rating = models.IntegerField(
-        null=True, blank=True,
+        null=True,
+        blank=True,
         validators=[MinValueValidator(1), MaxValueValidator(5)],
     )
     evaluation_scores = models.JSONField(
-        default=dict, blank=True,
+        default=dict,
+        blank=True,
         help_text='{"quality": 1-5, "delivery": 1-5, "price": 1-5, "communication": 1-5}',
     )
     disqualification_reason = models.TextField(blank=True)
@@ -4412,9 +4598,12 @@ class SupplierRecord(models.Model):
         except Exception:
             pass
         try:
-            d["field_changes"] = [fc.to_dict() for fc in QMSFieldChange.objects.filter(
-                record_type="supplier", record_id=self.id
-            ).select_related("changed_by")[:50]]
+            d["field_changes"] = [
+                fc.to_dict()
+                for fc in QMSFieldChange.objects.filter(record_type="supplier", record_id=self.id).select_related(
+                    "changed_by"
+                )[:50]
+            ]
         except Exception:
             d["field_changes"] = []
         return d
@@ -4425,14 +4614,17 @@ class SupplierStatusChange(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     supplier = models.ForeignKey(
-        SupplierRecord, on_delete=models.CASCADE,
+        SupplierRecord,
+        on_delete=models.CASCADE,
         related_name="status_changes",
     )
     from_status = models.CharField(max_length=20)
     to_status = models.CharField(max_length=20)
     changed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
     )
     note = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -4471,8 +4663,10 @@ class QMSFieldChange(models.Model):
     old_value = models.TextField(blank=True)
     new_value = models.TextField(blank=True)
     changed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -4509,7 +4703,8 @@ class AuditChecklist(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
         related_name="audit_checklists",
     )
     name = models.CharField(max_length=300)
@@ -4555,12 +4750,16 @@ class ISODocument(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
         related_name="iso_documents",
     )
     project = models.ForeignKey(
-        "core.Project", on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="iso_documents",
+        "core.Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="iso_documents",
     )
     document_type = models.CharField(
         max_length=30,
@@ -4572,15 +4771,21 @@ class ISODocument(models.Model):
     version = models.CharField(max_length=20, default="1.0")
     iso_clause = models.CharField(max_length=20, blank=True)
     metadata = models.JSONField(
-        default=dict, blank=True,
-        help_text='Flexible metadata: effective_date, prepared_by, review_cycle, etc.',
+        default=dict,
+        blank=True,
+        help_text="Flexible metadata: effective_date, prepared_by, review_cycle, etc.",
     )
     controlled_document = models.OneToOneField(
-        ControlledDocument, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="source_iso_document",
+        ControlledDocument,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="source_iso_document",
     )
     files = models.ManyToManyField(
-        "files.UserFile", blank=True, related_name="iso_documents",
+        "files.UserFile",
+        blank=True,
+        related_name="iso_documents",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -4649,28 +4854,39 @@ class ISOSection(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     document = models.ForeignKey(
-        ISODocument, on_delete=models.CASCADE, related_name="sections",
+        ISODocument,
+        on_delete=models.CASCADE,
+        related_name="sections",
     )
     sort_order = models.IntegerField(default=0)
     section_type = models.CharField(
-        max_length=20, choices=SectionType.choices, default=SectionType.PARAGRAPH,
+        max_length=20,
+        choices=SectionType.choices,
+        default=SectionType.PARAGRAPH,
     )
-    section_key = models.CharField(max_length=50, blank=True,
+    section_key = models.CharField(
+        max_length=50,
+        blank=True,
         help_text="Key from document type registry (blank for user-added sections)",
     )
     title = models.CharField(max_length=300, blank=True)
     content = models.TextField(blank=True, help_text="Text content for paragraph/heading sections")
     structured_data = models.JSONField(
-        default=dict, blank=True,
+        default=dict,
+        blank=True,
         help_text="Type-specific data: table rows, checklist items, definition pairs, etc.",
     )
     image = models.ForeignKey(
-        "files.UserFile", on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="iso_section_images",
+        "files.UserFile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="iso_section_images",
     )
     image_caption = models.CharField(max_length=500, blank=True)
     embedded_media = models.JSONField(
-        default=list, blank=True,
+        default=list,
+        blank=True,
         help_text='Whiteboard exports: [{"file_id": "...", "board_name": "...", "room_code": "...", "format": "svg"|"png"}]',
     )
     numbering = models.CharField(max_length=20, blank=True, help_text="e.g. 4.1, 4.1.2")
@@ -4802,12 +5018,11 @@ class ElectronicSignature(SynaraImmutableLog):
 
     def _compute_hash_chain(self):
         """Override to add select_for_update for concurrent safety."""
-        import json as _json
         from django.db import transaction
+
         with transaction.atomic():
             previous = (
-                self.__class__.objects
-                .select_for_update()
+                self.__class__.objects.select_for_update()
                 .filter(tenant_id=self.tenant_id)
                 .order_by("-created_at")
                 .first()
@@ -4820,6 +5035,7 @@ class ElectronicSignature(SynaraImmutableLog):
         """Include signature-specific fields in hash for tamper detection."""
         import hashlib
         import json as _json
+
         data = {
             "correlation_id": str(self.correlation_id),
             "parent_correlation_id": str(self.parent_correlation_id) if self.parent_correlation_id else "",

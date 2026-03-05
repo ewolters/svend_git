@@ -17,6 +17,7 @@ Dependencies: numpy only.
 """
 
 import math
+
 import numpy as np
 
 __all__ = [
@@ -55,8 +56,7 @@ class TaguchiLoss:
         For asymmetric — separate k below / above target.
     """
 
-    def __init__(self, loss_type="nib", target=0.0, delta0=1.0,
-                 cost_at_limit=100.0, k_low=None, k_high=None):
+    def __init__(self, loss_type="nib", target=0.0, delta0=1.0, cost_at_limit=100.0, k_low=None, k_high=None):
         self.loss_type = loss_type.lower()
         self.target = target
         self.delta0 = delta0
@@ -68,7 +68,7 @@ class TaguchiLoss:
             self.k_low = k_low
             self.k_high = k_high
         else:
-            self.k = cost_at_limit / (delta0 ** 2)
+            self.k = cost_at_limit / (delta0**2)
 
     def loss(self, y):
         """Point loss L(y)."""
@@ -76,15 +76,12 @@ class TaguchiLoss:
         if self.loss_type == "nib":
             return self.k * (y - self.target) ** 2
         elif self.loss_type == "stb":
-            return self.k * y ** 2
+            return self.k * y**2
         elif self.loss_type == "ltb":
-            return np.where(np.abs(y) < 1e-12, np.inf,
-                            self.k / y ** 2)
+            return np.where(np.abs(y) < 1e-12, np.inf, self.k / y**2)
         elif self.loss_type == "asymmetric":
             d = y - self.target
-            return np.where(d < 0,
-                            self.k_low * d ** 2,
-                            self.k_high * d ** 2)
+            return np.where(d < 0, self.k_low * d**2, self.k_high * d**2)
         raise ValueError(f"Unknown loss type: {self.loss_type}")
 
     def expected_loss(self, mu, sigma):
@@ -97,14 +94,14 @@ class TaguchiLoss:
         LTB:  Approximation for mu >> sigma.
         """
         if self.loss_type == "nib":
-            return self.k * (sigma ** 2 + (mu - self.target) ** 2)
+            return self.k * (sigma**2 + (mu - self.target) ** 2)
         elif self.loss_type == "stb":
-            return self.k * (sigma ** 2 + mu ** 2)
+            return self.k * (sigma**2 + mu**2)
         elif self.loss_type == "ltb":
             # E[1/Y^2] ≈ 1/mu^2 + 3*sigma^2/mu^4 for mu >> sigma
             if abs(mu) < 1e-8:
                 return float("inf")
-            return self.k * (1.0 / mu ** 2 + 3 * sigma ** 2 / mu ** 4)
+            return self.k * (1.0 / mu**2 + 3 * sigma**2 / mu**4)
         elif self.loss_type == "asymmetric":
             return self._expected_loss_asym(mu, sigma)
         raise ValueError(f"Unknown loss type: {self.loss_type}")
@@ -112,6 +109,7 @@ class TaguchiLoss:
     def _expected_loss_asym(self, mu, sigma):
         """E[L] for asymmetric quadratic via split normal integral."""
         from scipy.stats import norm
+
         T = self.target
         z = (T - mu) / sigma if sigma > 1e-12 else float("inf")
         phi_z = norm.pdf(z)
@@ -120,8 +118,8 @@ class TaguchiLoss:
         # E[(Y-T)^2 | Y<T] * P(Y<T) + E[(Y-T)^2 | Y≥T] * P(Y≥T)
         # E[(Y-T)^2] = sigma^2 + (mu-T)^2
         # Split: integral_{-inf}^{T} (y-T)^2 f(y) dy
-        var = sigma ** 2
-        bias2 = (mu - T) ** 2
+        var = sigma**2
+        (mu - T) ** 2
 
         # Lower part:  P(Y<T) * [var_trunc_low + bias_trunc_low^2]
         # For Gaussian, E[(Y-T)^2 * 1(Y<T)] = var*Phi(z) + (mu-T)^2*Phi(z)
@@ -132,8 +130,8 @@ class TaguchiLoss:
         # (derived via completing the square)
         # But sign needs care. Let d = mu - T.
         d = mu - T
-        E_low = var * Phi_z + d ** 2 * Phi_z - sigma * d * phi_z
-        E_high = var * (1 - Phi_z) + d ** 2 * (1 - Phi_z) + sigma * d * phi_z
+        E_low = var * Phi_z + d**2 * Phi_z - sigma * d * phi_z
+        E_high = var * (1 - Phi_z) + d**2 * (1 - Phi_z) + sigma * d * phi_z
 
         return self.k_low * E_low + self.k_high * E_high
 
@@ -178,8 +176,7 @@ class ProcessDecision:
         L(adjust, OOC)      = C_adj      (adjustment cost — resets process)
     """
 
-    def __init__(self, c_miss=500.0, c_fa=100.0, c_inv=80.0,
-                 c_over=120.0, c_adj=150.0):
+    def __init__(self, c_miss=500.0, c_fa=100.0, c_inv=80.0, c_over=120.0, c_adj=150.0):
         self.c_miss = c_miss
         self.c_fa = c_fa
         self.c_inv = c_inv
@@ -187,11 +184,13 @@ class ProcessDecision:
         self.c_adj = c_adj
 
         # Loss matrix: rows = actions, cols = states (IC, OOC)
-        self.L = np.array([
-            [0.0, c_miss],       # continue
-            [c_fa, c_inv],       # investigate
-            [c_over, c_adj],     # adjust
-        ])
+        self.L = np.array(
+            [
+                [0.0, c_miss],  # continue
+                [c_fa, c_inv],  # investigate
+                [c_over, c_adj],  # adjust
+            ]
+        )
         self.action_names = ["Continue", "Investigate", "Adjust"]
 
     def optimal_action(self, p_ooc):
@@ -232,10 +231,7 @@ class ProcessDecision:
         return {
             "action": best,
             "action_name": self.action_names[best],
-            "expected_costs": {
-                name: float(ec)
-                for name, ec in zip(self.action_names, expected)
-            },
+            "expected_costs": {name: float(ec) for name, ec in zip(self.action_names, expected)},
             "p_ooc": float(p_ooc),
             "thresholds": {
                 "continue_vs_investigate": float(thresh_ci),
@@ -275,8 +271,7 @@ class AcceptanceDecision:
         C_screen     = N * C_insp + N * p * C_int  (inspect all, catch internals)
     """
 
-    def __init__(self, lot_size=1000, c_external=50.0, c_internal=5.0,
-                 c_inspection=0.5, c_reject_lot=200.0):
+    def __init__(self, lot_size=1000, c_external=50.0, c_internal=5.0, c_inspection=0.5, c_reject_lot=200.0):
         self.N = lot_size
         self.c_ext = c_external
         self.c_int = c_internal
@@ -308,11 +303,13 @@ class AcceptanceDecision:
     def optimal_action(self, p_defect):
         """Optimal lot decision given posterior defect rate."""
         costs = self.expected_costs(p_defect)
-        cost_arr = np.array([
-            float(np.mean(costs["accept"])),
-            float(np.mean(costs["reject"])),
-            float(np.mean(costs["screen"])),
-        ])
+        cost_arr = np.array(
+            [
+                float(np.mean(costs["accept"])),
+                float(np.mean(costs["reject"])),
+                float(np.mean(costs["screen"])),
+            ]
+        )
         names = ["Accept", "Reject", "100% Screen"]
         best = int(np.argmin(cost_arr))
 
@@ -342,8 +339,7 @@ class AcceptanceDecision:
 
     def sweep(self, n_points=200):
         """Cost curves over p ∈ [0, max_p]."""
-        max_p = min(1.0, 3 * self.c_rej / (self.N * self.c_ext)
-                    if self.c_ext > 0 else 0.1)
+        max_p = min(1.0, 3 * self.c_rej / (self.N * self.c_ext) if self.c_ext > 0 else 0.1)
         max_p = max(max_p, 0.02)
         ps = np.linspace(0, max_p, n_points)
         costs = self.expected_costs(ps)
@@ -366,9 +362,7 @@ class CostOfQuality:
     and total quality cost with uncertainty bands.
     """
 
-    def __init__(self, prevention=0.0, appraisal=0.0,
-                 internal_failure=0.0, external_failure=0.0,
-                 revenue=1.0):
+    def __init__(self, prevention=0.0, appraisal=0.0, internal_failure=0.0, external_failure=0.0, revenue=1.0):
         self.prevention = prevention
         self.appraisal = appraisal
         self.internal_failure = internal_failure
@@ -377,8 +371,7 @@ class CostOfQuality:
 
     @property
     def total(self):
-        return (self.prevention + self.appraisal +
-                self.internal_failure + self.external_failure)
+        return self.prevention + self.appraisal + self.internal_failure + self.external_failure
 
     @property
     def conformance_cost(self):
@@ -402,16 +395,12 @@ class CostOfQuality:
             "conformance": self.conformance_cost,
             "nonconformance": self.nonconformance_cost,
             "coq_pct_revenue": t / rev * 100 if rev > 0 else 0,
-            "conformance_ratio": (self.conformance_cost / t * 100
-                                  if t > 0 else 0),
-            "nonconformance_ratio": (self.nonconformance_cost / t * 100
-                                     if t > 0 else 0),
+            "conformance_ratio": (self.conformance_cost / t * 100 if t > 0 else 0),
+            "nonconformance_ratio": (self.nonconformance_cost / t * 100 if t > 0 else 0),
             "prevention_pct": self.prevention / t * 100 if t > 0 else 0,
             "appraisal_pct": self.appraisal / t * 100 if t > 0 else 0,
-            "int_failure_pct": (self.internal_failure / t * 100
-                                if t > 0 else 0),
-            "ext_failure_pct": (self.external_failure / t * 100
-                                if t > 0 else 0),
+            "int_failure_pct": (self.internal_failure / t * 100 if t > 0 else 0),
+            "ext_failure_pct": (self.external_failure / t * 100 if t > 0 else 0),
         }
 
     def optimal_prevention_model(self, n_points=50):
@@ -429,10 +418,8 @@ class CostOfQuality:
         # λ calibrated so that doubling prevention halves failure
         lam = math.log(2)
 
-        prev_range = np.linspace(0.1 * base_prevention,
-                                 5.0 * base_prevention, n_points)
-        failure_curve = base_failure * np.exp(
-            -lam * (prev_range / base_prevention - 1))
+        prev_range = np.linspace(0.1 * base_prevention, 5.0 * base_prevention, n_points)
+        failure_curve = base_failure * np.exp(-lam * (prev_range / base_prevention - 1))
         appraisal_curve = np.full(n_points, base_appraisal)
         total_curve = prev_range + appraisal_curve + failure_curve
 
@@ -498,8 +485,7 @@ def _run_taguchi(df, config):
         result["summary"] = "Error: Need at least 2 observations."
         return result
 
-    loss_fn = TaguchiLoss(loss_type=loss_type, target=target,
-                          delta0=delta0, cost_at_limit=cost_at_limit)
+    loss_fn = TaguchiLoss(loss_type=loss_type, target=target, delta0=delta0, cost_at_limit=cost_at_limit)
     mu, sigma = float(np.mean(y)), float(np.std(y, ddof=1))
     losses = loss_fn.loss(y)
     expected = loss_fn.expected_loss(mu, sigma)
@@ -512,119 +498,127 @@ def _run_taguchi(df, config):
     lines.append("<<COLOR:title>>TAGUCHI LOSS FUNCTION ANALYSIS<</COLOR>>")
     lines.append(f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n")
 
-    lines.append(f"<<COLOR:highlight>>Column:<</COLOR>> {col}  "
-                 f"(n = {len(y)})")
-    lines.append(f"<<COLOR:highlight>>Loss type:<</COLOR>> "
-                 f"{loss_type.upper()}")
-    lines.append(f"<<COLOR:highlight>>Target:<</COLOR>> {target}  "
-                 f"Δ₀ = {delta0}  A₀ = {cost_at_limit}")
-    lines.append(f"<<COLOR:highlight>>k:<</COLOR>> "
-                 f"{cost_at_limit / delta0**2:.4f}")
+    lines.append(f"<<COLOR:highlight>>Column:<</COLOR>> {col}  (n = {len(y)})")
+    lines.append(f"<<COLOR:highlight>>Loss type:<</COLOR>> {loss_type.upper()}")
+    lines.append(f"<<COLOR:highlight>>Target:<</COLOR>> {target}  Δ₀ = {delta0}  A₀ = {cost_at_limit}")
+    lines.append(f"<<COLOR:highlight>>k:<</COLOR>> {cost_at_limit / delta0**2:.4f}")
 
-    lines.append(f"\n<<COLOR:accent>>── Process State ──<</COLOR>>")
+    lines.append("\n<<COLOR:accent>>── Process State ──<</COLOR>>")
     lines.append(f"  Mean (μ):              {mu:.4f}")
     lines.append(f"  Std Dev (σ):           {sigma:.4f}")
     lines.append(f"  Bias (μ − T):          {mu - target:.4f}")
 
-    lines.append(f"\n<<COLOR:accent>>── Loss Summary ──<</COLOR>>")
-    lines.append(f"  Expected loss E[L]:    <<COLOR:warning>>"
-                 f"${expected:.2f}<</COLOR>> per unit")
+    lines.append("\n<<COLOR:accent>>── Loss Summary ──<</COLOR>>")
+    lines.append(f"  Expected loss E[L]:    <<COLOR:warning>>${expected:.2f}<</COLOR>> per unit")
     lines.append(f"  Average observed loss: ${avg_loss:.2f} per unit")
-    lines.append(f"  Total observed loss:   ${total_loss:.2f}  "
-                 f"(n = {len(y)} units)")
+    lines.append(f"  Total observed loss:   ${total_loss:.2f}  (n = {len(y)} units)")
 
     # Decomposition: E[L] = k*sigma^2 + k*(mu-T)^2
     if loss_type in ("nib", "stb"):
         k = loss_fn.k
-        var_component = k * sigma ** 2
+        var_component = k * sigma**2
         bias_component = k * (mu - target) ** 2
         pct_var = var_component / expected * 100 if expected > 0 else 0
         pct_bias = bias_component / expected * 100 if expected > 0 else 0
-        lines.append(f"\n<<COLOR:accent>>── Loss Decomposition ──<</COLOR>>")
-        lines.append(f"  Variance component:    ${var_component:.2f}  "
-                     f"({pct_var:.0f}%)")
-        lines.append(f"  Bias component:        ${bias_component:.2f}  "
-                     f"({pct_bias:.0f}%)")
+        lines.append("\n<<COLOR:accent>>── Loss Decomposition ──<</COLOR>>")
+        lines.append(f"  Variance component:    ${var_component:.2f}  ({pct_var:.0f}%)")
+        lines.append(f"  Bias component:        ${bias_component:.2f}  ({pct_bias:.0f}%)")
         if pct_bias > 60:
-            lines.append(f"  <<COLOR:warning>>→ Dominant loss from bias — "
-                         f"center the process on target<</COLOR>>")
+            lines.append("  <<COLOR:warning>>→ Dominant loss from bias — center the process on target<</COLOR>>")
         elif pct_var > 60:
-            lines.append(f"  <<COLOR:warning>>→ Dominant loss from variance "
-                         f"— reduce process variability<</COLOR>>")
+            lines.append("  <<COLOR:warning>>→ Dominant loss from variance — reduce process variability<</COLOR>>")
 
     # What-if: if we center the process
     expected_centered = loss_fn.expected_loss(target, sigma)
     savings_center = expected - expected_centered
     if savings_center > 0.01:
-        lines.append(f"\n<<COLOR:accent>>── What-If ──<</COLOR>>")
-        lines.append(f"  If centered on target: ${expected_centered:.2f} "
-                     f"per unit")
-        lines.append(f"  <<COLOR:good>>Savings from centering: "
-                     f"${savings_center:.2f} per unit<</COLOR>>")
+        lines.append("\n<<COLOR:accent>>── What-If ──<</COLOR>>")
+        lines.append(f"  If centered on target: ${expected_centered:.2f} per unit")
+        lines.append(f"  <<COLOR:good>>Savings from centering: ${savings_center:.2f} per unit<</COLOR>>")
 
     # What-if: halve sigma
     expected_half_sigma = loss_fn.expected_loss(mu, sigma / 2)
     savings_sigma = expected - expected_half_sigma
     if savings_sigma > 0.01:
-        lines.append(f"  If σ halved:           ${expected_half_sigma:.2f} "
-                     f"per unit")
-        lines.append(f"  <<COLOR:good>>Savings from σ reduction: "
-                     f"${savings_sigma:.2f} per unit<</COLOR>>")
+        lines.append(f"  If σ halved:           ${expected_half_sigma:.2f} per unit")
+        lines.append(f"  <<COLOR:good>>Savings from σ reduction: ${savings_sigma:.2f} per unit<</COLOR>>")
 
     result["summary"] = "\n".join(lines)
 
     # Plot 1: Loss function curve + data
-    y_sorted = np.sort(y)
-    y_range = np.linspace(min(y.min(), target - 2 * delta0),
-                          max(y.max(), target + 2 * delta0), 200)
+    np.sort(y)
+    y_range = np.linspace(min(y.min(), target - 2 * delta0), max(y.max(), target + 2 * delta0), 200)
     loss_curve = loss_fn.loss(y_range)
 
-    result["plots"].append({
-        "title": "Taguchi Loss Function",
-        "data": [
-            {"type": "scatter", "x": y_range.tolist(),
-             "y": loss_curve.tolist(),
-             "mode": "lines", "name": "L(y)",
-             "line": {"color": "#d94a4a", "width": 2}},
-            {"type": "scatter", "x": y.tolist(),
-             "y": losses.tolist(),
-             "mode": "markers", "name": "Observations",
-             "marker": {"color": "#4a9f6e", "size": 4, "opacity": 0.5}},
-            {"type": "scatter", "x": [target], "y": [0],
-             "mode": "markers", "name": "Target",
-             "marker": {"color": "#d4a24a", "size": 10, "symbol": "diamond"}},
-        ],
-        "layout": {
-            "template": "plotly_dark", "height": 300,
-            "xaxis": {"title": col},
-            "yaxis": {"title": "Loss ($)"},
-        },
-    })
+    result["plots"].append(
+        {
+            "title": "Taguchi Loss Function",
+            "data": [
+                {
+                    "type": "scatter",
+                    "x": y_range.tolist(),
+                    "y": loss_curve.tolist(),
+                    "mode": "lines",
+                    "name": "L(y)",
+                    "line": {"color": "#d94a4a", "width": 2},
+                },
+                {
+                    "type": "scatter",
+                    "x": y.tolist(),
+                    "y": losses.tolist(),
+                    "mode": "markers",
+                    "name": "Observations",
+                    "marker": {"color": "#4a9f6e", "size": 4, "opacity": 0.5},
+                },
+                {
+                    "type": "scatter",
+                    "x": [target],
+                    "y": [0],
+                    "mode": "markers",
+                    "name": "Target",
+                    "marker": {"color": "#d4a24a", "size": 10, "symbol": "diamond"},
+                },
+            ],
+            "layout": {
+                "template": "plotly_dark",
+                "height": 300,
+                "xaxis": {"title": col},
+                "yaxis": {"title": "Loss ($)"},
+            },
+        }
+    )
 
     # Plot 2: Loss histogram
     hist_vals, bin_edges = np.histogram(losses, bins=40, density=True)
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-    result["plots"].append({
-        "title": "Distribution of Per-Unit Loss",
-        "data": [
-            {"type": "bar", "x": bin_centers.tolist(),
-             "y": hist_vals.tolist(),
-             "marker": {"color": "rgba(217,74,74,0.5)",
-                        "line": {"color": "#d94a4a", "width": 0.5}},
-             "name": "Loss density"},
-            {"type": "scatter",
-             "x": [expected, expected],
-             "y": [0, max(hist_vals) * 1.1],
-             "mode": "lines",
-             "line": {"color": "#d4a24a", "dash": "dash", "width": 2},
-             "name": f"E[L] = ${expected:.2f}"},
-        ],
-        "layout": {
-            "template": "plotly_dark", "height": 250,
-            "xaxis": {"title": "Loss per unit ($)"},
-            "yaxis": {"title": "Density"},
-        },
-    })
+    result["plots"].append(
+        {
+            "title": "Distribution of Per-Unit Loss",
+            "data": [
+                {
+                    "type": "bar",
+                    "x": bin_centers.tolist(),
+                    "y": hist_vals.tolist(),
+                    "marker": {"color": "rgba(217,74,74,0.5)", "line": {"color": "#d94a4a", "width": 0.5}},
+                    "name": "Loss density",
+                },
+                {
+                    "type": "scatter",
+                    "x": [expected, expected],
+                    "y": [0, max(hist_vals) * 1.1],
+                    "mode": "lines",
+                    "line": {"color": "#d4a24a", "dash": "dash", "width": 2},
+                    "name": f"E[L] = ${expected:.2f}",
+                },
+            ],
+            "layout": {
+                "template": "plotly_dark",
+                "height": 250,
+                "xaxis": {"title": "Loss per unit ($)"},
+                "yaxis": {"title": "Density"},
+            },
+        }
+    )
 
     result["statistics"] = {
         "test": "taguchi_loss",
@@ -649,7 +643,7 @@ def _run_taguchi(df, config):
         "type": "taguchi",
         "loss_type": loss_type,
         "target": float(target),
-        "k": float(loss_fn.k) if hasattr(loss_fn, "k") else float(cost_at_limit / max(delta0 ** 2, 1e-15)),
+        "k": float(loss_fn.k) if hasattr(loss_fn, "k") else float(cost_at_limit / max(delta0**2, 1e-15)),
         "mu": float(mu),
         "sigma": float(sigma),
         "expected_loss": float(expected),
@@ -671,8 +665,7 @@ def _run_process_decision(df, config):
     c_over = float(config.get("c_over", 120))
     c_adj = float(config.get("c_adj", 150))
 
-    pd_obj = ProcessDecision(c_miss=c_miss, c_fa=c_fa, c_inv=c_inv,
-                             c_over=c_over, c_adj=c_adj)
+    pd_obj = ProcessDecision(c_miss=c_miss, c_fa=c_fa, c_inv=c_inv, c_over=c_over, c_adj=c_adj)
     dec = pd_obj.optimal_action(p_ooc)
     sweep = pd_obj.sweep()
 
@@ -682,30 +675,25 @@ def _run_process_decision(df, config):
     lines.append("<<COLOR:title>>BAYESIAN PROCESS DECISION<</COLOR>>")
     lines.append(f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n")
 
-    lines.append(f"<<COLOR:highlight>>P(Out of Control | data):<</COLOR>> "
-                 f"{p_ooc:.1%}")
+    lines.append(f"<<COLOR:highlight>>P(Out of Control | data):<</COLOR>> {p_ooc:.1%}")
 
-    color = {"Continue": "good", "Investigate": "highlight",
-             "Adjust": "warning"}
+    color = {"Continue": "good", "Investigate": "highlight", "Adjust": "warning"}
     c = color.get(dec["action_name"], "highlight")
-    lines.append(f"\n<<COLOR:{c}>>OPTIMAL ACTION: "
-                 f"{dec['action_name'].upper()}<</COLOR>>")
+    lines.append(f"\n<<COLOR:{c}>>OPTIMAL ACTION: {dec['action_name'].upper()}<</COLOR>>")
     lines.append(f"  Expected cost: ${dec['expected_costs'][dec['action_name']]:.2f}")
     lines.append(f"  Savings vs worst: ${dec['cost_savings']:.2f}")
 
-    lines.append(f"\n<<COLOR:accent>>── Expected Cost of Each Action ──<</COLOR>>")
+    lines.append("\n<<COLOR:accent>>── Expected Cost of Each Action ──<</COLOR>>")
     for name, cost in dec["expected_costs"].items():
         marker = " ← optimal" if name == dec["action_name"] else ""
         lines.append(f"  {name:<14}  ${cost:>10.2f}{marker}")
 
-    lines.append(f"\n<<COLOR:accent>>── Decision Boundaries ──<</COLOR>>")
+    lines.append("\n<<COLOR:accent>>── Decision Boundaries ──<</COLOR>>")
     t = dec["thresholds"]
-    lines.append(f"  Continue → Investigate at P(OOC) = "
-                 f"{t['continue_vs_investigate']:.1%}")
-    lines.append(f"  Continue → Adjust at P(OOC) = "
-                 f"{t['continue_vs_adjust']:.1%}")
+    lines.append(f"  Continue → Investigate at P(OOC) = {t['continue_vs_investigate']:.1%}")
+    lines.append(f"  Continue → Adjust at P(OOC) = {t['continue_vs_adjust']:.1%}")
 
-    lines.append(f"\n<<COLOR:accent>>── Cost Parameters ──<</COLOR>>")
+    lines.append("\n<<COLOR:accent>>── Cost Parameters ──<</COLOR>>")
     lines.append(f"  C_miss (miss defect):       ${c_miss:.0f}")
     lines.append(f"  C_fa (false alarm):          ${c_fa:.0f}")
     lines.append(f"  C_inv (investigate, found):  ${c_inv:.0f}")
@@ -715,40 +703,44 @@ def _run_process_decision(df, config):
     result["summary"] = "\n".join(lines)
 
     # Plot: Decision boundary curves
-    colors = {"continue": "#4a9f6e", "investigate": "#d4a24a",
-              "adjust": "#d94a4a"}
+    colors = {"continue": "#4a9f6e", "investigate": "#d4a24a", "adjust": "#d94a4a"}
     traces = []
     for key in ["continue", "investigate", "adjust"]:
-        traces.append({
-            "type": "scatter",
-            "x": sweep["p_ooc"],
-            "y": sweep[key],
-            "mode": "lines",
-            "name": key.capitalize(),
-            "line": {"color": colors[key], "width": 2},
-        })
+        traces.append(
+            {
+                "type": "scatter",
+                "x": sweep["p_ooc"],
+                "y": sweep[key],
+                "mode": "lines",
+                "name": key.capitalize(),
+                "line": {"color": colors[key], "width": 2},
+            }
+        )
 
     # Current position marker
-    traces.append({
-        "type": "scatter",
-        "x": [p_ooc],
-        "y": [dec["expected_costs"][dec["action_name"]]],
-        "mode": "markers",
-        "name": f"Current: {dec['action_name']}",
-        "marker": {"color": colors.get(dec["action_name"].lower(),
-                                        "#ffffff"),
-                    "size": 12, "symbol": "star"},
-    })
+    traces.append(
+        {
+            "type": "scatter",
+            "x": [p_ooc],
+            "y": [dec["expected_costs"][dec["action_name"]]],
+            "mode": "markers",
+            "name": f"Current: {dec['action_name']}",
+            "marker": {"color": colors.get(dec["action_name"].lower(), "#ffffff"), "size": 12, "symbol": "star"},
+        }
+    )
 
-    result["plots"].append({
-        "title": "Expected Cost vs P(Out of Control)",
-        "data": traces,
-        "layout": {
-            "template": "plotly_dark", "height": 350,
-            "xaxis": {"title": "P(OOC | data)", "tickformat": ".0%"},
-            "yaxis": {"title": "Expected Cost ($)"},
-        },
-    })
+    result["plots"].append(
+        {
+            "title": "Expected Cost vs P(Out of Control)",
+            "data": traces,
+            "layout": {
+                "template": "plotly_dark",
+                "height": 350,
+                "xaxis": {"title": "P(OOC | data)", "tickformat": ".0%"},
+                "yaxis": {"title": "Expected Cost ($)"},
+            },
+        }
+    )
 
     result["statistics"] = {
         "test": "process_decision",
@@ -780,9 +772,9 @@ def _run_lot_sentencing(df, config):
     c_insp = float(config.get("c_inspection", 0.5))
     c_rej = float(config.get("c_reject_lot", 200))
 
-    ad = AcceptanceDecision(lot_size=lot_size, c_external=c_ext,
-                            c_internal=c_int, c_inspection=c_insp,
-                            c_reject_lot=c_rej)
+    ad = AcceptanceDecision(
+        lot_size=lot_size, c_external=c_ext, c_internal=c_int, c_inspection=c_insp, c_reject_lot=c_rej
+    )
     dec = ad.optimal_action(p_defect)
     sweep = ad.sweep()
 
@@ -791,30 +783,26 @@ def _run_lot_sentencing(df, config):
     lines.append("<<COLOR:title>>ECONOMIC LOT SENTENCING<</COLOR>>")
     lines.append(f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n")
 
-    lines.append(f"<<COLOR:highlight>>Posterior defect rate:<</COLOR>> "
-                 f"{p_defect:.2%}")
+    lines.append(f"<<COLOR:highlight>>Posterior defect rate:<</COLOR>> {p_defect:.2%}")
     lines.append(f"<<COLOR:highlight>>Lot size:<</COLOR>> {lot_size}")
 
-    color = {"Accept": "good", "Reject": "warning",
-             "100% Screen": "highlight"}
+    color = {"Accept": "good", "Reject": "warning", "100% Screen": "highlight"}
     c = color.get(dec["action_name"], "highlight")
-    lines.append(f"\n<<COLOR:{c}>>OPTIMAL ACTION: "
-                 f"{dec['action_name'].upper()}<</COLOR>>")
-    lines.append(f"  Expected cost: "
-                 f"${dec['expected_costs'][dec['action_name']]:.2f}")
+    lines.append(f"\n<<COLOR:{c}>>OPTIMAL ACTION: {dec['action_name'].upper()}<</COLOR>>")
+    lines.append(f"  Expected cost: ${dec['expected_costs'][dec['action_name']]:.2f}")
     lines.append(f"  Savings vs worst: ${dec['cost_savings']:.2f}")
 
-    lines.append(f"\n<<COLOR:accent>>── Expected Cost of Each Action ──<</COLOR>>")
+    lines.append("\n<<COLOR:accent>>── Expected Cost of Each Action ──<</COLOR>>")
     for name, cost in dec["expected_costs"].items():
         marker = " ← optimal" if name == dec["action_name"] else ""
         lines.append(f"  {name:<14}  ${cost:>10.2f}{marker}")
 
-    lines.append(f"\n<<COLOR:accent>>── Breakeven Points ──<</COLOR>>")
+    lines.append("\n<<COLOR:accent>>── Breakeven Points ──<</COLOR>>")
     be = dec["breakeven"]
     lines.append(f"  Accept = Reject at p = {be['accept_vs_reject']:.4%}")
     lines.append(f"  Accept = Screen at p = {be['accept_vs_screen']:.4%}")
 
-    lines.append(f"\n<<COLOR:accent>>── Cost Parameters ──<</COLOR>>")
+    lines.append("\n<<COLOR:accent>>── Cost Parameters ──<</COLOR>>")
     lines.append(f"  External failure:  ${c_ext:.2f} / defective unit")
     lines.append(f"  Internal failure:  ${c_int:.2f} / defective unit")
     lines.append(f"  Inspection:        ${c_insp:.2f} / unit inspected")
@@ -824,37 +812,52 @@ def _run_lot_sentencing(df, config):
 
     # Plot: Cost curves
     traces = [
-        {"type": "scatter", "x": sweep["p_defect"],
-         "y": sweep["accept"], "mode": "lines",
-         "name": "Accept",
-         "line": {"color": "#4a9f6e", "width": 2}},
-        {"type": "scatter", "x": sweep["p_defect"],
-         "y": sweep["reject"], "mode": "lines",
-         "name": "Reject",
-         "line": {"color": "#d94a4a", "width": 2}},
-        {"type": "scatter", "x": sweep["p_defect"],
-         "y": sweep["screen"], "mode": "lines",
-         "name": "100% Screen",
-         "line": {"color": "#d4a24a", "width": 2}},
-        {"type": "scatter",
-         "x": [p_defect],
-         "y": [dec["expected_costs"][dec["action_name"]]],
-         "mode": "markers",
-         "name": f"Current: {dec['action_name']}",
-         "marker": {"size": 12, "symbol": "star",
-                    "color": "#ffffff"}},
+        {
+            "type": "scatter",
+            "x": sweep["p_defect"],
+            "y": sweep["accept"],
+            "mode": "lines",
+            "name": "Accept",
+            "line": {"color": "#4a9f6e", "width": 2},
+        },
+        {
+            "type": "scatter",
+            "x": sweep["p_defect"],
+            "y": sweep["reject"],
+            "mode": "lines",
+            "name": "Reject",
+            "line": {"color": "#d94a4a", "width": 2},
+        },
+        {
+            "type": "scatter",
+            "x": sweep["p_defect"],
+            "y": sweep["screen"],
+            "mode": "lines",
+            "name": "100% Screen",
+            "line": {"color": "#d4a24a", "width": 2},
+        },
+        {
+            "type": "scatter",
+            "x": [p_defect],
+            "y": [dec["expected_costs"][dec["action_name"]]],
+            "mode": "markers",
+            "name": f"Current: {dec['action_name']}",
+            "marker": {"size": 12, "symbol": "star", "color": "#ffffff"},
+        },
     ]
 
-    result["plots"].append({
-        "title": "Lot Sentencing: Cost vs Defect Rate",
-        "data": traces,
-        "layout": {
-            "template": "plotly_dark", "height": 350,
-            "xaxis": {"title": "Defect Rate (p)",
-                      "tickformat": ".1%"},
-            "yaxis": {"title": "Expected Cost ($)"},
-        },
-    })
+    result["plots"].append(
+        {
+            "title": "Lot Sentencing: Cost vs Defect Rate",
+            "data": traces,
+            "layout": {
+                "template": "plotly_dark",
+                "height": 350,
+                "xaxis": {"title": "Defect Rate (p)", "tickformat": ".1%"},
+                "yaxis": {"title": "Expected Cost ($)"},
+            },
+        }
+    )
 
     result["statistics"] = {
         "test": "lot_sentencing",
@@ -890,8 +893,7 @@ def _run_coq(df, config):
         result["summary"] = "Error: Enter at least one cost value."
         return result
 
-    coq = CostOfQuality(prevention, appraisal, int_failure, ext_failure,
-                        revenue)
+    coq = CostOfQuality(prevention, appraisal, int_failure, ext_failure, revenue)
     s = coq.summary()
     opt = coq.optimal_prevention_model()
 
@@ -900,26 +902,18 @@ def _run_coq(df, config):
     lines.append("<<COLOR:title>>COST OF QUALITY (PAF MODEL)<</COLOR>>")
     lines.append(f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n")
 
-    lines.append(f"<<COLOR:accent>>── Cost Breakdown ──<</COLOR>>")
-    lines.append(f"  Prevention:         ${prevention:>12,.0f}  "
-                 f"({s['prevention_pct']:.1f}%)")
-    lines.append(f"  Appraisal:          ${appraisal:>12,.0f}  "
-                 f"({s['appraisal_pct']:.1f}%)")
-    lines.append(f"  Internal Failure:   ${int_failure:>12,.0f}  "
-                 f"({s['int_failure_pct']:.1f}%)")
-    lines.append(f"  External Failure:   ${ext_failure:>12,.0f}  "
-                 f"({s['ext_failure_pct']:.1f}%)")
+    lines.append("<<COLOR:accent>>── Cost Breakdown ──<</COLOR>>")
+    lines.append(f"  Prevention:         ${prevention:>12,.0f}  ({s['prevention_pct']:.1f}%)")
+    lines.append(f"  Appraisal:          ${appraisal:>12,.0f}  ({s['appraisal_pct']:.1f}%)")
+    lines.append(f"  Internal Failure:   ${int_failure:>12,.0f}  ({s['int_failure_pct']:.1f}%)")
+    lines.append(f"  External Failure:   ${ext_failure:>12,.0f}  ({s['ext_failure_pct']:.1f}%)")
     lines.append(f"  {'─' * 45}")
-    lines.append(f"  <<COLOR:warning>>Total CoQ:          "
-                 f"${s['total_coq']:>12,.0f}<</COLOR>>")
-    lines.append(f"  <<COLOR:highlight>>CoQ / Revenue:      "
-                 f"{s['coq_pct_revenue']:.1f}%<</COLOR>>")
+    lines.append(f"  <<COLOR:warning>>Total CoQ:          ${s['total_coq']:>12,.0f}<</COLOR>>")
+    lines.append(f"  <<COLOR:highlight>>CoQ / Revenue:      {s['coq_pct_revenue']:.1f}%<</COLOR>>")
 
-    lines.append(f"\n<<COLOR:accent>>── Conformance vs Nonconformance ──<</COLOR>>")
-    lines.append(f"  Conformance (P+A):     ${s['conformance']:>12,.0f}  "
-                 f"({s['conformance_ratio']:.0f}%)")
-    lines.append(f"  Nonconformance (F):    ${s['nonconformance']:>12,.0f}  "
-                 f"({s['nonconformance_ratio']:.0f}%)")
+    lines.append("\n<<COLOR:accent>>── Conformance vs Nonconformance ──<</COLOR>>")
+    lines.append(f"  Conformance (P+A):     ${s['conformance']:>12,.0f}  ({s['conformance_ratio']:.0f}%)")
+    lines.append(f"  Nonconformance (F):    ${s['nonconformance']:>12,.0f}  ({s['nonconformance_ratio']:.0f}%)")
 
     # Benchmark guidance
     coq_pct = s["coq_pct_revenue"]
@@ -932,80 +926,93 @@ def _run_coq(df, config):
     else:
         grade = "World-class"
 
-    lines.append(f"\n<<COLOR:accent>>── Assessment ──<</COLOR>>")
-    lines.append(f"  Grade: <<COLOR:highlight>>{grade}<</COLOR>> "
-                 f"(CoQ = {coq_pct:.1f}% of revenue)")
-    lines.append(f"  Benchmark: world-class < 5%, "
-                 f"typical 5-15%, high 15-25%")
+    lines.append("\n<<COLOR:accent>>── Assessment ──<</COLOR>>")
+    lines.append(f"  Grade: <<COLOR:highlight>>{grade}<</COLOR>> (CoQ = {coq_pct:.1f}% of revenue)")
+    lines.append("  Benchmark: world-class < 5%, typical 5-15%, high 15-25%")
 
     if s["nonconformance_ratio"] > 70:
-        lines.append(f"  <<COLOR:warning>>→ Failure costs dominate — "
-                     f"invest more in prevention<</COLOR>>")
+        lines.append("  <<COLOR:warning>>→ Failure costs dominate — invest more in prevention<</COLOR>>")
     elif s["conformance_ratio"] > 80:
-        lines.append(f"  <<COLOR:good>>→ Strong prevention focus — "
-                     f"verify ROI of appraisal spend<</COLOR>>")
+        lines.append("  <<COLOR:good>>→ Strong prevention focus — verify ROI of appraisal spend<</COLOR>>")
 
-    lines.append(f"\n<<COLOR:accent>>── Optimal Prevention Model ──<</COLOR>>")
+    lines.append("\n<<COLOR:accent>>── Optimal Prevention Model ──<</COLOR>>")
     lines.append(f"  Current prevention:  ${opt['current_prevention']:>12,.0f}")
     lines.append(f"  Optimal prevention:  ${opt['optimal_prevention']:>12,.0f}")
     lines.append(f"  Current total CoQ:   ${opt['current_total']:>12,.0f}")
     lines.append(f"  Optimal total CoQ:   ${opt['optimal_total']:>12,.0f}")
     saving = opt["current_total"] - opt["optimal_total"]
     if saving > 0:
-        lines.append(f"  <<COLOR:good>>Potential savings:    "
-                     f"${saving:>12,.0f}<</COLOR>>")
+        lines.append(f"  <<COLOR:good>>Potential savings:    ${saving:>12,.0f}<</COLOR>>")
 
     result["summary"] = "\n".join(lines)
 
     # Plot 1: Pie chart
-    result["plots"].append({
-        "title": "Cost of Quality Breakdown",
-        "data": [
-            {"type": "pie",
-             "labels": ["Prevention", "Appraisal",
-                        "Internal Failure", "External Failure"],
-             "values": [prevention, appraisal, int_failure, ext_failure],
-             "marker": {"colors": ["#4a9f6e", "#6ab7d4",
-                                   "#d4a24a", "#d94a4a"]},
-             "hole": 0.4,
-             "textinfo": "label+percent"},
-        ],
-        "layout": {
-            "template": "plotly_dark", "height": 300,
-        },
-    })
+    result["plots"].append(
+        {
+            "title": "Cost of Quality Breakdown",
+            "data": [
+                {
+                    "type": "pie",
+                    "labels": ["Prevention", "Appraisal", "Internal Failure", "External Failure"],
+                    "values": [prevention, appraisal, int_failure, ext_failure],
+                    "marker": {"colors": ["#4a9f6e", "#6ab7d4", "#d4a24a", "#d94a4a"]},
+                    "hole": 0.4,
+                    "textinfo": "label+percent",
+                },
+            ],
+            "layout": {
+                "template": "plotly_dark",
+                "height": 300,
+            },
+        }
+    )
 
     # Plot 2: Prevention optimization curve
-    result["plots"].append({
-        "title": "Prevention Investment vs Total CoQ",
-        "data": [
-            {"type": "scatter", "x": opt["prevention"],
-             "y": opt["failure"], "mode": "lines",
-             "name": "Failure Cost",
-             "line": {"color": "#d94a4a", "width": 2}},
-            {"type": "scatter", "x": opt["prevention"],
-             "y": opt["total"], "mode": "lines",
-             "name": "Total CoQ",
-             "line": {"color": "#d4a24a", "width": 2.5}},
-            {"type": "scatter",
-             "x": [opt["optimal_prevention"]],
-             "y": [opt["optimal_total"]],
-             "mode": "markers", "name": "Optimum",
-             "marker": {"color": "#4a9f6e", "size": 12,
-                        "symbol": "star"}},
-            {"type": "scatter",
-             "x": [opt["current_prevention"]],
-             "y": [opt["current_total"]],
-             "mode": "markers", "name": "Current",
-             "marker": {"color": "#d94a4a", "size": 10,
-                        "symbol": "diamond"}},
-        ],
-        "layout": {
-            "template": "plotly_dark", "height": 300,
-            "xaxis": {"title": "Prevention Spending ($)"},
-            "yaxis": {"title": "Cost ($)"},
-        },
-    })
+    result["plots"].append(
+        {
+            "title": "Prevention Investment vs Total CoQ",
+            "data": [
+                {
+                    "type": "scatter",
+                    "x": opt["prevention"],
+                    "y": opt["failure"],
+                    "mode": "lines",
+                    "name": "Failure Cost",
+                    "line": {"color": "#d94a4a", "width": 2},
+                },
+                {
+                    "type": "scatter",
+                    "x": opt["prevention"],
+                    "y": opt["total"],
+                    "mode": "lines",
+                    "name": "Total CoQ",
+                    "line": {"color": "#d4a24a", "width": 2.5},
+                },
+                {
+                    "type": "scatter",
+                    "x": [opt["optimal_prevention"]],
+                    "y": [opt["optimal_total"]],
+                    "mode": "markers",
+                    "name": "Optimum",
+                    "marker": {"color": "#4a9f6e", "size": 12, "symbol": "star"},
+                },
+                {
+                    "type": "scatter",
+                    "x": [opt["current_prevention"]],
+                    "y": [opt["current_total"]],
+                    "mode": "markers",
+                    "name": "Current",
+                    "marker": {"color": "#d94a4a", "size": 10, "symbol": "diamond"},
+                },
+            ],
+            "layout": {
+                "template": "plotly_dark",
+                "height": 300,
+                "xaxis": {"title": "Prevention Spending ($)"},
+                "yaxis": {"title": "Cost ($)"},
+            },
+        }
+    )
 
     result["statistics"] = {
         "test": "cost_of_quality",

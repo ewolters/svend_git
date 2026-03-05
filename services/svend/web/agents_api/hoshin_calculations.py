@@ -14,7 +14,6 @@ import re
 
 import numpy as np
 
-
 # ---------------------------------------------------------------------------
 # Core calculation dispatch
 # ---------------------------------------------------------------------------
@@ -375,6 +374,7 @@ def evaluate_custom_formula(formula, variables):
 # TTM (Trailing Twelve-Month) baseline calculation
 # ---------------------------------------------------------------------------
 
+
 def calculate_ttm_baseline(baseline_data):
     """Calculate trailing 12-month average from baseline data.
 
@@ -398,6 +398,7 @@ def calculate_ttm_baseline(baseline_data):
 # Monthly savings aggregation
 # ---------------------------------------------------------------------------
 
+
 def aggregate_monthly_savings(monthly_actuals):
     """Aggregate monthly savings into YTD and trend data.
 
@@ -412,11 +413,13 @@ def aggregate_monthly_savings(monthly_actuals):
     for m in sorted(monthly_actuals, key=lambda x: x.get("month", 0)):
         s = m.get("savings", 0) or 0
         ytd += s
-        trend.append({
-            "month": m.get("month"),
-            "savings": round(s, 2),
-            "cumulative": round(ytd, 2),
-        })
+        trend.append(
+            {
+                "month": m.get("month"),
+                "savings": round(s, 2),
+                "cumulative": round(ytd, 2),
+            }
+        )
 
     return {
         "ytd_savings": round(ytd, 2),
@@ -428,6 +431,7 @@ def aggregate_monthly_savings(monthly_actuals):
 # ---------------------------------------------------------------------------
 # VSM delta estimation (for auto-proposals)
 # ---------------------------------------------------------------------------
+
 
 def estimate_savings_from_vsm_delta(
     current_step,
@@ -478,7 +482,9 @@ def estimate_savings_from_vsm_delta(
     elif suggested == "time_reduction":
         total_time_current = ct_current + (co_current / max(1, float(current_step.get("batch_size") or 1)))
         total_time_future = ct_future + (co_future / max(1, float(future_step.get("batch_size") or 1)))
-        result = calculate_savings("time_reduction", total_time_current, total_time_future, annual_volume, cost_per_unit)
+        result = calculate_savings(
+            "time_reduction", total_time_current, total_time_future, annual_volume, cost_per_unit
+        )
     else:
         result = calculate_savings(method, ct_current, ct_future, annual_volume, cost_per_unit)
 
@@ -512,9 +518,7 @@ def estimate_savings_monte_carlo(
     Returns percentile-based confidence intervals alongside the point estimate.
     """
     # Get deterministic baseline
-    det = estimate_savings_from_vsm_delta(
-        current_step, future_step, method, annual_volume, cost_per_unit
-    )
+    det = estimate_savings_from_vsm_delta(current_step, future_step, method, annual_volume, cost_per_unit)
 
     savings = np.empty(n_simulations)
     for i in range(n_simulations):
@@ -538,9 +542,7 @@ def estimate_savings_monte_carlo(
         perturbed_future["uptime"] = ut_cur + (ut_fut - ut_cur) * realization
         perturbed_future["batch_size"] = future_step.get("batch_size", 1)
 
-        sim = estimate_savings_from_vsm_delta(
-            current_step, perturbed_future, method, vol, cpu
-        )
+        sim = estimate_savings_from_vsm_delta(current_step, perturbed_future, method, vol, cpu)
         savings[i] = sim["estimated_annual_savings"]
 
     return {

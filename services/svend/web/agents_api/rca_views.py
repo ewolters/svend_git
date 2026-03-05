@@ -14,6 +14,7 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid, require_enterprise
 from core.models import Project
+
 from .evidence_bridge import create_tool_evidence
 from .llm_manager import CLAUDE_MODELS
 from .models import ActionItem, CAPAReport, RCASession, check_rate_limit
@@ -279,9 +280,9 @@ def critique(request):
         chain_lines = []
         for i, step in enumerate(chain, 1):
             chain_lines.append(f"{i}. Claim: {step.get('claim', '')[:2000]}")
-            if step.get('response'):
+            if step.get("response"):
                 chain_lines.append(f"   Your critique: {step.get('response', '')[:2000]}")
-        context += f"<causal_chain>\n" + "\n".join(chain_lines) + "\n</causal_chain>\n"
+        context += "<causal_chain>\n" + "\n".join(chain_lines) + "\n</causal_chain>\n"
         context += "\nNow they're proposing the next step in the chain:"
     else:
         context += "They're proposing their first causal claim:"
@@ -294,13 +295,15 @@ def critique(request):
     result = _rca_llm_call(request, RCA_SYSTEM_PROMPT, messages, max_tokens=500)
     if isinstance(result, JsonResponse):
         return result
-    return JsonResponse({
-        "critique": result.content[0].text,
-        "usage": {
-            "input_tokens": result.usage.input_tokens,
-            "output_tokens": result.usage.output_tokens,
-        },
-    })
+    return JsonResponse(
+        {
+            "critique": result.content[0].text,
+            "usage": {
+                "input_tokens": result.usage.input_tokens,
+                "output_tokens": result.usage.output_tokens,
+            },
+        }
+    )
 
 
 @require_enterprise
@@ -334,7 +337,7 @@ def evaluate_chain(request):
         return JsonResponse({"error": "Event, chain, and root cause required"}, status=400)
 
     # Build evaluation prompt with XML-delimited user data
-    chain_text = "\n".join([f"{i+1}. {step.get('claim', '')[:2000]}" for i, step in enumerate(chain)])
+    chain_text = "\n".join([f"{i + 1}. {step.get('claim', '')[:2000]}" for i, step in enumerate(chain)])
 
     prompt = f"""Evaluate this complete root cause analysis:
 
@@ -358,19 +361,23 @@ Evaluate:
 Be direct. If it's solid, say so. If it's garbage dressed up as analysis, say that too."""
 
     result = _rca_llm_call(
-        request, RCA_SYSTEM_PROMPT,
-        [{"role": "user", "content": prompt}], max_tokens=800,
+        request,
+        RCA_SYSTEM_PROMPT,
+        [{"role": "user", "content": prompt}],
+        max_tokens=800,
     )
     if isinstance(result, JsonResponse):
         return result
 
-    return JsonResponse({
-        "evaluation": result.content[0].text,
-        "usage": {
-            "input_tokens": result.usage.input_tokens,
-            "output_tokens": result.usage.output_tokens,
-        },
-    })
+    return JsonResponse(
+        {
+            "evaluation": result.content[0].text,
+            "usage": {
+                "input_tokens": result.usage.input_tokens,
+                "output_tokens": result.usage.output_tokens,
+            },
+        }
+    )
 
 
 @require_enterprise
@@ -415,19 +422,23 @@ Critique this countermeasure:
 Be specific. If it's weak, say why and suggest stronger alternatives from higher in the hierarchy (elimination > substitution > engineering > administrative > warnings)."""
 
     result = _rca_llm_call(
-        request, COUNTERMEASURE_SYSTEM_PROMPT,
-        [{"role": "user", "content": prompt}], max_tokens=600,
+        request,
+        COUNTERMEASURE_SYSTEM_PROMPT,
+        [{"role": "user", "content": prompt}],
+        max_tokens=600,
     )
     if isinstance(result, JsonResponse):
         return result
 
-    return JsonResponse({
-        "critique": result.content[0].text,
-        "usage": {
-            "input_tokens": result.usage.input_tokens,
-            "output_tokens": result.usage.output_tokens,
-        },
-    })
+    return JsonResponse(
+        {
+            "critique": result.content[0].text,
+            "usage": {
+                "input_tokens": result.usage.input_tokens,
+                "output_tokens": result.usage.output_tokens,
+            },
+        }
+    )
 
 
 # =============================================================================
@@ -483,10 +494,7 @@ def guided_questions(request):
     if not chain:
         return JsonResponse({"error": "At least one chain step required"}, status=400)
 
-    chain_text = "\n".join([
-        f"{i+1}. {step.get('claim', '')[:2000]}"
-        for i, step in enumerate(chain)
-    ])
+    chain_text = "\n".join([f"{i + 1}. {step.get('claim', '')[:2000]}" for i, step in enumerate(chain)])
 
     prompt = f"""<incident>{event}</incident>
 
@@ -549,12 +557,14 @@ def cluster_root_causes(request):
     )
 
     if len(sessions) < 2:
-        return JsonResponse({
-            "clusters": [],
-            "unclustered": len(sessions),
-            "total_sessions": len(sessions),
-            "message": "Need at least 2 completed sessions with embeddings for clustering",
-        })
+        return JsonResponse(
+            {
+                "clusters": [],
+                "unclustered": len(sessions),
+                "total_sessions": len(sessions),
+                "message": "Need at least 2 completed sessions with embeddings for clustering",
+            }
+        )
 
     # Build embedding matrix
     valid_sessions = []
@@ -566,12 +576,14 @@ def cluster_root_causes(request):
             embeddings.append(emb)
 
     if len(valid_sessions) < 2:
-        return JsonResponse({
-            "clusters": [],
-            "unclustered": len(sessions),
-            "total_sessions": len(sessions),
-            "message": "Not enough valid embeddings for clustering",
-        })
+        return JsonResponse(
+            {
+                "clusters": [],
+                "unclustered": len(sessions),
+                "total_sessions": len(sessions),
+                "message": "Not enough valid embeddings for clustering",
+            }
+        )
 
     embedding_matrix = np.array(embeddings)
 
@@ -609,50 +621,54 @@ def cluster_root_causes(request):
         member_embeddings = np.array([m[1] for m in members])
         centroid = member_embeddings.mean(axis=0)
         from .embeddings import cosine_similarity
+
         similarities = [cosine_similarity(centroid, e) for e in member_embeddings]
         rep_idx = int(np.argmax(similarities))
 
-        clusters.append({
-            "cluster_id": label,
-            "size": len(members),
-            "representative": {
-                "id": str(members[rep_idx][0].id),
-                "title": members[rep_idx][0].title,
-                "root_cause": members[rep_idx][0].root_cause,
-            },
-            "sessions": [
-                {
-                    "id": str(m[0].id),
-                    "title": m[0].title,
-                    "root_cause": m[0].root_cause,
-                    "status": m[0].status,
-                    "similarity_to_centroid": round(cosine_similarity(centroid, m[1]), 3),
-                }
-                for m in members
-            ],
-        })
+        clusters.append(
+            {
+                "cluster_id": label,
+                "size": len(members),
+                "representative": {
+                    "id": str(members[rep_idx][0].id),
+                    "title": members[rep_idx][0].title,
+                    "root_cause": members[rep_idx][0].root_cause,
+                },
+                "sessions": [
+                    {
+                        "id": str(m[0].id),
+                        "title": m[0].title,
+                        "root_cause": m[0].root_cause,
+                        "status": m[0].status,
+                        "similarity_to_centroid": round(cosine_similarity(centroid, m[1]), 3),
+                    }
+                    for m in members
+                ],
+            }
+        )
 
     unclustered = sum(1 for label, members in cluster_map.items() if len(members) == 1)
 
-    return JsonResponse({
-        "clusters": clusters,
-        "unclustered": unclustered,
-        "total_sessions": len(valid_sessions),
-    })
+    return JsonResponse(
+        {
+            "clusters": clusters,
+            "unclustered": unclustered,
+            "total_sessions": len(valid_sessions),
+        }
+    )
 
 
 # =============================================================================
 # RCA Session CRUD
 # =============================================================================
 
+
 @gated_paid
 @require_http_methods(["GET"])
 def list_sessions(request):
     """List user's RCA sessions."""
     sessions = RCASession.objects.filter(owner=request.user).order_by("-updated_at")[:50]
-    return JsonResponse({
-        "sessions": [s.to_dict() for s in sessions]
-    })
+    return JsonResponse({"sessions": [s.to_dict() for s in sessions]})
 
 
 @gated_paid
@@ -701,6 +717,7 @@ def create_session(request):
     if a3_id:
         try:
             from .models import A3Report
+
             a3 = A3Report.objects.get(id=a3_id, owner=request.user)
             session.a3_report = a3
             session.save()
@@ -792,7 +809,8 @@ def update_session(request, session_id):
     # FEAT-006: RCA → CAPA backflow — when root_cause is set, update linked CAPA
     if "root_cause" in data and data["root_cause"]:
         linked_capas = CAPAReport.objects.filter(
-            rca_session=session, owner=request.user,
+            rca_session=session,
+            owner=request.user,
         )
         for capa in linked_capas:
             if not capa.root_cause:
@@ -800,7 +818,8 @@ def update_session(request, session_id):
                 capa.save(update_fields=["root_cause"])
                 logger.info(
                     "RCA %s → CAPA %s: root cause backflow",
-                    session.id, capa.id,
+                    session.id,
+                    capa.id,
                 )
                 # Create evidence on CAPA's project
                 if capa.project:
@@ -850,6 +869,7 @@ def link_to_a3(request, session_id):
 
     try:
         from .models import A3Report
+
         a3 = A3Report.objects.get(id=a3_id, owner=request.user)
     except A3Report.DoesNotExist:
         return JsonResponse({"error": "A3 report not found"}, status=404)
@@ -861,10 +881,7 @@ def link_to_a3(request, session_id):
     # Optionally populate A3 root cause field
     if data.get("populate_root_cause", False) and session.root_cause:
         # Build a formatted summary of the RCA
-        chain_summary = "\n".join([
-            f"{i+1}. {step.get('claim', '')}"
-            for i, step in enumerate(session.chain)
-        ])
+        chain_summary = "\n".join([f"{i + 1}. {step.get('claim', '')}" for i, step in enumerate(session.chain)])
 
         rca_content = f"**Event:** {session.event}\n\n"
         rca_content += f"**Causal Chain:**\n{chain_summary}\n\n"
@@ -880,16 +897,15 @@ def link_to_a3(request, session_id):
             a3.root_cause = rca_content
         a3.save()
 
-    return JsonResponse({
-        "success": True,
-        "session": session.to_dict(),
-        "a3_updated": data.get("populate_root_cause", False)
-    })
+    return JsonResponse(
+        {"success": True, "session": session.to_dict(), "a3_updated": data.get("populate_root_cause", False)}
+    )
 
 
 # =============================================================================
 # Similar Incidents Search
 # =============================================================================
+
 
 @gated_paid
 @require_http_methods(["POST"])
@@ -919,7 +935,7 @@ def find_similar(request):
 
     # Generate embedding for the query
     try:
-        from .embeddings import generate_embedding, find_similar_in_memory
+        from .embeddings import find_similar_in_memory, generate_embedding
     except ImportError:
         return JsonResponse({"error": "Embedding service not available"}, status=503)
 
@@ -961,16 +977,18 @@ def find_similar(request):
     for session_id, score in similar_ids:
         session = session_map.get(session_id)
         if session:
-            similar.append({
-                "id": str(session.id),
-                "title": session.title or session.event[:50] + "...",
-                "event": session.event,
-                "root_cause": session.root_cause,
-                "countermeasure": session.countermeasure,
-                "status": session.status,
-                "similarity": round(score, 3),
-                "created_at": session.created_at.isoformat(),
-            })
+            similar.append(
+                {
+                    "id": str(session.id),
+                    "title": session.title or session.event[:50] + "...",
+                    "event": session.event,
+                    "root_cause": session.root_cause,
+                    "countermeasure": session.countermeasure,
+                    "status": session.status,
+                    "similarity": round(score, 3),
+                    "created_at": session.created_at.isoformat(),
+                }
+            )
 
     return JsonResponse({"similar": similar})
 
@@ -994,11 +1012,13 @@ def reindex_embeddings(request):
         else:
             failed += 1
 
-    return JsonResponse({
-        "updated": updated,
-        "failed": failed,
-        "total": sessions.count(),
-    })
+    return JsonResponse(
+        {
+            "updated": updated,
+            "failed": failed,
+            "total": sessions.count(),
+        }
+    )
 
 
 # ── Action Items ──────────────────────────────────────────────────────

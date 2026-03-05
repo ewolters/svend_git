@@ -4,8 +4,7 @@ These tasks are queued and executed sequentially to avoid GPU contention.
 """
 
 import logging
-import json
-from typing import Dict, Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +14,8 @@ def llm_inference(
     max_tokens: int = 1000,
     temperature: float = 0.7,
     use_coder: bool = False,
-    callback_url: Optional[str] = None,
-) -> Dict[str, Any]:
+    callback_url: str | None = None,
+) -> dict[str, Any]:
     """
     Execute LLM inference task.
 
@@ -32,7 +31,7 @@ def llm_inference(
     Returns:
         Dict with 'response', 'tokens_used', 'model', 'success'
     """
-    from .views import get_shared_llm, get_coder_llm
+    from .views import get_coder_llm, get_shared_llm
 
     try:
         # Get the appropriate LLM
@@ -67,6 +66,7 @@ def llm_inference(
         if callback_url:
             try:
                 import requests
+
                 requests.post(callback_url, json=result, timeout=5)
             except Exception as e:
                 logger.warning(f"Callback failed: {e}")
@@ -79,7 +79,7 @@ def llm_inference(
             "success": False,
             "error": str(e),
             "response": "",
-            "model": model_name if 'model_name' in dir() else "unknown",
+            "model": model_name if "model_name" in dir() else "unknown",
         }
 
 
@@ -88,7 +88,7 @@ def analyst_inference(
     data_summary: str,
     session_history: str = "",
     max_tokens: int = 1000,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Analyst assistant inference with reasoning prompt.
 

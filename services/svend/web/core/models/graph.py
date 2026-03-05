@@ -9,6 +9,7 @@ Relationships connect entities with typed edges (causal, correlational, etc.)
 """
 
 import uuid
+
 from django.conf import settings
 from django.db import models
 
@@ -49,8 +50,8 @@ class KnowledgeGraph(models.Model):
         constraints = [
             models.CheckConstraint(
                 check=(
-                    models.Q(user__isnull=False, tenant__isnull=True) |
-                    models.Q(user__isnull=True, tenant__isnull=False)
+                    models.Q(user__isnull=False, tenant__isnull=True)
+                    | models.Q(user__isnull=True, tenant__isnull=False)
                 ),
                 name="graph_has_single_owner",
             )

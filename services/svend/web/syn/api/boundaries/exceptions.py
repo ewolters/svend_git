@@ -23,7 +23,7 @@ References:
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
 
@@ -45,8 +45,8 @@ class BoundaryError(Exception):
         self,
         code: str,
         message: str,
-        correlation_id: Optional[UUID] = None,
-        details: Optional[Dict[str, Any]] = None,
+        correlation_id: UUID | None = None,
+        details: dict[str, Any] | None = None,
     ):
         self.code = code
         self.message = message
@@ -54,7 +54,7 @@ class BoundaryError(Exception):
         self.details = details or {}
         super().__init__(message)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert exception to dictionary for API responses."""
         result = {
             "error_code": self.code,
@@ -65,7 +65,7 @@ class BoundaryError(Exception):
             result["correlation_id"] = str(self.correlation_id)
         return result
 
-    def to_audit_payload(self) -> Dict[str, Any]:
+    def to_audit_payload(self) -> dict[str, Any]:
         """Convert exception to AUD-001 audit payload."""
         return {
             "error_code": self.code,
@@ -92,10 +92,10 @@ class BoundaryValidationError(BoundaryError):
     def __init__(
         self,
         message: str = "Validation failed",
-        field_errors: Optional[Dict[str, List[str]]] = None,
-        non_field_errors: Optional[List[str]] = None,
-        correlation_id: Optional[UUID] = None,
-        contract_code: Optional[str] = None,
+        field_errors: dict[str, list[str]] | None = None,
+        non_field_errors: list[str] | None = None,
+        correlation_id: UUID | None = None,
+        contract_code: str | None = None,
     ):
         self.field_errors = field_errors or {}
         self.non_field_errors = non_field_errors or []
@@ -118,9 +118,9 @@ class BoundaryValidationError(BoundaryError):
     @classmethod
     def from_serializer_errors(
         cls,
-        errors: Dict[str, Any],
-        correlation_id: Optional[UUID] = None,
-    ) -> "BoundaryValidationError":
+        errors: dict[str, Any],
+        correlation_id: UUID | None = None,
+    ) -> BoundaryValidationError:
         """
         Create validation error from DRF serializer errors.
 
@@ -167,9 +167,9 @@ class IOContractViolationError(BoundaryError):
     def __init__(
         self,
         contract_code: str,
-        violations: List[str],
-        contract_version: Optional[str] = None,
-        correlation_id: Optional[UUID] = None,
+        violations: list[str],
+        contract_version: str | None = None,
+        correlation_id: UUID | None = None,
     ):
         self.contract_code = contract_code
         self.contract_version = contract_version
@@ -206,9 +206,9 @@ class GovernanceBlockedError(BoundaryError):
     def __init__(
         self,
         reason: str,
-        rule_id: Optional[str] = None,
-        confidence: Optional[float] = None,
-        correlation_id: Optional[UUID] = None,
+        rule_id: str | None = None,
+        confidence: float | None = None,
+        correlation_id: UUID | None = None,
     ):
         self.rule_id = rule_id
         self.reason = reason
@@ -248,10 +248,10 @@ class GovernanceEscalatedError(BoundaryError):
     def __init__(
         self,
         reason: str,
-        rule_id: Optional[str] = None,
-        escalation_id: Optional[str] = None,
-        approvers: Optional[List[str]] = None,
-        correlation_id: Optional[UUID] = None,
+        rule_id: str | None = None,
+        escalation_id: str | None = None,
+        approvers: list[str] | None = None,
+        correlation_id: UUID | None = None,
     ):
         self.rule_id = rule_id
         self.reason = reason
@@ -294,8 +294,8 @@ class PersistenceError(BoundaryError):
         self,
         operation: str,
         model: str,
-        original_error: Optional[Exception] = None,
-        correlation_id: Optional[UUID] = None,
+        original_error: Exception | None = None,
+        correlation_id: UUID | None = None,
     ):
         self.operation = operation
         self.model = model
@@ -327,8 +327,8 @@ class BoundaryConfigurationError(BoundaryError):
     def __init__(
         self,
         message: str,
-        correlation_id: Optional[UUID] = None,
-        details: Optional[Dict[str, Any]] = None,
+        correlation_id: UUID | None = None,
+        details: dict[str, Any] | None = None,
     ):
         super().__init__(
             code="SRX-CFG-001",

@@ -7,17 +7,14 @@ Guided exercises with sample data, inline analysis, progress tracking.
 import json
 import logging
 import uuid
-from datetime import datetime, timedelta
-from typing import Optional
 
-from django.conf import settings
-from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
 from django.utils import timezone
+from django.views.decorators.http import require_http_methods
 
+from .learn_content import SHARED_DATASET, get_section_content
 from .llm_manager import LLMManager
-from .learn_content import get_section_content, SECTION_CONTENT, SHARED_DATASET
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +110,6 @@ COURSE_MODULES = {
             },
         ],
     },
-
     # =========================================================================
     # MODULE 2: EXPERIMENTAL DESIGN
     # =========================================================================
@@ -187,7 +183,6 @@ COURSE_MODULES = {
             },
         ],
     },
-
     # =========================================================================
     # MODULE 3: DATA FUNDAMENTALS
     # =========================================================================
@@ -261,7 +256,6 @@ COURSE_MODULES = {
             },
         ],
     },
-
     # =========================================================================
     # MODULE 4: STATISTICAL INFERENCE
     # =========================================================================
@@ -350,7 +344,6 @@ COURSE_MODULES = {
             },
         ],
     },
-
     # =========================================================================
     # MODULE 5: CAUSAL INFERENCE
     # =========================================================================
@@ -422,7 +415,6 @@ COURSE_MODULES = {
             },
         ],
     },
-
     # =========================================================================
     # MODULE 6: CRITICAL EVALUATION
     # =========================================================================
@@ -496,7 +488,6 @@ COURSE_MODULES = {
             },
         ],
     },
-
     # =========================================================================
     # MODULE 7: DSW MASTERY (Hands-on)
     # =========================================================================
@@ -624,7 +615,6 @@ COURSE_MODULES = {
             },
         ],
     },
-
     # =========================================================================
     # MODULE 8: ADVANCED METHODS
     # =========================================================================
@@ -714,7 +704,6 @@ COURSE_MODULES = {
             },
         ],
     },
-
     # =========================================================================
     # MODULE 9: CASE STUDIES
     # =========================================================================
@@ -790,7 +779,6 @@ COURSE_MODULES = {
             },
         ],
     },
-
     # =========================================================================
     # MODULE 10: CAPSTONE PROJECT
     # =========================================================================
@@ -832,7 +820,6 @@ COURSE_MODULES = {
             },
         ],
     },
-
     # =========================================================================
     # MODULE 11: PROBABILISTIC BAYESIAN SPC (PBS)
     # =========================================================================
@@ -963,7 +950,6 @@ COURSE_MODULES = {
             },
         ],
     },
-
 }
 
 # Assessment settings
@@ -976,6 +962,7 @@ ASSESSMENT_TIME_MINUTES = 45
 # Course Content Views
 # =============================================================================
 
+
 @login_required
 @require_http_methods(["GET"])
 def list_modules(request):
@@ -986,19 +973,20 @@ def list_modules(request):
     for module_id, module in sorted(COURSE_MODULES.items(), key=lambda x: x[1]["order"]):
         module_progress = user_progress.get(module_id, {})
         completed_sections = sum(
-            1 for s in module["sections"]
-            if module_progress.get(s["id"], {}).get("completed", False)
+            1 for s in module["sections"] if module_progress.get(s["id"], {}).get("completed", False)
         )
 
-        modules.append({
-            "id": module["id"],
-            "title": module["title"],
-            "description": module["description"],
-            "order": module["order"],
-            "section_count": len(module["sections"]),
-            "completed_sections": completed_sections,
-            "progress_pct": round(completed_sections / len(module["sections"]) * 100),
-        })
+        modules.append(
+            {
+                "id": module["id"],
+                "title": module["title"],
+                "description": module["description"],
+                "order": module["order"],
+                "section_count": len(module["sections"]),
+                "completed_sections": completed_sections,
+                "progress_pct": round(completed_sections / len(module["sections"]) * 100),
+            }
+        )
 
     return JsonResponse({"modules": modules})
 
@@ -1017,18 +1005,22 @@ def get_module(request, module_id: str):
     sections = []
     for section in module["sections"]:
         section_progress = module_progress.get(section["id"], {})
-        sections.append({
-            **section,
-            "completed": section_progress.get("completed", False),
-            "completed_at": section_progress.get("completed_at"),
-        })
+        sections.append(
+            {
+                **section,
+                "completed": section_progress.get("completed", False),
+                "completed_at": section_progress.get("completed_at"),
+            }
+        )
 
-    return JsonResponse({
-        "id": module["id"],
-        "title": module["title"],
-        "description": module["description"],
-        "sections": sections,
-    })
+    return JsonResponse(
+        {
+            "id": module["id"],
+            "title": module["title"],
+            "description": module["description"],
+            "sections": sections,
+        }
+    )
 
 
 @login_required
@@ -1076,9 +1068,7 @@ def get_section(request, module_id: str, section_id: str):
         response_data["sandbox_config"] = rich_content.get("sandbox_config", {})
         response_data["workflow"] = rich_content.get("workflow", {})
 
-        session = LearnSession.objects.filter(
-            user=request.user, module_id=module_id, section_id=section_id
-        ).first()
+        session = LearnSession.objects.filter(user=request.user, module_id=module_id, section_id=section_id).first()
         if session:
             response_data["active_session"] = {
                 "id": str(session.id),
@@ -1095,6 +1085,7 @@ def get_section(request, module_id: str, section_id: str):
 # Progress Tracking
 # =============================================================================
 
+
 @login_required
 @require_http_methods(["GET"])
 def get_progress(request):
@@ -1107,10 +1098,7 @@ def get_progress(request):
 
     for module_id, module in COURSE_MODULES.items():
         mp = user_progress.get(module_id, {})
-        completed_in_module = sum(
-            1 for s in module["sections"]
-            if mp.get(s["id"], {}).get("completed", False)
-        )
+        completed_in_module = sum(1 for s in module["sections"] if mp.get(s["id"], {}).get("completed", False))
         completed_sections += completed_in_module
         module_progress[module_id] = {
             "total": len(module["sections"]),
@@ -1126,19 +1114,21 @@ def get_progress(request):
     attempts = assessment_data.get("attempts", 0)
     certified = assessment_data.get("certified", False)
 
-    return JsonResponse({
-        "total_sections": total_sections,
-        "completed_sections": completed_sections,
-        "overall_progress_pct": round(completed_sections / total_sections * 100),
-        "module_progress": module_progress,
-        "eligible_for_assessment": eligible_for_assessment,
-        "assessment": {
-            "attempts": attempts,
-            "best_score": best_score,
-            "passing_score": PASSING_SCORE,
-            "certified": certified,
-        },
-    })
+    return JsonResponse(
+        {
+            "total_sections": total_sections,
+            "completed_sections": completed_sections,
+            "overall_progress_pct": round(completed_sections / total_sections * 100),
+            "module_progress": module_progress,
+            "eligible_for_assessment": eligible_for_assessment,
+            "assessment": {
+                "attempts": attempts,
+                "best_score": best_score,
+                "passing_score": PASSING_SCORE,
+                "certified": certified,
+            },
+        }
+    )
 
 
 @login_required
@@ -1164,17 +1154,18 @@ def mark_section_complete(request, module_id: str):
     if rich_content.get("tool_steps") and rich_content.get("workflow"):
         workflow = rich_content["workflow"]
         if workflow.get("completion_requires") == "all_steps":
-            session = LearnSession.objects.filter(
-                user=request.user, module_id=module_id, section_id=section_id
-            ).first()
+            session = LearnSession.objects.filter(user=request.user, module_id=module_id, section_id=section_id).first()
             required = {s["id"] for s in rich_content["tool_steps"]}
             completed = set(session.steps_completed) if session else set()
             remaining = required - completed
             if remaining:
-                return JsonResponse({
-                    "error": "Complete all tool steps first",
-                    "remaining": sorted(remaining),
-                }, status=400)
+                return JsonResponse(
+                    {
+                        "error": "Complete all tool steps first",
+                        "remaining": sorted(remaining),
+                    },
+                    status=400,
+                )
 
     # Update progress
     _mark_section_complete(request.user, module_id, section_id)
@@ -1185,6 +1176,7 @@ def mark_section_complete(request, module_id: str):
 # =============================================================================
 # Assessment
 # =============================================================================
+
 
 @login_required
 @require_http_methods(["POST"])
@@ -1197,26 +1189,28 @@ def generate_assessment(request):
     # Check eligibility
     progress = _get_user_progress(request.user)
     total_sections = sum(len(m["sections"]) for m in COURSE_MODULES.values())
-    completed = sum(
-        1 for mid, mp in progress.items()
-        for sid, sp in mp.items()
-        if sp.get("completed", False)
-    )
+    completed = sum(1 for mid, mp in progress.items() for sid, sp in mp.items() if sp.get("completed", False))
 
     if completed < total_sections * 0.8:
-        return JsonResponse({
-            "error": "Complete at least 80% of course content before taking assessment",
-            "completed": completed,
-            "required": int(total_sections * 0.8),
-        }, status=400)
+        return JsonResponse(
+            {
+                "error": "Complete at least 80% of course content before taking assessment",
+                "completed": completed,
+                "required": int(total_sections * 0.8),
+            },
+            status=400,
+        )
 
     # Generate questions using Claude
     questions = _generate_assessment_questions(request.user)
 
     if not questions:
-        return JsonResponse({
-            "error": "Failed to generate assessment. Please try again.",
-        }, status=500)
+        return JsonResponse(
+            {
+                "error": "Failed to generate assessment. Please try again.",
+            },
+            status=500,
+        )
 
     # Store assessment session
     assessment_id = str(uuid.uuid4())
@@ -1225,19 +1219,23 @@ def generate_assessment(request):
     # Return questions without answers
     client_questions = []
     for i, q in enumerate(questions):
-        client_questions.append({
-            "id": i,
-            "question": q["question"],
-            "options": q["options"],
-            "topic": q["topic"],
-        })
+        client_questions.append(
+            {
+                "id": i,
+                "question": q["question"],
+                "options": q["options"],
+                "topic": q["topic"],
+            }
+        )
 
-    return JsonResponse({
-        "assessment_id": assessment_id,
-        "questions": client_questions,
-        "time_limit_minutes": ASSESSMENT_TIME_MINUTES,
-        "passing_score": PASSING_SCORE,
-    })
+    return JsonResponse(
+        {
+            "assessment_id": assessment_id,
+            "questions": client_questions,
+            "time_limit_minutes": ASSESSMENT_TIME_MINUTES,
+            "passing_score": PASSING_SCORE,
+        }
+    )
 
 
 @login_required
@@ -1267,15 +1265,17 @@ def submit_assessment(request):
         if is_correct:
             correct += 1
 
-        results.append({
-            "id": i,
-            "question": q["question"],
-            "your_answer": q["options"][user_answer] if user_answer is not None else None,
-            "correct_answer": q["options"][q["correct_index"]],
-            "is_correct": is_correct,
-            "explanation": q.get("explanation", ""),
-            "topic": q["topic"],
-        })
+        results.append(
+            {
+                "id": i,
+                "question": q["question"],
+                "your_answer": q["options"][user_answer] if user_answer is not None else None,
+                "correct_answer": q["options"][q["correct_index"]],
+                "is_correct": is_correct,
+                "explanation": q.get("explanation", ""),
+                "topic": q["topic"],
+            }
+        )
 
     score = correct / len(questions)
     passed = score >= PASSING_SCORE
@@ -1283,14 +1283,16 @@ def submit_assessment(request):
     # Update assessment history
     _record_assessment_attempt(request.user, score, passed)
 
-    return JsonResponse({
-        "score": score,
-        "correct": correct,
-        "total": len(questions),
-        "passed": passed,
-        "passing_score": PASSING_SCORE,
-        "results": results,
-    })
+    return JsonResponse(
+        {
+            "score": score,
+            "correct": correct,
+            "total": len(questions),
+            "passed": passed,
+            "passing_score": PASSING_SCORE,
+            "results": results,
+        }
+    )
 
 
 @login_required
@@ -1305,7 +1307,7 @@ def assessment_history(request):
 # Helper Functions — backed by SectionProgress, AssessmentAttempt
 # =============================================================================
 
-from .models import SectionProgress, AssessmentAttempt, LearnSession
+from .models import AssessmentAttempt, LearnSession, SectionProgress
 
 
 def _get_user_progress(user) -> dict:
@@ -1366,7 +1368,7 @@ def _store_assessment_session(user, assessment_id: str, questions: list):
     logger.info(f"Stored assessment {assessment_id} for user {user.id}")
 
 
-def _get_assessment_session(user, assessment_id: str) -> Optional[dict]:
+def _get_assessment_session(user, assessment_id: str) -> dict | None:
     """Retrieve assessment session."""
     try:
         attempt = AssessmentAttempt.objects.get(id=assessment_id, user=user)
@@ -1380,12 +1382,7 @@ def _get_assessment_session(user, assessment_id: str) -> Optional[dict]:
 
 def _record_assessment_attempt(user, score: float, passed: bool):
     """Record score on the most recent pending assessment."""
-    attempt = (
-        AssessmentAttempt.objects
-        .filter(user=user, score__isnull=True)
-        .order_by("-started_at")
-        .first()
-    )
+    attempt = AssessmentAttempt.objects.filter(user=user, score__isnull=True).order_by("-started_at").first()
     if attempt:
         attempt.score = score
         attempt.is_passed = passed
@@ -1409,6 +1406,7 @@ def _generate_assessment_questions(user) -> list:
 
     # Select random subset of topics
     import random
+
     selected_topics = random.sample(topics, min(ASSESSMENT_QUESTIONS, len(topics)))
 
     prompt = f"""Generate {ASSESSMENT_QUESTIONS} multiple-choice assessment questions for a data science certification exam.
@@ -1484,7 +1482,10 @@ def _sanitize_session_state(state: dict) -> dict:
         for k, v in value.items():
             # Skip raw data arrays (Forge output, inline datasets)
             if k == "data" and isinstance(v, (dict, list)):
-                clean[k] = {"_truncated": True, "row_count": len(v) if isinstance(v, list) else len(next(iter(v.values()), []))}
+                clean[k] = {
+                    "_truncated": True,
+                    "row_count": len(v) if isinstance(v, list) else len(next(iter(v.values()), [])),
+                }
             else:
                 clean[k] = v
         sanitized[key] = clean
@@ -1494,6 +1495,7 @@ def _sanitize_session_state(state: dict) -> dict:
 def _merge_edits(config: dict, edits: dict, editable_fields: list) -> dict:
     """Merge student edits into step config, respecting editable_fields."""
     import copy
+
     merged = copy.deepcopy(config)
     for field in editable_fields:
         if field not in edits:
@@ -1543,24 +1545,25 @@ def start_session(request):
     sandbox_config = rich_content.get("sandbox_config", {})
 
     # Resume existing session
-    session = LearnSession.objects.filter(
-        user=request.user, module_id=module_id, section_id=section_id
-    ).first()
+    session = LearnSession.objects.filter(user=request.user, module_id=module_id, section_id=section_id).first()
 
     if session:
-        return JsonResponse({
-            "session_id": str(session.id),
-            "project_id": str(session.project_id) if session.project_id else None,
-            "tool_steps": rich_content["tool_steps"],
-            "state": _sanitize_session_state(session.state),
-            "steps_completed": session.steps_completed,
-            "resumed": True,
-        })
+        return JsonResponse(
+            {
+                "session_id": str(session.id),
+                "project_id": str(session.project_id) if session.project_id else None,
+                "tool_steps": rich_content["tool_steps"],
+                "state": _sanitize_session_state(session.state),
+                "steps_completed": session.steps_completed,
+                "resumed": True,
+            }
+        )
 
     # Create sandbox project if configured
     project = None
     if sandbox_config.get("create_project"):
         from core.models import Project
+
         project = Project.objects.create(
             user=request.user,
             title=sandbox_config.get("project_title", f"Learn: {section_id}"),
@@ -1572,6 +1575,7 @@ def start_session(request):
         # Initialize Synara if needed
         if sandbox_config.get("synara_enabled") and project:
             from .synara_views import get_synara, save_synara
+
             synara = get_synara(str(project.id), user=request.user)
             save_synara(str(project.id), synara, user=request.user)
 
@@ -1585,14 +1589,16 @@ def start_session(request):
         steps_completed=[],
     )
 
-    return JsonResponse({
-        "session_id": str(session.id),
-        "project_id": str(project.id) if project else None,
-        "tool_steps": rich_content["tool_steps"],
-        "state": {},
-        "steps_completed": [],
-        "resumed": False,
-    })
+    return JsonResponse(
+        {
+            "session_id": str(session.id),
+            "project_id": str(project.id) if project else None,
+            "tool_steps": rich_content["tool_steps"],
+            "state": {},
+            "steps_completed": [],
+            "resumed": False,
+        }
+    )
 
 
 @login_required
@@ -1644,15 +1650,17 @@ def execute_step(request, session_id, step_id):
         output_key = step.get("output_key")
         cached = session.state.get(output_key, {}) if output_key else {}
         next_step = _get_next_step(tool_steps, step_id)
-        return JsonResponse({
-            "step_id": step_id,
-            "status": "completed",
-            "result": cached,
-            "validation": {"passed": True, "message": "Already completed"},
-            "next_step": next_step,
-            "steps_completed": session.steps_completed,
-            "state": _sanitize_session_state(session.state),
-        })
+        return JsonResponse(
+            {
+                "step_id": step_id,
+                "status": "completed",
+                "result": cached,
+                "validation": {"passed": True, "message": "Already completed"},
+                "next_step": next_step,
+                "steps_completed": session.steps_completed,
+                "state": _sanitize_session_state(session.state),
+            }
+        )
 
     # Parse student edits
     try:
@@ -1667,10 +1675,13 @@ def execute_step(request, session_id, step_id):
         # Check that at least one editable field was provided
         if not any(edits.get(f) for f in editable):
             missing = [f for f in editable if not edits.get(f)]
-            return JsonResponse({
-                "error": "This step requires your input",
-                "missing_fields": missing,
-            }, status=400)
+            return JsonResponse(
+                {
+                    "error": "This step requires your input",
+                    "missing_fields": missing,
+                },
+                status=400,
+            )
 
     # Merge edits into config
     config = step.get("config", {})
@@ -1694,15 +1705,18 @@ def execute_step(request, session_id, step_id):
         result = handler(session, step, merged_config, request.user)
     except Exception as e:
         logger.exception(f"Tool step execution failed: {tool}/{step_id}")
-        return JsonResponse({
-            "step_id": step_id,
-            "status": "failed",
-            "result": {},
-            "validation": {"passed": False, "message": str(e)},
-            "next_step": None,
-            "steps_completed": session.steps_completed or [],
-            "state": _sanitize_session_state(session.state),
-        }, status=500)
+        return JsonResponse(
+            {
+                "step_id": step_id,
+                "status": "failed",
+                "result": {},
+                "validation": {"passed": False, "message": str(e)},
+                "next_step": None,
+                "steps_completed": session.steps_completed or [],
+                "state": _sanitize_session_state(session.state),
+            },
+            status=500,
+        )
 
     # Run validation
     validation = _validate_step(step, result)
@@ -1727,15 +1741,17 @@ def execute_step(request, session_id, step_id):
 
     next_step = _get_next_step(tool_steps, step_id) if validation["passed"] else None
 
-    return JsonResponse({
-        "step_id": step_id,
-        "status": "completed" if validation["passed"] else "failed",
-        "result": result,
-        "validation": validation,
-        "next_step": next_step,
-        "steps_completed": session.steps_completed or [],
-        "state": _sanitize_session_state(session.state),
-    })
+    return JsonResponse(
+        {
+            "step_id": step_id,
+            "status": "completed" if validation["passed"] else "failed",
+            "result": result,
+            "validation": validation,
+            "next_step": next_step,
+            "steps_completed": session.steps_completed or [],
+            "state": _sanitize_session_state(session.state),
+        }
+    )
 
 
 @login_required
@@ -1764,6 +1780,7 @@ def reset_session(request, session_id):
     project = None
     if sandbox_config.get("create_project"):
         from core.models import Project
+
         project = Project.objects.create(
             user=request.user,
             title=sandbox_config.get("project_title", f"Learn: {session.section_id}"),
@@ -1772,6 +1789,7 @@ def reset_session(request, session_id):
         )
         if sandbox_config.get("synara_enabled"):
             from .synara_views import get_synara, save_synara
+
             synara = get_synara(str(project.id), user=request.user)
             save_synara(str(project.id), synara, user=request.user)
 
@@ -1781,12 +1799,14 @@ def reset_session(request, session_id):
     session.completed_at = None
     session.save(update_fields=["project", "state", "steps_completed", "completed_at"])
 
-    return JsonResponse({
-        "session_id": str(session.id),
-        "project_id": str(project.id) if project else None,
-        "state": {},
-        "steps_completed": [],
-    })
+    return JsonResponse(
+        {
+            "session_id": str(session.id),
+            "project_id": str(project.id) if project else None,
+            "state": {},
+            "steps_completed": [],
+        }
+    )
 
 
 # =============================================================================
@@ -1851,8 +1871,7 @@ def _execute_synara_step(session, step, config, user):
             "most_supported": result.most_supported if hasattr(result, "most_supported") else None,
             "most_weakened": result.most_weakened if hasattr(result, "most_weakened") else None,
             "all_hypotheses": [
-                {"id": h.id, "description": h.description, "probability": h.prior}
-                for h in synara.get_all_hypotheses()
+                {"id": h.id, "description": h.description, "probability": h.prior} for h in synara.get_all_hypotheses()
             ],
         }
 
@@ -1875,10 +1894,7 @@ def _execute_synara_step(session, step, config, user):
         hypotheses = synara.get_all_hypotheses()
         return {
             "type": "synara_state",
-            "hypotheses": [
-                {"id": h.id, "description": h.description, "probability": h.prior}
-                for h in hypotheses
-            ],
+            "hypotheses": [{"id": h.id, "description": h.description, "probability": h.prior} for h in hypotheses],
             "most_likely": synara.get_most_likely_cause().id if synara.get_most_likely_cause() else None,
         }
 
@@ -1928,12 +1944,14 @@ def _execute_experimenter_step(session, step, config, user):
 
         factors = []
         for f in config.get("factors", []):
-            factors.append(Factor(
-                name=f["name"],
-                levels=f.get("levels", [f.get("low", -1), f.get("high", 1)]),
-                units=f.get("units", ""),
-                categorical=f.get("categorical", False),
-            ))
+            factors.append(
+                Factor(
+                    name=f["name"],
+                    levels=f.get("levels", [f.get("low", -1), f.get("high", 1)]),
+                    units=f.get("units", ""),
+                    categorical=f.get("categorical", False),
+                )
+            )
 
         generator = DOEGenerator(seed=config.get("seed", 42))
         design_type = config.get("design_type", "full_factorial")
@@ -1967,8 +1985,8 @@ def _execute_forge_step(session, step, config, user):
 
     For learning, we generate small datasets synchronously.
     """
-    import pandas as pd
     import numpy as np
+    import pandas as pd
 
     schema = config.get("schema", {})
     n_rows = min(schema.get("rows", 200), 1000)  # Cap at 1000 for learn mode
@@ -2043,11 +2061,14 @@ def _execute_forge_step(session, step, config, user):
         "row_count": n_rows,
         "columns": [{"name": c["name"], "type": c.get("type", "numeric")} for c in columns],
         "preview": preview,
-        "summary": {col: {
-            "mean": round(float(np.mean(data[col])), 4) if isinstance(data[col][0], (int, float)) else None,
-            "std": round(float(np.std(data[col])), 4) if isinstance(data[col][0], (int, float)) else None,
-            "unique": len(set(data[col])),
-        } for col in data},
+        "summary": {
+            col: {
+                "mean": round(float(np.mean(data[col])), 4) if isinstance(data[col][0], (int, float)) else None,
+                "std": round(float(np.std(data[col])), 4) if isinstance(data[col][0], (int, float)) else None,
+                "unique": len(set(data[col])),
+            }
+            for col in data
+        },
     }
 
 
@@ -2085,11 +2106,13 @@ def _execute_rca_step(session, step, config, user):
 
         rca = RCASessionModel.objects.get(id=rca_id, owner=user)
         chain = list(rca.chain or [])
-        chain.append({
-            "claim": config.get("claim", ""),
-            "supporting_evidence": config.get("supporting_evidence", ""),
-            "accepted": True,
-        })
+        chain.append(
+            {
+                "claim": config.get("claim", ""),
+                "supporting_evidence": config.get("supporting_evidence", ""),
+                "accepted": True,
+            }
+        )
         rca.chain = chain
         rca.save(update_fields=["chain"])
 
@@ -2207,10 +2230,17 @@ def _execute_a3_step(session, step, config, user):
             "type": "a3_report",
             "id": str(a3.id),
             "title": a3.title,
-            "sections_filled": sum(1 for f in [
-                a3.background, a3.current_condition, a3.goal,
-                a3.root_cause, a3.countermeasures,
-            ] if f),
+            "sections_filled": sum(
+                1
+                for f in [
+                    a3.background,
+                    a3.current_condition,
+                    a3.goal,
+                    a3.root_cause,
+                    a3.countermeasures,
+                ]
+                if f
+            ),
         }
 
     elif action == "update_a3":
@@ -2220,8 +2250,15 @@ def _execute_a3_step(session, step, config, user):
 
         a3 = A3Report.objects.get(id=a3_id, owner=user)
         update_fields = []
-        for field in ["background", "current_condition", "goal", "root_cause",
-                       "countermeasures", "implementation_plan", "follow_up"]:
+        for field in [
+            "background",
+            "current_condition",
+            "goal",
+            "root_cause",
+            "countermeasures",
+            "implementation_plan",
+            "follow_up",
+        ]:
             if field in config:
                 setattr(a3, field, config[field])
                 update_fields.append(field)
@@ -2233,10 +2270,17 @@ def _execute_a3_step(session, step, config, user):
             "id": str(a3.id),
             "title": a3.title,
             "updated_sections": update_fields,
-            "sections_filled": sum(1 for f in [
-                a3.background, a3.current_condition, a3.goal,
-                a3.root_cause, a3.countermeasures,
-            ] if f),
+            "sections_filled": sum(
+                1
+                for f in [
+                    a3.background,
+                    a3.current_condition,
+                    a3.goal,
+                    a3.root_cause,
+                    a3.countermeasures,
+                ]
+                if f
+            ),
         }
 
     else:
@@ -2268,7 +2312,7 @@ def _execute_vsm_step(session, step, config, user):
 def _execute_guide_step(session, step, config, user):
     """Execute a Guide agent chat step."""
     message = config.get("message", "")
-    context = config.get("context", "project")
+    config.get("context", "project")
 
     # Build context data from session state
     data = {}
@@ -2281,8 +2325,7 @@ def _execute_guide_step(session, step, config, user):
     # Include session state summary as context
     if session.state:
         data["session_state"] = {
-            k: v.get("type", "unknown") if isinstance(v, dict) else str(v)
-            for k, v in session.state.items()
+            k: v.get("type", "unknown") if isinstance(v, dict) else str(v) for k, v in session.state.items()
         }
 
     response = LLMManager.chat(

@@ -7,15 +7,15 @@ ALL_CHECKS registry, daily rotation, and management command.
 Standard: CMP-001
 """
 
-import re
 import unittest
-from pathlib import Path
 from unittest.mock import patch
 
-from django.test import SimpleTestCase, TestCase as DjangoTestCase, override_settings
+from django.test import SimpleTestCase, override_settings
+from django.test import TestCase as DjangoTestCase
 
-from syn.audit.compliance import ALL_CHECKS, DAILY_CRITICAL, run_daily_checks
+from syn.audit.compliance import ALL_CHECKS, DAILY_CRITICAL
 from syn.audit.standards import (
+    STANDARDS_DIR,
     TAG_RE,
     Assertion,
     parse_all_standards,
@@ -24,7 +24,6 @@ from syn.audit.standards import (
     verify_code_absent,
     verify_code_pattern,
     verify_impl_exists,
-    STANDARDS_DIR,
 )
 
 
@@ -198,7 +197,16 @@ class VerifyAssertionTest(SimpleTestCase):
     def test_result_contains_all_fields(self):
         a = Assertion(text="Test", check_id="test-fields")
         result = verify_assertion(a)
-        for field in ["check_id", "assertion", "standard", "section", "impl_checks", "code_checks", "test_checks", "status"]:
+        for field in [
+            "check_id",
+            "assertion",
+            "standard",
+            "section",
+            "impl_checks",
+            "code_checks",
+            "test_checks",
+            "status",
+        ]:
             self.assertIn(field, result)
 
 
@@ -243,24 +251,28 @@ class SOC2AutoDiscoveryTest(SimpleTestCase):
         for name, (fn, _cat) in ALL_CHECKS.items():
             controls = getattr(fn, "soc2_controls", [])
             self.assertGreater(
-                len(controls), 0,
+                len(controls),
+                0,
                 f"Check '{name}' has empty soc2_controls — add to @register()",
             )
 
     def test_get_all_soc2_controls_returns_sorted(self):
         from syn.audit.compliance import get_all_soc2_controls
+
         controls = get_all_soc2_controls()
         self.assertGreater(len(controls), 5)
         self.assertEqual(controls, sorted(controls))
 
     def test_get_check_soc2_controls(self):
         from syn.audit.compliance import get_check_soc2_controls
+
         controls = get_check_soc2_controls("audit_integrity")
         self.assertIn("CC7.2", controls)
         self.assertIn("CC7.3", controls)
 
     def test_get_check_soc2_controls_missing(self):
         from syn.audit.compliance import get_check_soc2_controls
+
         controls = get_check_soc2_controls("nonexistent_check")
         self.assertEqual(controls, [])
 
@@ -273,7 +285,8 @@ class SOC2AutoDiscoveryTest(SimpleTestCase):
             result = fn()
             returned = set(result.get("soc2_controls", []))
             self.assertEqual(
-                declared, returned,
+                declared,
+                returned,
                 f"Check '{name}': declared {declared} != returned {returned}",
             )
 
@@ -294,6 +307,7 @@ class ManagementCommandTest(SimpleTestCase):
 
     def test_command_exists(self):
         from django.core.management import get_commands
+
         commands = get_commands()
         self.assertIn("run_compliance", commands)
 
@@ -303,18 +317,21 @@ class DriftSignatureTest(SimpleTestCase):
 
     def test_same_inputs_same_signature(self):
         from syn.audit.compliance import _compute_drift_signature
+
         sig1 = _compute_drift_signature("FE-001", "fe-themes", "5")
         sig2 = _compute_drift_signature("FE-001", "fe-themes", "5")
         self.assertEqual(sig1, sig2)
 
     def test_different_inputs_different_signature(self):
         from syn.audit.compliance import _compute_drift_signature
+
         sig1 = _compute_drift_signature("FE-001", "fe-themes", "5")
         sig2 = _compute_drift_signature("FE-001", "fe-themes", "6")
         self.assertNotEqual(sig1, sig2)
 
     def test_signature_length(self):
         from syn.audit.compliance import _compute_drift_signature
+
         sig = _compute_drift_signature("TST-001", "tst-framework", "4")
         self.assertEqual(len(sig), 32)
 
@@ -324,14 +341,17 @@ class DriftSeverityTest(SimpleTestCase):
 
     def test_fail_maps_to_high(self):
         from syn.audit.compliance import DRIFT_SEVERITY_MAP
+
         self.assertEqual(DRIFT_SEVERITY_MAP["fail"], "HIGH")
 
     def test_warning_maps_to_medium(self):
         from syn.audit.compliance import DRIFT_SEVERITY_MAP
+
         self.assertEqual(DRIFT_SEVERITY_MAP["warning"], "MEDIUM")
 
     def test_sla_hours_defined(self):
         from syn.audit.compliance import DRIFT_SLA_HOURS
+
         self.assertEqual(DRIFT_SLA_HOURS["HIGH"], 24)
         self.assertEqual(DRIFT_SLA_HOURS["MEDIUM"], 72)
         self.assertEqual(DRIFT_SLA_HOURS["CRITICAL"], 4)
@@ -346,12 +366,17 @@ class DriftViolationLifecycleTest(DjangoTestCase):
 
     def test_failure_creates_violation(self):
         """A failing assertion creates a DriftViolation record."""
-        from syn.audit.compliance import _sync_drift_violations, _compute_drift_signature
+        from syn.audit.compliance import _compute_drift_signature, _sync_drift_violations
         from syn.audit.models import DriftViolation
 
         a = Assertion(text="Test claim", check_id="test-check-create", standard="TST-001", section="1")
-        r = {"status": "fail", "check_id": "test-check-create", "assertion": "Test claim",
-             "standard": "TST-001", "section": "1"}
+        r = {
+            "status": "fail",
+            "check_id": "test-check-create",
+            "assertion": "Test claim",
+            "standard": "TST-001",
+            "section": "1",
+        }
         _sync_drift_violations([a], [r])
         sig = _compute_drift_signature("TST-001", "test-check-create", "1")
         self.assertTrue(DriftViolation.objects.filter(drift_signature=sig).exists())
@@ -361,18 +386,26 @@ class DriftViolationLifecycleTest(DjangoTestCase):
 
     def test_pass_resolves_violation(self):
         """A passing assertion resolves an existing DriftViolation."""
-        from syn.audit.compliance import _sync_drift_violations, _compute_drift_signature
+        from syn.audit.compliance import _compute_drift_signature, _sync_drift_violations
         from syn.audit.models import DriftViolation
 
         sig = _compute_drift_signature("TST-001", "test-check-resolve", "1")
         DriftViolation.objects.create(
-            drift_signature=sig, severity="HIGH", enforcement_check="STD",
-            file_path="docs/standards/TST-001.md", violation_message="Test failure",
+            drift_signature=sig,
+            severity="HIGH",
+            enforcement_check="STD",
+            file_path="docs/standards/TST-001.md",
+            violation_message="Test failure",
             detected_by="compliance_runner",
         )
         a = Assertion(text="Test claim", check_id="test-check-resolve", standard="TST-001", section="1")
-        r = {"status": "pass", "check_id": "test-check-resolve", "assertion": "Test claim",
-             "standard": "TST-001", "section": "1"}
+        r = {
+            "status": "pass",
+            "check_id": "test-check-resolve",
+            "assertion": "Test claim",
+            "standard": "TST-001",
+            "section": "1",
+        }
         _sync_drift_violations([a], [r])
         dv = DriftViolation.objects.get(drift_signature=sig)
         self.assertIsNotNone(dv.resolved_at)
@@ -380,12 +413,17 @@ class DriftViolationLifecycleTest(DjangoTestCase):
 
     def test_idempotent_no_duplicates(self):
         """Running twice with same failure doesn't create duplicate."""
-        from syn.audit.compliance import _sync_drift_violations, _compute_drift_signature
+        from syn.audit.compliance import _compute_drift_signature, _sync_drift_violations
         from syn.audit.models import DriftViolation
 
         a = Assertion(text="Test claim", check_id="test-check-dedup", standard="TST-001", section="1")
-        r = {"status": "fail", "check_id": "test-check-dedup", "assertion": "Test claim",
-             "standard": "TST-001", "section": "1"}
+        r = {
+            "status": "fail",
+            "check_id": "test-check-dedup",
+            "assertion": "Test claim",
+            "standard": "TST-001",
+            "section": "1",
+        }
         _sync_drift_violations([a], [r])
         _sync_drift_violations([a], [r])
         sig = _compute_drift_signature("TST-001", "test-check-dedup", "1")
@@ -396,12 +434,17 @@ class DriftViolationSaveTest(DjangoTestCase):
     """DriftViolation allows resolution field updates but blocks other mutations."""
 
     def test_resolution_fields_updatable(self):
-        from syn.audit.models import DriftViolation
         from django.utils import timezone
+
+        from syn.audit.models import DriftViolation
+
         dv = DriftViolation.objects.create(
-            drift_signature="test-save-resolution", severity="HIGH",
-            enforcement_check="STD", file_path="test.py",
-            violation_message="Test", detected_by="test",
+            drift_signature="test-save-resolution",
+            severity="HIGH",
+            enforcement_check="STD",
+            file_path="test.py",
+            violation_message="Test",
+            detected_by="test",
         )
         dv.resolved_at = timezone.now()
         dv.resolved_by = "test"
@@ -411,10 +454,14 @@ class DriftViolationSaveTest(DjangoTestCase):
 
     def test_immutable_fields_blocked(self):
         from syn.audit.models import DriftViolation
+
         dv = DriftViolation.objects.create(
-            drift_signature="test-save-immutable", severity="HIGH",
-            enforcement_check="STD", file_path="test.py",
-            violation_message="Test", detected_by="test",
+            drift_signature="test-save-immutable",
+            severity="HIGH",
+            enforcement_check="STD",
+            file_path="test.py",
+            violation_message="Test",
+            detected_by="test",
         )
         dv.violation_message = "Changed"
         with self.assertRaises(ValueError):
@@ -422,10 +469,14 @@ class DriftViolationSaveTest(DjangoTestCase):
 
     def test_bare_save_blocked_on_existing(self):
         from syn.audit.models import DriftViolation
+
         dv = DriftViolation.objects.create(
-            drift_signature="test-save-bare", severity="HIGH",
-            enforcement_check="STD", file_path="test.py",
-            violation_message="Test", detected_by="test",
+            drift_signature="test-save-bare",
+            severity="HIGH",
+            enforcement_check="STD",
+            file_path="test.py",
+            violation_message="Test",
+            detected_by="test",
         )
         with self.assertRaises(ValueError):
             dv.save()
@@ -437,8 +488,7 @@ class CompliancePageDynamicCountsTest(DjangoTestCase):
 
     def test_page_context_uses_dynamic_check_count(self):
         """Compliance page context contains current_checks matching ALL_CHECKS count."""
-        from accounts.models import User
-        from syn.audit.compliance import ALL_CHECKS, run_check
+        from syn.audit.compliance import run_check
 
         # Run a single check so there's at least one result
         run_check("audit_integrity")
@@ -475,6 +525,7 @@ class VerifyTestExistsTest(SimpleTestCase):
     def test_valid_test_method_resolves(self):
         """A known test method resolves successfully."""
         from syn.audit.standards import verify_test_exists
+
         ok, msg = verify_test_exists(
             "syn.audit.tests.test_compliance_system.TagVocabularyTest.test_tag_re_matches_all_required_tags"
         )
@@ -483,23 +534,22 @@ class VerifyTestExistsTest(SimpleTestCase):
     def test_invalid_module_fails(self):
         """A non-existent module path returns False."""
         from syn.audit.standards import verify_test_exists
+
         ok, msg = verify_test_exists("syn.audit.tests.nonexistent_module.FakeClass.fake_method")
         self.assertFalse(ok)
 
     def test_invalid_class_fails(self):
         """A valid module but non-existent class returns False."""
         from syn.audit.standards import verify_test_exists
-        ok, msg = verify_test_exists(
-            "syn.audit.tests.test_compliance_system.NonExistentClass.some_method"
-        )
+
+        ok, msg = verify_test_exists("syn.audit.tests.test_compliance_system.NonExistentClass.some_method")
         self.assertFalse(ok)
 
     def test_invalid_method_fails(self):
         """A valid class but non-existent method returns False."""
         from syn.audit.standards import verify_test_exists
-        ok, msg = verify_test_exists(
-            "syn.audit.tests.test_compliance_system.TagVocabularyTest.nonexistent_method"
-        )
+
+        ok, msg = verify_test_exists("syn.audit.tests.test_compliance_system.TagVocabularyTest.nonexistent_method")
         self.assertFalse(ok)
 
 
@@ -523,26 +573,33 @@ class MonthlyReportStructureTest(SimpleTestCase):
     def test_generate_monthly_report_exists(self):
         """generate_monthly_report function is importable."""
         from syn.audit.compliance import generate_monthly_report
+
         self.assertTrue(callable(generate_monthly_report))
 
     def test_report_function_creates_public_report(self):
         """generate_monthly_report source contains public_report construction."""
         import inspect
+
         from syn.audit.compliance import generate_monthly_report
+
         src = inspect.getsource(generate_monthly_report)
         self.assertIn("public_report", src)
 
     def test_report_function_creates_full_report(self):
         """generate_monthly_report source contains full_report construction."""
         import inspect
+
         from syn.audit.compliance import generate_monthly_report
+
         src = inspect.getsource(generate_monthly_report)
         self.assertIn("full_report", src)
 
     def test_report_redaction_no_file_paths(self):
         """public_report construction does not include file_path references."""
         import inspect
+
         from syn.audit.compliance import generate_monthly_report
+
         src = inspect.getsource(generate_monthly_report)
         # The public_report dict should not pass through raw file paths
         # Check that public_report is constructed separately from full_report
@@ -551,7 +608,9 @@ class MonthlyReportStructureTest(SimpleTestCase):
     def test_report_includes_pass_rate(self):
         """Report includes pass_rate calculation."""
         import inspect
+
         from syn.audit.compliance import generate_monthly_report
+
         src = inspect.getsource(generate_monthly_report)
         self.assertIn("pass_rate", src)
 
@@ -562,6 +621,7 @@ class MonthlyReportGenerationTest(DjangoTestCase):
     def test_report_generation_succeeds(self):
         """generate_monthly_report runs without errors."""
         from syn.audit.compliance import generate_monthly_report, run_check
+
         # Run at least one check so there's data
         run_check("audit_integrity")
         report = generate_monthly_report()
@@ -570,6 +630,7 @@ class MonthlyReportGenerationTest(DjangoTestCase):
     def test_report_has_required_fields(self):
         """Generated report has period, pass_rate, summary."""
         from syn.audit.compliance import generate_monthly_report, run_check
+
         run_check("audit_integrity")
         report = generate_monthly_report()
         self.assertIsNotNone(report.period_start)
@@ -579,6 +640,7 @@ class MonthlyReportGenerationTest(DjangoTestCase):
     def test_report_not_auto_published(self):
         """Generated reports are not auto-published (requires manual review)."""
         from syn.audit.compliance import generate_monthly_report, run_check
+
         run_check("audit_integrity")
         report = generate_monthly_report()
         self.assertFalse(report.is_published)
@@ -590,6 +652,7 @@ class ManagementCommandFlagTest(SimpleTestCase):
     def test_command_accepts_all_flag(self):
         """Command parser accepts --all flag."""
         from syn.audit.management.commands.run_compliance import Command
+
         cmd = Command()
         parser = cmd.create_parser("manage.py", "run_compliance")
         args = parser.parse_args(["--all"])
@@ -598,6 +661,7 @@ class ManagementCommandFlagTest(SimpleTestCase):
     def test_command_accepts_check_flag(self):
         """Command parser accepts --check flag with value."""
         from syn.audit.management.commands.run_compliance import Command
+
         cmd = Command()
         parser = cmd.create_parser("manage.py", "run_compliance")
         args = parser.parse_args(["--check=audit_integrity"])
@@ -606,6 +670,7 @@ class ManagementCommandFlagTest(SimpleTestCase):
     def test_command_accepts_standards_flag(self):
         """Command parser accepts --standards flag."""
         from syn.audit.management.commands.run_compliance import Command
+
         cmd = Command()
         parser = cmd.create_parser("manage.py", "run_compliance")
         args = parser.parse_args(["--standards"])
@@ -614,6 +679,7 @@ class ManagementCommandFlagTest(SimpleTestCase):
     def test_command_accepts_run_tests_flag(self):
         """Command parser accepts --run-tests flag."""
         from syn.audit.management.commands.run_compliance import Command
+
         cmd = Command()
         parser = cmd.create_parser("manage.py", "run_compliance")
         args = parser.parse_args(["--run-tests"])
@@ -622,6 +688,7 @@ class ManagementCommandFlagTest(SimpleTestCase):
     def test_command_accepts_report_flag(self):
         """Command parser accepts --report flag."""
         from syn.audit.management.commands.run_compliance import Command
+
         cmd = Command()
         parser = cmd.create_parser("manage.py", "run_compliance")
         args = parser.parse_args(["--report"])
@@ -637,9 +704,11 @@ class SymbolCoverageTest(SimpleTestCase):
 
         patches = []
         if mock_standards is not None:
-            patches.append(patch(
-                "syn.audit.compliance.check_symbol_coverage.__code__",
-            ))
+            patches.append(
+                patch(
+                    "syn.audit.compliance.check_symbol_coverage.__code__",
+                )
+            )
         return check_symbol_coverage()
 
     def test_symbol_inventory_excludes_private(self):
@@ -703,12 +772,16 @@ class SymbolCoverageTest(SimpleTestCase):
         from syn.audit.standards import Assertion
 
         a_with_tests = Assertion(
-            text="Has tests", check_id="with-tests",
-            impls=["file.py:MyFunc"], tests=["some.test.method"],
+            text="Has tests",
+            check_id="with-tests",
+            impls=["file.py:MyFunc"],
+            tests=["some.test.method"],
         )
         a_no_tests = Assertion(
-            text="No tests", check_id="no-tests",
-            impls=["file.py:OtherFunc"], tests=[],
+            text="No tests",
+            check_id="no-tests",
+            impls=["file.py:OtherFunc"],
+            tests=[],
         )
 
         governed = set()
@@ -735,7 +808,8 @@ class SymbolCoverageTest(SimpleTestCase):
         from syn.audit.standards import Assertion
 
         a = Assertion(
-            text="Method-level hook", check_id="method-hook",
+            text="Method-level hook",
+            check_id="method-hook",
             impls=["models.py:MyClass.save", "models.py:MyClass.clean"],
             tests=["some.test"],
         )
@@ -769,6 +843,7 @@ class CalibrationTest(unittest.TestCase):
     def test_reference_pool_has_cases(self):
         """Reference pool has ≥15 cases across ≥5 categories."""
         from agents_api.calibration import get_reference_pool
+
         pool = get_reference_pool()
         self.assertGreaterEqual(len(pool), 15)
         categories = {c.category for c in pool}
@@ -780,6 +855,7 @@ class CalibrationTest(unittest.TestCase):
     def test_calibration_runner_returns_results(self):
         """run_calibration returns per-case results with expected fields."""
         from agents_api.calibration import run_calibration
+
         result = run_calibration(seed=42, subset_size=3)
         self.assertIn("cases_run", result)
         self.assertIn("cases_passed", result)
@@ -797,6 +873,7 @@ class CalibrationTest(unittest.TestCase):
     def test_date_seeded_reproducibility(self):
         """Same seed → same case selection."""
         from agents_api.calibration import run_calibration
+
         r1 = run_calibration(seed=12345, subset_size=5)
         r2 = run_calibration(seed=12345, subset_size=5)
         ids1 = [r["case_id"] for r in r1["results"]]
@@ -812,13 +889,13 @@ class CalibrationTest(unittest.TestCase):
     def test_known_null_ttest_passes(self):
         """N(100,15) vs μ₀=100 calibration case passes (null true)."""
         from agents_api.calibration import get_reference_pool, run_calibration
+
         pool = get_reference_pool()
         inf001 = [c for c in pool if c.case_id == "CAL-INF-001"]
         self.assertEqual(len(inf001), 1)
         result = run_calibration(cases=inf001, subset_size=0)
         self.assertEqual(result["cases_run"], 1)
-        self.assertTrue(result["results"][0]["passed"],
-                        f"CAL-INF-001 failed: {result['results'][0]}")
+        self.assertTrue(result["results"][0]["passed"], f"CAL-INF-001 failed: {result['results'][0]}")
 
     def test_drift_violation_on_failure(self):
         """Compliance check creates DriftViolation when a case fails."""
@@ -840,6 +917,7 @@ class CalibrationTest(unittest.TestCase):
         )
 
         from agents_api.calibration import run_calibration
+
         result = run_calibration(cases=[bad_case], subset_size=0)
         self.assertEqual(result["cases_passed"], 0)
         self.assertIn("CAL-TEST-FAIL", result["drift_cases"])

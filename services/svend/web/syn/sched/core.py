@@ -31,22 +31,26 @@ Celery Transition (sunset: 2026-01-15):
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import signal
 import threading
 import time
 import traceback
 import uuid
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type
+from typing import Any
 
 from django.db import models, transaction
 from django.utils import timezone
 
+# Backpressure integration (SCH-004)
+from syn.sched.backpressure import (
+    BackpressureConfig,
+    BackpressureController,
+    ThrottleLevel,
+)
 from syn.sched.events import (
-    SCHEDULER_EVENTS,
     build_cascade_child_payload,
     build_dlq_enqueued_payload,
     build_quota_exceeded_payload,
@@ -59,8 +63,6 @@ from syn.sched.events import (
     emit_scheduler_event,
 )
 from syn.sched.exceptions import (
-    CascadeLimitError,
-    CircuitOpenError,
     QuotaExceededError,
     ThrottledError,
 )
@@ -71,37 +73,23 @@ from syn.sched.models import (
     Schedule,
     TaskExecution,
 )
+
+# Temporal reflex integration (SCH-006)
+from syn.sched.temporal import (
+    CompensatingTask,
+    TemporalController,
+    TemporalControllerConfig,
+)
 from syn.sched.types import (
     CASCADE_BUDGET,
     CIRCUIT_CONFIGS,
-    QUEUE_CONFIG,
     TENANT_QUOTAS,
-    CircuitBreakerConfig,
-    CircuitState,
     QueueType,
     RetryStrategy,
-    TaskContext,
     TaskPriority,
     TaskState,
     TenantQuota,
     get_cascade_limit,
-)
-
-# Backpressure integration (SCH-004)
-from syn.sched.backpressure import (
-    BackpressureController,
-    BackpressureConfig,
-    ThrottleLevel,
-    HealthStatus,
-)
-
-# Temporal reflex integration (SCH-006)
-from syn.sched.temporal import (
-    TemporalController,
-    TemporalControllerConfig,
-    TemporalPolicy,
-    TemporalReflex,
-    CompensatingTask,
 )
 
 logger = logging.getLogger(__name__)
@@ -119,8 +107,8 @@ class TaskRegistry:
     Maps task names to callable handlers for execution.
     """
 
-    _handlers: Dict[str, Callable] = {}
-    _handler_metadata: Dict[str, Dict[str, Any]] = {}
+    _handlers: dict[str, Callable] = {}
+    _handler_metadata: dict[str, dict[str, Any]] = {}
 
     @classmethod
     def register(
@@ -132,7 +120,7 @@ class TaskRegistry:
         timeout_seconds: int = 60,
         retry_strategy: RetryStrategy = RetryStrategy.EXPONENTIAL,
         max_attempts: int = 3,
-        circuit_breaker: Optional[str] = None,
+        circuit_breaker: str | None = None,
     ) -> None:
         """
         Register a task handler.
@@ -163,17 +151,17 @@ class TaskRegistry:
         )
 
     @classmethod
-    def get_handler(cls, task_name: str) -> Optional[Callable]:
+    def get_handler(cls, task_name: str) -> Callable | None:
         """Get handler for task name."""
         return cls._handlers.get(task_name)
 
     @classmethod
-    def get_metadata(cls, task_name: str) -> Dict[str, Any]:
+    def get_metadata(cls, task_name: str) -> dict[str, Any]:
         """Get metadata for task name."""
         return cls._handler_metadata.get(task_name, {})
 
     @classmethod
-    def list_handlers(cls) -> List[str]:
+    def list_handlers(cls) -> list[str]:
         """List all registered task names."""
         return list(cls._handlers.keys())
 
@@ -185,7 +173,7 @@ def task(
     timeout_seconds: int = 60,
     retry_strategy: RetryStrategy = RetryStrategy.EXPONENTIAL,
     max_attempts: int = 3,
-    circuit_breaker: Optional[str] = None,
+    circuit_breaker: str | None = None,
 ):
     """
     Decorator to register a function as a cognitive task handler.
@@ -198,6 +186,7 @@ def task(
 
     Standard: SCH-001 §handler_registration
     """
+
     def decorator(func: Callable) -> Callable:
         TaskRegistry.register(
             task_name=task_name,
@@ -237,10 +226,10 @@ class CognitiveScheduler:
     def __init__(
         self,
         worker_count: int = 4,
-        queues: Optional[List[QueueType]] = None,
-        backpressure_config: Optional[BackpressureConfig] = None,
+        queues: list[QueueType] | None = None,
+        backpressure_config: BackpressureConfig | None = None,
         enable_backpressure: bool = True,
-        temporal_config: Optional[TemporalControllerConfig] = None,
+        temporal_config: TemporalControllerConfig | None = None,
         enable_temporal: bool = True,
     ):
         """
@@ -258,13 +247,13 @@ class CognitiveScheduler:
         self.queues = queues or list(QueueType)
         self._running = False
         self._shutdown_event = threading.Event()
-        self._workers: List[CognitiveWorker] = []
-        self._executor: Optional[ThreadPoolExecutor] = None
-        self._schedule_thread: Optional[threading.Thread] = None
+        self._workers: list[CognitiveWorker] = []
+        self._executor: ThreadPoolExecutor | None = None
+        self._schedule_thread: threading.Thread | None = None
 
         # Backpressure controller (SCH-004)
         self._enable_backpressure = enable_backpressure
-        self._backpressure: Optional[BackpressureController] = None
+        self._backpressure: BackpressureController | None = None
         if enable_backpressure:
             bp_config = backpressure_config or BackpressureConfig(
                 on_level_change=self._on_throttle_level_change,
@@ -274,7 +263,7 @@ class CognitiveScheduler:
 
         # Temporal controller (SCH-006)
         self._enable_temporal = enable_temporal
-        self._temporal: Optional[TemporalController] = None
+        self._temporal: TemporalController | None = None
         if enable_temporal:
             t_config = temporal_config or TemporalControllerConfig(
                 task_submitter=self._submit_compensating_task,
@@ -287,7 +276,7 @@ class CognitiveScheduler:
                 self._temporal.set_backpressure(self._backpressure)
 
         logger.info(
-            f"CognitiveScheduler initialized",
+            "CognitiveScheduler initialized",
             extra={
                 "worker_count": worker_count,
                 "queues": [q.value for q in self.queues],
@@ -303,16 +292,16 @@ class CognitiveScheduler:
     def submit(
         self,
         task_name: str,
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
         tenant_id: uuid.UUID,
-        priority: Optional[TaskPriority] = None,
-        queue: Optional[QueueType] = None,
-        correlation_id: Optional[uuid.UUID] = None,
-        parent_task: Optional[CognitiveTask] = None,
+        priority: TaskPriority | None = None,
+        queue: QueueType | None = None,
+        correlation_id: uuid.UUID | None = None,
+        parent_task: CognitiveTask | None = None,
         urgency: float = 0.5,
         confidence_score: float = 1.0,
         governance_risk: float = 0.0,
-        deadline: Optional[datetime] = None,
+        deadline: datetime | None = None,
         delay_seconds: int = 0,
     ) -> CognitiveTask:
         """
@@ -426,9 +415,7 @@ class CognitiveScheduler:
                         "tenant_id": str(tenant_id),
                     },
                 )
-                raise ValueError(
-                    f"Cascade depth {cascade_depth} exceeds maximum {CASCADE_BUDGET['max_depth']}"
-                )
+                raise ValueError(f"Cascade depth {cascade_depth} exceeds maximum {CASCADE_BUDGET['max_depth']}")
 
         # Check tenant quotas
         self._check_tenant_quota(tenant_id, "queue_depth")
@@ -487,10 +474,10 @@ class CognitiveScheduler:
 
     def submit_batch(
         self,
-        tasks: List[Dict[str, Any]],
+        tasks: list[dict[str, Any]],
         tenant_id: uuid.UUID,
-        correlation_id: Optional[uuid.UUID] = None,
-    ) -> List[CognitiveTask]:
+        correlation_id: uuid.UUID | None = None,
+    ) -> list[CognitiveTask]:
         """
         Submit multiple tasks as a batch.
 
@@ -572,9 +559,7 @@ class CognitiveScheduler:
                         "rejected",
                     ),
                 )
-                raise QuotaExceededError(
-                    f"Queue depth quota exceeded: {current}/{quota.max_queue_depth}"
-                )
+                raise QuotaExceededError(f"Queue depth quota exceeded: {current}/{quota.max_queue_depth}")
             return True
 
         elif quota_type == "concurrent_tasks":
@@ -616,9 +601,9 @@ class CognitiveScheduler:
 
     def fetch_next_task(
         self,
-        queues: List[QueueType],
+        queues: list[QueueType],
         worker_id: str,
-    ) -> Optional[CognitiveTask]:
+    ) -> CognitiveTask | None:
         """
         Fetch next task to execute based on priority scoring.
 
@@ -643,8 +628,7 @@ class CognitiveScheduler:
                 )
                 .filter(
                     # Either not scheduled or scheduled time has passed
-                    models.Q(scheduled_at__isnull=True)
-                    | models.Q(scheduled_at__lte=now)
+                    models.Q(scheduled_at__isnull=True) | models.Q(scheduled_at__lte=now)
                 )
                 .filter(
                     # For retrying tasks, check next_retry_at
@@ -665,9 +649,7 @@ class CognitiveScheduler:
                 if not self._check_tenant_quota(task.tenant_id, "concurrent_tasks"):
                     # Release the lock and let another task be selected
                     # The task remains in PENDING/RETRYING state
-                    logger.debug(
-                        f"Tenant {task.tenant_id} quota exceeded, skipping task {task.id}"
-                    )
+                    logger.debug(f"Tenant {task.tenant_id} quota exceeded, skipping task {task.id}")
                     return None
 
                 # Transition to scheduled
@@ -707,10 +689,12 @@ class CognitiveScheduler:
         # SYS-200 INV-011: Wrap select_for_update in transaction for row-level locking
         with transaction.atomic():
             # Find due schedules
-            due_schedules = list(Schedule.objects.filter(
-                is_enabled=True,
-                next_run_at__lte=now,
-            ).select_for_update(skip_locked=True))
+            due_schedules = list(
+                Schedule.objects.filter(
+                    is_enabled=True,
+                    next_run_at__lte=now,
+                ).select_for_update(skip_locked=True)
+            )
 
             for schedule in due_schedules:
                 try:
@@ -905,7 +889,7 @@ class CognitiveScheduler:
         return self._running
 
     @property
-    def backpressure(self) -> Optional[BackpressureController]:
+    def backpressure(self) -> BackpressureController | None:
         """Get the backpressure controller."""
         return self._backpressure
 
@@ -979,7 +963,10 @@ class CognitiveScheduler:
         # Get a default tenant_id for compensating tasks
         # In production, this would come from a system tenant or the triggering context
         from django.conf import settings
-        system_tenant_id = getattr(settings, 'SYNARA_SYSTEM_TENANT_ID', uuid.UUID('00000000-0000-0000-0000-000000000000'))
+
+        system_tenant_id = getattr(
+            settings, "SYNARA_SYSTEM_TENANT_ID", uuid.UUID("00000000-0000-0000-0000-000000000000")
+        )
 
         return self.submit(
             task_name=comp_task.task_name,
@@ -990,30 +977,28 @@ class CognitiveScheduler:
             delay_seconds=comp_task.delay_seconds,
         )
 
-    def _provide_scheduler_context(self) -> Dict[str, Any]:
+    def _provide_scheduler_context(self) -> dict[str, Any]:
         """
         Provide scheduler context for temporal policy evaluation.
 
         Standard: SCH-006 §5.3
         """
         # Get schedule names
-        schedule_names = list(
-            Schedule.objects.filter(is_enabled=True).values_list('schedule_id', flat=True)
-        )
+        schedule_names = list(Schedule.objects.filter(is_enabled=True).values_list("schedule_id", flat=True))
 
         # Get task counts
-        pending = CognitiveTask.objects.filter(
-            state__in=[TaskState.PENDING.value, TaskState.SCHEDULED.value]
-        ).count()
+        pending = CognitiveTask.objects.filter(state__in=[TaskState.PENDING.value, TaskState.SCHEDULED.value]).count()
 
-        running = CognitiveTask.objects.filter(
-            state=TaskState.RUNNING.value
-        ).count()
+        running = CognitiveTask.objects.filter(state=TaskState.RUNNING.value).count()
 
         # Get max cascade depth
-        max_cascade = CognitiveTask.objects.filter(
-            state__in=[TaskState.PENDING.value, TaskState.RUNNING.value]
-        ).order_by('-cascade_depth').values_list('cascade_depth', flat=True).first() or 0
+        max_cascade = (
+            CognitiveTask.objects.filter(state__in=[TaskState.PENDING.value, TaskState.RUNNING.value])
+            .order_by("-cascade_depth")
+            .values_list("cascade_depth", flat=True)
+            .first()
+            or 0
+        )
 
         return {
             "schedules": schedule_names,
@@ -1021,11 +1006,13 @@ class CognitiveScheduler:
             "pending_tasks": pending,
             "running_tasks": running,
             "max_cascade_depth": max_cascade,
-            "cascade_budget_remaining": 1.0 - (max_cascade / CASCADE_BUDGET["max_depth"]) if CASCADE_BUDGET["max_depth"] > 0 else 1.0,
+            "cascade_budget_remaining": 1.0 - (max_cascade / CASCADE_BUDGET["max_depth"])
+            if CASCADE_BUDGET["max_depth"] > 0
+            else 1.0,
         }
 
     @property
-    def temporal(self) -> Optional[TemporalController]:
+    def temporal(self) -> TemporalController | None:
         """Get the temporal controller."""
         return self._temporal
 
@@ -1053,18 +1040,18 @@ class CognitiveWorker:
         self,
         worker_id: str,
         scheduler: CognitiveScheduler,
-        queues: List[QueueType],
+        queues: list[QueueType],
     ):
         self.worker_id = worker_id
         self.scheduler = scheduler
         self.queues = queues
         self._running = False
-        self._current_task: Optional[CognitiveTask] = None
+        self._current_task: CognitiveTask | None = None
 
         # Metrics
         self.completed_tasks = 0
         self.failed_tasks = 0
-        self.started_at: Optional[datetime] = None
+        self.started_at: datetime | None = None
 
     def run(self) -> None:
         """Main worker loop."""
@@ -1329,9 +1316,7 @@ class CognitiveWorker:
 
         emit_scheduler_event(
             "scheduler.task.failed",
-            build_task_failed_payload(
-                task, error_type, error_message, task.attempts, will_retry
-            ),
+            build_task_failed_payload(task, error_type, error_message, task.attempts, will_retry),
             correlation_id=str(task.correlation_id),
             tenant_id=str(task.tenant_id),
         )

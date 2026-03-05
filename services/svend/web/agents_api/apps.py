@@ -4,7 +4,6 @@ Preloads LLMs at startup for fast inference.
 """
 
 import logging
-import os
 import threading
 
 from django.apps import AppConfig
@@ -22,7 +21,7 @@ class AgentsApiConfig(AppConfig):
         import sys
 
         # Skip during migrations, shell, or other management commands
-        if any(cmd in sys.argv for cmd in ['migrate', 'makemigrations', 'collectstatic', 'shell', 'dbshell']):
+        if any(cmd in sys.argv for cmd in ["migrate", "makemigrations", "collectstatic", "shell", "dbshell"]):
             return
 
         # Preload in background thread to not block startup
@@ -34,6 +33,7 @@ class AgentsApiConfig(AppConfig):
         """Preload both LLMs on GPU."""
         try:
             import torch
+
             if not torch.cuda.is_available():
                 logger.warning("CUDA not available - skipping LLM preload")
                 return
@@ -42,7 +42,7 @@ class AgentsApiConfig(AppConfig):
             logger.info("PRELOADING LLMs AT STARTUP")
             logger.info("=" * 60)
 
-            from .views import get_shared_llm, get_coder_llm
+            from .views import get_coder_llm, get_shared_llm
 
             # Load shared LLM (Qwen 7B)
             logger.info("Loading shared LLM (Qwen)...")

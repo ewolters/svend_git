@@ -9,12 +9,13 @@ import json
 import logging
 
 from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
+from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
+from core.models import Evidence, Project
+
 from .models import PlantSimulation, ValueStreamMap
-from core.models import Project, Evidence
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +36,11 @@ def list_simulations(request):
     if project_id:
         sims = sims.filter(project_id=project_id)
 
-    return JsonResponse({
-        "simulations": [s.to_dict() for s in sims[:50]],
-    })
+    return JsonResponse(
+        {
+            "simulations": [s.to_dict() for s in sims[:50]],
+        }
+    )
 
 
 @gated_paid
@@ -62,18 +65,23 @@ def create_simulation(request):
         project=project,
         name=data.get("name", "Untitled Plant"),
         description=data.get("description", ""),
-        simulation_config=data.get("simulation_config", {
-            "warmup_time": 300,
-            "run_time": 3600,
-            "speed_factor": 10,
-            "random_seed": None,
-        }),
+        simulation_config=data.get(
+            "simulation_config",
+            {
+                "warmup_time": 300,
+                "run_time": 3600,
+                "speed_factor": 10,
+                "random_seed": None,
+            },
+        ),
     )
 
-    return JsonResponse({
-        "id": str(sim.id),
-        "simulation": sim.to_dict(),
-    })
+    return JsonResponse(
+        {
+            "id": str(sim.id),
+            "simulation": sim.to_dict(),
+        }
+    )
 
 
 @gated_paid
@@ -82,9 +90,11 @@ def get_simulation(request, sim_id):
     """Get a single simulation with full layout and results."""
     sim = get_object_or_404(PlantSimulation, id=sim_id, owner=request.user)
 
-    return JsonResponse({
-        "simulation": sim.to_dict(),
-    })
+    return JsonResponse(
+        {
+            "simulation": sim.to_dict(),
+        }
+    )
 
 
 @gated_paid
@@ -107,8 +117,7 @@ def update_simulation(request, sim_id):
             setattr(sim, field, data[field])
 
     # Structured layout data
-    for field in ["stations", "connections", "sources", "sinks",
-                  "work_centers", "simulation_config"]:
+    for field in ["stations", "connections", "sources", "sinks", "work_centers", "simulation_config"]:
         if field in data:
             setattr(sim, field, data[field])
 
@@ -126,9 +135,11 @@ def update_simulation(request, sim_id):
 
     sim.save()
 
-    return JsonResponse({
-        "simulation": sim.to_dict(),
-    })
+    return JsonResponse(
+        {
+            "simulation": sim.to_dict(),
+        }
+    )
 
 
 @gated_paid
@@ -170,25 +181,29 @@ def save_results(request, sim_id):
 
     # Add metric snapshot
     snapshots = sim.metric_snapshots or []
-    snapshots.append({
-        "run_index": len(sim_results) - 1,
-        "throughput": results.get("throughput"),
-        "avg_wip": results.get("avg_wip"),
-        "avg_lead_time": results.get("avg_lead_time"),
-        "bottleneck": results.get("bottleneck_station_name"),
-        "station_count": len(sim.stations or []),
-    })
+    snapshots.append(
+        {
+            "run_index": len(sim_results) - 1,
+            "throughput": results.get("throughput"),
+            "avg_wip": results.get("avg_wip"),
+            "avg_lead_time": results.get("avg_lead_time"),
+            "bottleneck": results.get("bottleneck_station_name"),
+            "station_count": len(sim.stations or []),
+        }
+    )
     if len(snapshots) > 100:
         snapshots = snapshots[-100:]
     sim.metric_snapshots = snapshots
 
     sim.save()
 
-    return JsonResponse({
-        "success": True,
-        "run_index": len(sim_results) - 1,
-        "total_runs": len(sim_results),
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "run_index": len(sim_results) - 1,
+            "total_runs": len(sim_results),
+        }
+    )
 
 
 @gated_paid
@@ -260,43 +275,51 @@ def import_from_vsm(request, sim_id):
     # Build connections: source → stn[0] → stn[1] → ... → sink
     connections = []
     if step_ids:
-        connections.append({
-            "id": "conn-source",
-            "from_id": "source-1",
-            "to_id": step_ids[0],
-            "buffer_capacity": None,
-        })
+        connections.append(
+            {
+                "id": "conn-source",
+                "from_id": "source-1",
+                "to_id": step_ids[0],
+                "buffer_capacity": None,
+            }
+        )
         for i in range(len(step_ids) - 1):
             # Check if there's inventory between these steps
             buffer_cap = None
-            for inv in (vsm.inventory or []):
+            for inv in vsm.inventory or []:
                 if inv.get("before_step_id") == step_ids[i + 1]:
                     buffer_cap = inv.get("quantity")
                     break
-            connections.append({
-                "id": f"conn-{i}",
-                "from_id": step_ids[i],
-                "to_id": step_ids[i + 1],
-                "buffer_capacity": buffer_cap,
-            })
-        connections.append({
-            "id": "conn-sink",
-            "from_id": step_ids[-1],
-            "to_id": "sink-1",
-            "buffer_capacity": None,
-        })
+            connections.append(
+                {
+                    "id": f"conn-{i}",
+                    "from_id": step_ids[i],
+                    "to_id": step_ids[i + 1],
+                    "buffer_capacity": buffer_cap,
+                }
+            )
+        connections.append(
+            {
+                "id": "conn-sink",
+                "from_id": step_ids[-1],
+                "to_id": "sink-1",
+                "buffer_capacity": None,
+            }
+        )
 
     # Import work centers
     work_centers = []
-    for wc in (vsm.work_centers or []):
-        work_centers.append({
-            "id": wc.get("id"),
-            "name": wc.get("name", "Work Center"),
-            "x": wc.get("x", 200),
-            "y": wc.get("y", 200),
-            "width": wc.get("width", 200),
-            "height": wc.get("height", 150),
-        })
+    for wc in vsm.work_centers or []:
+        work_centers.append(
+            {
+                "id": wc.get("id"),
+                "name": wc.get("name", "Work Center"),
+                "x": wc.get("x", 200),
+                "y": wc.get("y", 200),
+                "width": wc.get("width", 200),
+                "height": wc.get("height", 150),
+            }
+        )
 
     sim.stations = stations
     sim.connections = connections
@@ -307,10 +330,12 @@ def import_from_vsm(request, sim_id):
     sim.name = f"Sim: {vsm.name}"
     sim.save()
 
-    return JsonResponse({
-        "simulation": sim.to_dict(),
-        "imported_stations": len(stations),
-    })
+    return JsonResponse(
+        {
+            "simulation": sim.to_dict(),
+            "imported_stations": len(stations),
+        }
+    )
 
 
 @gated_paid
@@ -354,7 +379,9 @@ def export_to_project(request, sim_id):
         confidence=0.7,
     )
 
-    return JsonResponse({
-        "success": True,
-        "evidence_id": str(evidence.id),
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "evidence_id": str(evidence.id),
+        }
+    )

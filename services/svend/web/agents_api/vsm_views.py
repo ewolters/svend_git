@@ -14,13 +14,14 @@ import logging
 import time as _time
 
 from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
+from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid, require_feature
-from .models import ValueStreamMap
-from .hoshin_calculations import estimate_savings_from_vsm_delta, estimate_savings_monte_carlo
 from core.models import Project
+
+from .hoshin_calculations import estimate_savings_monte_carlo
+from .models import ValueStreamMap
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +73,7 @@ def detect_bottleneck(vsm):
     for step in steps:
         step_ct = step.get("cycle_time", 0) or 0
         flags = {}
-        flags["is_bottleneck"] = (step.get("id") == bottleneck_step.get("id"))
+        flags["is_bottleneck"] = step.get("id") == bottleneck_step.get("id")
         if takt and takt > 0 and step_ct > 0:
             flags["takt_ratio"] = round(step_ct / takt, 2)
             flags["exceeds_takt"] = step_ct > takt
@@ -95,7 +96,7 @@ def list_vsm(request):
     - project_id: filter by project
     - status: filter by status (current/future/archived)
     """
-    maps = ValueStreamMap.objects.filter(owner=request.user).select_related('project')
+    maps = ValueStreamMap.objects.filter(owner=request.user).select_related("project")
 
     project_id = request.GET.get("project_id")
     if project_id:
@@ -105,9 +106,11 @@ def list_vsm(request):
     if status:
         maps = maps.filter(status=status)
 
-    return JsonResponse({
-        "maps": [m.to_dict() for m in maps[:50]],
-    })
+    return JsonResponse(
+        {
+            "maps": [m.to_dict() for m in maps[:50]],
+        }
+    )
 
 
 @gated_paid
@@ -139,10 +142,12 @@ def create_vsm(request):
         supply_frequency=data.get("supply_frequency", ""),
     )
 
-    return JsonResponse({
-        "id": str(vsm.id),
-        "vsm": vsm.to_dict(),
-    })
+    return JsonResponse(
+        {
+            "id": str(vsm.id),
+            "vsm": vsm.to_dict(),
+        }
+    )
 
 
 @gated_paid
@@ -152,10 +157,12 @@ def get_vsm(request, vsm_id):
     vsm = get_object_or_404(ValueStreamMap, id=vsm_id, owner=request.user)
     bottleneck_info = detect_bottleneck(vsm)
 
-    return JsonResponse({
-        "vsm": vsm.to_dict(),
-        "bottleneck": bottleneck_info,
-    })
+    return JsonResponse(
+        {
+            "vsm": vsm.to_dict(),
+            "bottleneck": bottleneck_info,
+        }
+    )
 
 
 @gated_paid
@@ -170,30 +177,49 @@ def update_vsm(request, vsm_id):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     # Validate takt_time if provided
-    if 'takt_time' in data and data['takt_time'] is not None:
+    if "takt_time" in data and data["takt_time"] is not None:
         try:
-            tt = float(data['takt_time'])
+            tt = float(data["takt_time"])
             if tt <= 0:
                 return JsonResponse({"error": "Takt time must be positive"}, status=400)
-            data['takt_time'] = tt
+            data["takt_time"] = tt
         except (ValueError, TypeError):
             return JsonResponse({"error": "Takt time must be a number"}, status=400)
 
     # Update simple fields
-    for field in ['name', 'status', 'product_family', 'customer_name', 'customer_demand',
-                  'takt_time', 'supplier_name', 'supply_frequency', 'zoom', 'pan_x', 'pan_y']:
+    for field in [
+        "name",
+        "status",
+        "product_family",
+        "customer_name",
+        "customer_demand",
+        "takt_time",
+        "supplier_name",
+        "supply_frequency",
+        "zoom",
+        "pan_x",
+        "pan_y",
+    ]:
         if field in data:
             setattr(vsm, field, data[field])
 
     # Update structured data
-    for field in ['process_steps', 'inventory', 'information_flow', 'material_flow', 'kaizen_bursts',
-                  'customers', 'suppliers', 'work_centers']:
+    for field in [
+        "process_steps",
+        "inventory",
+        "information_flow",
+        "material_flow",
+        "kaizen_bursts",
+        "customers",
+        "suppliers",
+        "work_centers",
+    ]:
         if field in data:
             setattr(vsm, field, data[field])
 
     # Update project link
-    if 'project_id' in data:
-        project_id = data['project_id']
+    if "project_id" in data:
+        project_id = data["project_id"]
         if project_id:
             try:
                 project = Project.objects.get(id=project_id, user=request.user)
@@ -204,29 +230,31 @@ def update_vsm(request, vsm_id):
             vsm.project = None
 
     # Handle auto_kaizen from calculator exports
-    auto_kaizen = data.get('auto_kaizen')
+    auto_kaizen = data.get("auto_kaizen")
     if auto_kaizen and isinstance(auto_kaizen, dict):
-        text = auto_kaizen.get('text', '').strip()
-        near_step = auto_kaizen.get('near_step', '')
-        priority = auto_kaizen.get('priority', 'medium')
+        text = auto_kaizen.get("text", "").strip()
+        near_step = auto_kaizen.get("near_step", "")
+        priority = auto_kaizen.get("priority", "medium")
         if text:
             bursts = vsm.kaizen_bursts or []
             # Dedup: skip if burst with same text already exists
-            if not any(b.get('text') == text for b in bursts):
+            if not any(b.get("text") == text for b in bursts):
                 # Find position near the named step
                 x, y = 200, 50
                 for i, step in enumerate(vsm.process_steps or []):
-                    if step.get('name', '').lower() == near_step.lower():
-                        x = step.get('x', 200 + i * 200)
-                        y = max(0, step.get('y', 100) - 60)
+                    if step.get("name", "").lower() == near_step.lower():
+                        x = step.get("x", 200 + i * 200)
+                        y = max(0, step.get("y", 100) - 60)
                         break
-                bursts.append({
-                    'id': f'kaizen_{len(bursts) + 1}_{int(_time.time())}',
-                    'text': text,
-                    'x': x,
-                    'y': y,
-                    'priority': priority,
-                })
+                bursts.append(
+                    {
+                        "id": f"kaizen_{len(bursts) + 1}_{int(_time.time())}",
+                        "text": text,
+                        "x": x,
+                        "y": y,
+                        "priority": priority,
+                    }
+                )
                 vsm.kaizen_bursts = bursts
 
     # Recalculate metrics and detect bottleneck
@@ -234,11 +262,13 @@ def update_vsm(request, vsm_id):
     bottleneck_info = detect_bottleneck(vsm)
     vsm.save()
 
-    return JsonResponse({
-        "success": True,
-        "vsm": vsm.to_dict(),
-        "bottleneck": bottleneck_info,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "vsm": vsm.to_dict(),
+            "bottleneck": bottleneck_info,
+        }
+    )
 
 
 @gated_paid
@@ -277,6 +307,7 @@ def add_process_step(request, vsm_id):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     import uuid
+
     step = {
         "id": str(uuid.uuid4())[:8],
         "name": data.get("name", "Process"),
@@ -295,11 +326,13 @@ def add_process_step(request, vsm_id):
     vsm.calculate_metrics()
     vsm.save()
 
-    return JsonResponse({
-        "success": True,
-        "step": step,
-        "vsm": vsm.to_dict(),
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "step": step,
+            "vsm": vsm.to_dict(),
+        }
+    )
 
 
 @gated_paid
@@ -324,6 +357,7 @@ def add_inventory(request, vsm_id):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     import uuid
+
     inv = {
         "id": str(uuid.uuid4())[:8],
         "before_step_id": data.get("before_step_id"),
@@ -337,11 +371,13 @@ def add_inventory(request, vsm_id):
     vsm.calculate_metrics()
     vsm.save()
 
-    return JsonResponse({
-        "success": True,
-        "inventory": inv,
-        "vsm": vsm.to_dict(),
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "inventory": inv,
+            "vsm": vsm.to_dict(),
+        }
+    )
 
 
 @gated_paid
@@ -365,6 +401,7 @@ def add_kaizen_burst(request, vsm_id):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     import uuid
+
     burst = {
         "id": str(uuid.uuid4())[:8],
         "x": data.get("x", 100),
@@ -376,11 +413,13 @@ def add_kaizen_burst(request, vsm_id):
     vsm.kaizen_bursts.append(burst)
     vsm.save()
 
-    return JsonResponse({
-        "success": True,
-        "burst": burst,
-        "vsm": vsm.to_dict(),
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "burst": burst,
+            "vsm": vsm.to_dict(),
+        }
+    )
 
 
 @gated_paid
@@ -423,10 +462,12 @@ def create_future_state(request, vsm_id):
     future.paired_with = vsm
     future.save(update_fields=["paired_with"])
 
-    return JsonResponse({
-        "success": True,
-        "future_state": future.to_dict(),
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "future_state": future.to_dict(),
+        }
+    )
 
 
 @gated_paid
@@ -441,18 +482,24 @@ def compare_vsm(request, vsm_id):
     # Find related future state (same project, same product family)
     future = None
     if current.project:
-        future = ValueStreamMap.objects.filter(
-            owner=request.user,
-            project=current.project,
-            status=ValueStreamMap.Status.FUTURE,
-        ).exclude(id=current.id).first()
+        future = (
+            ValueStreamMap.objects.filter(
+                owner=request.user,
+                project=current.project,
+                status=ValueStreamMap.Status.FUTURE,
+            )
+            .exclude(id=current.id)
+            .first()
+        )
 
     if not future:
-        return JsonResponse({
-            "current": current.to_dict(),
-            "future": None,
-            "comparison": None,
-        })
+        return JsonResponse(
+            {
+                "current": current.to_dict(),
+                "future": None,
+                "comparison": None,
+            }
+        )
 
     # Calculate improvements
     comparison = {
@@ -460,17 +507,21 @@ def compare_vsm(request, vsm_id):
             "current": current.total_lead_time,
             "future": future.total_lead_time,
             "improvement": (
-                ((current.total_lead_time or 0) - (future.total_lead_time or 0)) /
-                (current.total_lead_time or 1) * 100
-            ) if current.total_lead_time else 0,
+                ((current.total_lead_time or 0) - (future.total_lead_time or 0)) / (current.total_lead_time or 1) * 100
+            )
+            if current.total_lead_time
+            else 0,
         },
         "process_time": {
             "current": current.total_process_time,
             "future": future.total_process_time,
             "improvement": (
-                ((current.total_process_time or 0) - (future.total_process_time or 0)) /
-                (current.total_process_time or 1) * 100
-            ) if current.total_process_time else 0,
+                ((current.total_process_time or 0) - (future.total_process_time or 0))
+                / (current.total_process_time or 1)
+                * 100
+            )
+            if current.total_process_time
+            else 0,
         },
         "pce": {
             "current": current.pce,
@@ -487,16 +538,19 @@ def compare_vsm(request, vsm_id):
         },
     }
 
-    return JsonResponse({
-        "current": current.to_dict(),
-        "future": future.to_dict(),
-        "comparison": comparison,
-    })
+    return JsonResponse(
+        {
+            "current": current.to_dict(),
+            "future": future.to_dict(),
+            "comparison": comparison,
+        }
+    )
 
 
 # =============================================================================
 # Intelligence Layer — Phase 3: TIMWOODS Waste Analysis
 # =============================================================================
+
 
 @gated_paid
 @require_http_methods(["GET"])
@@ -531,11 +585,13 @@ def waste_analysis(request, vsm_id):
         dos = inv.get("days_of_supply", 0)
         if dos > 5:
             severity = "high" if dos > 15 else ("medium" if dos > 10 else "low")
-            waste["inventory"].append({
-                "location": inv.get("name", inv.get("id", "unknown")),
-                "detail": f"{dos} days supply",
-                "severity": severity,
-            })
+            waste["inventory"].append(
+                {
+                    "location": inv.get("name", inv.get("id", "unknown")),
+                    "detail": f"{dos} days supply",
+                    "severity": severity,
+                }
+            )
 
     for step in steps:
         ct = step.get("cycle_time", 0) or 0
@@ -546,65 +602,79 @@ def waste_analysis(request, vsm_id):
 
         # --- Waiting: high changeover relative to cycle time ---
         if ct > 0 and changeover > 10 * ct:
-            waste["waiting"].append({
-                "step": name,
-                "detail": f"changeover {changeover}s vs cycle time {ct}s (ratio {changeover/ct:.0f}x)",
-                "severity": "high",
-                "suggested_kaizen": "SMED changeover reduction",
-            })
+            waste["waiting"].append(
+                {
+                    "step": name,
+                    "detail": f"changeover {changeover}s vs cycle time {ct}s (ratio {changeover / ct:.0f}x)",
+                    "severity": "high",
+                    "suggested_kaizen": "SMED changeover reduction",
+                }
+            )
 
         # --- Waiting: CT exceeds takt time ---
         if takt_time > 0 and ct > 2 * takt_time:
-            waste["waiting"].append({
-                "step": name,
-                "detail": f"cycle time {ct}s exceeds 2× takt ({takt_time}s)",
-                "severity": "high",
-            })
+            waste["waiting"].append(
+                {
+                    "step": name,
+                    "detail": f"cycle time {ct}s exceeds 2× takt ({takt_time}s)",
+                    "severity": "high",
+                }
+            )
 
         # --- Defects: low uptime ---
         if uptime < 85:
             severity = "high" if uptime < 70 else "medium"
-            waste["defects"].append({
-                "step": name,
-                "detail": f"uptime {uptime}%",
-                "severity": severity,
-                "suggested_kaizen": "TPM (Total Productive Maintenance)",
-            })
+            waste["defects"].append(
+                {
+                    "step": name,
+                    "detail": f"uptime {uptime}%",
+                    "severity": severity,
+                    "suggested_kaizen": "TPM (Total Productive Maintenance)",
+                }
+            )
 
         # --- Overproduction: large batch sizes ---
         if batch_size > 50:
-            waste["overproduction"].append({
-                "step": name,
-                "detail": f"batch size {batch_size}",
-                "severity": "medium" if batch_size < 200 else "high",
-            })
+            waste["overproduction"].append(
+                {
+                    "step": name,
+                    "detail": f"batch size {batch_size}",
+                    "severity": "medium" if batch_size < 200 else "high",
+                }
+            )
 
     # --- Overproduction: too many push flows ---
     push_count = sum(1 for mf in material_flow if mf.get("type") == "push")
     if push_count > 2:
-        waste["overproduction"].append({
-            "step": "Material flow",
-            "detail": f"{push_count} push connections (consider pull/kanban)",
-            "severity": "medium",
-        })
+        waste["overproduction"].append(
+            {
+                "step": "Material flow",
+                "detail": f"{push_count} push connections (consider pull/kanban)",
+                "severity": "medium",
+            }
+        )
 
     # --- Motion/Transport: manual information flows ---
     manual_count = sum(1 for inf in info_flow if inf.get("type") == "manual")
     if manual_count > 0:
-        waste["motion"].append({
-            "step": "Information flow",
-            "detail": f"{manual_count} manual information flows",
-            "severity": "low" if manual_count < 3 else "medium",
-        })
+        waste["motion"].append(
+            {
+                "step": "Information flow",
+                "detail": f"{manual_count} manual information flows",
+                "severity": "low" if manual_count < 3 else "medium",
+            }
+        )
 
     # --- Overprocessing: very low PCE ---
     pce = vsm.pce or 0
     if pce > 0 and pce < 5:
-        waste["overprocessing"].append({
-            "step": "Overall",
-            "detail": f"PCE {pce:.1f}% — less than 5% of lead time is value-adding",
-            "severity": "high",
-        })
+        waste["overprocessing"].append(
+            {
+                "step": "Overall",
+                "detail": f"PCE {pce:.1f}% — less than 5% of lead time is value-adding",
+                "severity": "high",
+            }
+        )
 
     # Count total and build top opportunities
     total = sum(len(items) for items in waste.values())
@@ -612,17 +682,21 @@ def waste_analysis(request, vsm_id):
     for category, items in waste.items():
         for item in items:
             if item.get("severity") in ("high", "medium"):
-                top_opportunities.append({
-                    "category": category,
-                    "step": item.get("step", ""),
-                    "suggested_kaizen": item.get("suggested_kaizen", ""),
-                })
+                top_opportunities.append(
+                    {
+                        "category": category,
+                        "step": item.get("step", ""),
+                        "suggested_kaizen": item.get("suggested_kaizen", ""),
+                    }
+                )
 
-    return JsonResponse({
-        "waste_categories": waste,
-        "total_waste_items": total,
-        "top_opportunities": top_opportunities[:10],
-    })
+    return JsonResponse(
+        {
+            "waste_categories": waste,
+            "total_waste_items": total,
+            "top_opportunities": top_opportunities[:10],
+        }
+    )
 
 
 @require_feature("hoshin_kanri")
@@ -648,22 +722,32 @@ def generate_proposals(request, vsm_id):
     # Find future state
     future = None
     if current.project:
-        future = ValueStreamMap.objects.filter(
-            owner=request.user,
-            project=current.project,
-            status=ValueStreamMap.Status.FUTURE,
-        ).exclude(id=current.id).first()
+        future = (
+            ValueStreamMap.objects.filter(
+                owner=request.user,
+                project=current.project,
+                status=ValueStreamMap.Status.FUTURE,
+            )
+            .exclude(id=current.id)
+            .first()
+        )
 
     if not future:
-        return JsonResponse({
-            "error": "No future state VSM found. Create a future state first.",
-        }, status=400)
+        return JsonResponse(
+            {
+                "error": "No future state VSM found. Create a future state first.",
+            },
+            status=400,
+        )
 
     bursts = future.kaizen_bursts or []
     if not bursts:
-        return JsonResponse({
-            "error": "No kaizen bursts on the future state VSM.",
-        }, status=400)
+        return JsonResponse(
+            {
+                "error": "No kaizen bursts on the future state VSM.",
+            },
+            status=400,
+        )
 
     data = json.loads(request.body) if request.body else {}
     annual_volume = float(data.get("annual_volume", 100000))
@@ -702,54 +786,69 @@ def generate_proposals(request, vsm_id):
         # Estimate savings from metric deltas (Monte Carlo for confidence intervals)
         if current_step:
             estimate = estimate_savings_monte_carlo(
-                current_step, nearest_step,
+                current_step,
+                nearest_step,
                 annual_volume=annual_volume,
                 cost_per_unit=cost_per_unit,
             )
             estimate["estimated_annual_savings"] = estimate["median_savings"]
         else:
             estimate = {
-                "cycle_time_delta": 0, "changeover_delta": 0,
-                "uptime_delta": 0, "operators_delta": 0,
+                "cycle_time_delta": 0,
+                "changeover_delta": 0,
+                "uptime_delta": 0,
+                "operators_delta": 0,
                 "estimated_annual_savings": 0,
                 "suggested_method": "direct",
                 "improvement_pct": 0,
-                "median_savings": 0, "lower_5": 0, "upper_95": 0,
-                "lower_25": 0, "upper_75": 0, "p_positive": 0,
-                "mean_savings": 0, "std_savings": 0, "deterministic": 0,
+                "median_savings": 0,
+                "lower_5": 0,
+                "upper_95": 0,
+                "lower_25": 0,
+                "upper_75": 0,
+                "p_positive": 0,
+                "mean_savings": 0,
+                "std_savings": 0,
+                "deterministic": 0,
             }
 
-        proposals.append({
-            "burst_id": burst_id,
-            "burst_text": burst_text,
-            "priority": burst_priority,
-            "process_step": step_name,
-            "has_current_match": bool(current_step),
-            "metric_deltas": {
-                "cycle_time": estimate["cycle_time_delta"],
-                "changeover": estimate["changeover_delta"],
-                "uptime": estimate["uptime_delta"],
-                "operators": estimate["operators_delta"],
-            },
-            "estimated_annual_savings": estimate["estimated_annual_savings"],
-            "suggested_method": estimate["suggested_method"],
-            "improvement_pct": estimate["improvement_pct"],
-            "median_savings": estimate.get("median_savings", 0),
-            "lower_5": estimate.get("lower_5", 0),
-            "upper_95": estimate.get("upper_95", 0),
-            "p_positive": estimate.get("p_positive", 0),
-            "suggested_title": f"{burst_text} — {step_name}",
-            "suggested_type": "labor" if estimate["suggested_method"] in ("time_reduction", "headcount") else "material",
-        })
+        proposals.append(
+            {
+                "burst_id": burst_id,
+                "burst_text": burst_text,
+                "priority": burst_priority,
+                "process_step": step_name,
+                "has_current_match": bool(current_step),
+                "metric_deltas": {
+                    "cycle_time": estimate["cycle_time_delta"],
+                    "changeover": estimate["changeover_delta"],
+                    "uptime": estimate["uptime_delta"],
+                    "operators": estimate["operators_delta"],
+                },
+                "estimated_annual_savings": estimate["estimated_annual_savings"],
+                "suggested_method": estimate["suggested_method"],
+                "improvement_pct": estimate["improvement_pct"],
+                "median_savings": estimate.get("median_savings", 0),
+                "lower_5": estimate.get("lower_5", 0),
+                "upper_95": estimate.get("upper_95", 0),
+                "p_positive": estimate.get("p_positive", 0),
+                "suggested_title": f"{burst_text} — {step_name}",
+                "suggested_type": "labor"
+                if estimate["suggested_method"] in ("time_reduction", "headcount")
+                else "material",
+            }
+        )
 
-    return JsonResponse({
-        "vsm_id": str(vsm_id),
-        "vsm_name": current.name,
-        "future_vsm_id": str(future.id),
-        "proposals": proposals,
-        "count": len(proposals),
-        "defaults": {
-            "annual_volume": annual_volume,
-            "cost_per_unit": cost_per_unit,
-        },
-    })
+    return JsonResponse(
+        {
+            "vsm_id": str(vsm_id),
+            "vsm_name": current.name,
+            "future_vsm_id": str(future.id),
+            "proposals": proposals,
+            "count": len(proposals),
+            "defaults": {
+                "annual_volume": annual_volume,
+                "cost_per_unit": cost_per_unit,
+            },
+        }
+    )

@@ -40,10 +40,12 @@ def register(name, category, soc2_controls=None):
         category: SOC 2 trust service category.
         soc2_controls: Declared SOC 2 control IDs (auto-discovered by views).
     """
+
     def decorator(fn):
         fn.soc2_controls = soc2_controls or []
         ALL_CHECKS[name] = (fn, category)
         return fn
+
     return decorator
 
 
@@ -69,158 +71,408 @@ def get_all_soc2_controls():
 
 SOC2_CONTROL_MATRIX = {
     # CC1 — Control Environment
-    "CC1.1": {"category": "security", "tsc": "CC1", "name": "Integrity and ethical values",
-              "checks": [], "manual_status": "partial", "manual_reason": "Policy drafted, no signed acknowledgment"},
-    "CC1.2": {"category": "security", "tsc": "CC1", "name": "Board oversight",
-              "checks": ["change_management"], "manual_status": "met"},
-    "CC1.3": {"category": "security", "tsc": "CC1", "name": "Structure and authority",
-              "checks": ["permission_coverage"], "manual_status": "met"},
-    "CC1.4": {"category": "security", "tsc": "CC1", "name": "Commitment to competence",
-              "checks": [], "manual_status": "met"},
-    "CC1.5": {"category": "security", "tsc": "CC1", "name": "Enforces accountability",
-              "checks": ["change_management"], "manual_status": "met"},
-
+    "CC1.1": {
+        "category": "security",
+        "tsc": "CC1",
+        "name": "Integrity and ethical values",
+        "checks": [],
+        "manual_status": "partial",
+        "manual_reason": "Policy drafted, no signed acknowledgment",
+    },
+    "CC1.2": {
+        "category": "security",
+        "tsc": "CC1",
+        "name": "Board oversight",
+        "checks": ["change_management"],
+        "manual_status": "met",
+    },
+    "CC1.3": {
+        "category": "security",
+        "tsc": "CC1",
+        "name": "Structure and authority",
+        "checks": ["permission_coverage"],
+        "manual_status": "met",
+    },
+    "CC1.4": {
+        "category": "security",
+        "tsc": "CC1",
+        "name": "Commitment to competence",
+        "checks": [],
+        "manual_status": "met",
+    },
+    "CC1.5": {
+        "category": "security",
+        "tsc": "CC1",
+        "name": "Enforces accountability",
+        "checks": ["change_management"],
+        "manual_status": "met",
+    },
     # CC2 — Communication and Information
-    "CC2.1": {"category": "security", "tsc": "CC2", "name": "Uses relevant quality information",
-              "checks": ["log_completeness", "access_logging"], "manual_status": "partial",
-              "manual_reason": "Logs exist, no centralized monitoring/alerting"},
-    "CC2.2": {"category": "security", "tsc": "CC2", "name": "Communicates internally",
-              "checks": ["change_management"], "manual_status": "met"},
-    "CC2.3": {"category": "security", "tsc": "CC2", "name": "Communicates externally",
-              "checks": [], "manual_status": "partial", "manual_reason": "ToS/privacy need SOC 2 alignment review"},
-
+    "CC2.1": {
+        "category": "security",
+        "tsc": "CC2",
+        "name": "Uses relevant quality information",
+        "checks": ["log_completeness", "access_logging"],
+        "manual_status": "partial",
+        "manual_reason": "Logs exist, no centralized monitoring/alerting",
+    },
+    "CC2.2": {
+        "category": "security",
+        "tsc": "CC2",
+        "name": "Communicates internally",
+        "checks": ["change_management"],
+        "manual_status": "met",
+    },
+    "CC2.3": {
+        "category": "security",
+        "tsc": "CC2",
+        "name": "Communicates externally",
+        "checks": [],
+        "manual_status": "partial",
+        "manual_reason": "ToS/privacy need SOC 2 alignment review",
+    },
     # CC3 — Risk Assessment
-    "CC3.1": {"category": "security", "tsc": "CC3", "name": "Specifies suitable objectives",
-              "checks": ["architecture_map", "roadmap"], "manual_status": "met"},
-    "CC3.2": {"category": "security", "tsc": "CC3", "name": "Identifies and analyzes risk",
-              "checks": ["change_management"], "manual_status": "partial",
-              "manual_reason": "No formal risk register with likelihood/impact scoring"},
-    "CC3.3": {"category": "security", "tsc": "CC3", "name": "Considers potential for fraud",
-              "checks": ["rate_limiting"], "manual_status": "partial",
-              "manual_reason": "No formal fraud risk assessment"},
-    "CC3.4": {"category": "security", "tsc": "CC3", "name": "Identifies and assesses changes",
-              "checks": ["change_management"], "manual_status": "met"},
-
+    "CC3.1": {
+        "category": "security",
+        "tsc": "CC3",
+        "name": "Specifies suitable objectives",
+        "checks": ["architecture_map", "roadmap"],
+        "manual_status": "met",
+    },
+    "CC3.2": {
+        "category": "security",
+        "tsc": "CC3",
+        "name": "Identifies and analyzes risk",
+        "checks": ["change_management"],
+        "manual_status": "partial",
+        "manual_reason": "No formal risk register with likelihood/impact scoring",
+    },
+    "CC3.3": {
+        "category": "security",
+        "tsc": "CC3",
+        "name": "Considers potential for fraud",
+        "checks": ["rate_limiting"],
+        "manual_status": "partial",
+        "manual_reason": "No formal fraud risk assessment",
+    },
+    "CC3.4": {
+        "category": "security",
+        "tsc": "CC3",
+        "name": "Identifies and assesses changes",
+        "checks": ["change_management"],
+        "manual_status": "met",
+    },
     # CC4 — Monitoring Activities
-    "CC4.1": {"category": "security", "tsc": "CC4", "name": "Monitoring activities",
-              "checks": ["standards_compliance", "sla_compliance", "statistical_calibration", "output_quality"],
-              "manual_status": "partial", "manual_reason": "No active monitoring/alerting system"},
-    "CC4.2": {"category": "security", "tsc": "CC4", "name": "Evaluates deficiencies",
-              "checks": [], "manual_status": "met"},
-
+    "CC4.1": {
+        "category": "security",
+        "tsc": "CC4",
+        "name": "Monitoring activities",
+        "checks": ["standards_compliance", "sla_compliance", "statistical_calibration", "output_quality"],
+        "manual_status": "partial",
+        "manual_reason": "No active monitoring/alerting system",
+    },
+    "CC4.2": {
+        "category": "security",
+        "tsc": "CC4",
+        "name": "Evaluates deficiencies",
+        "checks": [],
+        "manual_status": "met",
+    },
     # CC5 — Control Activities
-    "CC5.1": {"category": "security", "tsc": "CC5", "name": "Control activities",
-              "checks": ["security_config", "permission_coverage"], "manual_status": "met"},
-    "CC5.2": {"category": "security", "tsc": "CC5", "name": "Technology controls",
-              "checks": ["security_headers"], "manual_status": "met"},
-    "CC5.3": {"category": "security", "tsc": "CC5", "name": "Policies and procedures",
-              "checks": [], "manual_status": "partial", "manual_reason": "No automated deployment pipeline"},
-
+    "CC5.1": {
+        "category": "security",
+        "tsc": "CC5",
+        "name": "Control activities",
+        "checks": ["security_config", "permission_coverage"],
+        "manual_status": "met",
+    },
+    "CC5.2": {
+        "category": "security",
+        "tsc": "CC5",
+        "name": "Technology controls",
+        "checks": ["security_headers"],
+        "manual_status": "met",
+    },
+    "CC5.3": {
+        "category": "security",
+        "tsc": "CC5",
+        "name": "Policies and procedures",
+        "checks": [],
+        "manual_status": "partial",
+        "manual_reason": "No automated deployment pipeline",
+    },
     # CC6 — Logical and Physical Access
-    "CC6.1": {"category": "security", "tsc": "CC6", "name": "Logical access security",
-              "checks": ["security_config", "encryption_status", "password_policy", "session_security",
-                         "secret_management", "security_headers", "caching"],
-              "manual_status": "met"},
-    "CC6.2": {"category": "security", "tsc": "CC6", "name": "User authentication",
-              "checks": ["rate_limiting", "permission_coverage"], "manual_status": "partial",
-              "manual_reason": "No MFA"},
-    "CC6.3": {"category": "security", "tsc": "CC6", "name": "Infrastructure access",
-              "checks": ["permission_coverage"], "manual_status": "met"},
-    "CC6.4": {"category": "security", "tsc": "CC6", "name": "Software access restriction",
-              "checks": ["permission_coverage"], "manual_status": "met"},
-    "CC6.5": {"category": "security", "tsc": "CC6", "name": "Physical access",
-              "checks": [], "manual_status": "met"},
-    "CC6.6": {"category": "security", "tsc": "CC6", "name": "System lifecycle access",
-              "checks": ["session_security"], "manual_status": "partial",
-              "manual_reason": "No formal offboarding/deprovisioning workflow"},
-    "CC6.7": {"category": "security", "tsc": "CC6", "name": "Infrastructure changes",
-              "checks": ["change_management", "ssl_tls"], "manual_status": "met"},
-    "CC6.8": {"category": "security", "tsc": "CC6", "name": "Security vulnerabilities",
-              "checks": ["dependency_vuln"], "manual_status": "partial",
-              "manual_reason": "No automated vulnerability scanning pipeline"},
-
+    "CC6.1": {
+        "category": "security",
+        "tsc": "CC6",
+        "name": "Logical access security",
+        "checks": [
+            "security_config",
+            "encryption_status",
+            "password_policy",
+            "session_security",
+            "secret_management",
+            "security_headers",
+            "caching",
+        ],
+        "manual_status": "met",
+    },
+    "CC6.2": {
+        "category": "security",
+        "tsc": "CC6",
+        "name": "User authentication",
+        "checks": ["rate_limiting", "permission_coverage"],
+        "manual_status": "partial",
+        "manual_reason": "No MFA",
+    },
+    "CC6.3": {
+        "category": "security",
+        "tsc": "CC6",
+        "name": "Infrastructure access",
+        "checks": ["permission_coverage"],
+        "manual_status": "met",
+    },
+    "CC6.4": {
+        "category": "security",
+        "tsc": "CC6",
+        "name": "Software access restriction",
+        "checks": ["permission_coverage"],
+        "manual_status": "met",
+    },
+    "CC6.5": {"category": "security", "tsc": "CC6", "name": "Physical access", "checks": [], "manual_status": "met"},
+    "CC6.6": {
+        "category": "security",
+        "tsc": "CC6",
+        "name": "System lifecycle access",
+        "checks": ["session_security"],
+        "manual_status": "partial",
+        "manual_reason": "No formal offboarding/deprovisioning workflow",
+    },
+    "CC6.7": {
+        "category": "security",
+        "tsc": "CC6",
+        "name": "Infrastructure changes",
+        "checks": ["change_management", "ssl_tls"],
+        "manual_status": "met",
+    },
+    "CC6.8": {
+        "category": "security",
+        "tsc": "CC6",
+        "name": "Security vulnerabilities",
+        "checks": ["dependency_vuln"],
+        "manual_status": "partial",
+        "manual_reason": "No automated vulnerability scanning pipeline",
+    },
     # CC7 — System Operations
-    "CC7.1": {"category": "security", "tsc": "CC7", "name": "Vulnerability detection",
-              "checks": ["dependency_vuln"], "manual_status": "partial",
-              "manual_reason": "pip-audit check exists but no continuous scanning pipeline"},
-    "CC7.2": {"category": "security", "tsc": "CC7", "name": "Anomaly monitoring",
-              "checks": ["audit_integrity", "access_logging", "log_completeness", "error_handling",
-                         "architecture_map", "architecture", "caching", "output_quality"],
-              "manual_status": "partial", "manual_reason": "No application-level anomaly detection"},
-    "CC7.3": {"category": "security", "tsc": "CC7", "name": "Security event evaluation",
-              "checks": ["audit_integrity"], "manual_status": "partial",
-              "manual_reason": "No SIEM or automated triage"},
-    "CC7.4": {"category": "security", "tsc": "CC7", "name": "Incident response",
-              "checks": ["incident_readiness"], "manual_status": "partial",
-              "manual_reason": "Policy drafted, not tested via tabletop exercise"},
-    "CC7.5": {"category": "security", "tsc": "CC7", "name": "System fault handling",
-              "checks": ["error_handling"], "manual_status": "met"},
-
+    "CC7.1": {
+        "category": "security",
+        "tsc": "CC7",
+        "name": "Vulnerability detection",
+        "checks": ["dependency_vuln"],
+        "manual_status": "partial",
+        "manual_reason": "pip-audit check exists but no continuous scanning pipeline",
+    },
+    "CC7.2": {
+        "category": "security",
+        "tsc": "CC7",
+        "name": "Anomaly monitoring",
+        "checks": [
+            "audit_integrity",
+            "access_logging",
+            "log_completeness",
+            "error_handling",
+            "architecture_map",
+            "architecture",
+            "caching",
+            "output_quality",
+        ],
+        "manual_status": "partial",
+        "manual_reason": "No application-level anomaly detection",
+    },
+    "CC7.3": {
+        "category": "security",
+        "tsc": "CC7",
+        "name": "Security event evaluation",
+        "checks": ["audit_integrity"],
+        "manual_status": "partial",
+        "manual_reason": "No SIEM or automated triage",
+    },
+    "CC7.4": {
+        "category": "security",
+        "tsc": "CC7",
+        "name": "Incident response",
+        "checks": ["incident_readiness"],
+        "manual_status": "partial",
+        "manual_reason": "Policy drafted, not tested via tabletop exercise",
+    },
+    "CC7.5": {
+        "category": "security",
+        "tsc": "CC7",
+        "name": "System fault handling",
+        "checks": ["error_handling"],
+        "manual_status": "met",
+    },
     # CC8 — Change Management
-    "CC8.1": {"category": "security", "tsc": "CC8", "name": "Change management",
-              "checks": ["change_management", "code_style", "architecture", "symbol_coverage"],
-              "manual_status": "partial", "manual_reason": "No CI/CD, no staging environment"},
-
+    "CC8.1": {
+        "category": "security",
+        "tsc": "CC8",
+        "name": "Change management",
+        "checks": ["change_management", "code_style", "architecture", "symbol_coverage"],
+        "manual_status": "partial",
+        "manual_reason": "No CI/CD, no staging environment",
+    },
     # CC9 — Risk Mitigation
-    "CC9.1": {"category": "security", "tsc": "CC9", "name": "Vendor risk assessment",
-              "checks": ["standards_compliance", "roadmap"], "manual_status": "partial",
-              "manual_reason": "No formal vendor assessment process"},
-    "CC9.2": {"category": "security", "tsc": "CC9", "name": "Vendor relationships",
-              "checks": ["backup_freshness", "sla_compliance"], "manual_status": "partial",
-              "manual_reason": "No regular vendor review cadence"},
-
+    "CC9.1": {
+        "category": "security",
+        "tsc": "CC9",
+        "name": "Vendor risk assessment",
+        "checks": ["standards_compliance", "roadmap"],
+        "manual_status": "partial",
+        "manual_reason": "No formal vendor assessment process",
+    },
+    "CC9.2": {
+        "category": "security",
+        "tsc": "CC9",
+        "name": "Vendor relationships",
+        "checks": ["backup_freshness", "sla_compliance"],
+        "manual_status": "partial",
+        "manual_reason": "No regular vendor review cadence",
+    },
     # A1 — Availability
-    "A1.1": {"category": "availability", "tsc": "A1", "name": "Capacity management",
-             "checks": ["sla_compliance"], "manual_status": "partial",
-             "manual_reason": "No auto-scaling or capacity monitoring/alerting"},
-    "A1.2": {"category": "availability", "tsc": "A1", "name": "Environmental threats",
-             "checks": ["backup_freshness"], "manual_status": "met"},
-    "A1.3": {"category": "availability", "tsc": "A1", "name": "Recovery operations",
-             "checks": ["backup_freshness"], "manual_status": "partial",
-             "manual_reason": "Backups on same machine, no off-site replication"},
-
+    "A1.1": {
+        "category": "availability",
+        "tsc": "A1",
+        "name": "Capacity management",
+        "checks": ["sla_compliance"],
+        "manual_status": "partial",
+        "manual_reason": "No auto-scaling or capacity monitoring/alerting",
+    },
+    "A1.2": {
+        "category": "availability",
+        "tsc": "A1",
+        "name": "Environmental threats",
+        "checks": ["backup_freshness"],
+        "manual_status": "met",
+    },
+    "A1.3": {
+        "category": "availability",
+        "tsc": "A1",
+        "name": "Recovery operations",
+        "checks": ["backup_freshness"],
+        "manual_status": "partial",
+        "manual_reason": "Backups on same machine, no off-site replication",
+    },
     # PI1 — Processing Integrity
-    "PI1.1": {"category": "processing_integrity", "tsc": "PI1", "name": "Quality information",
-              "checks": ["output_quality"], "manual_status": "met"},
-    "PI1.2": {"category": "processing_integrity", "tsc": "PI1", "name": "Accurate processing",
-              "checks": ["statistical_calibration", "output_quality"], "manual_status": "met"},
-    "PI1.3": {"category": "processing_integrity", "tsc": "PI1", "name": "Complete processing",
-              "checks": ["audit_integrity"], "manual_status": "partial",
-              "manual_reason": "No end-to-end data integrity checksums"},
-    "PI1.4": {"category": "processing_integrity", "tsc": "PI1", "name": "Accurate outputs",
-              "checks": ["output_quality", "statistical_calibration"], "manual_status": "met"},
-    "PI1.5": {"category": "processing_integrity", "tsc": "PI1", "name": "Error handling",
-              "checks": ["error_handling"], "manual_status": "met"},
-
+    "PI1.1": {
+        "category": "processing_integrity",
+        "tsc": "PI1",
+        "name": "Quality information",
+        "checks": ["output_quality"],
+        "manual_status": "met",
+    },
+    "PI1.2": {
+        "category": "processing_integrity",
+        "tsc": "PI1",
+        "name": "Accurate processing",
+        "checks": ["statistical_calibration", "output_quality"],
+        "manual_status": "met",
+    },
+    "PI1.3": {
+        "category": "processing_integrity",
+        "tsc": "PI1",
+        "name": "Complete processing",
+        "checks": ["audit_integrity"],
+        "manual_status": "partial",
+        "manual_reason": "No end-to-end data integrity checksums",
+    },
+    "PI1.4": {
+        "category": "processing_integrity",
+        "tsc": "PI1",
+        "name": "Accurate outputs",
+        "checks": ["output_quality", "statistical_calibration"],
+        "manual_status": "met",
+    },
+    "PI1.5": {
+        "category": "processing_integrity",
+        "tsc": "PI1",
+        "name": "Error handling",
+        "checks": ["error_handling"],
+        "manual_status": "met",
+    },
     # C1 — Confidentiality
-    "C1.1": {"category": "confidentiality", "tsc": "C1", "name": "Identifies confidential info",
-             "checks": ["encryption_status"], "manual_status": "partial",
-             "manual_reason": "Classification policy drafted, not enforced systematically"},
-    "C1.2": {"category": "confidentiality", "tsc": "C1", "name": "Protects confidential info",
-             "checks": ["encryption_status", "ssl_tls", "session_security"], "manual_status": "met"},
-    "C1.3": {"category": "confidentiality", "tsc": "C1", "name": "Disposes confidential info",
-             "checks": ["data_retention"], "manual_status": "partial",
-             "manual_reason": "No formal data disposal/retention SLA"},
-
+    "C1.1": {
+        "category": "confidentiality",
+        "tsc": "C1",
+        "name": "Identifies confidential info",
+        "checks": ["encryption_status"],
+        "manual_status": "partial",
+        "manual_reason": "Classification policy drafted, not enforced systematically",
+    },
+    "C1.2": {
+        "category": "confidentiality",
+        "tsc": "C1",
+        "name": "Protects confidential info",
+        "checks": ["encryption_status", "ssl_tls", "session_security"],
+        "manual_status": "met",
+    },
+    "C1.3": {
+        "category": "confidentiality",
+        "tsc": "C1",
+        "name": "Disposes confidential info",
+        "checks": ["data_retention"],
+        "manual_status": "partial",
+        "manual_reason": "No formal data disposal/retention SLA",
+    },
     # P1 — Privacy
-    "P1.1": {"category": "privacy", "tsc": "P1", "name": "Privacy notice",
-             "checks": [], "manual_status": "partial", "manual_reason": "Needs SOC 2 alignment review"},
-    "P1.2": {"category": "privacy", "tsc": "P1", "name": "Choice and consent",
-             "checks": [], "manual_status": "partial", "manual_reason": "No granular consent management"},
-    "P1.3": {"category": "privacy", "tsc": "P1", "name": "PII collection purpose",
-             "checks": [], "manual_status": "met"},
-    "P1.4": {"category": "privacy", "tsc": "P1", "name": "PII usage limitation",
-             "checks": [], "manual_status": "met"},
-    "P1.5": {"category": "privacy", "tsc": "P1", "name": "PII retention",
-             "checks": ["data_retention"], "manual_status": "partial",
-             "manual_reason": "No formal retention schedule"},
-    "P1.6": {"category": "privacy", "tsc": "P1", "name": "PII disposal",
-             "checks": ["data_retention"], "manual_status": "partial",
-             "manual_reason": "No verified complete data deletion"},
-    "P1.7": {"category": "privacy", "tsc": "P1", "name": "PII quality",
-             "checks": [], "manual_status": "met"},
-    "P1.8": {"category": "privacy", "tsc": "P1", "name": "PII access and correction",
-             "checks": [], "manual_status": "gap", "manual_reason": "No self-service data export"},
+    "P1.1": {
+        "category": "privacy",
+        "tsc": "P1",
+        "name": "Privacy notice",
+        "checks": [],
+        "manual_status": "partial",
+        "manual_reason": "Needs SOC 2 alignment review",
+    },
+    "P1.2": {
+        "category": "privacy",
+        "tsc": "P1",
+        "name": "Choice and consent",
+        "checks": [],
+        "manual_status": "partial",
+        "manual_reason": "No granular consent management",
+    },
+    "P1.3": {
+        "category": "privacy",
+        "tsc": "P1",
+        "name": "PII collection purpose",
+        "checks": [],
+        "manual_status": "met",
+    },
+    "P1.4": {"category": "privacy", "tsc": "P1", "name": "PII usage limitation", "checks": [], "manual_status": "met"},
+    "P1.5": {
+        "category": "privacy",
+        "tsc": "P1",
+        "name": "PII retention",
+        "checks": ["data_retention"],
+        "manual_status": "partial",
+        "manual_reason": "No formal retention schedule",
+    },
+    "P1.6": {
+        "category": "privacy",
+        "tsc": "P1",
+        "name": "PII disposal",
+        "checks": ["data_retention"],
+        "manual_status": "partial",
+        "manual_reason": "No verified complete data deletion",
+    },
+    "P1.7": {"category": "privacy", "tsc": "P1", "name": "PII quality", "checks": [], "manual_status": "met"},
+    "P1.8": {
+        "category": "privacy",
+        "tsc": "P1",
+        "name": "PII access and correction",
+        "checks": [],
+        "manual_status": "gap",
+        "manual_reason": "No self-service data export",
+    },
 }
 
 
@@ -244,9 +496,7 @@ def soc2_control_coverage():
     # Get latest result per check
     latest_results = {}
     for check_name in ALL_CHECKS:
-        latest = ComplianceCheck.objects.filter(
-            check_name=check_name
-        ).order_by("-run_at").first()
+        latest = ComplianceCheck.objects.filter(check_name=check_name).order_by("-run_at").first()
         if latest:
             latest_results[check_name] = latest.status
 
@@ -282,17 +532,19 @@ def soc2_control_coverage():
                     if effective_status == "partial" and not manual_reason:
                         effective_status = "met"
 
-        controls.append({
-            "id": ctrl_id,
-            "name": ctrl["name"],
-            "category": ctrl["category"],
-            "tsc": tsc,
-            "status": effective_status,
-            "checks": mapped_checks,
-            "check_results": {cn: latest_results.get(cn, "pending") for cn in mapped_checks},
-            "reason": manual_reason if effective_status != "met" else "",
-            "policy_evidence": ctrl.get("policy_evidence", ""),
-        })
+        controls.append(
+            {
+                "id": ctrl_id,
+                "name": ctrl["name"],
+                "category": ctrl["category"],
+                "tsc": tsc,
+                "status": effective_status,
+                "checks": mapped_checks,
+                "check_results": {cn: latest_results.get(cn, "pending") for cn in mapped_checks},
+                "reason": manual_reason if effective_status != "met" else "",
+                "policy_evidence": ctrl.get("policy_evidence", ""),
+            }
+        )
 
         tsc_summary[tsc][effective_status] += 1
 
@@ -312,11 +564,25 @@ def soc2_control_coverage():
 
 
 # Critical checks run every day; others rotate by weekday (0=Mon)
-DAILY_CRITICAL = ["audit_integrity", "access_logging", "security_config", "standards_compliance", "change_management", "sla_compliance"]
+DAILY_CRITICAL = [
+    "audit_integrity",
+    "access_logging",
+    "security_config",
+    "standards_compliance",
+    "change_management",
+    "sla_compliance",
+]
 WEEKDAY_ROTATION = {
     0: ["dependency_vuln", "ssl_tls", "log_completeness", "security_headers"],
     1: ["encryption_status", "password_policy", "session_security", "secret_management"],
-    2: ["permission_coverage", "backup_freshness", "error_handling", "incident_readiness", "symbol_coverage", "output_quality"],
+    2: [
+        "permission_coverage",
+        "backup_freshness",
+        "error_handling",
+        "incident_readiness",
+        "symbol_coverage",
+        "output_quality",
+    ],
     3: ["data_retention", "rate_limiting", "code_style", "roadmap", "statistical_calibration"],
     4: ["dependency_vuln", "ssl_tls"],
 }
@@ -325,6 +591,7 @@ WEEKDAY_ROTATION = {
 # ---------------------------------------------------------------------------
 # Individual checks
 # ---------------------------------------------------------------------------
+
 
 @register("audit_integrity", "processing_integrity", soc2_controls=["CC7.2", "CC7.3"])
 def check_audit_integrity():
@@ -397,11 +664,15 @@ def check_dependency_vuln():
     """Scan installed packages for known vulnerabilities using pip-audit."""
     try:
         import sys
+
         env = dict(__import__("os").environ)
         env["PIPAPI_PYTHON_LOCATION"] = sys.executable
         result = subprocess.run(
             ["pip-audit", "--format=json", "--progress-spinner=off"],
-            capture_output=True, text=True, timeout=120, env=env,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env=env,
         )
         data = json.loads(result.stdout) if result.stdout else {}
         vulns = data.get("dependencies", [])
@@ -418,12 +689,14 @@ def check_dependency_vuln():
         vuln_summary = []
         for dep in vuln_list:
             for v in dep.get("vulns", []):
-                vuln_summary.append({
-                    "package": dep.get("name"),
-                    "installed": dep.get("version"),
-                    "vuln_id": v.get("id"),
-                    "fix_versions": v.get("fix_versions", []),
-                })
+                vuln_summary.append(
+                    {
+                        "package": dep.get("name"),
+                        "installed": dep.get("version"),
+                        "vuln_id": v.get("id"),
+                        "fix_versions": v.get("fix_versions", []),
+                    }
+                )
 
         critical = any(v.get("vuln_id", "").startswith("GHSA") for v in vuln_summary)
         return {
@@ -499,8 +772,14 @@ def check_permission_coverage():
     from django.urls import URLPattern, URLResolver
 
     public_allowed = {
-        "health", "email_track_open", "email_track_click", "email_unsubscribe",
-        "site_duration", "funnel_event", "compliance", "compliance_data",
+        "health",
+        "email_track_open",
+        "email_track_click",
+        "email_unsubscribe",
+        "site_duration",
+        "funnel_event",
+        "compliance",
+        "compliance_data",
         "whiteboard_guest_name",  # Guest whiteboard access (token-authenticated)
         "notification_type_unsubscribe",  # Signed-token unsubscribe (no session auth)
     }
@@ -512,7 +791,8 @@ def check_permission_coverage():
 
         # Files known to contain auth-enforcing decorators
         AUTH_MODULES = {
-            "accounts/permissions.py", "accounts\\permissions.py",
+            "accounts/permissions.py",
+            "accounts\\permissions.py",
             "django/contrib/auth/decorators.py",
             "rest_framework/decorators.py",
         }
@@ -632,6 +912,7 @@ def check_backup_freshness():
                 mtime = backups[0].stat().st_mtime
                 from datetime import datetime
                 from datetime import timezone as dt_tz
+
                 latest_backup = datetime.fromtimestamp(mtime, tz=dt_tz.utc)
                 break
 
@@ -698,14 +979,14 @@ def check_data_retention():
     cutoff = timezone.now() - timedelta(days=retention_days)
 
     # Check for old resolved violations that should have been cleaned up
-    stale = IntegrityViolation.objects.filter(
-        is_resolved=True, resolved_at__lt=cutoff
-    ).count()
+    stale = IntegrityViolation.objects.filter(is_resolved=True, resolved_at__lt=cutoff).count()
 
     # Check scheduler has cleanup task registered
     from syn.sched.core import TaskRegistry
-    has_cleanup = "audit.cleanup_violations" in TaskRegistry._handlers or \
-                  any("cleanup" in name for name in TaskRegistry._handlers)
+
+    has_cleanup = "audit.cleanup_violations" in TaskRegistry._handlers or any(
+        "cleanup" in name for name in TaskRegistry._handlers
+    )
 
     issues = []
     if stale > 10:
@@ -786,6 +1067,7 @@ DRIFT_SLA_HOURS = {
 def _compute_drift_signature(standard, check_id, section):
     """Deterministic hash for deduplication. Same assertion = same signature."""
     import hashlib
+
     payload = f"{standard}:{check_id}:{section}"
     return hashlib.sha256(payload.encode()).hexdigest()[:32]
 
@@ -828,10 +1110,7 @@ def _sync_drift_violations(assertions, results):
             )
 
         # 2. Auto-resolve violations for assertions that now pass
-        passing_sigs = {
-            sig for sig, (a, r) in current_signatures.items()
-            if r["status"] == "pass"
-        }
+        passing_sigs = {sig for sig, (a, r) in current_signatures.items() if r["status"] == "pass"}
         if passing_sigs:
             now = tz.now()
             open_violations = DriftViolation.objects.filter(
@@ -875,15 +1154,17 @@ def check_standards_compliance():
             by_standard[std]["passed"] += 1
         elif r["status"] == "fail":
             by_standard[std]["failed"] += 1
-        by_standard[std]["assertions"].append({
-            "check_id": r["check_id"],
-            "assertion": r["assertion"][:120],
-            "section": r.get("section", ""),
-            "status": r["status"],
-            "impl_checks": r.get("impl_checks", []),
-            "code_checks": r.get("code_checks", []),
-            "test_checks": r.get("test_checks", []),
-        })
+        by_standard[std]["assertions"].append(
+            {
+                "check_id": r["check_id"],
+                "assertion": r["assertion"][:120],
+                "section": r.get("section", ""),
+                "status": r["status"],
+                "impl_checks": r.get("impl_checks", []),
+                "code_checks": r.get("code_checks", []),
+                "test_checks": r.get("test_checks", []),
+            }
+        )
 
     # Collect all SOC 2 controls
     all_controls = set()
@@ -893,13 +1174,18 @@ def check_standards_compliance():
 
     # Findings: failures + warnings with full detail
     findings = [
-        {"check_id": r["check_id"], "assertion": r["assertion"][:120],
-         "standard": r["standard"], "section": r.get("section", ""),
-         "status": r["status"],
-         "impl_checks": r.get("impl_checks", []),
-         "code_checks": r.get("code_checks", []),
-         "test_checks": r.get("test_checks", [])}
-        for r in results if r["status"] in ("fail", "warning")
+        {
+            "check_id": r["check_id"],
+            "assertion": r["assertion"][:120],
+            "standard": r["standard"],
+            "section": r.get("section", ""),
+            "status": r["status"],
+            "impl_checks": r.get("impl_checks", []),
+            "code_checks": r.get("code_checks", []),
+            "test_checks": r.get("test_checks", []),
+        }
+        for r in results
+        if r["status"] in ("fail", "warning")
     ]
 
     # Aggregate test stats
@@ -1023,37 +1309,54 @@ def check_change_management():
 
     # Type classifications
     CODE_TYPES = [
-        "feature", "enhancement", "bugfix", "hotfix", "security",
-        "infrastructure", "migration", "debt",
+        "feature",
+        "enhancement",
+        "bugfix",
+        "hotfix",
+        "security",
+        "infrastructure",
+        "migration",
+        "debt",
     ]
     EXEMPT_TYPES = ["documentation", "plan"]
     ROLLBACK_TYPES = ["feature", "migration", "infrastructure", "security"]
     MULTI_AGENT_TYPES = ["feature", "migration"]
     SINGLE_AGENT_TYPES = [
-        "enhancement", "bugfix", "security", "infrastructure", "debt",
+        "enhancement",
+        "bugfix",
+        "security",
+        "infrastructure",
+        "debt",
     ]
     PAST_APPROVED = ["approved", "in_progress", "testing", "completed"]
     SUBMITTED_PLUS = [
-        "submitted", "risk_assessed", "approved",
-        "in_progress", "testing", "completed",
+        "submitted",
+        "risk_assessed",
+        "approved",
+        "in_progress",
+        "testing",
+        "completed",
     ]
     IN_PROGRESS_PLUS = ["in_progress", "testing", "completed"]
 
     # ── FAIL checks ──
 
     # 1. Emergency changes without retroactive risk assessment >24h
-    emergency_unreviewed = ChangeRequest.objects.filter(
-        is_emergency=True,
-        created_at__lt=twenty_four_hours_ago,
-    ).exclude(
-        risk_assessments__is_retroactive=True,
-    ).exclude(
-        status__in=["cancelled", "draft"],
+    emergency_unreviewed = (
+        ChangeRequest.objects.filter(
+            is_emergency=True,
+            created_at__lt=twenty_four_hours_ago,
+        )
+        .exclude(
+            risk_assessments__is_retroactive=True,
+        )
+        .exclude(
+            status__in=["cancelled", "draft"],
+        )
     )
     if emergency_unreviewed.exists():
         fail_issues.append(
-            f"{emergency_unreviewed.count()} emergency change(s) missing "
-            f"retroactive risk assessment (>24h)"
+            f"{emergency_unreviewed.count()} emergency change(s) missing retroactive risk assessment (>24h)"
         )
 
     # 2. Feature/migration past approved without risk assessment
@@ -1065,8 +1368,7 @@ def check_change_management():
     )
     if unassessed_critical.exists():
         fail_issues.append(
-            f"{unassessed_critical.count()} feature/migration change(s) "
-            f"approved without risk assessment"
+            f"{unassessed_critical.count()} feature/migration change(s) approved without risk assessment"
         )
 
     # 3. Completed code CRs missing commit_shas
@@ -1080,16 +1382,14 @@ def check_change_management():
     missing_commits = completed_code.filter(commit_shas=[])
     if missing_commits.exists():
         warn_issues.append(
-            f"{missing_commits.count()} completed code CR(s) missing "
-            f"commit_shas — CR→git traceability gap"
+            f"{missing_commits.count()} completed code CR(s) missing commit_shas — CR→git traceability gap"
         )
 
     # 4. Completed code CRs missing log_md_ref (same — historical gap)
     missing_log_ref = completed_code.filter(log_md_ref="")
     if missing_log_ref.exists():
         warn_issues.append(
-            f"{missing_log_ref.count()} completed code CR(s) missing "
-            f"log_md_ref — CR→log.md traceability gap"
+            f"{missing_log_ref.count()} completed code CR(s) missing log_md_ref — CR→log.md traceability gap"
         )
 
     # 5. CRs with empty description
@@ -1097,9 +1397,7 @@ def check_change_management():
         status__in=["cancelled", "draft"],
     )
     if empty_desc.exists():
-        fail_issues.append(
-            f"{empty_desc.count()} CR(s) with empty description"
-        )
+        fail_issues.append(f"{empty_desc.count()} CR(s) with empty description")
 
     # ── WARNING checks ──
 
@@ -1109,10 +1407,7 @@ def check_change_management():
         updated_at__lt=seven_days_ago,
     )
     if stale_changes.exists():
-        warn_issues.append(
-            f"{stale_changes.count()} change(s) stuck in 'in_progress' "
-            f"for >7 days"
-        )
+        warn_issues.append(f"{stale_changes.count()} change(s) stuck in 'in_progress' for >7 days")
 
     # 7. Completed changes missing 'completed' log entry
     recent_completed = ChangeRequest.objects.filter(
@@ -1121,10 +1416,7 @@ def check_change_management():
     for cr in recent_completed:
         log_actions = set(cr.logs.values_list("action", flat=True))
         if "completed" not in log_actions:
-            warn_issues.append(
-                f"Change '{cr.title[:50]}' completed without "
-                f"'completed' log entry"
-            )
+            warn_issues.append(f"Change '{cr.title[:50]}' completed without 'completed' log entry")
 
     # 8. Submitted+ CRs missing justification (non-exempt)
     missing_justification = ChangeRequest.objects.filter(
@@ -1132,10 +1424,7 @@ def check_change_management():
         justification="",
     ).exclude(change_type__in=EXEMPT_TYPES)
     if missing_justification.exists():
-        warn_issues.append(
-            f"{missing_justification.count()} submitted+ CR(s) missing "
-            f"justification"
-        )
+        warn_issues.append(f"{missing_justification.count()} submitted+ CR(s) missing justification")
 
     # 9. Approved+ CRs missing implementation_plan (non-exempt)
     missing_impl_plan = ChangeRequest.objects.filter(
@@ -1143,10 +1432,7 @@ def check_change_management():
         implementation_plan={},
     ).exclude(change_type__in=EXEMPT_TYPES)
     if missing_impl_plan.exists():
-        warn_issues.append(
-            f"{missing_impl_plan.count()} approved+ CR(s) missing "
-            f"implementation_plan"
-        )
+        warn_issues.append(f"{missing_impl_plan.count()} approved+ CR(s) missing implementation_plan")
 
     # 10. Approved+ CRs missing rollback_plan (rollback-required types)
     missing_rollback = ChangeRequest.objects.filter(
@@ -1166,10 +1452,7 @@ def check_change_management():
         testing_plan={},
     ).exclude(change_type__in=EXEMPT_TYPES)
     if missing_testing.exists():
-        warn_issues.append(
-            f"{missing_testing.count()} in_progress+ CR(s) missing "
-            f"testing_plan"
-        )
+        warn_issues.append(f"{missing_testing.count()} in_progress+ CR(s) missing testing_plan")
 
     # 12. Enhancement/bugfix/security/infrastructure/debt past approved
     #     without risk assessment (single-agent required)
@@ -1197,10 +1480,7 @@ def check_change_management():
         if not details.get("commit_sha"):
             missing_sha_count += 1
     if missing_sha_count:
-        warn_issues.append(
-            f"{missing_sha_count} 'completed' log entry(s) missing "
-            f"commit_sha in details"
-        )
+        warn_issues.append(f"{missing_sha_count} 'completed' log entry(s) missing commit_sha in details")
 
     # 14. Completed CRs referencing compliance but empty compliance_check_ids
     compliance_keywords = ["compliance", "remediat", "drift", "finding"]
@@ -1215,34 +1495,39 @@ def check_change_management():
             unlinked_compliance += 1
     if unlinked_compliance:
         warn_issues.append(
-            f"{unlinked_compliance} completed CR(s) reference compliance "
-            f"but have empty compliance_check_ids"
+            f"{unlinked_compliance} completed CR(s) reference compliance but have empty compliance_check_ids"
         )
 
     # 15. Code CRs without planning linkage (WARNING)
     # Exempt: documentation, plan, hotfix — these legitimately may not map to features
     planning_exempt = {"documentation", "plan", "hotfix"}
-    unlinked_planning = ChangeRequest.objects.exclude(
-        status="completed",
-    ).exclude(
-        change_type__in=planning_exempt,
-    ).filter(
-        feature_id__isnull=True,
-        task_id__isnull=True,
-    ).count()
-    if unlinked_planning:
-        warn_issues.append(
-            f"{unlinked_planning} active code CR(s) without planning link "
-            f"(feature_id/task_id)"
+    unlinked_planning = (
+        ChangeRequest.objects.exclude(
+            status="completed",
         )
+        .exclude(
+            change_type__in=planning_exempt,
+        )
+        .filter(
+            feature_id__isnull=True,
+            task_id__isnull=True,
+        )
+        .count()
+    )
+    if unlinked_planning:
+        warn_issues.append(f"{unlinked_planning} active code CR(s) without planning link (feature_id/task_id)")
 
     # ── Stats and field completeness ──
 
     total_changes = ChangeRequest.objects.count()
     active_changes = ChangeRequest.objects.filter(
         status__in=[
-            "draft", "submitted", "risk_assessed", "approved",
-            "in_progress", "testing",
+            "draft",
+            "submitted",
+            "risk_assessed",
+            "approved",
+            "in_progress",
+            "testing",
         ]
     ).count()
 
@@ -1251,20 +1536,17 @@ def check_change_management():
 
     field_completeness = {
         "commit_shas": f"{all_code_crs.exclude(commit_shas=[]).count()}/{code_total}",
-        "log_md_ref": f'{all_code_crs.exclude(log_md_ref="").count()}/{code_total}',
+        "log_md_ref": f"{all_code_crs.exclude(log_md_ref='').count()}/{code_total}",
         "rollback_plan": f"{all_code_crs.exclude(rollback_plan={}).count()}/{code_total}",
         "testing_plan": f"{all_code_crs.exclude(testing_plan={}).count()}/{code_total}",
         "implementation_plan": f"{all_code_crs.exclude(implementation_plan={}).count()}/{code_total}",
-        "justification": f'{all_code_crs.exclude(justification="").count()}/{code_total}',
+        "justification": f"{all_code_crs.exclude(justification='').count()}/{code_total}",
         "risk_assessment": f"{sum(1 for cr in all_code_crs if cr.risk_assessments.exists())}/{code_total}",
     }
 
     # ── Determine status ──
 
-    all_issues = (
-        [f"[FAIL] {i}" for i in fail_issues]
-        + [f"[WARN] {i}" for i in warn_issues]
-    )
+    all_issues = [f"[FAIL] {i}" for i in fail_issues] + [f"[WARN] {i}" for i in warn_issues]
 
     if fail_issues:
         status = "fail"
@@ -1348,6 +1630,7 @@ def check_error_handling():
 
     # Check for custom error templates (warning only)
     from pathlib import Path
+
     template_dir = Path(settings.BASE_DIR) / "templates"
     missing_templates = []
     for code in ["400", "403", "404", "500"]:
@@ -1356,7 +1639,11 @@ def check_error_handling():
     if missing_templates:
         issues.append(f"Missing custom error templates: {', '.join(missing_templates)} — Django defaults may leak info")
 
-    status = "pass" if not issues else ("fail" if any("DEBUG is True" in i or "ErrorEnvelope" in i for i in issues) else "warning")
+    status = (
+        "pass"
+        if not issues
+        else ("fail" if any("DEBUG is True" in i or "ErrorEnvelope" in i for i in issues) else "warning")
+    )
     return {
         "status": status,
         "details": {
@@ -1422,6 +1709,7 @@ def check_secret_management():
         content = settings_path.read_text()
         # SECRET_KEY should reference config, not be a literal string
         import re
+
         if re.search(r'SECRET_KEY\s*=\s*["\']', content):
             issues.append("SECRET_KEY appears hardcoded in settings.py (should use config/env)")
             hardcoded_secrets = True
@@ -1478,8 +1766,7 @@ def check_log_completeness():
 
     # Check for file handler (persistence)
     has_file_handler = any(
-        "FileHandler" in h.get("class", "") or "RotatingFileHandler" in h.get("class", "")
-        for h in handlers.values()
+        "FileHandler" in h.get("class", "") or "RotatingFileHandler" in h.get("class", "") for h in handlers.values()
     )
     if not has_file_handler:
         issues.append("No file-based log handler — logs not persisted to disk")
@@ -1609,7 +1896,8 @@ def check_incident_readiness():
 
     # Check Incident model exists and is accessible
     try:
-        from syn.audit.models import Incident
+        from syn.audit.models import Incident  # noqa: F401
+
         incident_model_ok = True
     except ImportError:
         incident_model_ok = False
@@ -1640,6 +1928,7 @@ def check_incident_readiness():
         from django.utils import timezone
 
         from syn.audit.models import ChangeRequest
+
         cutoff = timezone.now() - timedelta(days=30)
         emergencies = ChangeRequest.objects.filter(
             is_emergency=True,
@@ -1663,7 +1952,7 @@ def check_incident_readiness():
             "issues": issues,
             "inc_001_standard": inc_found,
             "incident_response_doc": ir_found,
-            "incident_model": incident_model_ok if 'incident_model_ok' in dir() else False,
+            "incident_model": incident_model_ok if "incident_model_ok" in dir() else False,
             "emergency_process_documented": chg_has_emergency,
             "bcdr_doc": bcdr_found,
         },
@@ -1766,6 +2055,7 @@ def _measure_sla(sla):
 def _parse_target(target_str):
     """Parse target string like '99.9%', '2000ms', '24h', '168h' into (value, unit)."""
     import re as _re
+
     m = _re.match(r"([\d.]+)\s*(%|ms|h|d|s)", target_str)
     if not m:
         return None, None
@@ -1806,11 +2096,9 @@ def _measure_durability(sla):
     if "rpo" in sla.sla_id or "recovery-point" in sla.sla_id:
         # Check backup freshness: is the latest backup within target hours?
         from syn.audit.models import ComplianceCheck
+
         latest_backup = (
-            ComplianceCheck.objects
-            .filter(check_name="backup_freshness", status="pass")
-            .order_by("-run_at")
-            .first()
+            ComplianceCheck.objects.filter(check_name="backup_freshness", status="pass").order_by("-run_at").first()
         )
         if not latest_backup:
             return {"status": "unmeasurable", "current_value": None, "reason": "No backup_freshness check results"}
@@ -1935,11 +2223,13 @@ def _measure_response_time(sla):
     now = timezone.now()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     buckets = RequestMetric.objects.filter(
-        bucket_start__gte=month_start, bucket_start__lt=now,
+        bucket_start__gte=month_start,
+        bucket_start__lt=now,
     )
     if not buckets.exists():
         return {
-            "status": "unmeasurable", "current_value": None,
+            "status": "unmeasurable",
+            "current_value": None,
             "reason": "No request metrics recorded yet this month",
         }
 
@@ -1950,7 +2240,8 @@ def _measure_response_time(sla):
 
     if not all_samples:
         return {
-            "status": "unmeasurable", "current_value": None,
+            "status": "unmeasurable",
+            "current_value": None,
             "reason": "No duration samples available",
         }
 
@@ -1985,8 +2276,7 @@ def _measure_incident_response(sla):
 
     incidents = Incident.objects.filter(detected_at__gte=month_start)
     if not incidents.exists():
-        return {"status": "met", "current_value": "No incidents",
-                "reason": "No incidents recorded this month"}
+        return {"status": "met", "current_value": "No incidents", "reason": "No incidents recorded this month"}
 
     # Check based on SLA sla_id: ack SLAs vs resolution SLAs
     if "ack" in sla.sla_id.lower():
@@ -1994,8 +2284,11 @@ def _measure_incident_response(sla):
     else:
         resolved = incidents.exclude(status__in=["detected", "acknowledged", "investigating", "mitigating"])
         if not resolved.exists():
-            return {"status": "met", "current_value": "No resolved incidents",
-                    "reason": "No resolved incidents to measure resolution SLA against"}
+            return {
+                "status": "met",
+                "current_value": "No resolved incidents",
+                "reason": "No resolved incidents to measure resolution SLA against",
+            }
         breached = sum(1 for i in resolved if i.is_resolution_sla_breached)
         incidents = resolved
 
@@ -2004,8 +2297,7 @@ def _measure_incident_response(sla):
 
     target_val, _ = _parse_target(sla.target)
     if target_val is None:
-        return {"status": "unmeasurable", "current_value": None,
-                "reason": f"Cannot parse target: {sla.target}"}
+        return {"status": "unmeasurable", "current_value": None, "reason": f"Cannot parse target: {sla.target}"}
 
     return {
         "status": "met" if compliance_pct >= target_val else "breach",
@@ -2016,6 +2308,7 @@ def _measure_incident_response(sla):
 # ---------------------------------------------------------------------------
 # Runners
 # ---------------------------------------------------------------------------
+
 
 def run_check(check_name):
     """Run a single named check and persist the result."""
@@ -2236,10 +2529,12 @@ def _scan_file_names(web_root):
         if "." in name.replace(".py", ""):
             continue
         if not _FILE_SNAKE_RE.match(name):
-            violations.append({
-                "file": str(py_file.relative_to(web_root)),
-                "violation": f"File '{name}' does not match lowercase_snake.py",
-            })
+            violations.append(
+                {
+                    "file": str(py_file.relative_to(web_root)),
+                    "violation": f"File '{name}' does not match lowercase_snake.py",
+                }
+            )
     return violations
 
 
@@ -2260,11 +2555,13 @@ def _scan_class_names(web_root):
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
                 if not _PASCAL_RE.match(node.name):
-                    violations.append({
-                        "file": str(py_file.relative_to(web_root)),
-                        "class": node.name,
-                        "line": node.lineno,
-                    })
+                    violations.append(
+                        {
+                            "file": str(py_file.relative_to(web_root)),
+                            "class": node.name,
+                            "line": node.lineno,
+                        }
+                    )
     return violations
 
 
@@ -2290,15 +2587,16 @@ def _scan_function_names(web_root):
                 if name.startswith("__") and name.endswith("__"):
                     continue
                 # Skip standard unittest/Django lifecycle methods (camelCase by design)
-                if name in ("setUp", "tearDown", "setUpClass", "tearDownClass",
-                            "setUpTestData", "addCleanup"):
+                if name in ("setUp", "tearDown", "setUpClass", "tearDownClass", "setUpTestData", "addCleanup"):
                     continue
                 if not _SNAKE_RE.match(name):
-                    violations.append({
-                        "file": str(py_file.relative_to(web_root)),
-                        "function": name,
-                        "line": node.lineno,
-                    })
+                    violations.append(
+                        {
+                            "file": str(py_file.relative_to(web_root)),
+                            "function": name,
+                            "line": node.lineno,
+                        }
+                    )
     return violations
 
 
@@ -2324,9 +2622,11 @@ def _check_module_docstrings(web_root):
             continue
         docstring = ast.get_docstring(tree)
         if not docstring:
-            missing.append({
-                "file": str(py_file.relative_to(web_root)),
-            })
+            missing.append(
+                {
+                    "file": str(py_file.relative_to(web_root)),
+                }
+            )
     return missing
 
 
@@ -2381,19 +2681,33 @@ def _check_import_order(web_root):
                 group = 3  # local/relative
             elif mod in stdlib_names:
                 group = 1  # stdlib
-            elif mod in ("syn", "core", "agents_api", "api", "accounts",
-                         "chat", "workbench", "forge", "files", "tempora",
-                         "agents", "inference", "svend_config"):
+            elif mod in (
+                "syn",
+                "core",
+                "agents_api",
+                "api",
+                "accounts",
+                "chat",
+                "workbench",
+                "forge",
+                "files",
+                "tempora",
+                "agents",
+                "inference",
+                "svend_config",
+            ):
                 group = 3  # local
             else:
                 group = 2  # third-party
 
             if group < prev_group:
-                violations.append({
-                    "file": str(fpath.relative_to(web_root)),
-                    "line": lineno,
-                    "violation": f"Import '{mod}' (group {group}) after group {prev_group}",
-                })
+                violations.append(
+                    {
+                        "file": str(fpath.relative_to(web_root)),
+                        "line": lineno,
+                        "violation": f"Import '{mod}' (group {group}) after group {prev_group}",
+                    }
+                )
                 break  # One violation per file is enough
             prev_group = group
 
@@ -2418,11 +2732,13 @@ def _check_wildcard_imports(web_root):
             if isinstance(node, ast.ImportFrom):
                 for alias in node.names:
                     if alias.name == "*":
-                        violations.append({
-                            "file": str(py_file.relative_to(web_root)),
-                            "line": node.lineno,
-                            "module": node.module or "",
-                        })
+                        violations.append(
+                            {
+                                "file": str(py_file.relative_to(web_root)),
+                                "line": node.lineno,
+                                "module": node.module or "",
+                            }
+                        )
     return violations
 
 
@@ -2492,33 +2808,39 @@ def _check_model_field_naming(web_root):
                     # BooleanField / NullBooleanField must have is_ prefix
                     if field_type in ("BooleanField", "NullBooleanField"):
                         if not _BOOL_RE.match(field_name):
-                            violations["boolean_prefix"].append({
+                            violations["boolean_prefix"].append(
+                                {
+                                    "file": rel_path,
+                                    "line": item.lineno,
+                                    "field": field_name,
+                                    "class": node.name,
+                                }
+                            )
+
+                    # ForeignKey must NOT have _fk suffix
+                    if field_type == "ForeignKey" and field_name.endswith("_fk"):
+                        violations["fk_suffix"].append(
+                            {
                                 "file": rel_path,
                                 "line": item.lineno,
                                 "field": field_name,
                                 "class": node.name,
-                            })
-
-                    # ForeignKey must NOT have _fk suffix
-                    if field_type == "ForeignKey" and field_name.endswith("_fk"):
-                        violations["fk_suffix"].append({
-                            "file": rel_path,
-                            "line": item.lineno,
-                            "field": field_name,
-                            "class": node.name,
-                        })
+                            }
+                        )
 
                     # JSONField must NOT use mutable defaults
                     if field_type == "JSONField":
                         for kw in call.keywords:
                             if kw.arg == "default":
                                 if isinstance(kw.value, (ast.List, ast.Dict)):
-                                    violations["mutable_default"].append({
-                                        "file": rel_path,
-                                        "line": item.lineno,
-                                        "field": field_name,
-                                        "class": node.name,
-                                    })
+                                    violations["mutable_default"].append(
+                                        {
+                                            "file": rel_path,
+                                            "line": item.lineno,
+                                            "field": field_name,
+                                            "class": node.name,
+                                        }
+                                    )
 
     return violations
 
@@ -2548,20 +2870,39 @@ def check_code_style():
     timestamp_violations = _check_arch_timestamp_naming(web_root)
     class_docstring_violations = _scan_class_docstrings(web_root)
 
-    total = (len(file_violations) + len(class_violations) + len(function_violations)
-             + len(missing_docstrings) + len(import_violations) + len(wildcard_violations)
-             + len(field_violations["fk_suffix"]) + len(field_violations["mutable_default"])
-             + len(url_violations) + len(timestamp_violations))
+    total = (
+        len(file_violations)
+        + len(class_violations)
+        + len(function_violations)
+        + len(missing_docstrings)
+        + len(import_violations)
+        + len(wildcard_violations)
+        + len(field_violations["fk_suffix"])
+        + len(field_violations["mutable_default"])
+        + len(url_violations)
+        + len(timestamp_violations)
+    )
 
     # Count scanned files
     files_scanned = sum(1 for _ in web_root.rglob("*.py") if not _should_skip_path(_))
 
     # Determine status: fail on hard violations, warning on debt items
-    hard_fail = (file_violations or class_violations or wildcard_violations
-                 or field_violations["fk_suffix"] or field_violations["mutable_default"]
-                 or field_violations["boolean_prefix"] or url_violations)
-    soft_warn = (function_violations or missing_docstrings or import_violations
-                 or timestamp_violations or class_docstring_violations)
+    hard_fail = (
+        file_violations
+        or class_violations
+        or wildcard_violations
+        or field_violations["fk_suffix"]
+        or field_violations["mutable_default"]
+        or field_violations["boolean_prefix"]
+        or url_violations
+    )
+    soft_warn = (
+        function_violations
+        or missing_docstrings
+        or import_violations
+        or timestamp_violations
+        or class_docstring_violations
+    )
 
     if hard_fail:
         status = "fail"
@@ -2602,27 +2943,57 @@ _MAP_STANDARDS_DIR = _GIT_ROOT / "docs" / "standards"
 # Non-standard codes that match the standard ID regex but aren't standards
 _NON_STANDARD_CODES = {
     # Crypto/encoding algorithms
-    "SHA-256", "SHA-384", "SHA-512", "AES-256", "AES-128",
-    "TLS-128", "RSA-256", "UTF-008",
+    "SHA-256",
+    "SHA-384",
+    "SHA-512",
+    "AES-256",
+    "AES-128",
+    "TLS-128",
+    "RSA-256",
+    "UTF-008",
     # HTTP status codes
-    "HTTP-200", "HTTP-400", "HTTP-401", "HTTP-403", "HTTP-404", "HTTP-500",
+    "HTTP-200",
+    "HTTP-400",
+    "HTTP-401",
+    "HTTP-403",
+    "HTTP-404",
+    "HTTP-500",
     # Process/anti-pattern IDs (not standards)
-    "DEBT-001", "DOC-002",
+    "DEBT-001",
+    "DOC-002",
     "AP-003",  # Anti-pattern sub-number within CONFIG-001-AP-003
-    "BOOT-001", "BOOT-005",  # Dev/prod bootstrap process IDs
+    "BOOT-001",
+    "BOOT-005",  # Dev/prod bootstrap process IDs
     # Error/boundary sub-codes (SRX-CFG-001, SRX-DB-001)
-    "CFG-001", "DB-001",
+    "CFG-001",
+    "DB-001",
     # Enforcement check type choices (DriftViolation.enforcement_check)
-    "ENC-002", "ENC-003", "ENC-004", "ENC-005", "ENC-006",
-    "ENC-007", "ENC-008", "ENC-009", "ENC-010", "ENC-011",
+    "ENC-002",
+    "ENC-003",
+    "ENC-004",
+    "ENC-005",
+    "ENC-006",
+    "ENC-007",
+    "ENC-008",
+    "ENC-009",
+    "ENC-010",
+    "ENC-011",
     # Scheduler primitive config IDs (PCONF-SCH-101 etc.)
-    "SCH-101", "SCH-103", "SCH-201", "SCH-202", "SCH-501",
+    "SCH-101",
+    "SCH-103",
+    "SCH-201",
+    "SCH-202",
+    "SCH-501",
     # System/invariant control codes (SYS-200 INV-008)
-    "SYS-200", "INV-001", "INV-008", "INV-011",
+    "SYS-200",
+    "INV-001",
+    "INV-008",
+    "INV-011",
     # Placeholder
     "XXX-001",
     # Planning system IDs (INIT-xxx, FEAT-xxx, TASK-xxx) — not standards
-    "INIT-003", "INIT-009",
+    "INIT-003",
+    "INIT-009",
     # Calibration case IDs (CAL-INF-001 etc.)
     "INF-001",
 }
@@ -2683,7 +3054,9 @@ def _git_head_sha():
     try:
         result = subprocess.run(
             ["git", "rev-parse", "HEAD"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
             cwd=str(_GIT_ROOT),
         )
         return result.stdout.strip() if result.returncode == 0 else None
@@ -2696,7 +3069,9 @@ def _git_head_author():
     try:
         result = subprocess.run(
             ["git", "log", "-1", "--format=%an"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
             cwd=str(_GIT_ROOT),
         )
         return result.stdout.strip() if result.returncode == 0 else None
@@ -2708,9 +3083,10 @@ def _git_changed_files(since_hours=24):
     """Get files changed in last N hours via git log."""
     try:
         result = subprocess.run(
-            ["git", "log", f"--since={since_hours} hours ago",
-             "--name-only", "--pretty=format:"],
-            capture_output=True, text=True, timeout=30,
+            ["git", "log", f"--since={since_hours} hours ago", "--name-only", "--pretty=format:"],
+            capture_output=True,
+            text=True,
+            timeout=30,
             cwd=str(_GIT_ROOT),
         )
         if result.returncode == 0:
@@ -2779,8 +3155,16 @@ def _find_unmapped_modules(module_paths, web_root):
     for subdir in sorted(web_root.iterdir()):
         if not subdir.is_dir() or subdir.name.startswith((".", "__")):
             continue
-        if subdir.name in ("syn", "static", "staticfiles", "media", "logs",
-                           "forge_results", "templates", "__pycache__"):
+        if subdir.name in (
+            "syn",
+            "static",
+            "staticfiles",
+            "media",
+            "logs",
+            "forge_results",
+            "templates",
+            "__pycache__",
+        ):
             continue
         has_init = (subdir / "__init__.py").exists() or (subdir / "apps.py").exists()
         if not has_init:
@@ -2822,7 +3206,7 @@ def _map_files_to_standards(changed_files, module_map):
     for fpath in changed_files:
         # Normalize to web-relative path
         if fpath.startswith(web_prefix):
-            rel = fpath[len(web_prefix):]
+            rel = fpath[len(web_prefix) :]
         else:
             continue
 
@@ -2864,9 +3248,7 @@ def _sync_map_drift_violations(findings, commit_sha, author):
             payload = f"{f['type']}:{f.get('id', '')}:{f.get('module', '')}:{f.get('file', '')}"
             sig = hashlib.sha256(payload.encode()).hexdigest()[:32]
 
-            if DriftViolation.objects.filter(
-                drift_signature=sig, resolved_at__isnull=True
-            ).exists():
+            if DriftViolation.objects.filter(drift_signature=sig, resolved_at__isnull=True).exists():
                 continue
 
             severity = severity_map.get(f["type"], "MEDIUM")
@@ -2929,23 +3311,27 @@ def check_architecture_map():
             file_path = _GIT_ROOT / entry["file"]
             if not file_path.exists():
                 missing_files.append(entry["id"])
-                findings.append({
-                    "type": "registry_drift",
-                    "id": entry["id"],
-                    "file": entry["file"],
-                    "message": f"APPROVED standard {entry['id']} file not found: {entry['file']}",
-                })
+                findings.append(
+                    {
+                        "type": "registry_drift",
+                        "id": entry["id"],
+                        "file": entry["file"],
+                        "message": f"APPROVED standard {entry['id']} file not found: {entry['file']}",
+                    }
+                )
 
     # 3. Scan for unregistered phantom references
     registry_ids = {e.get("id", "") for e in registry}
     phantoms = _scan_phantom_references(registry_ids, web_root / "syn")
     for p in phantoms:
-        findings.append({
-            "type": "phantom_drift",
-            "id": p["id"],
-            "file": p["file"],
-            "message": f"Unregistered standard reference {p['id']} in syn/{p['file']}",
-        })
+        findings.append(
+            {
+                "type": "phantom_drift",
+                "id": p["id"],
+                "file": p["file"],
+                "message": f"Unregistered standard reference {p['id']} in syn/{p['file']}",
+            }
+        )
 
     # Deduplicate phantom IDs for summary
     phantom_ids = sorted(set(p["id"] for p in phantoms))
@@ -2953,21 +3339,25 @@ def check_architecture_map():
     # 4. Check module map paths exist
     missing_paths = _check_mapped_paths_exist(module_map, web_root)
     for mp in missing_paths:
-        findings.append({
-            "type": "file_drift",
-            "module": mp["module_path"],
-            "message": f"Mapped module path no longer exists: {mp['module_path']}",
-        })
+        findings.append(
+            {
+                "type": "file_drift",
+                "module": mp["module_path"],
+                "message": f"Mapped module path no longer exists: {mp['module_path']}",
+            }
+        )
 
     # 5. Find unmapped modules
     module_paths = [e.get("module", "") for e in module_map]
     unmapped = _find_unmapped_modules(module_paths, web_root)
     for u in unmapped:
-        findings.append({
-            "type": "coverage_drift",
-            "module": u,
-            "message": f"Unmapped module directory: {u}",
-        })
+        findings.append(
+            {
+                "type": "coverage_drift",
+                "module": u,
+                "message": f"Unmapped module directory: {u}",
+            }
+        )
 
     # 6. Git change tracking
     commit_sha = _git_head_sha()
@@ -3018,10 +3408,26 @@ def check_architecture_map():
 # ── ARCH-001: Architecture & Structure ──────────────────────────────────
 
 _ARCH_REQUIRED_DIRS = [
-    "svend", "syn", "syn/core", "syn/audit", "syn/log", "syn/api",
-    "syn/err", "syn/sched", "core", "accounts", "agents_api", "api",
-    "chat", "workbench", "forge", "files", "svend_config", "templates",
-    "static", "ops",
+    "svend",
+    "syn",
+    "syn/core",
+    "syn/audit",
+    "syn/log",
+    "syn/api",
+    "syn/err",
+    "syn/sched",
+    "core",
+    "accounts",
+    "agents_api",
+    "api",
+    "chat",
+    "workbench",
+    "forge",
+    "files",
+    "svend_config",
+    "templates",
+    "static",
+    "ops",
 ]
 
 _ARCH_PROHIBITED_DIRS = ["tempora", "forge_results"]
@@ -3029,8 +3435,14 @@ _ARCH_PROHIBITED_DIRS = ["tempora", "forge_results"]
 _ARCH_FEATURE_APPS = {"agents_api", "chat", "workbench", "forge", "files", "inference"}
 
 _ARCH_ALLOWED_ROOT_FILES = {
-    "manage.py", "pyproject.toml", "gunicorn.conf.py",
-    ".gitignore", ".env", ".env.example", ".env.production", "Caddyfile",
+    "manage.py",
+    "pyproject.toml",
+    "gunicorn.conf.py",
+    ".gitignore",
+    ".env",
+    ".env.example",
+    ".env.production",
+    "Caddyfile",
 }
 
 _ARCH_EMPTY_DIR_SKIP = {"migrations", "__pycache__", "media", "logs", "staticfiles", "node_modules"}
@@ -3062,32 +3474,32 @@ _DIR_SNAKE_RE = _re.compile(r"^[a-z][a-z0-9_]*$")
 # Known cross-app import exemptions (documented in ARCH-001 §5.2)
 _ARCH_CROSS_IMPORT_EXEMPT_FILES = {
     "management",  # Management commands may cross boundaries
-    "tests",       # Test files may import from any layer
+    "tests",  # Test files may import from any layer
 }
 
 # Known core/ layer boundary exemptions
 _ARCH_CORE_LAYER_EXEMPT = {
     "seed_nlp_demo.py",  # Management command — crosses boundaries by design
-    "views.py",          # core/views.py project detail aggregates agents_api models (existing debt)
+    "views.py",  # core/views.py project detail aggregates agents_api models (existing debt)
 }
 
 # Known timestamp fields that don't follow _at convention (tracked as debt)
 _ARCH_KNOWN_TIMESTAMP_EXCEPTIONS = {
-    "action_time",        # Django LogEntry (built-in)
-    "expire_date",        # Django Session (built-in)
-    "date_joined",        # Django User (built-in)
-    "last_login",         # Django User (built-in)
+    "action_time",  # Django LogEntry (built-in)
+    "expire_date",  # Django Session (built-in)
+    "date_joined",  # Django User (built-in)
+    "last_login",  # Django User (built-in)
     "current_period_start",  # Billing interval boundary
-    "current_period_end",    # Billing interval boundary
-    "period_start",       # Usage interval boundary
-    "period_end",         # Usage interval boundary
-    "scheduled_for",      # Onboarding scheduling
-    "last_accessed",      # Cache access timestamp
-    "last_seen",          # Presence tracking
-    "last_run",           # Scheduler last execution
-    "bucket_start",       # Metrics time bucket
-    "timestamp",          # Audit log (SysLogEntry, ChangeLog, LogEntry legacy)
-    "deadline",           # Task deadline
+    "current_period_end",  # Billing interval boundary
+    "period_start",  # Usage interval boundary
+    "period_end",  # Usage interval boundary
+    "scheduled_for",  # Onboarding scheduling
+    "last_accessed",  # Cache access timestamp
+    "last_seen",  # Presence tracking
+    "last_run",  # Scheduler last execution
+    "bucket_start",  # Metrics time bucket
+    "timestamp",  # Audit log (SysLogEntry, ChangeLog, LogEntry legacy)
+    "deadline",  # Task deadline
 }
 
 
@@ -3123,17 +3535,21 @@ def _check_arch_files_per_app(web_root):
     """ARCH-001 §7: Files per app growth boundaries."""
     oversized = []
     app_dirs = [
-        "accounts", "agents_api", "api", "chat", "core",
-        "files", "forge", "inference", "workbench",
+        "accounts",
+        "agents_api",
+        "api",
+        "chat",
+        "core",
+        "files",
+        "forge",
+        "inference",
+        "workbench",
     ]
     for app in app_dirs:
         app_dir = web_root / app
         if not app_dir.is_dir():
             continue
-        count = sum(
-            1 for f in app_dir.rglob("*.py")
-            if "__pycache__" not in f.parts and "migrations" not in f.parts
-        )
+        count = sum(1 for f in app_dir.rglob("*.py") if "__pycache__" not in f.parts and "migrations" not in f.parts)
         if count > _ARCH_FILES_PER_APP_WARN:
             severity = "fail" if count > _ARCH_FILES_PER_APP_FAIL else "warning"
             if app in _ARCH_KNOWN_LARGE_APPS:
@@ -3164,18 +3580,22 @@ def _check_arch_core_layer(web_root):
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     if alias.name.split(".")[0] in _ARCH_FEATURE_APPS:
-                        violations.append({
-                            "file": str(py_file.relative_to(web_root)),
-                            "line": node.lineno,
-                            "import": alias.name,
-                        })
+                        violations.append(
+                            {
+                                "file": str(py_file.relative_to(web_root)),
+                                "line": node.lineno,
+                                "import": alias.name,
+                            }
+                        )
             elif isinstance(node, ast.ImportFrom) and node.module:
                 if node.module.split(".")[0] in _ARCH_FEATURE_APPS:
-                    violations.append({
-                        "file": str(py_file.relative_to(web_root)),
-                        "line": node.lineno,
-                        "import": node.module,
-                    })
+                    violations.append(
+                        {
+                            "file": str(py_file.relative_to(web_root)),
+                            "line": node.lineno,
+                            "import": node.module,
+                        }
+                    )
     return violations
 
 
@@ -3204,30 +3624,34 @@ def _check_arch_cross_imports(web_root):
                     for alias in node.names:
                         target = alias.name.split(".")[0]
                         if target in other_apps:
-                            violations.append({
-                                "file": str(py_file.relative_to(web_root)),
-                                "line": node.lineno,
-                                "import": alias.name,
-                                "from_app": app,
-                                "to_app": target,
-                            })
+                            violations.append(
+                                {
+                                    "file": str(py_file.relative_to(web_root)),
+                                    "line": node.lineno,
+                                    "import": alias.name,
+                                    "from_app": app,
+                                    "to_app": target,
+                                }
+                            )
                 elif isinstance(node, ast.ImportFrom) and node.module:
                     target = node.module.split(".")[0]
                     if target in other_apps:
-                        violations.append({
-                            "file": str(py_file.relative_to(web_root)),
-                            "line": node.lineno,
-                            "import": node.module,
-                            "from_app": app,
-                            "to_app": target,
-                        })
+                        violations.append(
+                            {
+                                "file": str(py_file.relative_to(web_root)),
+                                "line": node.lineno,
+                                "import": node.module,
+                                "from_app": app,
+                                "to_app": target,
+                            }
+                        )
     return violations
 
 
 # Django built-in URL segments that use underscores (can't be changed)
 _URL_KEBAB_EXEMPT_SEGMENTS = {
-    "password_reset",    # Django auth views
-    "password_change",   # Django auth views
+    "password_reset",  # Django auth views
+    "password_change",  # Django auth views
 }
 
 
@@ -3248,16 +3672,18 @@ def _check_arch_url_kebab_case(web_root):
                 continue
             url_path = match.group(1)
             # Strip path parameters
-            cleaned = _re.sub(r'<[^>]+>', '', url_path)
-            segments = [s for s in cleaned.split('/') if s]
+            cleaned = _re.sub(r"<[^>]+>", "", url_path)
+            segments = [s for s in cleaned.split("/") if s]
             for seg in segments:
-                if '_' in seg and seg not in _URL_KEBAB_EXEMPT_SEGMENTS:
-                    violations.append({
-                        "file": str(urls_file.relative_to(web_root)),
-                        "line": i,
-                        "url": url_path,
-                        "segment": seg,
-                    })
+                if "_" in seg and seg not in _URL_KEBAB_EXEMPT_SEGMENTS:
+                    violations.append(
+                        {
+                            "file": str(urls_file.relative_to(web_root)),
+                            "line": i,
+                            "url": url_path,
+                            "segment": seg,
+                        }
+                    )
                     break
     return violations
 
@@ -3297,11 +3723,13 @@ def _check_arch_timestamp_naming(web_root):
                         if field_name in _ARCH_KNOWN_TIMESTAMP_EXCEPTIONS:
                             continue
                         if not field_name.endswith("_at"):
-                            violations.append({
-                                "file": str(py_file.relative_to(web_root)),
-                                "class": node.name,
-                                "field": field_name,
-                            })
+                            violations.append(
+                                {
+                                    "file": str(py_file.relative_to(web_root)),
+                                    "class": node.name,
+                                    "field": field_name,
+                                }
+                            )
     return violations
 
 
@@ -3322,11 +3750,13 @@ def _scan_class_docstrings(web_root):
             if isinstance(node, ast.ClassDef):
                 docstring = ast.get_docstring(node)
                 if not docstring:
-                    violations.append({
-                        "file": str(py_file.relative_to(web_root)),
-                        "class": node.name,
-                        "line": node.lineno,
-                    })
+                    violations.append(
+                        {
+                            "file": str(py_file.relative_to(web_root)),
+                            "class": node.name,
+                            "line": node.lineno,
+                        }
+                    )
     return violations
 
 
@@ -3345,11 +3775,7 @@ def _check_arch_test_placement(web_root):
             continue
         name = py_file.name
         # Is this a test file?
-        is_test = (
-            _TEST_FILE_RE.match(name)
-            or _TEST_FILE_LEGACY_RE.match(name)
-            or name == "tests.py"
-        )
+        is_test = _TEST_FILE_RE.match(name) or _TEST_FILE_LEGACY_RE.match(name) or name == "tests.py"
         if not is_test:
             continue
         # Must be inside a tests/ directory
@@ -3405,12 +3831,14 @@ def _check_arch_testcase_in_prod(web_root):
                 elif isinstance(base, ast.Attribute):
                     base_name = base.attr
                 if base_name in ("TestCase", "SimpleTestCase", "TransactionTestCase", "LiveServerTestCase"):
-                    violations.append({
-                        "file": str(py_file.relative_to(web_root)),
-                        "class": node.name,
-                        "line": node.lineno,
-                        "base": base_name,
-                    })
+                    violations.append(
+                        {
+                            "file": str(py_file.relative_to(web_root)),
+                            "class": node.name,
+                            "line": node.lineno,
+                            "base": base_name,
+                        }
+                    )
     return violations
 
 
@@ -3472,19 +3900,23 @@ def _check_arch_layer_boundaries(web_root):
                 for alias in node.names:
                     mod_root = alias.name.split(".")[0]
                     if mod_root in _ARCH_FEATURE_APPS:
-                        violations.append({
-                            "file": str(py_file.relative_to(web_root)),
-                            "line": node.lineno,
-                            "import": alias.name,
-                        })
+                        violations.append(
+                            {
+                                "file": str(py_file.relative_to(web_root)),
+                                "line": node.lineno,
+                                "import": alias.name,
+                            }
+                        )
             elif isinstance(node, ast.ImportFrom) and node.module:
                 mod_root = node.module.split(".")[0]
                 if mod_root in _ARCH_FEATURE_APPS:
-                    violations.append({
-                        "file": str(py_file.relative_to(web_root)),
-                        "line": node.lineno,
-                        "import": node.module,
-                    })
+                    violations.append(
+                        {
+                            "file": str(py_file.relative_to(web_root)),
+                            "line": node.lineno,
+                            "import": node.module,
+                        }
+                    )
     return violations
 
 
@@ -3508,11 +3940,13 @@ def _check_arch_file_sizes(web_root):
                 severity = "fail"
             else:
                 severity = "warning"
-            oversized.append({
-                "file": rel_path,
-                "lines": line_count,
-                "severity": severity,
-            })
+            oversized.append(
+                {
+                    "file": rel_path,
+                    "lines": line_count,
+                    "severity": severity,
+                }
+            )
     return oversized
 
 
@@ -3559,14 +3993,21 @@ def check_architecture():
     testcase_in_prod = _check_arch_testcase_in_prod(web_root)
 
     hard_fail = (
-        missing_dirs or prohibited_dirs or layer_violations
-        or dir_naming or nested_dupes or core_layer
-        or test_init or testcase_in_prod
+        missing_dirs
+        or prohibited_dirs
+        or layer_violations
+        or dir_naming
+        or nested_dupes
+        or core_layer
+        or test_init
+        or testcase_in_prod
         or any(f["severity"] == "fail" for f in oversized_files)
         or any(f["severity"] == "fail" for f in files_per_app)
     )
     soft_warn = (
-        empty_dirs or unexpected_root or cross_imports
+        empty_dirs
+        or unexpected_root
+        or cross_imports
         or test_placement
         or any(f["severity"] == "warning" for f in oversized_files)
         or any(f["severity"] == "warning" for f in files_per_app)
@@ -3667,18 +4108,22 @@ def _check_cache_cdn_versions(web_root):
     templates_dir = web_root / "templates"
     if not templates_dir.is_dir():
         return violations
-    cdn_pattern = _re.compile(r'(?:src|href)=["\']https?://(?:cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com)/([^"\']+)["\']')
+    cdn_pattern = _re.compile(
+        r'(?:src|href)=["\']https?://(?:cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com)/([^"\']+)["\']'
+    )
     for html_file in templates_dir.rglob("*.html"):
         source = html_file.read_text(errors="ignore")
         for i, line in enumerate(source.splitlines(), 1):
             for match in cdn_pattern.finditer(line):
                 url_path = match.group(1)
                 if not _CDN_VERSION_RE.search(url_path):
-                    violations.append({
-                        "file": str(html_file.relative_to(web_root)),
-                        "line": i,
-                        "url": match.group(0),
-                    })
+                    violations.append(
+                        {
+                            "file": str(html_file.relative_to(web_root)),
+                            "line": i,
+                            "url": match.group(0),
+                        }
+                    )
     return violations
 
 
@@ -3686,6 +4131,7 @@ def _check_cache_idempotency_ttl():
     """CACHE-001 §5: Idempotency cache has bounded TTL."""
     try:
         from syn.api.middleware import IDEMPOTENCY_TTL_HOURS
+
         if IDEMPOTENCY_TTL_HOURS > 48:
             return [f"IDEMPOTENCY_TTL_HOURS={IDEMPOTENCY_TTL_HOURS} exceeds 48h maximum"]
     except ImportError:
@@ -3868,8 +4314,10 @@ def check_symbol_coverage():
                     loc = _loc_range(full_path, node.lineno, node.end_lineno)
                     if loc > 0:
                         all_symbols[f"{rel}:{node.name}"] = {
-                            "kind": "class", "loc": loc,
-                            "file": rel, "name": node.name,
+                            "kind": "class",
+                            "loc": loc,
+                            "file": rel,
+                            "name": node.name,
                         }
                 elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     if node.name.startswith("_"):
@@ -3877,15 +4325,17 @@ def check_symbol_coverage():
                     loc = _loc_range(full_path, node.lineno, node.end_lineno)
                     if loc > 0:
                         all_symbols[f"{rel}:{node.name}"] = {
-                            "kind": "function", "loc": loc,
-                            "file": rel, "name": node.name,
+                            "kind": "function",
+                            "loc": loc,
+                            "file": rel,
+                            "name": node.name,
                         }
 
     # ------------------------------------------------------------------
     # Step 2: Map symbol-level impl hooks to assertions
     # ------------------------------------------------------------------
     assertions = parse_all_standards()
-    governed = set()   # keys with impl hook (may lack tests)
+    governed = set()  # keys with impl hook (may lack tests)
     covered_set = set()  # keys where assertion also has test hooks
 
     for a in assertions:
@@ -3936,9 +4386,13 @@ def check_symbol_coverage():
         f = info["file"]
         if f not in file_risk:
             file_risk[f] = {
-                "ungoverned_loc": 0, "specified_untested_loc": 0,
-                "covered_loc": 0, "total_loc": 0, "total_symbols": 0,
-                "covered_symbols": 0, "specified_symbols": 0,
+                "ungoverned_loc": 0,
+                "specified_untested_loc": 0,
+                "covered_loc": 0,
+                "total_loc": 0,
+                "total_symbols": 0,
+                "covered_symbols": 0,
+                "specified_symbols": 0,
                 "ungoverned_symbols": 0,
             }
         fr = file_risk[f]
@@ -3955,9 +4409,7 @@ def check_symbol_coverage():
             fr["ungoverned_symbols"] += 1
 
     for fr in file_risk.values():
-        fr["risk_score"] = round(
-            fr["ungoverned_loc"] * 1.0 + fr["specified_untested_loc"] * 0.5, 1
-        )
+        fr["risk_score"] = round(fr["ungoverned_loc"] * 1.0 + fr["specified_untested_loc"] * 0.5, 1)
 
     top_risk = sorted(
         [{"file": f, **fr} for f, fr in file_risk.items()],
@@ -3970,10 +4422,14 @@ def check_symbol_coverage():
         module = f.split("/")[0] if "/" in f else "root"
         if module not in by_module:
             by_module[module] = {
-                "total_loc": 0, "covered_loc": 0,
-                "specified_untested_loc": 0, "ungoverned_loc": 0,
-                "total_symbols": 0, "covered_symbols": 0,
-                "specified_symbols": 0, "ungoverned_symbols": 0,
+                "total_loc": 0,
+                "covered_loc": 0,
+                "specified_untested_loc": 0,
+                "ungoverned_loc": 0,
+                "total_symbols": 0,
+                "covered_symbols": 0,
+                "specified_symbols": 0,
+                "ungoverned_symbols": 0,
             }
         bm = by_module[module]
         for k in list(bm.keys()):
@@ -3983,9 +4439,7 @@ def check_symbol_coverage():
     for mod in sorted(by_module.keys()):
         d = by_module[mod]
         d["module"] = mod
-        d["covered_pct"] = round(
-            d["covered_symbols"] / d["total_symbols"] * 100, 1
-        ) if d["total_symbols"] else 0
+        d["covered_pct"] = round(d["covered_symbols"] / d["total_symbols"] * 100, 1) if d["total_symbols"] else 0
         module_list.append(d)
 
     total_risk = round(ungoverned_loc * 1.0 + specified_loc * 0.5, 1)
@@ -4028,8 +4482,8 @@ def check_symbol_coverage():
 # Statistical Calibration (STAT-001 §15)
 # ---------------------------------------------------------------------------
 
-@register("statistical_calibration", "processing_integrity",
-          soc2_controls=["CC4.1"])
+
+@register("statistical_calibration", "processing_integrity", soc2_controls=["CC4.1"])
 def check_statistical_calibration():
     """Run statistical calibration — feed known reference data through analysis
     functions and verify outputs within tolerance.
@@ -4040,6 +4494,7 @@ def check_statistical_calibration():
     issues = []
     try:
         from agents_api.calibration import run_calibration
+
         cal = run_calibration()
     except Exception as e:
         return {
@@ -4056,6 +4511,7 @@ def check_statistical_calibration():
     if drift_cases:
         try:
             from syn.audit.models import DriftViolation
+
             for case_id in drift_cases:
                 # Find the case result for detail
                 case_detail = next((r for r in cal["results"] if r["case_id"] == case_id), {})
@@ -4100,8 +4556,8 @@ def check_statistical_calibration():
 # Output Quality (QUAL-001)
 # ---------------------------------------------------------------------------
 
-@register("output_quality", "processing_integrity",
-          soc2_controls=["CC4.1", "CC7.2"])
+
+@register("output_quality", "processing_integrity", soc2_controls=["CC4.1", "CC7.2"])
 def check_output_quality():
     """Verify output quality infrastructure per QUAL-001.
 
@@ -4116,12 +4572,14 @@ def check_output_quality():
     Compliance: SOC 2 CC4.1, CC7.2
     """
     import inspect
+
     issues = []
     status = "pass"
 
     # 1. Verify _validate_statistics_bounds exists in standardize.py
     try:
         from agents_api.dsw.standardize import _validate_statistics_bounds
+
         sig = inspect.signature(_validate_statistics_bounds)
         params = list(sig.parameters.keys())
         if "result" not in params:
@@ -4133,6 +4591,7 @@ def check_output_quality():
     # 2. Verify standardize_output is called in dispatch.py
     try:
         import agents_api.dsw.dispatch as dispatch_mod
+
         source = inspect.getsource(dispatch_mod)
         if "standardize_output" not in source:
             issues.append("standardize_output not called in dispatch.py")
@@ -4143,9 +4602,18 @@ def check_output_quality():
     # 3. Verify REQUIRED_FIELDS has expected keys
     try:
         from agents_api.dsw.standardize import REQUIRED_FIELDS
-        expected_keys = {"summary", "plots", "narrative", "education",
-                         "diagnostics", "guide_observation", "evidence_grade",
-                         "bayesian_shadow", "what_if"}
+
+        expected_keys = {
+            "summary",
+            "plots",
+            "narrative",
+            "education",
+            "diagnostics",
+            "guide_observation",
+            "evidence_grade",
+            "bayesian_shadow",
+            "what_if",
+        }
         missing = expected_keys - set(REQUIRED_FIELDS.keys())
         if missing:
             issues.append(f"REQUIRED_FIELDS missing keys: {sorted(missing)}")
@@ -4161,9 +4629,9 @@ def check_output_quality():
             _FINITE_METRICS,
             _POSITIVE_METRICS,
         )
+
         # p_value must be bounded [0, 1]
-        p_keys = [keys for keys, lo, hi in _BOUNDED_METRICS
-                   if "p_value" in keys]
+        p_keys = [keys for keys, lo, hi in _BOUNDED_METRICS if "p_value" in keys]
         if not p_keys:
             issues.append("_BOUNDED_METRICS missing p_value entry")
             status = "fail"
@@ -4182,6 +4650,7 @@ def check_output_quality():
     # 5. Verify calibration pool size and category coverage
     try:
         from agents_api.calibration import REFERENCE_POOL
+
         pool_size = len(REFERENCE_POOL)
         categories = {c.category for c in REFERENCE_POOL}
         if pool_size < 15:
@@ -4189,10 +4658,7 @@ def check_output_quality():
             if status == "pass":
                 status = "warning"
         if len(categories) < 5:
-            issues.append(
-                f"Calibration pool covers {len(categories)} categories "
-                f"({sorted(categories)}), need ≥5"
-            )
+            issues.append(f"Calibration pool covers {len(categories)} categories ({sorted(categories)}), need ≥5")
             if status == "pass":
                 status = "warning"
     except ImportError:
@@ -4215,11 +4681,11 @@ def check_output_quality():
 # Policy staleness detection
 # ---------------------------------------------------------------------------
 
+
 def _extract_policy_date(content):
     """Extract the most recent date from policy header (Last Updated or Effective Date)."""
     # Prefer Last Updated over Effective Date
-    for pattern in [r"\*\*Last Updated:\*\*\s*(\d{4}-\d{2}-\d{2})",
-                    r"\*\*Effective Date:\*\*\s*(\d{4}-\d{2}-\d{2})"]:
+    for pattern in [r"\*\*Last Updated:\*\*\s*(\d{4}-\d{2}-\d{2})", r"\*\*Effective Date:\*\*\s*(\d{4}-\d{2}-\d{2})"]:
         m = _re.search(pattern, content)
         if m:
             try:
@@ -4278,19 +4744,23 @@ def check_policy_review():
             if watched_path.exists():
                 mtime = datetime.fromtimestamp(watched_path.stat().st_mtime).date()
                 if last_updated and mtime > last_updated:
-                    stale_watches.append({
-                        "file": watch["file"],
-                        "symbol": watch.get("symbol", ""),
-                        "modified": mtime.isoformat(),
-                    })
+                    stale_watches.append(
+                        {
+                            "file": watch["file"],
+                            "symbol": watch.get("symbol", ""),
+                            "modified": mtime.isoformat(),
+                        }
+                    )
 
         if stale_watches:
-            findings.append({
-                "policy": md.name,
-                "last_updated": last_updated.isoformat() if last_updated else "unknown",
-                "stale_watches": stale_watches,
-                "message": f"{md.name}: {len(stale_watches)} watched file(s) changed since last update",
-            })
+            findings.append(
+                {
+                    "policy": md.name,
+                    "last_updated": last_updated.isoformat() if last_updated else "unknown",
+                    "stale_watches": stale_watches,
+                    "message": f"{md.name}: {len(stale_watches)} watched file(s) changed since last update",
+                }
+            )
 
     status = "warning" if findings else "pass"
     return {

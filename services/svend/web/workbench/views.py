@@ -2,12 +2,13 @@
 
 import json
 import re
-from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404
 
-from .models import Project, Workbench, Artifact, Hypothesis, Evidence, Conversation
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from django.views.decorators.http import require_http_methods
+
+from .models import Artifact, Conversation, Evidence, Hypothesis, Project, Workbench
 
 
 @login_required
@@ -26,20 +27,22 @@ def list_workbenches(request):
     if template:
         workbenches = workbenches.filter(template=template)
 
-    return JsonResponse({
-        "workbenches": [
-            {
-                "id": str(w.id),
-                "title": w.title,
-                "template": w.template,
-                "status": w.status,
-                "artifact_count": w.artifacts.count(),
-                "updated_at": w.updated_at.isoformat(),
-                "created_at": w.created_at.isoformat(),
-            }
-            for w in workbenches
-        ]
-    })
+    return JsonResponse(
+        {
+            "workbenches": [
+                {
+                    "id": str(w.id),
+                    "title": w.title,
+                    "template": w.template,
+                    "status": w.status,
+                    "artifact_count": w.artifacts.count(),
+                    "updated_at": w.updated_at.isoformat(),
+                    "created_at": w.created_at.isoformat(),
+                }
+                for w in workbenches
+            ]
+        }
+    )
 
 
 @login_required
@@ -70,15 +73,18 @@ def create_workbench(request):
     if template != Workbench.Template.BLANK:
         workbench.init_template()
 
-    return JsonResponse({
-        "success": True,
-        "workbench": {
-            "id": str(workbench.id),
-            "title": workbench.title,
-            "template": workbench.template,
-            "template_state": workbench.template_state,
-        }
-    }, status=201)
+    return JsonResponse(
+        {
+            "success": True,
+            "workbench": {
+                "id": str(workbench.id),
+                "title": workbench.title,
+                "template": workbench.template,
+                "template_state": workbench.template_state,
+            },
+        },
+        status=201,
+    )
 
 
 @login_required
@@ -148,7 +154,7 @@ def export_workbench(request, workbench_id):
     workbench = get_object_or_404(Workbench, id=workbench_id, user=request.user)
 
     response = JsonResponse(workbench.to_json())
-    safe_title = re.sub(r'[\x00-\x1f\x7f"\\/:*?<>|]', '_', workbench.title) or 'workbench'
+    safe_title = re.sub(r'[\x00-\x1f\x7f"\\/:*?<>|]', "_", workbench.title) or "workbench"
     response["Content-Disposition"] = f'attachment; filename="{safe_title}.json"'
     return response
 
@@ -164,10 +170,13 @@ def import_workbench(request):
 
     workbench = Workbench.from_json(data, request.user)
 
-    return JsonResponse({
-        "success": True,
-        "workbench_id": str(workbench.id),
-    }, status=201)
+    return JsonResponse(
+        {
+            "success": True,
+            "workbench_id": str(workbench.id),
+        },
+        status=201,
+    )
 
 
 # =============================================================================
@@ -204,10 +213,13 @@ def create_artifact(request, workbench_id):
         workbench.layout[str(artifact.id)] = data["position"]
         workbench.save(update_fields=["layout"])
 
-    return JsonResponse({
-        "success": True,
-        "artifact": artifact.to_json(),
-    }, status=201)
+    return JsonResponse(
+        {
+            "success": True,
+            "artifact": artifact.to_json(),
+        },
+        status=201,
+    )
 
 
 @login_required
@@ -270,8 +282,7 @@ def delete_artifact(request, workbench_id, artifact_id):
 
     # Remove from connections
     workbench.connections = [
-        c for c in workbench.connections
-        if c["from"] != str(artifact.id) and c["to"] != str(artifact.id)
+        c for c in workbench.connections if c["from"] != str(artifact.id) and c["to"] != str(artifact.id)
     ]
     workbench.save(update_fields=["connections"])
 
@@ -322,10 +333,7 @@ def disconnect_artifacts(request, workbench_id):
     from_id = data.get("from")
     to_id = data.get("to")
 
-    workbench.connections = [
-        c for c in workbench.connections
-        if not (c["from"] == from_id and c["to"] == to_id)
-    ]
+    workbench.connections = [c for c in workbench.connections if not (c["from"] == from_id and c["to"] == to_id)]
     workbench.save(update_fields=["connections"])
 
     return JsonResponse({"success": True})
@@ -353,10 +361,12 @@ def advance_phase(request, workbench_id):
     notes = data.get("notes", "")
     workbench.advance_dmaic_phase(notes)
 
-    return JsonResponse({
-        "success": True,
-        "current_phase": workbench.template_state.get("current_phase"),
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "current_phase": workbench.template_state.get("current_phase"),
+        }
+    )
 
 
 # =============================================================================
@@ -408,6 +418,7 @@ def acknowledge_observation(request, workbench_id, observation_index):
 # Project CRUD
 # =============================================================================
 
+
 @login_required
 @require_http_methods(["GET"])
 def list_projects(request):
@@ -419,9 +430,7 @@ def list_projects(request):
     if status:
         projects = projects.filter(status=status)
 
-    return JsonResponse({
-        "projects": [p.to_dict() for p in projects]
-    })
+    return JsonResponse({"projects": [p.to_dict() for p in projects]})
 
 
 @login_required
@@ -449,10 +458,7 @@ def create_project(request):
         domain=data.get("domain", ""),
     )
 
-    return JsonResponse({
-        "success": True,
-        "project": project.to_dict()
-    }, status=201)
+    return JsonResponse({"success": True, "project": project.to_dict()}, status=201)
 
 
 @login_required
@@ -475,7 +481,7 @@ def get_project(request, project_id):
     ]
 
     # Include knowledge graph if exists
-    if hasattr(project, 'knowledge_graph') and project.knowledge_graph:
+    if hasattr(project, "knowledge_graph") and project.knowledge_graph:
         data["knowledge_graph"] = project.knowledge_graph.to_dict()
 
     return JsonResponse(data)
@@ -566,14 +572,16 @@ def add_workbench_to_project(request, project_id):
         if template != Workbench.Template.BLANK:
             workbench.init_template()
 
-    return JsonResponse({
-        "success": True,
-        "workbench": {
-            "id": str(workbench.id),
-            "title": workbench.title,
-            "project_id": str(project.id),
+    return JsonResponse(
+        {
+            "success": True,
+            "workbench": {
+                "id": str(workbench.id),
+                "title": workbench.title,
+                "project_id": str(project.id),
+            },
         }
-    })
+    )
 
 
 @login_required
@@ -593,6 +601,7 @@ def remove_workbench_from_project(request, project_id, workbench_id):
 # Hypothesis CRUD
 # =============================================================================
 
+
 @login_required
 @require_http_methods(["GET"])
 def list_hypotheses(request, project_id):
@@ -605,9 +614,7 @@ def list_hypotheses(request, project_id):
     if status:
         hypotheses = hypotheses.filter(status=status)
 
-    return JsonResponse({
-        "hypotheses": [h.to_dict() for h in hypotheses]
-    })
+    return JsonResponse({"hypotheses": [h.to_dict() for h in hypotheses]})
 
 
 @login_required
@@ -633,10 +640,7 @@ def create_hypothesis(request, project_id):
         current_probability=data.get("prior_probability", 0.5),
     )
 
-    return JsonResponse({
-        "success": True,
-        "hypothesis": hypothesis.to_dict()
-    }, status=201)
+    return JsonResponse({"success": True, "hypothesis": hypothesis.to_dict()}, status=201)
 
 
 @login_required
@@ -722,16 +726,19 @@ def update_hypothesis_probability(request, project_id, hypothesis_id):
     old_prob = hypothesis.current_probability
     hypothesis.update_probability(likelihood_ratio)
 
-    return JsonResponse({
-        "success": True,
-        "old_probability": old_prob,
-        "new_probability": hypothesis.current_probability,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "old_probability": old_prob,
+            "new_probability": hypothesis.current_probability,
+        }
+    )
 
 
 # =============================================================================
 # Evidence CRUD
 # =============================================================================
+
 
 @login_required
 @require_http_methods(["GET"])
@@ -752,9 +759,7 @@ def list_evidence(request, project_id, hypothesis_id):
     if direction:
         evidence = evidence.filter(direction=direction)
 
-    return JsonResponse({
-        "evidence": [e.to_dict() for e in evidence]
-    })
+    return JsonResponse({"evidence": [e.to_dict() for e in evidence]})
 
 
 @login_required
@@ -795,10 +800,7 @@ def create_evidence(request, project_id, hypothesis_id):
             likelihood_ratio = 1.0
         hypothesis.update_probability(likelihood_ratio)
 
-    return JsonResponse({
-        "success": True,
-        "evidence": evidence.to_dict()
-    }, status=201)
+    return JsonResponse({"success": True, "evidence": evidence.to_dict()}, status=201)
 
 
 @login_required
@@ -829,6 +831,7 @@ def delete_evidence(request, project_id, hypothesis_id, evidence_id):
 # Conversation CRUD
 # =============================================================================
 
+
 @login_required
 @require_http_methods(["GET"])
 def list_conversations(request, project_id, hypothesis_id):
@@ -838,18 +841,20 @@ def list_conversations(request, project_id, hypothesis_id):
 
     conversations = hypothesis.conversations.all()
 
-    return JsonResponse({
-        "conversations": [
-            {
-                "id": str(c.id),
-                "title": c.title,
-                "message_count": len(c.messages),
-                "created_at": c.created_at.isoformat(),
-                "updated_at": c.updated_at.isoformat(),
-            }
-            for c in conversations
-        ]
-    })
+    return JsonResponse(
+        {
+            "conversations": [
+                {
+                    "id": str(c.id),
+                    "title": c.title,
+                    "message_count": len(c.messages),
+                    "created_at": c.created_at.isoformat(),
+                    "updated_at": c.updated_at.isoformat(),
+                }
+                for c in conversations
+            ]
+        }
+    )
 
 
 @login_required
@@ -875,10 +880,7 @@ def create_conversation(request, project_id, hypothesis_id):
     conversation.context = conversation.build_context()
     conversation.save(update_fields=["context"])
 
-    return JsonResponse({
-        "success": True,
-        "conversation": conversation.to_dict()
-    }, status=201)
+    return JsonResponse({"success": True, "conversation": conversation.to_dict()}, status=201)
 
 
 @login_required
@@ -933,10 +935,7 @@ def add_message(request, project_id, hypothesis_id, conversation_id):
 
     conversation.add_message(role, content)
 
-    return JsonResponse({
-        "success": True,
-        "message_count": len(conversation.messages)
-    })
+    return JsonResponse({"success": True, "message_count": len(conversation.messages)})
 
 
 @login_required
@@ -963,7 +962,4 @@ def refresh_conversation_context(request, project_id, hypothesis_id, conversatio
     conversation.context = conversation.build_context()
     conversation.save(update_fields=["context", "updated_at"])
 
-    return JsonResponse({
-        "success": True,
-        "context": conversation.context
-    })
+    return JsonResponse({"success": True, "context": conversation.context})

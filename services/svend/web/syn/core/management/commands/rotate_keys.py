@@ -19,7 +19,6 @@ Compliance: ISO 27001 A.10.1.2 (Key Management)
 """
 
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
 from django.utils import timezone
 
 from syn.core.secrets import (
@@ -53,7 +52,7 @@ class Command(BaseCommand):
 
         # Validate arguments
         if not rotate_secrets_flag and (not old_version or not new_version):
-            raise CommandError("Must specify either --rotate-secrets or both " "--old-version and --new-version")
+            raise CommandError("Must specify either --rotate-secrets or both --old-version and --new-version")
 
         if rotate_secrets_flag and (old_version or new_version):
             raise CommandError("Cannot specify both --rotate-secrets and KEK version arguments")

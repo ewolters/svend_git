@@ -10,6 +10,7 @@ Architecture: SBL-001 §3 (Signal → Cortex flow)
 """
 
 import logging
+
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -24,6 +25,7 @@ def _emit_event(event_name: str, payload: dict):
     """
     try:
         from syn.synara.cortex import Cortex
+
         Cortex.publish(event_name, payload)
         logger.debug(f"[AUDIT] Emitted {event_name}")
     except ImportError:
@@ -40,6 +42,7 @@ def _emit_event(event_name: str, payload: dict):
 # Added "audit." prefix to Cortex.INTERNAL_EVENT_PREFIXES to bypass governance layer.
 # This prevents GovernanceJudgement tenant_id constraint failure since audit events
 # are short-circuited before reaching the governance layer.
+
 
 @receiver(post_save, sender="audit.SysLogEntry")
 def on_syslog_entry_created(sender, instance, created, **kwargs):
@@ -73,6 +76,7 @@ def on_syslog_entry_created(sender, instance, created, **kwargs):
 # INTEGRITY VIOLATION SIGNALS
 # =============================================================================
 
+
 @receiver(post_save, sender="audit.IntegrityViolation")
 def on_integrity_violation_saved(sender, instance, created, **kwargs):
     """
@@ -81,9 +85,9 @@ def on_integrity_violation_saved(sender, instance, created, **kwargs):
     This is a compliance-critical event that should be forwarded to SIEM.
     """
     from syn.audit.events import (
+        build_governance_integrity_violation_payload,
         build_integrity_violation_payload,
         build_violation_resolved_payload,
-        build_governance_integrity_violation_payload,
     )
 
     if created:
@@ -111,6 +115,7 @@ def on_integrity_violation_saved(sender, instance, created, **kwargs):
 # DRIFT VIOLATION SIGNALS
 # =============================================================================
 
+
 @receiver(post_save, sender="audit.DriftViolation")
 def on_drift_violation_saved(sender, instance, created, **kwargs):
     """
@@ -119,12 +124,13 @@ def on_drift_violation_saved(sender, instance, created, **kwargs):
     Drift violations require careful tracking for architecture compliance.
     """
     from django.utils import timezone
+
     from syn.audit.events import (
-        build_drift_violation_payload,
-        build_drift_remediation_available_payload,
-        build_drift_sla_breached_payload,
         build_drift_governance_escalated_payload,
+        build_drift_remediation_available_payload,
         build_drift_resolved_payload,
+        build_drift_sla_breached_payload,
+        build_drift_violation_payload,
         build_governance_drift_alert_payload,
     )
 
@@ -183,6 +189,7 @@ def on_drift_violation_saved(sender, instance, created, **kwargs):
 # =============================================================================
 # REGISTRATION
 # =============================================================================
+
 
 def register_audit_signals():
     """

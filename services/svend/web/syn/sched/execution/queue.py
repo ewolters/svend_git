@@ -22,11 +22,10 @@ from __future__ import annotations
 import heapq
 import logging
 import threading
-import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 from django.utils import timezone
 
@@ -49,21 +48,21 @@ class QueuedTask:
     """
 
     # Sort fields (order matters for comparison)
-    sort_key: Tuple[float, float, str] = field(compare=True)
+    sort_key: tuple[float, float, str] = field(compare=True)
 
     # Task data (not used for sorting)
     task_id: uuid.UUID = field(compare=False)
     task_name: str = field(compare=False)
-    tenant_id: Optional[uuid.UUID] = field(compare=False)
+    tenant_id: uuid.UUID | None = field(compare=False)
     queue: str = field(compare=False)
-    payload: Dict[str, Any] = field(compare=False)
+    payload: dict[str, Any] = field(compare=False)
     priority_score: float = field(compare=False)
     resource_class: ResourceClass = field(compare=False)
     created_at: datetime = field(compare=False)
-    metadata: Dict[str, Any] = field(default_factory=dict, compare=False)
+    metadata: dict[str, Any] = field(default_factory=dict, compare=False)
 
     @classmethod
-    def from_cognitive_task(cls, task: Any) -> "QueuedTask":
+    def from_cognitive_task(cls, task: Any) -> QueuedTask:
         """Create QueuedTask from CognitiveTask model instance."""
         # Infer resource class from task metadata
         metadata = {}
@@ -105,15 +104,15 @@ class QueueMetrics:
     total_queued: int = 0
     total_dispatched: int = 0
     total_rejected: int = 0
-    queued_by_resource_class: Dict[str, int] = field(default_factory=dict)
-    queued_by_tenant: Dict[str, int] = field(default_factory=dict)
-    queued_by_queue: Dict[str, int] = field(default_factory=dict)
+    queued_by_resource_class: dict[str, int] = field(default_factory=dict)
+    queued_by_tenant: dict[str, int] = field(default_factory=dict)
+    queued_by_queue: dict[str, int] = field(default_factory=dict)
     avg_wait_time_ms: float = 0.0
     max_wait_time_ms: float = 0.0
-    last_fetch_time: Optional[datetime] = None
-    last_dispatch_time: Optional[datetime] = None
+    last_fetch_time: datetime | None = None
+    last_dispatch_time: datetime | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert metrics to dictionary for serialization."""
         return {
             "total_queued": self.total_queued,
@@ -173,26 +172,24 @@ class ExecutionQueue:
         self._circuit_breaker_check = circuit_breaker_check
 
         # Main priority queue (heap)
-        self._queue: List[QueuedTask] = []
+        self._queue: list[QueuedTask] = []
 
         # Per-resource-class queues for affinity
-        self._queues_by_class: Dict[ResourceClass, List[QueuedTask]] = {
-            rc: [] for rc in ResourceClass
-        }
+        self._queues_by_class: dict[ResourceClass, list[QueuedTask]] = {rc: [] for rc in ResourceClass}
 
         # Tracking sets
-        self._task_ids: Set[uuid.UUID] = set()
-        self._tasks_by_tenant: Dict[uuid.UUID, int] = {}
+        self._task_ids: set[uuid.UUID] = set()
+        self._tasks_by_tenant: dict[uuid.UUID, int] = {}
 
         # Metrics
         self._metrics = QueueMetrics()
-        self._wait_times: List[float] = []
+        self._wait_times: list[float] = []
 
         # Thread safety
         self._lock = threading.RLock()
 
         # Circuit breaker cache (service -> is_open)
-        self._circuit_states: Dict[str, Tuple[bool, datetime]] = {}
+        self._circuit_states: dict[str, tuple[bool, datetime]] = {}
         self._circuit_cache_ttl = timedelta(seconds=5)
 
     def enqueue(self, task: QueuedTask) -> bool:
@@ -235,34 +232,26 @@ class ExecutionQueue:
             # Update tracking
             self._task_ids.add(task.task_id)
             if task.tenant_id:
-                self._tasks_by_tenant[task.tenant_id] = (
-                    self._tasks_by_tenant.get(task.tenant_id, 0) + 1
-                )
+                self._tasks_by_tenant[task.tenant_id] = self._tasks_by_tenant.get(task.tenant_id, 0) + 1
 
             # Update metrics
             self._metrics.total_queued += 1
             rc_key = task.resource_class.value
-            self._metrics.queued_by_resource_class[rc_key] = (
-                self._metrics.queued_by_resource_class.get(rc_key, 0) + 1
-            )
+            self._metrics.queued_by_resource_class[rc_key] = self._metrics.queued_by_resource_class.get(rc_key, 0) + 1
             if task.tenant_id:
                 tenant_key = str(task.tenant_id)
-                self._metrics.queued_by_tenant[tenant_key] = (
-                    self._metrics.queued_by_tenant.get(tenant_key, 0) + 1
-                )
+                self._metrics.queued_by_tenant[tenant_key] = self._metrics.queued_by_tenant.get(tenant_key, 0) + 1
             queue_key = task.queue
-            self._metrics.queued_by_queue[queue_key] = (
-                self._metrics.queued_by_queue.get(queue_key, 0) + 1
-            )
+            self._metrics.queued_by_queue[queue_key] = self._metrics.queued_by_queue.get(queue_key, 0) + 1
 
             logger.debug(f"[QUEUE] Enqueued task {task.task_id} ({task.resource_class.value})")
             return True
 
     def get_next(
         self,
-        resource_class: Optional[ResourceClass] = None,
-        tenant_id: Optional[uuid.UUID] = None,
-    ) -> Optional[QueuedTask]:
+        resource_class: ResourceClass | None = None,
+        tenant_id: uuid.UUID | None = None,
+    ) -> QueuedTask | None:
         """
         Get the next task from the queue.
 
@@ -306,9 +295,7 @@ class ExecutionQueue:
                 # Remove from tracking
                 self._task_ids.discard(task.task_id)
                 if task.tenant_id:
-                    self._tasks_by_tenant[task.tenant_id] = max(
-                        0, self._tasks_by_tenant.get(task.tenant_id, 1) - 1
-                    )
+                    self._tasks_by_tenant[task.tenant_id] = max(0, self._tasks_by_tenant.get(task.tenant_id, 1) - 1)
 
                 # Also remove from main queue if using class-specific queue
                 if resource_class:
@@ -347,6 +334,7 @@ class ExecutionQueue:
         # Check database
         try:
             from syn.sched.models import CircuitBreakerState
+
             circuit = CircuitBreakerState.objects.filter(service_name=service).first()
             if circuit:
                 can_execute, _ = circuit.can_execute()
@@ -361,8 +349,8 @@ class ExecutionQueue:
 
     def fetch_batch(
         self,
-        batch_size: Optional[int] = None,
-        queues: Optional[List[str]] = None,
+        batch_size: int | None = None,
+        queues: list[str] | None = None,
     ) -> int:
         """
         Fetch a batch of tasks from the database.
@@ -381,16 +369,19 @@ class ExecutionQueue:
         now = timezone.now()
 
         # Build query
-        queryset = CognitiveTask.objects.filter(
-            state__in=[TaskState.PENDING.value, TaskState.RETRYING.value],
-        ).filter(
-            # Ready to execute
-            scheduled_at__lte=now,
-        ).exclude(
-            # Already in queue
-            id__in=list(self._task_ids),
-        ).order_by(
-            "-priority_score", "created_at"
+        queryset = (
+            CognitiveTask.objects.filter(
+                state__in=[TaskState.PENDING.value, TaskState.RETRYING.value],
+            )
+            .filter(
+                # Ready to execute
+                scheduled_at__lte=now,
+            )
+            .exclude(
+                # Already in queue
+                id__in=list(self._task_ids),
+            )
+            .order_by("-priority_score", "created_at")
         )
 
         # Queue filter
@@ -420,14 +411,14 @@ class ExecutionQueue:
         logger.info(f"[QUEUE] Fetched {enqueued}/{len(tasks)} tasks from database")
         return enqueued
 
-    def size(self, resource_class: Optional[ResourceClass] = None) -> int:
+    def size(self, resource_class: ResourceClass | None = None) -> int:
         """Get current queue size."""
         with self._lock:
             if resource_class:
                 return len(self._queues_by_class[resource_class])
             return len(self._task_ids)
 
-    def is_empty(self, resource_class: Optional[ResourceClass] = None) -> bool:
+    def is_empty(self, resource_class: ResourceClass | None = None) -> bool:
         """Check if queue is empty."""
         return self.size(resource_class) == 0
 
@@ -459,7 +450,7 @@ class ExecutionQueue:
                 last_dispatch_time=self._metrics.last_dispatch_time,
             )
 
-    def invalidate_circuit_cache(self, service: Optional[str] = None) -> None:
+    def invalidate_circuit_cache(self, service: str | None = None) -> None:
         """Invalidate circuit breaker cache."""
         with self._lock:
             if service:

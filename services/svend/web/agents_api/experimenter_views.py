@@ -16,13 +16,12 @@ Features:
 import json
 import logging
 import math
-import sys
-from datetime import datetime
 
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid, require_auth
+
 from .models import Problem
 
 logger = logging.getLogger(__name__)
@@ -36,6 +35,7 @@ _power_curve_cache = {}
 def _sanitize(obj):
     """Convert numpy types to Python natives for JSON serialization."""
     import numpy as np
+
     if isinstance(obj, dict):
         return {k: _sanitize(v) for k, v in obj.items()}
     elif isinstance(obj, (list, tuple)):
@@ -50,10 +50,11 @@ def _sanitize(obj):
             return None
         return v
     elif isinstance(obj, float):
-        if obj != obj or obj == float('inf') or obj == float('-inf'):
+        if obj != obj or obj == float("inf") or obj == float("-inf"):
             return None
         return obj
     return obj
+
 
 from agents.experimenter.agent import ExperimenterAgent, ExperimentRequest
 from agents.experimenter.doe import DOEGenerator, Factor
@@ -76,7 +77,7 @@ def _compute_power_curve(test_type, alpha, power, groups):
     effect_sizes = [round(0.10 + i * 0.05, 2) for i in range(39)]  # 0.10 → 2.00
 
     z_alpha_2 = sp_stats.norm.ppf(1 - alpha / 2)  # two-tailed
-    z_alpha_1 = sp_stats.norm.ppf(1 - alpha)       # one-tailed
+    z_alpha_1 = sp_stats.norm.ppf(1 - alpha)  # one-tailed
     z_beta = sp_stats.norm.ppf(power)
 
     for d in effect_sizes:
@@ -96,7 +97,7 @@ def _compute_power_curve(test_type, alpha, power, groups):
                     total_n = n_pg * groups
                     df1 = groups - 1
                     df2 = total_n - groups
-                    lam = (d ** 2) * total_n
+                    lam = (d**2) * total_n
                     f_crit = sp_stats.f.ppf(1 - alpha, df1, df2)
                     ach_power = 1 - sp_stats.ncf.cdf(f_crit, df1, df2, lam)
                     if ach_power >= power:
@@ -174,7 +175,8 @@ def power_analysis(request):
         summary_text = (
             f"To detect a {effect_interp} effect (d={effect_size}) with "
             f"{power:.0%} power at α={alpha}, you need {result.sample_size} total participants"
-            + (f" ({result.sample_size_per_group} per group)" if result.sample_size_per_group else "") + "."
+            + (f" ({result.sample_size_per_group} per group)" if result.sample_size_per_group else "")
+            + "."
         )
 
         response_data = {
@@ -188,15 +190,14 @@ def power_analysis(request):
 
         # Attach full power curve grid when requested
         if include_curve:
-            response_data["power_curve"] = _compute_power_curve(
-                test_type, alpha, power, groups
-            )
+            response_data["power_curve"] = _compute_power_curve(test_type, alpha, power, groups)
 
         # Link to problem as evidence (if problem_id provided)
         problem_id = data.get("problem_id")
         if problem_id:
             try:
                 from .problem_views import write_context_file
+
                 problem = Problem.objects.get(id=problem_id, user=request.user)
                 evidence = problem.add_evidence(
                     summary=f"Power analysis ({test_type}): {summary_text}",
@@ -344,6 +345,7 @@ def design_experiment(request):
         if problem_id:
             try:
                 from .problem_views import write_context_file
+
                 problem = Problem.objects.get(id=problem_id, user=request.user)
                 evidence = problem.add_evidence(
                     summary=f"Generated {design_type} design: {design.num_runs} runs, {len(factors)} factors",
@@ -371,27 +373,31 @@ def _calculate_alias_structure(factors: list, resolution: int) -> dict:
     # Resolution III: Main effects aliased with 2FIs
     if resolution == 3:
         from itertools import combinations
+
         for i, name in enumerate(factor_names):
-            two_fi = [f"{factor_names[j]}×{factor_names[k]}"
-                     for j, k in combinations(range(len(factor_names)), 2)
-                     if j != i and k != i]
+            two_fi = [
+                f"{factor_names[j]}×{factor_names[k]}"
+                for j, k in combinations(range(len(factor_names)), 2)
+                if j != i and k != i
+            ]
             if two_fi:
-                aliases.append({
-                    "effect": name,
-                    "aliased_with": two_fi[:3],  # Show first 3
-                    "type": "main"
-                })
+                aliases.append(
+                    {
+                        "effect": name,
+                        "aliased_with": two_fi[:3],  # Show first 3
+                        "type": "main",
+                    }
+                )
 
     # Resolution IV: 2FIs aliased with each other
     elif resolution == 4:
         from itertools import combinations
+
         two_fis = list(combinations(factor_names, 2))
         for i, (a, b) in enumerate(two_fis[:5]):
-            aliases.append({
-                "effect": f"{a}×{b}",
-                "aliased_with": [f"{c}×{d}" for c, d in two_fis[i+1:i+3]],
-                "type": "2fi"
-            })
+            aliases.append(
+                {"effect": f"{a}×{b}", "aliased_with": [f"{c}×{d}" for c, d in two_fis[i + 1 : i + 3]], "type": "2fi"}
+            )
 
     return {
         "resolution": resolution,
@@ -400,7 +406,7 @@ def _calculate_alias_structure(factors: list, resolution: int) -> dict:
             4: "Main effects clear; 2FIs confounded with each other",
             5: "Main effects and 2FIs all estimable",
         }.get(resolution, "Check specific aliasing pattern"),
-        "aliases": aliases
+        "aliases": aliases,
     }
 
 
@@ -468,11 +474,13 @@ def full_experiment(request):
 
                 # Update recommended next steps
                 if result.design:
-                    problem.recommended_next_steps = [{
-                        "action": "Run experiment",
-                        "details": f"Execute {result.design.num_runs} runs in randomized order",
-                        "design_id": result.design.name,
-                    }]
+                    problem.recommended_next_steps = [
+                        {
+                            "action": "Run experiment",
+                            "details": f"Execute {result.design.num_runs} runs in randomized order",
+                            "design_id": result.design.name,
+                        }
+                    ]
                     problem.save(update_fields=["recommended_next_steps"])
 
                 write_context_file(problem)
@@ -532,9 +540,10 @@ def analyze_results(request):
         return JsonResponse({"error": "Design and results are required"}, status=400)
 
     try:
+        from itertools import combinations
+
         import numpy as np
         from scipy import stats
-        from itertools import combinations
 
         # Build data matrix
         factors = design_data.get("factors", [])
@@ -568,7 +577,7 @@ def analyze_results(request):
             if fit_quadratic:
                 for f in factors:
                     val = coded.get(f["name"], 0)
-                    row.append(val ** 2)
+                    row.append(val**2)
 
             X_data.append(row)
             Y_data.append(responses[run_id])
@@ -590,7 +599,7 @@ def analyze_results(request):
                 term_names.append(f"{f['name']}²")
 
         p = X.shape[1]  # Number of parameters
-        saturated = (n <= p)  # No residual DF — can estimate effects but not significance
+        saturated = n <= p  # No residual DF — can estimate effects but not significance
 
         # Fit model using least squares
         try:
@@ -606,7 +615,7 @@ def analyze_results(request):
 
         # Sum of squares
         SS_total = float(np.sum((Y - np.mean(Y)) ** 2))
-        SS_residual = float(np.sum(residuals ** 2))
+        SS_residual = float(np.sum(residuals**2))
         SS_regression = SS_total - SS_residual
 
         # Degrees of freedom
@@ -674,20 +683,22 @@ def analyze_results(request):
             # Effect = 2 * coefficient (for coded -1/+1)
             effect = 2 * coef if i > 0 else coef
 
-            coefficient_table.append({
-                "term": name,
-                "effect": round(effect, 4) if i > 0 else None,
-                "coefficient": round(coef, 4),
-                "se_coef": round(se, 4),
-                "t_value": round(t, 3) if t is not None else None,
-                "p_value": round(pval, 6) if pval is not None else None,
-                "significant": bool(pval < alpha) if pval is not None else None,
-                "vif": None,
-            })
+            coefficient_table.append(
+                {
+                    "term": name,
+                    "effect": round(effect, 4) if i > 0 else None,
+                    "coefficient": round(coef, 4),
+                    "se_coef": round(se, 4),
+                    "t_value": round(t, 3) if t is not None else None,
+                    "p_value": round(pval, 6) if pval is not None else None,
+                    "significant": bool(pval < alpha) if pval is not None else None,
+                    "vif": None,
+                }
+            )
 
         # Separate main effects and interactions
-        main_effects = coefficient_table[1:len(factors)+1]
-        interaction_effects = coefficient_table[len(factors)+1:] if include_interactions else []
+        main_effects = coefficient_table[1 : len(factors) + 1]
+        interaction_effects = coefficient_table[len(factors) + 1 :] if include_interactions else []
 
         # Calculate main effect plot data
         main_effects_plot = []
@@ -707,12 +718,14 @@ def analyze_results(request):
                 if level_responses:
                     level_means[level_val] = np.mean(level_responses)
 
-            main_effects_plot.append({
-                "factor": factor_name,
-                "levels": list(level_means.keys()),
-                "means": [round(float(m), 4) for m in level_means.values()],
-                "effect": main_effects[i]["effect"] if i < len(main_effects) else None,
-            })
+            main_effects_plot.append(
+                {
+                    "factor": factor_name,
+                    "levels": list(level_means.keys()),
+                    "means": [round(float(m), 4) for m in level_means.values()],
+                    "effect": main_effects[i]["effect"] if i < len(main_effects) else None,
+                }
+            )
 
         # Interaction plot data (for 2-factor interactions)
         interaction_plots = []
@@ -728,27 +741,25 @@ def analyze_results(request):
                         for run in runs:
                             run_id = run["run_id"]
                             if run_id in responses:
-                                if (run["levels"].get(f1["name"]) == level1 and
-                                    run["levels"].get(f2["name"]) == level2):
+                                if run["levels"].get(f1["name"]) == level1 and run["levels"].get(f2["name"]) == level2:
                                     level_responses.append(responses[run_id])
                         if level_responses:
-                            series["points"].append({
-                                "x": level2,
-                                "y": round(float(np.mean(level_responses)), 4)
-                            })
+                            series["points"].append({"x": level2, "y": round(float(np.mean(level_responses)), 4)})
                     plot_data["data"].append(series)
                 interaction_plots.append(plot_data)
 
         # Pareto chart data (standardized effects)
         pareto_data = []
-        t_critical = float(stats.t.ppf(1 - alpha/2, df_residual)) if df_residual > 0 else None
+        t_critical = float(stats.t.ppf(1 - alpha / 2, df_residual)) if df_residual > 0 else None
         for entry in coefficient_table[1:]:  # Skip constant
             t_val = entry["t_value"]
-            pareto_data.append({
-                "term": entry["term"],
-                "standardized_effect": abs(t_val) if t_val is not None else abs(entry["effect"] or 0),
-                "significant": entry["significant"],
-            })
+            pareto_data.append(
+                {
+                    "term": entry["term"],
+                    "standardized_effect": abs(t_val) if t_val is not None else abs(entry["effect"] or 0),
+                    "significant": entry["significant"],
+                }
+            )
         pareto_data.sort(key=lambda x: x["standardized_effect"], reverse=True)
 
         # Normal probability plot of residuals
@@ -763,7 +774,7 @@ def analyze_results(request):
 
         # Anderson-Darling test for normality
         if n_res >= 8 and not saturated:
-            ad_stat, ad_critical, ad_sig = stats.anderson(residuals, dist='norm')
+            ad_stat, ad_critical, ad_sig = stats.anderson(residuals, dist="norm")
             normal_plot["anderson_darling"] = {
                 "statistic": round(float(ad_stat), 4),
                 "critical_5pct": round(float(ad_critical[2]), 4),
@@ -795,9 +806,7 @@ def analyze_results(request):
 
         if any(len(v) > 1 for v in unique_combinations.values()):
             SS_pure_error = sum(
-                sum((y - np.mean(ys)) ** 2 for y in ys)
-                for ys in unique_combinations.values()
-                if len(ys) > 1
+                sum((y - np.mean(ys)) ** 2 for y in ys) for ys in unique_combinations.values() if len(ys) > 1
             )
             df_pure_error = sum(len(ys) - 1 for ys in unique_combinations.values() if len(ys) > 1)
             SS_lack_of_fit = SS_residual - SS_pure_error
@@ -850,10 +859,7 @@ def analyze_results(request):
         }
 
         # Significant factors summary
-        significant_factors = [
-            entry["term"] for entry in coefficient_table[1:]
-            if entry["significant"] is True
-        ]
+        significant_factors = [entry["term"] for entry in coefficient_table[1:] if entry["significant"] is True]
 
         # Generate interpretation
         interpretation = _generate_interpretation(
@@ -900,9 +906,9 @@ def analyze_results(request):
                 for factor_name in significant_factors[:3]:  # Top 3
                     effect_entry = next((e for e in coefficient_table if e["term"] == factor_name), None)
                     if effect_entry and effect_entry["p_value"] is not None:
-                        evidence = problem.add_evidence(
+                        problem.add_evidence(
                             summary=f"DOE: {factor_name} significantly affects {response_name} "
-                                   f"(p={effect_entry['p_value']:.4f})",
+                            f"(p={effect_entry['p_value']:.4f})",
                             evidence_type="experiment",
                             source="DOE Analysis",
                         )
@@ -923,18 +929,20 @@ def analyze_results(request):
 def _durbin_watson(residuals) -> float:
     """Calculate Durbin-Watson statistic for autocorrelation."""
     import numpy as np
+
     diff = np.diff(residuals)
-    return np.sum(diff ** 2) / np.sum(residuals ** 2) if np.sum(residuals ** 2) > 0 else 2.0
+    return np.sum(diff**2) / np.sum(residuals**2) if np.sum(residuals**2) > 0 else 2.0
 
 
 def _find_optimal_settings(factors, coefficients, term_names, include_interactions, fit_quadratic):
     """Find factor settings that optimize the response."""
-    import numpy as np
     from itertools import product
 
+    import numpy as np
+
     # Grid search over factor space
-    best_max = {"settings": {}, "predicted": float('-inf')}
-    best_min = {"settings": {}, "predicted": float('inf')}
+    best_max = {"settings": {}, "predicted": float("-inf")}
+    best_min = {"settings": {}, "predicted": float("inf")}
 
     # Generate grid
     grid_points = 5
@@ -973,7 +981,7 @@ def _find_optimal_settings(factors, coefficients, term_names, include_interactio
                     idx += len(factors) * (len(factors) - 1) // 2
                 idx += i
                 if idx < len(coefficients):
-                    pred += coefficients[idx] * val ** 2
+                    pred += coefficients[idx] * val**2
 
         # Convert coded to actual
         settings = {}
@@ -993,11 +1001,7 @@ def _find_optimal_settings(factors, coefficients, term_names, include_interactio
         if pred < best_min["predicted"]:
             best_min = {"settings": settings.copy(), "predicted": round(pred, 4)}
 
-    return {
-        "maximize": best_max,
-        "minimize": best_min,
-        "note": "Based on fitted model within experimental region"
-    }
+    return {"maximize": best_max, "minimize": best_min, "note": "Based on fitted model within experimental region"}
 
 
 def _generate_interpretation(coefficient_table, R_squared, lack_of_fit, response_name, alpha, saturated=False):
@@ -1014,13 +1018,21 @@ def _generate_interpretation(coefficient_table, R_squared, lack_of_fit, response
     # Model fit
     if not saturated:
         if R_squared > 0.9:
-            interpretation.append(f"Excellent model fit (R² = {R_squared*100:.1f}%) - the model explains most of the variation in {response_name}.")
+            interpretation.append(
+                f"Excellent model fit (R² = {R_squared * 100:.1f}%) - the model explains most of the variation in {response_name}."
+            )
         elif R_squared > 0.7:
-            interpretation.append(f"Good model fit (R² = {R_squared*100:.1f}%) - the model captures the major effects.")
+            interpretation.append(
+                f"Good model fit (R² = {R_squared * 100:.1f}%) - the model captures the major effects."
+            )
         elif R_squared > 0.5:
-            interpretation.append(f"Moderate model fit (R² = {R_squared*100:.1f}%) - some unexplained variation remains.")
+            interpretation.append(
+                f"Moderate model fit (R² = {R_squared * 100:.1f}%) - some unexplained variation remains."
+            )
         else:
-            interpretation.append(f"Weak model fit (R² = {R_squared*100:.1f}%) - consider additional factors or transformations.")
+            interpretation.append(
+                f"Weak model fit (R² = {R_squared * 100:.1f}%) - consider additional factors or transformations."
+            )
 
     # Significant effects (only when p-values are available)
     significant = [e for e in coefficient_table[1:] if e["significant"] is True]
@@ -1047,7 +1059,9 @@ def _generate_interpretation(coefficient_table, R_squared, lack_of_fit, response
     # Lack of fit
     if lack_of_fit:
         if lack_of_fit["significant"]:
-            interpretation.append("⚠️ Lack of fit is significant - the model may be missing important terms (e.g., quadratic or interaction effects).")
+            interpretation.append(
+                "⚠️ Lack of fit is significant - the model may be missing important terms (e.g., quadratic or interaction effects)."
+            )
         else:
             interpretation.append("No significant lack of fit detected.")
 
@@ -1058,153 +1072,175 @@ def _generate_interpretation(coefficient_table, R_squared, lack_of_fit, response
 @require_auth
 def design_types(request):
     """Get available design types with descriptions."""
-    return JsonResponse({
-        "design_types": [
-            # Factorial Designs
-            {
-                "id": "full_factorial",
-                "name": "Full Factorial",
-                "category": "factorial",
-                "description": "Tests all combinations of factor levels. Best for 2-4 factors.",
-                "when_to_use": "When you need to understand all main effects and interactions.",
-                "runs": "2^k × replicates + center points",
-                "min_factors": 2,
-                "max_factors": 6,
-                "supports_center_points": True,
-            },
-            {
-                "id": "fractional_factorial",
-                "name": "Fractional Factorial",
-                "category": "factorial",
-                "description": "Subset of full factorial. Reduces runs while estimating main effects.",
-                "when_to_use": "When you have 5+ factors and need efficient screening.",
-                "runs": "2^(k-p) depending on resolution",
-                "min_factors": 5,
-                "max_factors": 15,
-                "supports_center_points": True,
-            },
-            # Screening Designs
-            {
-                "id": "plackett_burman",
-                "name": "Plackett-Burman",
-                "category": "screening",
-                "description": "Highly efficient screening design (Resolution III). Identifies important factors quickly.",
-                "when_to_use": "Initial screening of many factors (5-23) to find the vital few.",
-                "runs": "N runs (N multiple of 4: 8, 12, 16, 20, 24)",
-                "min_factors": 5,
-                "max_factors": 23,
-                "supports_center_points": False,
-            },
-            {
-                "id": "definitive_screening",
-                "name": "Definitive Screening (DSD)",
-                "category": "screening",
-                "description": "Modern screening design. Main effects orthogonal to 2FIs, can estimate quadratics.",
-                "when_to_use": "When you want screening that can also detect curvature.",
-                "runs": "2k + 1 runs for k factors",
-                "min_factors": 3,
-                "max_factors": 12,
-                "supports_center_points": False,
-            },
-            # Response Surface Designs
-            {
-                "id": "ccd",
-                "name": "Central Composite (CCD)",
-                "category": "rsm",
-                "description": "Response surface design with factorial, axial, and center points. For optimization.",
-                "when_to_use": "When you need to find optimal settings and model curvature.",
-                "runs": "2^k + 2k + center points",
-                "min_factors": 2,
-                "max_factors": 6,
-                "supports_center_points": True,
-            },
-            {
-                "id": "box_behnken",
-                "name": "Box-Behnken",
-                "category": "rsm",
-                "description": "RSM design without corner points. More economical than CCD for 3+ factors.",
-                "when_to_use": "When corner points are expensive or impossible to run.",
-                "runs": "Fewer than CCD (no corners)",
-                "min_factors": 3,
-                "max_factors": 7,
-                "supports_center_points": True,
-            },
-            # Taguchi
-            {
-                "id": "taguchi",
-                "name": "Taguchi Orthogonal Array",
-                "category": "robust",
-                "description": "Orthogonal arrays for robust parameter design. Standard arrays: L4, L8, L9, L12, L16.",
-                "when_to_use": "For robust design and quality engineering (Taguchi method).",
-                "runs": "Standard array sizes (4, 8, 9, 12, 16, etc.)",
-                "min_factors": 2,
-                "max_factors": 15,
-                "supports_center_points": False,
-            },
-            # Blocking Designs
-            {
-                "id": "rcbd",
-                "name": "Randomized Block Design",
-                "category": "blocking",
-                "description": "Each block contains all treatments, randomized within blocks.",
-                "when_to_use": "When you have a nuisance variable (e.g., batches, days, operators).",
-                "runs": "treatments × blocks",
-                "min_factors": 1,
-                "max_factors": 2,
-                "supports_center_points": False,
-            },
-            {
-                "id": "latin_square",
-                "name": "Latin Square",
-                "category": "blocking",
-                "description": "Blocks two sources of variation while testing treatments.",
-                "when_to_use": "When you have two blocking factors (e.g., row and column effects).",
-                "runs": "n squared for n treatments",
-                "min_factors": 1,
-                "max_factors": 1,
-                "supports_center_points": False,
-            },
-            # Optimal Designs
-            {
-                "id": "d_optimal",
-                "name": "D-Optimal",
-                "category": "optimal",
-                "description": "Maximizes |X'X| for best parameter estimation. Custom run count.",
-                "when_to_use": "When standard designs don't fit, or you need exact run count for efficiency.",
-                "runs": "User-specified (min = parameters)",
-                "min_factors": 2,
-                "max_factors": 10,
-                "supports_center_points": False,
-            },
-            {
-                "id": "i_optimal",
-                "name": "I-Optimal",
-                "category": "optimal",
-                "description": "Minimizes average prediction variance. Best for response surface optimization.",
-                "when_to_use": "When your goal is prediction accuracy across the design space.",
-                "runs": "User-specified (min = parameters)",
-                "min_factors": 2,
-                "max_factors": 10,
-                "supports_center_points": False,
-            },
-        ],
-        "design_categories": [
-            {"id": "factorial", "name": "Factorial Designs", "description": "Test factor combinations systematically"},
-            {"id": "screening", "name": "Screening Designs", "description": "Efficiently identify important factors"},
-            {"id": "rsm", "name": "Response Surface", "description": "Model curvature and optimize"},
-            {"id": "robust", "name": "Robust Design", "description": "Quality engineering (Taguchi)"},
-            {"id": "blocking", "name": "Blocking Designs", "description": "Control nuisance variation"},
-            {"id": "optimal", "name": "Optimal Designs", "description": "Computer-generated efficient designs"},
-        ],
-        "test_types": [
-            {"id": "ttest_ind", "name": "Independent t-test", "description": "Compare means of two independent groups"},
-            {"id": "ttest_paired", "name": "Paired t-test", "description": "Compare means of matched/repeated measures"},
-            {"id": "anova", "name": "ANOVA", "description": "Compare means across 3+ groups"},
-            {"id": "correlation", "name": "Correlation", "description": "Test relationship between two variables"},
-            {"id": "chi_square", "name": "Chi-square", "description": "Test association between categorical variables"},
-            {"id": "proportion", "name": "Two Proportions", "description": "Compare proportions between groups"},
-        ],
-    })
+    return JsonResponse(
+        {
+            "design_types": [
+                # Factorial Designs
+                {
+                    "id": "full_factorial",
+                    "name": "Full Factorial",
+                    "category": "factorial",
+                    "description": "Tests all combinations of factor levels. Best for 2-4 factors.",
+                    "when_to_use": "When you need to understand all main effects and interactions.",
+                    "runs": "2^k × replicates + center points",
+                    "min_factors": 2,
+                    "max_factors": 6,
+                    "supports_center_points": True,
+                },
+                {
+                    "id": "fractional_factorial",
+                    "name": "Fractional Factorial",
+                    "category": "factorial",
+                    "description": "Subset of full factorial. Reduces runs while estimating main effects.",
+                    "when_to_use": "When you have 5+ factors and need efficient screening.",
+                    "runs": "2^(k-p) depending on resolution",
+                    "min_factors": 5,
+                    "max_factors": 15,
+                    "supports_center_points": True,
+                },
+                # Screening Designs
+                {
+                    "id": "plackett_burman",
+                    "name": "Plackett-Burman",
+                    "category": "screening",
+                    "description": "Highly efficient screening design (Resolution III). Identifies important factors quickly.",
+                    "when_to_use": "Initial screening of many factors (5-23) to find the vital few.",
+                    "runs": "N runs (N multiple of 4: 8, 12, 16, 20, 24)",
+                    "min_factors": 5,
+                    "max_factors": 23,
+                    "supports_center_points": False,
+                },
+                {
+                    "id": "definitive_screening",
+                    "name": "Definitive Screening (DSD)",
+                    "category": "screening",
+                    "description": "Modern screening design. Main effects orthogonal to 2FIs, can estimate quadratics.",
+                    "when_to_use": "When you want screening that can also detect curvature.",
+                    "runs": "2k + 1 runs for k factors",
+                    "min_factors": 3,
+                    "max_factors": 12,
+                    "supports_center_points": False,
+                },
+                # Response Surface Designs
+                {
+                    "id": "ccd",
+                    "name": "Central Composite (CCD)",
+                    "category": "rsm",
+                    "description": "Response surface design with factorial, axial, and center points. For optimization.",
+                    "when_to_use": "When you need to find optimal settings and model curvature.",
+                    "runs": "2^k + 2k + center points",
+                    "min_factors": 2,
+                    "max_factors": 6,
+                    "supports_center_points": True,
+                },
+                {
+                    "id": "box_behnken",
+                    "name": "Box-Behnken",
+                    "category": "rsm",
+                    "description": "RSM design without corner points. More economical than CCD for 3+ factors.",
+                    "when_to_use": "When corner points are expensive or impossible to run.",
+                    "runs": "Fewer than CCD (no corners)",
+                    "min_factors": 3,
+                    "max_factors": 7,
+                    "supports_center_points": True,
+                },
+                # Taguchi
+                {
+                    "id": "taguchi",
+                    "name": "Taguchi Orthogonal Array",
+                    "category": "robust",
+                    "description": "Orthogonal arrays for robust parameter design. Standard arrays: L4, L8, L9, L12, L16.",
+                    "when_to_use": "For robust design and quality engineering (Taguchi method).",
+                    "runs": "Standard array sizes (4, 8, 9, 12, 16, etc.)",
+                    "min_factors": 2,
+                    "max_factors": 15,
+                    "supports_center_points": False,
+                },
+                # Blocking Designs
+                {
+                    "id": "rcbd",
+                    "name": "Randomized Block Design",
+                    "category": "blocking",
+                    "description": "Each block contains all treatments, randomized within blocks.",
+                    "when_to_use": "When you have a nuisance variable (e.g., batches, days, operators).",
+                    "runs": "treatments × blocks",
+                    "min_factors": 1,
+                    "max_factors": 2,
+                    "supports_center_points": False,
+                },
+                {
+                    "id": "latin_square",
+                    "name": "Latin Square",
+                    "category": "blocking",
+                    "description": "Blocks two sources of variation while testing treatments.",
+                    "when_to_use": "When you have two blocking factors (e.g., row and column effects).",
+                    "runs": "n squared for n treatments",
+                    "min_factors": 1,
+                    "max_factors": 1,
+                    "supports_center_points": False,
+                },
+                # Optimal Designs
+                {
+                    "id": "d_optimal",
+                    "name": "D-Optimal",
+                    "category": "optimal",
+                    "description": "Maximizes |X'X| for best parameter estimation. Custom run count.",
+                    "when_to_use": "When standard designs don't fit, or you need exact run count for efficiency.",
+                    "runs": "User-specified (min = parameters)",
+                    "min_factors": 2,
+                    "max_factors": 10,
+                    "supports_center_points": False,
+                },
+                {
+                    "id": "i_optimal",
+                    "name": "I-Optimal",
+                    "category": "optimal",
+                    "description": "Minimizes average prediction variance. Best for response surface optimization.",
+                    "when_to_use": "When your goal is prediction accuracy across the design space.",
+                    "runs": "User-specified (min = parameters)",
+                    "min_factors": 2,
+                    "max_factors": 10,
+                    "supports_center_points": False,
+                },
+            ],
+            "design_categories": [
+                {
+                    "id": "factorial",
+                    "name": "Factorial Designs",
+                    "description": "Test factor combinations systematically",
+                },
+                {
+                    "id": "screening",
+                    "name": "Screening Designs",
+                    "description": "Efficiently identify important factors",
+                },
+                {"id": "rsm", "name": "Response Surface", "description": "Model curvature and optimize"},
+                {"id": "robust", "name": "Robust Design", "description": "Quality engineering (Taguchi)"},
+                {"id": "blocking", "name": "Blocking Designs", "description": "Control nuisance variation"},
+                {"id": "optimal", "name": "Optimal Designs", "description": "Computer-generated efficient designs"},
+            ],
+            "test_types": [
+                {
+                    "id": "ttest_ind",
+                    "name": "Independent t-test",
+                    "description": "Compare means of two independent groups",
+                },
+                {
+                    "id": "ttest_paired",
+                    "name": "Paired t-test",
+                    "description": "Compare means of matched/repeated measures",
+                },
+                {"id": "anova", "name": "ANOVA", "description": "Compare means across 3+ groups"},
+                {"id": "correlation", "name": "Correlation", "description": "Test relationship between two variables"},
+                {
+                    "id": "chi_square",
+                    "name": "Chi-square",
+                    "description": "Test association between categorical variables",
+                },
+                {"id": "proportion", "name": "Two Proportions", "description": "Compare proportions between groups"},
+            ],
+        }
+    )
 
 
 @require_http_methods(["POST"])
@@ -1244,8 +1280,9 @@ def contour_plot(request):
         return JsonResponse({"error": "x_factor and y_factor required"}, status=400)
 
     try:
-        import numpy as np
         from itertools import combinations
+
+        import numpy as np
 
         factors = design_data.get("factors", [])
         runs = design_data.get("runs", [])
@@ -1280,7 +1317,7 @@ def contour_plot(request):
             if include_quadratic:
                 for f in factors:
                     val = coded.get(f["name"], 0)
-                    row.append(val ** 2)
+                    row.append(val**2)
 
             X_data.append(row)
             Y_data.append(responses[run_id])
@@ -1319,26 +1356,30 @@ def contour_plot(request):
 
                 # 2FI
                 for fi, fj in combinations(range(len(factors)), 2):
-                    val_i = x_val if fi == x_idx else (y_val if fi == y_idx else hold_values.get(factors[fi]["name"], 0))
-                    val_j = x_val if fj == x_idx else (y_val if fj == y_idx else hold_values.get(factors[fj]["name"], 0))
+                    val_i = (
+                        x_val if fi == x_idx else (y_val if fi == y_idx else hold_values.get(factors[fi]["name"], 0))
+                    )
+                    val_j = (
+                        x_val if fj == x_idx else (y_val if fj == y_idx else hold_values.get(factors[fj]["name"], 0))
+                    )
                     pred_row.append(val_i * val_j)
 
                 # Quadratic
                 if include_quadratic:
                     for k, f in enumerate(factors):
                         if k == x_idx:
-                            pred_row.append(x_val ** 2)
+                            pred_row.append(x_val**2)
                         elif k == y_idx:
-                            pred_row.append(y_val ** 2)
+                            pred_row.append(y_val**2)
                         else:
                             val = hold_values.get(f["name"], 0)
-                            pred_row.append(val ** 2)
+                            pred_row.append(val**2)
 
                 # Predict
                 if len(pred_row) == len(coefficients):
                     Z_mesh[i, j] = np.dot(pred_row, coefficients)
                 else:
-                    Z_mesh[i, j] = np.dot(pred_row[:len(coefficients)], coefficients)
+                    Z_mesh[i, j] = np.dot(pred_row[: len(coefficients)], coefficients)
 
         # Convert to actual factor values for labels
         x_factor_data = factors[x_idx]
@@ -1371,12 +1412,14 @@ def contour_plot(request):
                 lo, hi = float(f["levels"][0]), float(f["levels"][1])
             except (ValueError, TypeError, IndexError):
                 lo, hi = -1, 1
-            factor_meta.append({
-                "name": f["name"],
-                "low": lo,
-                "high": hi,
-                "levels": f["levels"],
-            })
+            factor_meta.append(
+                {
+                    "name": f["name"],
+                    "low": lo,
+                    "high": hi,
+                    "levels": f["levels"],
+                }
+            )
 
         response_data = {
             "success": True,
@@ -1407,6 +1450,7 @@ def contour_plot(request):
         if problem_id:
             try:
                 from .problem_views import write_context_file
+
                 problem = Problem.objects.get(id=problem_id, user=request.user)
                 evidence = problem.add_evidence(
                     summary=f"Response surface: optimal at {x_factor}={optimal_x}, {y_factor}={optimal_y} (predicted={optimal_z})",
@@ -1455,8 +1499,9 @@ def optimize_response(request):
         return JsonResponse({"error": "Design and responses required"}, status=400)
 
     try:
-        import numpy as np
         from itertools import combinations, product
+
+        import numpy as np
 
         factors = design_data.get("factors", [])
         runs = design_data.get("runs", [])
@@ -1489,18 +1534,22 @@ def optimize_response(request):
             Y = np.array(Y_data)
             coefficients = np.linalg.lstsq(X, Y, rcond=None)[0]
 
-            models.append({
-                "name": resp_config.get("name", "Response"),
-                "coefficients": coefficients,
-                "goal": resp_config.get("goal", "maximize"),
-                "lower": resp_config.get("lower"),
-                "target": resp_config.get("target"),
-                "upper": resp_config.get("upper"),
-                "weight": resp_config.get("weight", 1),
-            })
+            models.append(
+                {
+                    "name": resp_config.get("name", "Response"),
+                    "coefficients": coefficients,
+                    "goal": resp_config.get("goal", "maximize"),
+                    "lower": resp_config.get("lower"),
+                    "target": resp_config.get("target"),
+                    "upper": resp_config.get("upper"),
+                    "weight": resp_config.get("weight", 1),
+                }
+            )
 
         # Compute Y ranges for default bounds
-        all_Y = np.concatenate([np.array([r["response"] for r in rc.get("results", [])]) for rc in data.get("responses", [])])
+        all_Y = np.concatenate(
+            [np.array([r["response"] for r in rc.get("results", [])]) for rc in data.get("responses", [])]
+        )
         y_min, y_max = float(all_Y.min()), float(all_Y.max())
         y_range = y_max - y_min if y_max > y_min else 1.0
 
@@ -1508,8 +1557,10 @@ def optimize_response(request):
         def desirability(value, goal, lower, target, upper, weight=1):
             # Apply sensible defaults for missing bounds
             if goal == "maximize":
-                if lower is None: lower = y_min - 0.1 * y_range
-                if target is None: target = y_max
+                if lower is None:
+                    lower = y_min - 0.1 * y_range
+                if target is None:
+                    target = y_max
                 if value <= lower:
                     return 0
                 elif value >= target:
@@ -1519,8 +1570,10 @@ def optimize_response(request):
                 else:
                     return ((value - lower) / (target - lower)) ** weight
             elif goal == "minimize":
-                if upper is None: upper = y_max + 0.1 * y_range
-                if target is None: target = y_min
+                if upper is None:
+                    upper = y_max + 0.1 * y_range
+                if target is None:
+                    target = y_min
                 if value >= upper:
                     return 0
                 elif value <= target:
@@ -1530,9 +1583,12 @@ def optimize_response(request):
                 else:
                     return ((upper - value) / (upper - target)) ** weight
             else:  # target
-                if lower is None: lower = y_min - 0.1 * y_range
-                if upper is None: upper = y_max + 0.1 * y_range
-                if target is None: target = (y_min + y_max) / 2
+                if lower is None:
+                    lower = y_min - 0.1 * y_range
+                if upper is None:
+                    upper = y_max + 0.1 * y_range
+                if target is None:
+                    target = (y_min + y_max) / 2
                 if value < lower or value > upper:
                     return 0
                 elif target == lower:
@@ -1560,7 +1616,7 @@ def optimize_response(request):
                 for i, j in combinations(range(len(factors)), 2):
                     pred_row.append(combo[i] * combo[j])
 
-                pred = np.dot(pred_row[:len(model["coefficients"])], model["coefficients"])
+                pred = np.dot(pred_row[: len(model["coefficients"])], model["coefficients"])
                 predictions[model["name"]] = pred
 
                 d = desirability(
@@ -1569,7 +1625,7 @@ def optimize_response(request):
                     model.get("lower", pred - 10),
                     model.get("target", pred),
                     model.get("upper", pred + 10),
-                    model.get("weight", 1)
+                    model.get("weight", 1),
                 )
                 desirabilities.append(d)
 
@@ -1603,14 +1659,18 @@ def optimize_response(request):
                 "predicted_responses": {k: round(v, 4) for k, v in best_predictions.items()},
                 "composite_desirability": round(best_composite, 4),
                 "individual_desirabilities": {
-                    model["name"]: round(desirability(
-                        best_predictions.get(model["name"], 0),
-                        model["goal"],
-                        model.get("lower", 0),
-                        model.get("target", 0),
-                        model.get("upper", 100),
-                        model.get("weight", 1)
-                    ), 4) for model in models
+                    model["name"]: round(
+                        desirability(
+                            best_predictions.get(model["name"], 0),
+                            model["goal"],
+                            model.get("lower", 0),
+                            model.get("target", 0),
+                            model.get("upper", 100),
+                            model.get("weight", 1),
+                        ),
+                        4,
+                    )
+                    for model in models
                 },
             },
             "interpretation": _interpret_optimization(best_settings, best_predictions, best_composite),
@@ -1621,6 +1681,7 @@ def optimize_response(request):
         if problem_id:
             try:
                 from .problem_views import write_context_file
+
                 problem = Problem.objects.get(id=problem_id, user=request.user)
                 settings_str = ", ".join(f"{k}={v}" for k, v in best_settings.items())
                 evidence = problem.add_evidence(
@@ -1728,7 +1789,9 @@ def doe_guidance_chat(request):
 
     if context.get("design"):
         design = context["design"]
-        context_parts.append(f"Current Design: {design.get('name', 'Unknown')} with {design.get('properties', {}).get('num_runs', '?')} runs")
+        context_parts.append(
+            f"Current Design: {design.get('name', 'Unknown')} with {design.get('properties', {}).get('num_runs', '?')} runs"
+        )
         if design.get("factors"):
             factor_str = ", ".join([f"{f['name']} ({len(f.get('levels', []))} levels)" for f in design["factors"]])
             context_parts.append(f"Factors: {factor_str}")
@@ -1790,11 +1853,13 @@ User Question: {user_message}"""
                 logger.warning(f"LLM generation failed: {e}, using fallback")
                 response_text = _fallback_doe_response(user_message, context)
 
-        return JsonResponse({
-            "success": True,
-            "response": response_text,
-            "model": "qwen" if llm else "fallback",
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "response": response_text,
+                "model": "qwen" if llm else "fallback",
+            }
+        )
 
     except Exception as e:
         logger.exception("DOE guidance chat failed")
@@ -1873,7 +1938,7 @@ What are you trying to achieve? How many factors do you have?"""
 
     # Analysis interpretation
     if any(kw in question_lower for kw in ["p-value", "significant", "interpret", "anova", "r-squared"]):
-        analysis = context.get("analysis", {})
+        context.get("analysis", {})
 
         return """**Interpreting DOE Analysis Results:**
 
@@ -1969,22 +2034,28 @@ def available_models(request):
     models = []
 
     if status.get("anthropic", {}).get("available"):
-        models.append({
-            "id": "claude",
-            "name": "Claude",
-            "description": "Anthropic Claude",
-            "available": True,
-        })
+        models.append(
+            {
+                "id": "claude",
+                "name": "Claude",
+                "description": "Anthropic Claude",
+                "available": True,
+            }
+        )
 
     # Always show fallback
-    models.append({
-        "id": "fallback",
-        "name": "Built-in DOE Expert",
-        "description": "Rule-based DOE guidance (always available)",
-        "available": True,
-    })
+    models.append(
+        {
+            "id": "fallback",
+            "name": "Built-in DOE Expert",
+            "description": "Rule-based DOE guidance (always available)",
+            "available": True,
+        }
+    )
 
-    return JsonResponse({
-        "models": models,
-        "default": "claude" if status.get("anthropic", {}).get("available") else "fallback",
-    })
+    return JsonResponse(
+        {
+            "models": models,
+            "default": "claude" if status.get("anthropic", {}).get("available") else "fallback",
+        }
+    )

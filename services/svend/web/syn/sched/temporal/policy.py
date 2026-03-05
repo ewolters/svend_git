@@ -23,10 +23,11 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Set, Union
+from typing import Any
 
 from django.utils import timezone
 
@@ -112,15 +113,15 @@ class TemporalTrigger:
     """
 
     trigger_type: TriggerType
-    threshold: Optional[float] = None
+    threshold: float | None = None
     comparison: str = "gte"  # gt, gte, lt, lte, eq, ne
-    metric_name: Optional[str] = None
-    tenant_id: Optional[str] = None  # None = all tenants
-    schedule_pattern: Optional[str] = None  # Regex for schedule matching
-    task_pattern: Optional[str] = None  # Regex for task matching
-    custom_evaluator: Optional[Callable[[Dict[str, Any]], bool]] = None
+    metric_name: str | None = None
+    tenant_id: str | None = None  # None = all tenants
+    schedule_pattern: str | None = None  # Regex for schedule matching
+    task_pattern: str | None = None  # Regex for task matching
+    custom_evaluator: Callable[[dict[str, Any]], bool] | None = None
 
-    def evaluate(self, context: Dict[str, Any]) -> bool:
+    def evaluate(self, context: dict[str, Any]) -> bool:
         """
         Evaluate if trigger condition is met.
 
@@ -159,7 +160,7 @@ class TemporalTrigger:
 
         return False
 
-    def _get_metric_value(self, context: Dict[str, Any]) -> Optional[float]:
+    def _get_metric_value(self, context: dict[str, Any]) -> float | None:
         """Extract metric value from context."""
         metric_map = {
             TriggerType.RISK_THRESHOLD: "governance_risk",
@@ -188,7 +189,7 @@ class TemporalTrigger:
             return context.get(metric_name)
         return None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "trigger_type": self.trigger_type.value,
             "threshold": self.threshold,
@@ -209,16 +210,16 @@ class TemporalAction:
     """
 
     action_type: ActionType
-    value: Optional[float] = None  # Multiplier, priority level, etc.
-    duration_minutes: Optional[int] = None  # How long the action lasts
-    schedule_pattern: Optional[str] = None  # Which schedules to affect
-    task_pattern: Optional[str] = None  # Which tasks to affect
-    task_name: Optional[str] = None  # For compensating tasks
-    task_payload: Optional[Dict[str, Any]] = None
+    value: float | None = None  # Multiplier, priority level, etc.
+    duration_minutes: int | None = None  # How long the action lasts
+    schedule_pattern: str | None = None  # Which schedules to affect
+    task_pattern: str | None = None  # Which tasks to affect
+    task_name: str | None = None  # For compensating tasks
+    task_payload: dict[str, Any] | None = None
     priority_delta: int = 0  # For priority adjustments
     ttl_multiplier: float = 1.0  # For TTL adjustments
     interval_multiplier: float = 1.0  # For schedule interval adjustments
-    custom_executor: Optional[Callable[[Dict[str, Any]], None]] = None
+    custom_executor: Callable[[dict[str, Any]], None] | None = None
 
     def matches_schedule(self, schedule_name: str) -> bool:
         """Check if schedule matches the pattern."""
@@ -238,7 +239,7 @@ class TemporalAction:
         except re.error:
             return task_name == self.task_pattern
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "action_type": self.action_type.value,
             "value": self.value,
@@ -264,16 +265,16 @@ class TemporalPolicyRule:
     name: str
     description: str
     trigger: TemporalTrigger
-    actions: List[TemporalAction]
+    actions: list[TemporalAction]
     enabled: bool = True
     priority: int = 100  # Lower = higher priority
     cooldown_minutes: int = 5  # Minimum time between activations
-    max_activations: Optional[int] = None  # Max activations per hour
+    max_activations: int | None = None  # Max activations per hour
 
     # State
-    last_activated: Optional[datetime] = None
+    last_activated: datetime | None = None
     activation_count: int = 0
-    activation_count_hour: Optional[datetime] = None
+    activation_count_hour: datetime | None = None
 
     def can_activate(self) -> bool:
         """Check if rule can activate (cooldown, max activations)."""
@@ -308,7 +309,7 @@ class TemporalPolicyRule:
         self.last_activated = timezone.now()
         self.activation_count += 1
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "rule_id": self.rule_id,
             "name": self.name,
@@ -325,7 +326,7 @@ class TemporalPolicyRule:
 
 
 # Default temporal policy rules
-DEFAULT_TEMPORAL_RULES: List[TemporalPolicyRule] = [
+DEFAULT_TEMPORAL_RULES: list[TemporalPolicyRule] = [
     # High risk → pause non-critical schedules
     TemporalPolicyRule(
         rule_id="risk_pause_schedules",
@@ -346,7 +347,6 @@ DEFAULT_TEMPORAL_RULES: List[TemporalPolicyRule] = [
         priority=10,
         cooldown_minutes=15,
     ),
-
     # Incident active → accelerate health checks
     TemporalPolicyRule(
         rule_id="incident_accelerate_health",
@@ -368,7 +368,6 @@ DEFAULT_TEMPORAL_RULES: List[TemporalPolicyRule] = [
         priority=5,
         cooldown_minutes=5,
     ),
-
     # High tenant failure rate → degrade priority
     TemporalPolicyRule(
         rule_id="tenant_failure_degrade",
@@ -389,7 +388,6 @@ DEFAULT_TEMPORAL_RULES: List[TemporalPolicyRule] = [
         priority=20,
         cooldown_minutes=30,
     ),
-
     # High cascade depth → schedule cleanup
     TemporalPolicyRule(
         rule_id="cascade_compensate",
@@ -411,7 +409,6 @@ DEFAULT_TEMPORAL_RULES: List[TemporalPolicyRule] = [
         cooldown_minutes=10,
         max_activations=6,
     ),
-
     # High load → extend TTLs
     TemporalPolicyRule(
         rule_id="load_extend_ttl",
@@ -432,7 +429,6 @@ DEFAULT_TEMPORAL_RULES: List[TemporalPolicyRule] = [
         priority=30,
         cooldown_minutes=10,
     ),
-
     # DLQ growing → pause failing task types
     TemporalPolicyRule(
         rule_id="dlq_pause_failing",
@@ -457,7 +453,6 @@ DEFAULT_TEMPORAL_RULES: List[TemporalPolicyRule] = [
         priority=10,
         cooldown_minutes=20,
     ),
-
     # Circuits opening → reduce load
     TemporalPolicyRule(
         rule_id="circuit_reduce_load",
@@ -482,7 +477,6 @@ DEFAULT_TEMPORAL_RULES: List[TemporalPolicyRule] = [
         priority=8,
         cooldown_minutes=10,
     ),
-
     # Low confidence → reduce priority
     TemporalPolicyRule(
         rule_id="low_confidence_degrade",
@@ -503,7 +497,6 @@ DEFAULT_TEMPORAL_RULES: List[TemporalPolicyRule] = [
         priority=25,
         cooldown_minutes=15,
     ),
-
     # Governance blocking frequently → slow down
     TemporalPolicyRule(
         rule_id="governance_blocking_slow",
@@ -524,7 +517,6 @@ DEFAULT_TEMPORAL_RULES: List[TemporalPolicyRule] = [
         priority=20,
         cooldown_minutes=10,
     ),
-
     # Critical throttle → emergency response
     TemporalPolicyRule(
         rule_id="throttle_critical_response",
@@ -585,7 +577,7 @@ class TemporalPolicy:
 
     def __init__(
         self,
-        rules: Optional[List[TemporalPolicyRule]] = None,
+        rules: list[TemporalPolicyRule] | None = None,
     ):
         """
         Initialize temporal policy.
@@ -596,7 +588,7 @@ class TemporalPolicy:
         self._rules = rules if rules is not None else DEFAULT_TEMPORAL_RULES.copy()
         self._rules.sort(key=lambda r: r.priority)
 
-    def evaluate(self, context: Dict[str, Any]) -> List[TemporalPolicyRule]:
+    def evaluate(self, context: dict[str, Any]) -> list[TemporalPolicyRule]:
         """
         Evaluate all rules against current context.
 
@@ -643,17 +635,17 @@ class TemporalPolicy:
                 return True
         return False
 
-    def get_rule(self, rule_id: str) -> Optional[TemporalPolicyRule]:
+    def get_rule(self, rule_id: str) -> TemporalPolicyRule | None:
         """Get a rule by ID."""
         for rule in self._rules:
             if rule.rule_id == rule_id:
                 return rule
         return None
 
-    def get_rules(self) -> List[TemporalPolicyRule]:
+    def get_rules(self) -> list[TemporalPolicyRule]:
         """Get all rules."""
         return self._rules.copy()
 
-    def get_active_rules(self) -> List[TemporalPolicyRule]:
+    def get_active_rules(self) -> list[TemporalPolicyRule]:
         """Get enabled rules that can activate."""
         return [r for r in self._rules if r.enabled and r.can_activate()]

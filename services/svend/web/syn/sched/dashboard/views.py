@@ -20,21 +20,21 @@ All views return JSON for easy consumption by:
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, Dict, Optional
+from typing import Any
 
-from django.http import JsonResponse, HttpRequest, HttpResponse
-from django.views.decorators.http import require_GET, require_POST
 from django.contrib.admin.views.decorators import staff_member_required
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.utils import timezone
-from django.views.decorators.cache import cache_page
+from django.views.decorators.http import require_GET, require_POST
 
-from .service import DashboardService, DashboardConfig
+from .service import DashboardService
 
 logger = logging.getLogger(__name__)
 
 # Global dashboard service instance
-_dashboard_service: Optional[DashboardService] = None
+_dashboard_service: DashboardService | None = None
 
 
 def get_dashboard_service() -> DashboardService:
@@ -53,6 +53,7 @@ def set_dashboard_scheduler(scheduler: Any) -> None:
 
 def dashboard_api(func: Callable) -> Callable:
     """Decorator for dashboard API endpoints."""
+
     @wraps(func)
     def wrapper(request: HttpRequest, *args, **kwargs) -> JsonResponse:
         try:
@@ -66,6 +67,7 @@ def dashboard_api(func: Callable) -> Callable:
                 {"error": str(e), "status": "error"},
                 status=500,
             )
+
     return wrapper
 
 
@@ -77,7 +79,7 @@ def dashboard_api(func: Callable) -> Callable:
 @require_GET
 @staff_member_required
 @dashboard_api
-def dashboard_overview(request: HttpRequest) -> Dict[str, Any]:
+def dashboard_overview(request: HttpRequest) -> dict[str, Any]:
     """
     GET /api/scheduler/dashboard/
 
@@ -99,7 +101,7 @@ def dashboard_overview(request: HttpRequest) -> Dict[str, Any]:
 @require_GET
 @staff_member_required
 @dashboard_api
-def dashboard_queues(request: HttpRequest) -> Dict[str, Any]:
+def dashboard_queues(request: HttpRequest) -> dict[str, Any]:
     """
     GET /api/scheduler/dashboard/queues/
 
@@ -122,7 +124,7 @@ def dashboard_queues(request: HttpRequest) -> Dict[str, Any]:
 @require_GET
 @staff_member_required
 @dashboard_api
-def dashboard_workers(request: HttpRequest) -> Dict[str, Any]:
+def dashboard_workers(request: HttpRequest) -> dict[str, Any]:
     """
     GET /api/scheduler/dashboard/workers/
 
@@ -142,7 +144,7 @@ def dashboard_workers(request: HttpRequest) -> Dict[str, Any]:
 @require_GET
 @staff_member_required
 @dashboard_api
-def dashboard_schedules(request: HttpRequest) -> Dict[str, Any]:
+def dashboard_schedules(request: HttpRequest) -> dict[str, Any]:
     """
     GET /api/scheduler/dashboard/schedules/
 
@@ -162,7 +164,7 @@ def dashboard_schedules(request: HttpRequest) -> Dict[str, Any]:
 @require_GET
 @staff_member_required
 @dashboard_api
-def dashboard_circuits(request: HttpRequest) -> Dict[str, Any]:
+def dashboard_circuits(request: HttpRequest) -> dict[str, Any]:
     """
     GET /api/scheduler/dashboard/circuits/
 
@@ -182,7 +184,7 @@ def dashboard_circuits(request: HttpRequest) -> Dict[str, Any]:
 @require_GET
 @staff_member_required
 @dashboard_api
-def dashboard_dlq(request: HttpRequest) -> Dict[str, Any]:
+def dashboard_dlq(request: HttpRequest) -> dict[str, Any]:
     """
     GET /api/scheduler/dashboard/dlq/
 
@@ -204,7 +206,7 @@ def dashboard_dlq(request: HttpRequest) -> Dict[str, Any]:
 @require_GET
 @staff_member_required
 @dashboard_api
-def dashboard_throttle(request: HttpRequest) -> Dict[str, Any]:
+def dashboard_throttle(request: HttpRequest) -> dict[str, Any]:
     """
     GET /api/scheduler/dashboard/throttle/
 
@@ -227,7 +229,7 @@ def dashboard_throttle(request: HttpRequest) -> Dict[str, Any]:
 @require_GET
 @staff_member_required
 @dashboard_api
-def dashboard_task_types(request: HttpRequest) -> Dict[str, Any]:
+def dashboard_task_types(request: HttpRequest) -> dict[str, Any]:
     """
     GET /api/scheduler/dashboard/tasks/
 
@@ -247,7 +249,7 @@ def dashboard_task_types(request: HttpRequest) -> Dict[str, Any]:
 @require_GET
 @staff_member_required
 @dashboard_api
-def dashboard_alerts(request: HttpRequest) -> Dict[str, Any]:
+def dashboard_alerts(request: HttpRequest) -> dict[str, Any]:
     """
     GET /api/scheduler/dashboard/alerts/
 
@@ -269,7 +271,7 @@ def dashboard_alerts(request: HttpRequest) -> Dict[str, Any]:
 @require_POST
 @staff_member_required
 @dashboard_api
-def dashboard_alert_acknowledge(request: HttpRequest, alert_id: str) -> Dict[str, Any]:
+def dashboard_alert_acknowledge(request: HttpRequest, alert_id: str) -> dict[str, Any]:
     """
     POST /api/scheduler/dashboard/alerts/<alert_id>/acknowledge/
 
@@ -292,7 +294,7 @@ def dashboard_alert_acknowledge(request: HttpRequest, alert_id: str) -> Dict[str
 @require_GET
 @staff_member_required
 @dashboard_api
-def dashboard_history(request: HttpRequest) -> Dict[str, Any]:
+def dashboard_history(request: HttpRequest) -> dict[str, Any]:
     """
     GET /api/scheduler/dashboard/history/?metric=queue_depth&hours=24
 
@@ -319,7 +321,7 @@ def dashboard_history(request: HttpRequest) -> Dict[str, Any]:
 @require_GET
 @staff_member_required
 @dashboard_api
-def dashboard_metrics_raw(request: HttpRequest) -> Dict[str, Any]:
+def dashboard_metrics_raw(request: HttpRequest) -> dict[str, Any]:
     """
     GET /api/scheduler/dashboard/metrics/
 
@@ -351,7 +353,7 @@ def dashboard_metrics_prometheus(request: HttpRequest) -> HttpResponse:
 # =============================================================================
 
 
-def get_admin_dashboard_context() -> Dict[str, Any]:
+def get_admin_dashboard_context() -> dict[str, Any]:
     """
     Get dashboard data for Django admin template context.
 
@@ -402,68 +404,68 @@ def get_dashboard_urls():
 
     return [
         path(
-            'api/scheduler/dashboard/',
+            "api/scheduler/dashboard/",
             dashboard_overview,
-            name='scheduler_dashboard_overview',
+            name="scheduler_dashboard_overview",
         ),
         path(
-            'api/scheduler/dashboard/queues/',
+            "api/scheduler/dashboard/queues/",
             dashboard_queues,
-            name='scheduler_dashboard_queues',
+            name="scheduler_dashboard_queues",
         ),
         path(
-            'api/scheduler/dashboard/workers/',
+            "api/scheduler/dashboard/workers/",
             dashboard_workers,
-            name='scheduler_dashboard_workers',
+            name="scheduler_dashboard_workers",
         ),
         path(
-            'api/scheduler/dashboard/schedules/',
+            "api/scheduler/dashboard/schedules/",
             dashboard_schedules,
-            name='scheduler_dashboard_schedules',
+            name="scheduler_dashboard_schedules",
         ),
         path(
-            'api/scheduler/dashboard/circuits/',
+            "api/scheduler/dashboard/circuits/",
             dashboard_circuits,
-            name='scheduler_dashboard_circuits',
+            name="scheduler_dashboard_circuits",
         ),
         path(
-            'api/scheduler/dashboard/dlq/',
+            "api/scheduler/dashboard/dlq/",
             dashboard_dlq,
-            name='scheduler_dashboard_dlq',
+            name="scheduler_dashboard_dlq",
         ),
         path(
-            'api/scheduler/dashboard/throttle/',
+            "api/scheduler/dashboard/throttle/",
             dashboard_throttle,
-            name='scheduler_dashboard_throttle',
+            name="scheduler_dashboard_throttle",
         ),
         path(
-            'api/scheduler/dashboard/tasks/',
+            "api/scheduler/dashboard/tasks/",
             dashboard_task_types,
-            name='scheduler_dashboard_tasks',
+            name="scheduler_dashboard_tasks",
         ),
         path(
-            'api/scheduler/dashboard/alerts/',
+            "api/scheduler/dashboard/alerts/",
             dashboard_alerts,
-            name='scheduler_dashboard_alerts',
+            name="scheduler_dashboard_alerts",
         ),
         path(
-            'api/scheduler/dashboard/alerts/<str:alert_id>/acknowledge/',
+            "api/scheduler/dashboard/alerts/<str:alert_id>/acknowledge/",
             dashboard_alert_acknowledge,
-            name='scheduler_dashboard_alert_acknowledge',
+            name="scheduler_dashboard_alert_acknowledge",
         ),
         path(
-            'api/scheduler/dashboard/history/',
+            "api/scheduler/dashboard/history/",
             dashboard_history,
-            name='scheduler_dashboard_history',
+            name="scheduler_dashboard_history",
         ),
         path(
-            'api/scheduler/dashboard/metrics/',
+            "api/scheduler/dashboard/metrics/",
             dashboard_metrics_raw,
-            name='scheduler_dashboard_metrics',
+            name="scheduler_dashboard_metrics",
         ),
         path(
-            'api/scheduler/dashboard/metrics/prometheus',
+            "api/scheduler/dashboard/metrics/prometheus",
             dashboard_metrics_prometheus,
-            name='scheduler_dashboard_prometheus',
+            name="scheduler_dashboard_prometheus",
         ),
     ]

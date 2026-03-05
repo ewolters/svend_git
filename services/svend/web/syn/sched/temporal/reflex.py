@@ -33,10 +33,11 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Set, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.utils import timezone
 
@@ -44,11 +45,10 @@ from .policy import (
     ActionType,
     TemporalAction,
     TemporalPolicyRule,
-    TriggerType,
 )
 
 if TYPE_CHECKING:
-    from syn.sched.models import CognitiveTask, Schedule
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -73,14 +73,14 @@ class CompensatingTask:
     """
 
     task_name: str
-    payload: Dict[str, Any] = field(default_factory=dict)
+    payload: dict[str, Any] = field(default_factory=dict)
     priority: int = 2  # NORMAL
     queue: str = "core"
     delay_seconds: int = 0
-    triggered_by_rule: Optional[str] = None
+    triggered_by_rule: str | None = None
     triggered_at: datetime = field(default_factory=timezone.now)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_name": self.task_name,
             "payload": self.payload,
@@ -106,27 +106,27 @@ class ReflexOutcome:
     status: ReflexStatus = ReflexStatus.PENDING
 
     # What was affected
-    affected_schedules: List[str] = field(default_factory=list)
-    affected_tasks: List[str] = field(default_factory=list)
-    compensating_tasks: List[CompensatingTask] = field(default_factory=list)
+    affected_schedules: list[str] = field(default_factory=list)
+    affected_tasks: list[str] = field(default_factory=list)
+    compensating_tasks: list[CompensatingTask] = field(default_factory=list)
 
     # Modifications made
-    priority_adjustments: Dict[str, int] = field(default_factory=dict)  # task/schedule -> delta
-    ttl_adjustments: Dict[str, float] = field(default_factory=dict)  # task -> multiplier
-    interval_adjustments: Dict[str, float] = field(default_factory=dict)  # schedule -> multiplier
+    priority_adjustments: dict[str, int] = field(default_factory=dict)  # task/schedule -> delta
+    ttl_adjustments: dict[str, float] = field(default_factory=dict)  # task -> multiplier
+    interval_adjustments: dict[str, float] = field(default_factory=dict)  # schedule -> multiplier
 
     # Timing
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    expires_at: Optional[datetime] = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    expires_at: datetime | None = None
 
     # Error tracking
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
     # Original values for reverting
-    original_values: Dict[str, Any] = field(default_factory=dict)
+    original_values: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "outcome_id": self.outcome_id,
             "rule_id": self.rule_id,
@@ -154,30 +154,30 @@ class ReflexState:
     """
 
     # Active modifications
-    paused_schedules: Set[str] = field(default_factory=set)
-    accelerated_schedules: Dict[str, float] = field(default_factory=dict)  # schedule -> multiplier
-    delayed_schedules: Dict[str, float] = field(default_factory=dict)  # schedule -> multiplier
+    paused_schedules: set[str] = field(default_factory=set)
+    accelerated_schedules: dict[str, float] = field(default_factory=dict)  # schedule -> multiplier
+    delayed_schedules: dict[str, float] = field(default_factory=dict)  # schedule -> multiplier
 
     # Priority modifications
-    priority_degradations: Dict[str, int] = field(default_factory=dict)  # pattern -> delta
-    priority_boosts: Dict[str, int] = field(default_factory=dict)  # pattern -> delta
+    priority_degradations: dict[str, int] = field(default_factory=dict)  # pattern -> delta
+    priority_boosts: dict[str, int] = field(default_factory=dict)  # pattern -> delta
 
     # TTL modifications
-    ttl_extensions: Dict[str, float] = field(default_factory=dict)  # pattern -> multiplier
-    ttl_reductions: Dict[str, float] = field(default_factory=dict)  # pattern -> multiplier
+    ttl_extensions: dict[str, float] = field(default_factory=dict)  # pattern -> multiplier
+    ttl_reductions: dict[str, float] = field(default_factory=dict)  # pattern -> multiplier
 
     # Tenant modifications
-    paused_tenants: Set[str] = field(default_factory=set)
-    throttled_tenants: Dict[str, float] = field(default_factory=dict)  # tenant -> throttle level
+    paused_tenants: set[str] = field(default_factory=set)
+    throttled_tenants: dict[str, float] = field(default_factory=dict)  # tenant -> throttle level
 
     # Health check modifications
-    accelerated_health_checks: Dict[str, float] = field(default_factory=dict)  # pattern -> multiplier
+    accelerated_health_checks: dict[str, float] = field(default_factory=dict)  # pattern -> multiplier
 
     # Active outcomes (with expiration tracking)
-    active_outcomes: Dict[str, ReflexOutcome] = field(default_factory=dict)  # outcome_id -> outcome
+    active_outcomes: dict[str, ReflexOutcome] = field(default_factory=dict)  # outcome_id -> outcome
 
     # History
-    outcome_history: List[ReflexOutcome] = field(default_factory=list)
+    outcome_history: list[ReflexOutcome] = field(default_factory=list)
     max_history_size: int = 500
 
     def add_outcome(self, outcome: ReflexOutcome) -> None:
@@ -188,13 +188,13 @@ class ReflexState:
 
         # Trim history if needed
         if len(self.outcome_history) > self.max_history_size:
-            self.outcome_history = self.outcome_history[-self.max_history_size:]
+            self.outcome_history = self.outcome_history[-self.max_history_size :]
 
-    def remove_outcome(self, outcome_id: str) -> Optional[ReflexOutcome]:
+    def remove_outcome(self, outcome_id: str) -> ReflexOutcome | None:
         """Remove an outcome from active tracking."""
         return self.active_outcomes.pop(outcome_id, None)
 
-    def get_expired_outcomes(self) -> List[ReflexOutcome]:
+    def get_expired_outcomes(self) -> list[ReflexOutcome]:
         """Get list of expired outcomes that need reverting."""
         now = timezone.now()
         expired = []
@@ -250,9 +250,10 @@ class ReflexState:
     def _matches_pattern(self, name: str, pattern: str) -> bool:
         """Check if name matches pattern (supports * wildcard)."""
         import fnmatch
+
         return fnmatch.fnmatch(name, pattern)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "paused_schedules": list(self.paused_schedules),
             "accelerated_schedules": self.accelerated_schedules,
@@ -299,8 +300,8 @@ class TemporalReflex:
 
     def __init__(
         self,
-        task_submitter: Optional[Callable[[CompensatingTask], Any]] = None,
-        schedule_modifier: Optional[Callable[[str, str, Any], bool]] = None,
+        task_submitter: Callable[[CompensatingTask], Any] | None = None,
+        schedule_modifier: Callable[[str, str, Any], bool] | None = None,
     ):
         """
         Initialize the temporal reflex engine.
@@ -314,7 +315,7 @@ class TemporalReflex:
         self._schedule_modifier = schedule_modifier
 
         # Action executors
-        self._executors: Dict[ActionType, Callable] = {
+        self._executors: dict[ActionType, Callable] = {
             ActionType.PAUSE_SCHEDULE: self._execute_pause_schedule,
             ActionType.RESUME_SCHEDULE: self._execute_resume_schedule,
             ActionType.DELAY_SCHEDULE: self._execute_delay_schedule,
@@ -336,8 +337,8 @@ class TemporalReflex:
     def execute_rule(
         self,
         rule: TemporalPolicyRule,
-        context: Dict[str, Any],
-    ) -> List[ReflexOutcome]:
+        context: dict[str, Any],
+    ) -> list[ReflexOutcome]:
         """
         Execute all actions for a triggered rule.
 
@@ -383,7 +384,7 @@ class TemporalReflex:
         self,
         rule: TemporalPolicyRule,
         action: TemporalAction,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> ReflexOutcome:
         """
         Execute a single temporal action.
@@ -441,7 +442,7 @@ class TemporalReflex:
 
         return outcome
 
-    def process_expirations(self) -> List[ReflexOutcome]:
+    def process_expirations(self) -> list[ReflexOutcome]:
         """
         Process expired outcomes and revert their modifications.
 
@@ -522,7 +523,7 @@ class TemporalReflex:
         self,
         action: TemporalAction,
         outcome: ReflexOutcome,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> None:
         """Pause matching schedules."""
         schedules = self._get_matching_schedules(action.schedule_pattern, context)
@@ -538,7 +539,7 @@ class TemporalReflex:
         self,
         action: TemporalAction,
         outcome: ReflexOutcome,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> None:
         """Resume matching schedules."""
         schedules = self._get_matching_schedules(action.schedule_pattern, context)
@@ -553,7 +554,7 @@ class TemporalReflex:
         self,
         action: TemporalAction,
         outcome: ReflexOutcome,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> None:
         """Delay matching schedules (increase interval)."""
         schedules = self._get_matching_schedules(action.schedule_pattern, context)
@@ -568,7 +569,7 @@ class TemporalReflex:
         self,
         action: TemporalAction,
         outcome: ReflexOutcome,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> None:
         """Accelerate matching schedules (decrease interval)."""
         schedules = self._get_matching_schedules(action.schedule_pattern, context)
@@ -583,7 +584,7 @@ class TemporalReflex:
         self,
         action: TemporalAction,
         outcome: ReflexOutcome,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> None:
         """Degrade priority for matching tasks."""
         pattern = action.task_pattern or "*"
@@ -596,7 +597,7 @@ class TemporalReflex:
         self,
         action: TemporalAction,
         outcome: ReflexOutcome,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> None:
         """Boost priority for matching tasks."""
         pattern = action.task_pattern or "*"
@@ -609,7 +610,7 @@ class TemporalReflex:
         self,
         action: TemporalAction,
         outcome: ReflexOutcome,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> None:
         """Set absolute priority for matching tasks."""
         # This requires tracking absolute priorities differently
@@ -627,7 +628,7 @@ class TemporalReflex:
         self,
         action: TemporalAction,
         outcome: ReflexOutcome,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> None:
         """Schedule a compensating task."""
         if not action.task_name:
@@ -645,8 +646,7 @@ class TemporalReflex:
         comp_task.payload["_triggered_by"] = outcome.rule_id
         comp_task.payload["_triggered_at"] = timezone.now().isoformat()
         comp_task.payload["_trigger_context"] = {
-            k: v for k, v in context.items()
-            if isinstance(v, (str, int, float, bool, type(None)))
+            k: v for k, v in context.items() if isinstance(v, (str, int, float, bool, type(None)))
         }
 
         outcome.compensating_tasks.append(comp_task)
@@ -666,7 +666,7 @@ class TemporalReflex:
         self,
         action: TemporalAction,
         outcome: ReflexOutcome,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> None:
         """Cancel matching pending tasks."""
         # This would need integration with the scheduler to cancel tasks
@@ -682,7 +682,7 @@ class TemporalReflex:
         self,
         action: TemporalAction,
         outcome: ReflexOutcome,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> None:
         """Extend TTL for matching tasks."""
         pattern = action.task_pattern or "*"
@@ -695,7 +695,7 @@ class TemporalReflex:
         self,
         action: TemporalAction,
         outcome: ReflexOutcome,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> None:
         """Reduce TTL for matching tasks."""
         pattern = action.task_pattern or "*"
@@ -708,7 +708,7 @@ class TemporalReflex:
         self,
         action: TemporalAction,
         outcome: ReflexOutcome,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> None:
         """Apply throttling to a tenant."""
         tenant_id = context.get("tenant_id")
@@ -724,7 +724,7 @@ class TemporalReflex:
         self,
         action: TemporalAction,
         outcome: ReflexOutcome,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> None:
         """Pause all tasks for a tenant."""
         tenant_id = context.get("tenant_id")
@@ -739,7 +739,7 @@ class TemporalReflex:
         self,
         action: TemporalAction,
         outcome: ReflexOutcome,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> None:
         """Accelerate health check schedules."""
         pattern = action.schedule_pattern or "health_*"
@@ -758,7 +758,7 @@ class TemporalReflex:
         self,
         action: TemporalAction,
         outcome: ReflexOutcome,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> None:
         """Trigger an immediate health check."""
         # Schedule a health check task
@@ -782,7 +782,7 @@ class TemporalReflex:
         self,
         action: TemporalAction,
         outcome: ReflexOutcome,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> None:
         """Execute custom action via executor callback."""
         if action.custom_executor:
@@ -823,11 +823,11 @@ class TemporalReflex:
         """Get current reflex state."""
         return self._state
 
-    def get_active_outcomes(self) -> List[ReflexOutcome]:
+    def get_active_outcomes(self) -> list[ReflexOutcome]:
         """Get list of active (non-expired) outcomes."""
         return list(self._state.active_outcomes.values())
 
-    def get_outcome_history(self, limit: int = 50) -> List[ReflexOutcome]:
+    def get_outcome_history(self, limit: int = 50) -> list[ReflexOutcome]:
         """Get recent outcome history."""
         return self._state.outcome_history[-limit:]
 
@@ -837,9 +837,9 @@ class TemporalReflex:
 
     def _get_matching_schedules(
         self,
-        pattern: Optional[str],
-        context: Dict[str, Any],
-    ) -> List[str]:
+        pattern: str | None,
+        context: dict[str, Any],
+    ) -> list[str]:
         """Get schedule names matching a pattern."""
         import fnmatch
 

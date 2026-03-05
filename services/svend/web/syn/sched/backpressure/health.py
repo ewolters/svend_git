@@ -26,9 +26,9 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
-from django.db.models import Avg, Count, F, Q
+from django.db.models import Avg, Count
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 
 class HealthStatus(Enum):
     """Overall system health status."""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     STRESSED = "stressed"
@@ -111,7 +112,7 @@ class HealthMetrics:
     # Overall Status
     status: HealthStatus = HealthStatus.UNKNOWN
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "collected_at": self.collected_at.isoformat(),
@@ -210,15 +211,15 @@ class SystemHealthMonitor:
 
         # State
         self._running = False
-        self._collection_thread: Optional[threading.Thread] = None
+        self._collection_thread: threading.Thread | None = None
         self._lock = threading.RLock()
 
         # Metrics history for trend analysis
-        self._metrics_history: List[HealthMetrics] = []
+        self._metrics_history: list[HealthMetrics] = []
         self._max_history_size = int(history_window_minutes * 60 / collection_interval_seconds)
 
         # Current metrics
-        self._current_metrics: Optional[HealthMetrics] = None
+        self._current_metrics: HealthMetrics | None = None
 
     def start(self) -> None:
         """Start the health monitor."""
@@ -250,7 +251,7 @@ class SystemHealthMonitor:
                     self._current_metrics = metrics
                     self._metrics_history.append(metrics)
                     if len(self._metrics_history) > self._max_history_size:
-                        self._metrics_history = self._metrics_history[-self._max_history_size:]
+                        self._metrics_history = self._metrics_history[-self._max_history_size :]
             except Exception as e:
                 logger.error(f"[HEALTH] Collection error: {e}")
 
@@ -286,9 +287,7 @@ class SystemHealthMonitor:
 
             # Count pending tasks
             pending_states = [TaskState.PENDING.value, TaskState.SCHEDULED.value, TaskState.RETRYING.value]
-            metrics.queue_depth = CognitiveTask.objects.filter(
-                state__in=pending_states
-            ).count()
+            metrics.queue_depth = CognitiveTask.objects.filter(state__in=pending_states).count()
 
             # Queue utilization
             metrics.queue_utilization = min(1.0, metrics.queue_depth / max(1, self._queue_depth_threshold))
@@ -312,9 +311,7 @@ class SystemHealthMonitor:
             metrics.dlq_size = DeadLetterEntry.objects.count()
 
             # Pending (unresolved) entries
-            metrics.dlq_pending_count = DeadLetterEntry.objects.filter(
-                status="pending"
-            ).count()
+            metrics.dlq_pending_count = DeadLetterEntry.objects.filter(status="pending").count()
 
             # Growth rate from history
             if len(self._metrics_history) >= 2:
@@ -335,9 +332,7 @@ class SystemHealthMonitor:
             one_minute_ago = timezone.now() - timedelta(minutes=1)
 
             # Count decisions
-            recent_decisions = GovernanceJudgement.objects.filter(
-                created_at__gte=one_minute_ago
-            )
+            recent_decisions = GovernanceJudgement.objects.filter(created_at__gte=one_minute_ago)
 
             metrics.governance_decisions_last_minute = recent_decisions.count()
 
@@ -378,9 +373,7 @@ class SystemHealthMonitor:
             from syn.sched.types import TaskState
 
             # Tasks currently running
-            metrics.tasks_in_flight = CognitiveTask.objects.filter(
-                state=TaskState.RUNNING.value
-            ).count()
+            metrics.tasks_in_flight = CognitiveTask.objects.filter(state=TaskState.RUNNING.value).count()
 
             # Worker utilization estimate (tasks in flight / expected capacity)
             # Assume default 10 workers with mixed config
@@ -451,9 +444,7 @@ class SystemHealthMonitor:
 
             # Max cascade depth in recent tasks
             one_minute_ago = timezone.now() - timedelta(minutes=1)
-            recent_tasks = CognitiveTask.objects.filter(
-                created_at__gte=one_minute_ago
-            )
+            recent_tasks = CognitiveTask.objects.filter(created_at__gte=one_minute_ago)
 
             max_depth_result = recent_tasks.aggregate(max_depth=Count("cascade_depth"))
             if max_depth_result["max_depth"]:
@@ -483,9 +474,7 @@ class SystemHealthMonitor:
         # Throughput trend
         old_throughput = old_metrics.tasks_completed_last_minute
         if old_throughput > 0:
-            metrics.throughput_trend = (
-                metrics.tasks_completed_last_minute - old_throughput
-            ) / old_throughput
+            metrics.throughput_trend = (metrics.tasks_completed_last_minute - old_throughput) / old_throughput
 
     def _compute_health_status(self, metrics: HealthMetrics) -> HealthStatus:
         """Compute overall health status from metrics."""
@@ -530,7 +519,7 @@ class SystemHealthMonitor:
             # Collect on-demand if not running
             return self._collect_metrics()
 
-    def get_history(self, minutes: Optional[int] = None) -> List[HealthMetrics]:
+    def get_history(self, minutes: int | None = None) -> list[HealthMetrics]:
         """Get historical metrics."""
         with self._lock:
             if minutes is None:

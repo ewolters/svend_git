@@ -5,15 +5,15 @@ from datetime import timedelta
 
 from django.db import IntegrityError
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
-from django.shortcuts import get_object_or_404
 
-from accounts.permissions import gated_paid, allow_guest
-from accounts.constants import GUEST_INVITE_LIMITS, GUEST_INVITE_EXPIRY_DAYS
-from .models import Board, BoardParticipant, BoardVote, BoardGuestInvite
-from core.models import Project, Hypothesis
+from accounts.constants import GUEST_INVITE_EXPIRY_DAYS, GUEST_INVITE_LIMITS
+from accounts.permissions import allow_guest, gated_paid
+from core.models import Hypothesis, Project
 
+from .models import Board, BoardGuestInvite, BoardParticipant, BoardVote
 
 # Participant colors for easy differentiation
 PARTICIPANT_COLORS = [
@@ -30,7 +30,7 @@ PARTICIPANT_COLORS = [
 
 def get_participant_color(board, user):
     """Assign a consistent color to a participant."""
-    participants = list(board.participants.values_list('user_id', flat=True))
+    participants = list(board.participants.values_list("user_id", flat=True))
     if user.id in participants:
         idx = participants.index(user.id)
     else:
@@ -40,9 +40,10 @@ def get_participant_color(board, user):
 
 def _build_participants_list(board, cutoff):
     """Build combined participants list (users + guests) for board responses."""
-    active_users = board.participants.filter(last_seen__gte=cutoff).select_related('user')
+    active_users = board.participants.filter(last_seen__gte=cutoff).select_related("user")
     active_guests = board.guest_invites.filter(
-        is_active=True, last_seen__gte=cutoff,
+        is_active=True,
+        last_seen__gte=cutoff,
     ).exclude(display_name="")
 
     participants = [
@@ -56,17 +57,19 @@ def _build_participants_list(board, cutoff):
         }
         for p in active_users
     ]
-    participants.extend([
-        {
-            "username": g.display_name,
-            "color": g.color,
-            "cursor_x": g.cursor_x,
-            "cursor_y": g.cursor_y,
-            "is_owner": False,
-            "is_guest": True,
-        }
-        for g in active_guests
-    ])
+    participants.extend(
+        [
+            {
+                "username": g.display_name,
+                "color": g.color,
+                "cursor_x": g.cursor_x,
+                "cursor_y": g.cursor_y,
+                "is_owner": False,
+                "is_guest": True,
+            }
+            for g in active_guests
+        ]
+    )
     return participants
 
 
@@ -103,13 +106,15 @@ def create_board(request):
         color=PARTICIPANT_COLORS[0],
     )
 
-    return JsonResponse({
-        "id": str(board.id),
-        "room_code": board.room_code,
-        "name": board.name,
-        "project_id": str(project.id) if project else None,
-        "url": f"/app/whiteboard/{board.room_code}/",
-    })
+    return JsonResponse(
+        {
+            "id": str(board.id),
+            "room_code": board.room_code,
+            "name": board.name,
+            "project_id": str(project.id) if project else None,
+            "url": f"/app/whiteboard/{board.room_code}/",
+        }
+    )
 
 
 @allow_guest
@@ -130,11 +135,45 @@ def get_board(request, room_code):
         if invite.board_id != board.id:
             return JsonResponse({"error": "Access denied"}, status=403)
 
-        guest_votes = list(
-            board.votes.filter(guest_invite=invite).values_list('element_id', flat=True)
+        guest_votes = list(board.votes.filter(guest_invite=invite).values_list("element_id", flat=True))
+
+        return JsonResponse(
+            {
+                "id": str(board.id),
+                "room_code": board.room_code,
+                "name": board.name,
+                "elements": board.elements,
+                "connections": board.connections,
+                "zoom": board.zoom,
+                "pan_x": board.pan_x,
+                "pan_y": board.pan_y,
+                "version": board.version,
+                "voting_active": board.is_voting_active,
+                "votes_per_user": board.votes_per_user,
+                "vote_counts": vote_counts,
+                "user_votes": guest_votes,
+                "user_votes_remaining": board.votes_per_user - len(guest_votes),
+                "participants": _build_participants_list(board, cutoff),
+                "is_owner": False,
+                "is_guest": True,
+                "guest_permission": invite.permission,
+                "guest_display_name": invite.display_name,
+                "my_color": invite.color,
+                "project": None,
+            }
         )
 
-        return JsonResponse({
+    # Normal user path
+    participant, created = BoardParticipant.objects.update_or_create(
+        board=board,
+        user=request.user,
+        defaults={"color": get_participant_color(board, request.user)},
+    )
+
+    user_votes = list(board.votes.filter(user=request.user).values_list("element_id", flat=True))
+
+    return JsonResponse(
+        {
             "id": str(board.id),
             "room_code": board.room_code,
             "name": board.name,
@@ -147,50 +186,20 @@ def get_board(request, room_code):
             "voting_active": board.is_voting_active,
             "votes_per_user": board.votes_per_user,
             "vote_counts": vote_counts,
-            "user_votes": guest_votes,
-            "user_votes_remaining": board.votes_per_user - len(guest_votes),
+            "user_votes": user_votes,
+            "user_votes_remaining": board.votes_per_user - len(user_votes),
             "participants": _build_participants_list(board, cutoff),
-            "is_owner": False,
-            "is_guest": True,
-            "guest_permission": invite.permission,
-            "guest_display_name": invite.display_name,
-            "my_color": invite.color,
-            "project": None,
-        })
-
-    # Normal user path
-    participant, created = BoardParticipant.objects.update_or_create(
-        board=board,
-        user=request.user,
-        defaults={"color": get_participant_color(board, request.user)},
+            "is_owner": request.user.id == board.owner_id,
+            "is_guest": False,
+            "my_color": participant.color,
+            "project": {
+                "id": str(board.project.id),
+                "title": board.project.title,
+            }
+            if board.project
+            else None,
+        }
     )
-
-    user_votes = list(board.votes.filter(user=request.user).values_list('element_id', flat=True))
-
-    return JsonResponse({
-        "id": str(board.id),
-        "room_code": board.room_code,
-        "name": board.name,
-        "elements": board.elements,
-        "connections": board.connections,
-        "zoom": board.zoom,
-        "pan_x": board.pan_x,
-        "pan_y": board.pan_y,
-        "version": board.version,
-        "voting_active": board.is_voting_active,
-        "votes_per_user": board.votes_per_user,
-        "vote_counts": vote_counts,
-        "user_votes": user_votes,
-        "user_votes_remaining": board.votes_per_user - len(user_votes),
-        "participants": _build_participants_list(board, cutoff),
-        "is_owner": request.user.id == board.owner_id,
-        "is_guest": False,
-        "my_color": participant.color,
-        "project": {
-            "id": str(board.project.id),
-            "title": board.project.title,
-        } if board.project else None,
-    })
 
 
 @allow_guest
@@ -207,12 +216,15 @@ def update_board(request, room_code):
     # Check version for conflict detection
     client_version = data.get("version")
     if client_version is not None and client_version < board.version:
-        return JsonResponse({
-            "conflict": True,
-            "server_version": board.version,
-            "elements": board.elements,
-            "connections": board.connections,
-        }, status=409)
+        return JsonResponse(
+            {
+                "conflict": True,
+                "server_version": board.version,
+                "elements": board.elements,
+                "connections": board.connections,
+            },
+            status=409,
+        )
 
     if request.is_guest:
         invite = request.guest_invite
@@ -249,6 +261,7 @@ def update_board(request, room_code):
         project_id = data["project_id"]
         if project_id:
             from core.models import Project
+
             try:
                 project = Project.objects.get(id=project_id, user=request.user)
                 board.project = project
@@ -261,10 +274,12 @@ def update_board(request, room_code):
 
     BoardParticipant.objects.filter(board=board, user=request.user).update(last_seen=timezone.now())
 
-    return JsonResponse({
-        "success": True,
-        "version": board.version,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "version": board.version,
+        }
+    )
 
 
 @allow_guest
@@ -321,10 +336,12 @@ def toggle_voting(request, room_code):
 
     board.save()
 
-    return JsonResponse({
-        "voting_active": board.is_voting_active,
-        "votes_per_user": board.votes_per_user,
-    })
+    return JsonResponse(
+        {
+            "voting_active": board.is_voting_active,
+            "votes_per_user": board.votes_per_user,
+        }
+    )
 
 
 @allow_guest
@@ -370,12 +387,14 @@ def add_vote(request, room_code):
     vote_count = board.votes.filter(element_id=element_id).count()
     votes_remaining = board.votes_per_user - user_vote_count - 1
 
-    return JsonResponse({
-        "success": True,
-        "element_id": element_id,
-        "vote_count": vote_count,
-        "votes_remaining": votes_remaining,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "element_id": element_id,
+            "vote_count": vote_count,
+            "votes_remaining": votes_remaining,
+        }
+    )
 
 
 @allow_guest
@@ -389,12 +408,16 @@ def remove_vote(request, room_code, element_id):
         if invite.board_id != board.id:
             return JsonResponse({"error": "Access denied"}, status=403)
         deleted, _ = BoardVote.objects.filter(
-            board=board, guest_invite=invite, element_id=element_id,
+            board=board,
+            guest_invite=invite,
+            element_id=element_id,
         ).delete()
         remaining_count = board.votes.filter(guest_invite=invite).count()
     else:
         deleted, _ = BoardVote.objects.filter(
-            board=board, user=request.user, element_id=element_id,
+            board=board,
+            user=request.user,
+            element_id=element_id,
         ).delete()
         remaining_count = board.votes.filter(user=request.user).count()
 
@@ -403,12 +426,14 @@ def remove_vote(request, room_code, element_id):
 
     vote_count = board.votes.filter(element_id=element_id).count()
 
-    return JsonResponse({
-        "success": True,
-        "element_id": element_id,
-        "vote_count": vote_count,
-        "votes_remaining": board.votes_per_user - remaining_count,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "element_id": element_id,
+            "vote_count": vote_count,
+            "votes_remaining": board.votes_per_user - remaining_count,
+        }
+    )
 
 
 @gated_paid
@@ -421,8 +446,10 @@ def list_boards(request):
     """
     project_id = request.GET.get("project_id")
 
-    owned = Board.objects.filter(owner=request.user).select_related('project')
-    participated = Board.objects.filter(participants__user=request.user).exclude(owner=request.user).select_related('project')
+    owned = Board.objects.filter(owner=request.user).select_related("project")
+    participated = (
+        Board.objects.filter(participants__user=request.user).exclude(owner=request.user).select_related("project")
+    )
 
     # Filter by project if specified
     if project_id:
@@ -440,13 +467,17 @@ def list_boards(request):
             "project": {
                 "id": str(b.project.id),
                 "title": b.project.title,
-            } if b.project else None,
+            }
+            if b.project
+            else None,
         }
 
-    return JsonResponse({
-        "owned": [board_to_dict(b, True) for b in owned],
-        "participated": [board_to_dict(b, False) for b in participated],
-    })
+    return JsonResponse(
+        {
+            "owned": [board_to_dict(b, True) for b in owned],
+            "participated": [board_to_dict(b, False) for b in participated],
+        }
+    )
 
 
 @gated_paid
@@ -479,9 +510,7 @@ def export_hypotheses(request, room_code):
         return JsonResponse({"error": "Access denied"}, status=403)
 
     if not board.project:
-        return JsonResponse({
-            "error": "Board must be linked to a study to export hypotheses"
-        }, status=400)
+        return JsonResponse({"error": "Board must be linked to a study to export hypotheses"}, status=400)
 
     try:
         data = json.loads(request.body) if request.body else {}
@@ -493,9 +522,7 @@ def export_hypotheses(request, room_code):
     causal_rels = data.get("causal_relationships", [])
 
     if not causal_rels:
-        return JsonResponse({
-            "error": "No causal relationships provided"
-        }, status=400)
+        return JsonResponse({"error": "No causal relationships provided"}, status=400)
 
     created_hypotheses = []
 
@@ -505,19 +532,18 @@ def export_hypotheses(request, room_code):
             continue
 
         # Check for duplicates (same statement in same project)
-        existing = Hypothesis.objects.filter(
-            project=board.project,
-            statement=statement
-        ).first()
+        existing = Hypothesis.objects.filter(project=board.project, statement=statement).first()
 
         if existing:
             # Skip duplicates but note them
-            created_hypotheses.append({
-                "id": str(existing.id),
-                "statement": existing.statement,
-                "status": "existing",
-                "message": "Already exists"
-            })
+            created_hypotheses.append(
+                {
+                    "id": str(existing.id),
+                    "statement": existing.statement,
+                    "status": "existing",
+                    "message": "Already exists",
+                }
+            )
             continue
 
         # Create new hypothesis
@@ -530,21 +556,25 @@ def export_hypotheses(request, room_code):
             current_probability=prior,
         )
 
-        created_hypotheses.append({
-            "id": str(hypothesis.id),
-            "statement": hypothesis.statement,
-            "status": "created",
-            "prior_probability": hypothesis.prior_probability,
-        })
+        created_hypotheses.append(
+            {
+                "id": str(hypothesis.id),
+                "statement": hypothesis.statement,
+                "status": "created",
+                "prior_probability": hypothesis.prior_probability,
+            }
+        )
 
-    return JsonResponse({
-        "success": True,
-        "project_id": str(board.project.id),
-        "project_title": board.project.title,
-        "hypotheses": created_hypotheses,
-        "created_count": len([h for h in created_hypotheses if h["status"] == "created"]),
-        "existing_count": len([h for h in created_hypotheses if h["status"] == "existing"]),
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "project_id": str(board.project.id),
+            "project_title": board.project.title,
+            "hypotheses": created_hypotheses,
+            "created_count": len([h for h in created_hypotheses if h["status"] == "created"]),
+            "existing_count": len([h for h in created_hypotheses if h["status"] == "existing"]),
+        }
+    )
 
 
 # ============================================================================
@@ -553,12 +583,12 @@ def export_hypotheses(request, room_code):
 
 # Post-it colors mapping
 POSTIT_COLORS = {
-    'yellow': '#fef3c7',
-    'green': '#d1fae5',
-    'pink': '#fce7f3',
-    'blue': '#dbeafe',
-    'purple': '#ede9fe',
-    'orange': '#ffedd5',
+    "yellow": "#fef3c7",
+    "green": "#d1fae5",
+    "pink": "#fce7f3",
+    "blue": "#dbeafe",
+    "purple": "#ede9fe",
+    "orange": "#ffedd5",
 }
 
 
@@ -566,37 +596,33 @@ def _escape_xml(text):
     """Escape text for XML/SVG."""
     if not text:
         return ""
-    return (str(text)
-            .replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace('"', "&quot;"))
+    return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
 def _render_element_svg(el, offset_x=0, offset_y=0):
     """Render a single element to SVG markup."""
-    el_type = el.get('type', 'rectangle')
-    x = el.get('x', 0) - offset_x
-    y = el.get('y', 0) - offset_y
-    width = el.get('width', 120)
-    height = el.get('height', 60)
-    text = _escape_xml(el.get('text', ''))
-    color = el.get('color', 'yellow')
+    el_type = el.get("type", "rectangle")
+    x = el.get("x", 0) - offset_x
+    y = el.get("y", 0) - offset_y
+    width = el.get("width", 120)
+    height = el.get("height", 60)
+    text = _escape_xml(el.get("text", ""))
+    color = el.get("color", "yellow")
 
-    if el_type == 'postit':
-        fill = POSTIT_COLORS.get(color, POSTIT_COLORS['yellow'])
+    if el_type == "postit":
+        fill = POSTIT_COLORS.get(color, POSTIT_COLORS["yellow"])
         return f'''<g transform="translate({x},{y})">
             <rect width="{width}" height="{height}" fill="{fill}" stroke="#666" stroke-width="1" rx="3"/>
-            <text x="{width/2}" y="{height/2}" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#333">{text}</text>
+            <text x="{width / 2}" y="{height / 2}" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#333">{text}</text>
         </g>'''
 
-    elif el_type == 'rectangle':
+    elif el_type == "rectangle":
         return f'''<g transform="translate({x},{y})">
             <rect width="{width}" height="{height}" fill="#1e3a2f" stroke="#4a9f6e" stroke-width="2" rx="4"/>
-            <text x="{width/2}" y="{height/2}" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#e8efe8">{text}</text>
+            <text x="{width / 2}" y="{height / 2}" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#e8efe8">{text}</text>
         </g>'''
 
-    elif el_type == 'oval':
+    elif el_type == "oval":
         rx = width / 2
         ry = height / 2
         cx = x + rx
@@ -604,78 +630,78 @@ def _render_element_svg(el, offset_x=0, offset_y=0):
         return f'''<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="#1e3a2f" stroke="#4a9f6e" stroke-width="2"/>
         <text x="{cx}" y="{cy}" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#e8efe8">{text}</text>'''
 
-    elif el_type == 'diamond':
+    elif el_type == "diamond":
         cx = x + width / 2
         cy = y + height / 2
-        points = f"{cx},{y} {x+width},{cy} {cx},{y+height} {x},{cy}"
+        points = f"{cx},{y} {x + width},{cy} {cx},{y + height} {x},{cy}"
         return f'''<polygon points="{points}" fill="#1e3a2f" stroke="#4a9f6e" stroke-width="2"/>
         <text x="{cx}" y="{cy}" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#e8efe8">{text}</text>'''
 
-    elif el_type == 'text':
-        return f'''<text x="{x}" y="{y+16}" font-size="14" fill="#e8efe8">{text}</text>'''
+    elif el_type == "text":
+        return f'''<text x="{x}" y="{y + 16}" font-size="14" fill="#e8efe8">{text}</text>'''
 
-    elif el_type == 'group':
-        title = _escape_xml(el.get('title', 'Group'))
+    elif el_type == "group":
+        title = _escape_xml(el.get("title", "Group"))
         return f'''<g transform="translate({x},{y})">
             <rect width="{width}" height="{height}" fill="none" stroke="#4a9f6e" stroke-width="2" stroke-dasharray="5,5" rx="8"/>
             <text x="10" y="20" font-size="12" font-weight="bold" fill="#4a9f6e">{title}</text>
         </g>'''
 
-    elif el_type == 'fishbone':
+    elif el_type == "fishbone":
         # Simplified fishbone - just render the effect and categories
-        effect = _escape_xml(el.get('effect', 'Effect'))
-        categories = el.get('categories', [])
+        effect = _escape_xml(el.get("effect", "Effect"))
+        categories = el.get("categories", [])
         svg_parts = [f'<g transform="translate({x},{y})">']
 
         # Spine
         spine_len = 500
-        svg_parts.append(f'<line x1="50" y1="150" x2="{50+spine_len}" y2="150" stroke="#4a9f6e" stroke-width="3"/>')
+        svg_parts.append(f'<line x1="50" y1="150" x2="{50 + spine_len}" y2="150" stroke="#4a9f6e" stroke-width="3"/>')
 
         # Effect head
-        svg_parts.append(f'''<rect x="{50+spine_len}" y="120" width="100" height="60" fill="#2c5f2d" stroke="#4a9f6e" stroke-width="2" rx="4"/>
-            <text x="{100+spine_len}" y="155" text-anchor="middle" font-size="12" font-weight="bold" fill="#fff">{effect}</text>''')
+        svg_parts.append(f'''<rect x="{50 + spine_len}" y="120" width="100" height="60" fill="#2c5f2d" stroke="#4a9f6e" stroke-width="2" rx="4"/>
+            <text x="{100 + spine_len}" y="155" text-anchor="middle" font-size="12" font-weight="bold" fill="#fff">{effect}</text>''')
 
         # Categories as bones
         for i, cat in enumerate(categories[:6]):
-            cat_name = _escape_xml(cat.get('name', f'Category {i+1}'))
+            cat_name = _escape_xml(cat.get("name", f"Category {i + 1}"))
             bone_x = 100 + (i % 3) * 150
             is_top = i < 3
             bone_y = 80 if is_top else 220
             svg_parts.append(f'''<line x1="{bone_x}" y1="150" x2="{bone_x}" y2="{bone_y}" stroke="#4a9f6e" stroke-width="2"/>
                 <text x="{bone_x}" y="{bone_y - 10 if is_top else bone_y + 15}" text-anchor="middle" font-size="11" fill="#4a9f6e">{cat_name}</text>''')
 
-        svg_parts.append('</g>')
-        return '\n'.join(svg_parts)
+        svg_parts.append("</g>")
+        return "\n".join(svg_parts)
 
-    return ''
+    return ""
 
 
 def _render_connection_svg(conn, elements, offset_x=0, offset_y=0):
     """Render a connection between elements."""
-    from_id = conn.get('from', {}).get('elementId')
-    to_id = conn.get('to', {}).get('elementId')
+    from_id = conn.get("from", {}).get("elementId")
+    to_id = conn.get("to", {}).get("elementId")
 
-    from_el = next((e for e in elements if e.get('id') == from_id), None)
-    to_el = next((e for e in elements if e.get('id') == to_id), None)
+    from_el = next((e for e in elements if e.get("id") == from_id), None)
+    to_el = next((e for e in elements if e.get("id") == to_id), None)
 
     if not from_el or not to_el:
-        return ''
+        return ""
 
     # Calculate center points
-    from_x = from_el.get('x', 0) + from_el.get('width', 120) / 2 - offset_x
-    from_y = from_el.get('y', 0) + from_el.get('height', 60) / 2 - offset_y
-    to_x = to_el.get('x', 0) + to_el.get('width', 120) / 2 - offset_x
-    to_y = to_el.get('y', 0) + to_el.get('height', 60) / 2 - offset_y
+    from_x = from_el.get("x", 0) + from_el.get("width", 120) / 2 - offset_x
+    from_y = from_el.get("y", 0) + from_el.get("height", 60) / 2 - offset_y
+    to_x = to_el.get("x", 0) + to_el.get("width", 120) / 2 - offset_x
+    to_y = to_el.get("y", 0) + to_el.get("height", 60) / 2 - offset_y
 
-    conn_type = conn.get('type', 'arrow')
+    conn_type = conn.get("type", "arrow")
 
-    if conn_type == 'causal':
+    if conn_type == "causal":
         # Causal connection with IF/THEN labels
         return f'''<g>
             <defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#4a9f6e"/></marker></defs>
-            <path d="M{from_x},{from_y} C{from_x+50},{from_y} {to_x-50},{to_y} {to_x},{to_y}" fill="none" stroke="#4a9f6e" stroke-width="2" marker-end="url(#arrowhead)"/>
-            <text x="{from_x+20}" y="{from_y-10}" font-size="10" fill="#6bcb77">IF</text>
-            <text x="{to_x-30}" y="{to_y-10}" font-size="10" fill="#6bcb77">THEN</text>
+            <path d="M{from_x},{from_y} C{from_x + 50},{from_y} {to_x - 50},{to_y} {to_x},{to_y}" fill="none" stroke="#4a9f6e" stroke-width="2" marker-end="url(#arrowhead)"/>
+            <text x="{from_x + 20}" y="{from_y - 10}" font-size="10" fill="#6bcb77">IF</text>
+            <text x="{to_x - 30}" y="{to_y - 10}" font-size="10" fill="#6bcb77">THEN</text>
         </g>'''
     else:
         # Simple arrow
@@ -695,10 +721,10 @@ def _generate_svg(board, theme="dark"):
         return None, 0, 0
 
     # Calculate bounding box
-    min_x = min(el.get('x', 0) for el in elements)
-    min_y = min(el.get('y', 0) for el in elements)
-    max_x = max(el.get('x', 0) + el.get('width', 120) for el in elements)
-    max_y = max(el.get('y', 0) + el.get('height', 60) for el in elements)
+    min_x = min(el.get("x", 0) for el in elements)
+    min_y = min(el.get("y", 0) for el in elements)
+    max_x = max(el.get("x", 0) + el.get("width", 120) for el in elements)
+    max_y = max(el.get("y", 0) + el.get("height", 60) for el in elements)
 
     # Add padding
     padding = 20
@@ -709,12 +735,12 @@ def _generate_svg(board, theme="dark"):
     offset_x = min_x - padding
     offset_y = min_y - padding
 
-    bg_color = '#1a1a1a' if theme == 'dark' else '#ffffff'
+    bg_color = "#1a1a1a" if theme == "dark" else "#ffffff"
 
     # Build SVG
     svg_parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" style="background:{bg_color}">',
-        f'<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#4a9f6e"/></marker></defs>',
+        '<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#4a9f6e"/></marker></defs>',
     ]
 
     for conn in connections:
@@ -723,8 +749,8 @@ def _generate_svg(board, theme="dark"):
     for el in elements:
         svg_parts.append(_render_element_svg(el, offset_x, offset_y))
 
-    svg_parts.append('</svg>')
-    return '\n'.join(svg_parts), width, height
+    svg_parts.append("</svg>")
+    return "\n".join(svg_parts), width, height
 
 
 @allow_guest
@@ -738,29 +764,33 @@ def export_svg(request, room_code):
     - theme: 'dark' (default) or 'light'
     """
     board = get_object_or_404(Board, room_code=room_code.upper())
-    theme = request.GET.get('theme', 'dark')
+    theme = request.GET.get("theme", "dark")
 
     svg_content, width, height = _generate_svg(board, theme=theme)
 
     if svg_content is None:
-        return JsonResponse({
-            "svg": f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200"><text x="200" y="100" text-anchor="middle" fill="#666">Empty whiteboard</text></svg>',
-            "width": 400,
-            "height": 200,
-            "element_count": 0,
-        })
+        return JsonResponse(
+            {
+                "svg": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200"><text x="200" y="100" text-anchor="middle" fill="#666">Empty whiteboard</text></svg>',
+                "width": 400,
+                "height": 200,
+                "element_count": 0,
+            }
+        )
 
     elements = board.elements or []
     connections = board.connections or []
 
-    return JsonResponse({
-        "svg": svg_content,
-        "width": width,
-        "height": height,
-        "element_count": len(elements),
-        "connection_count": len(connections),
-        "board_name": board.name,
-    })
+    return JsonResponse(
+        {
+            "svg": svg_content,
+            "width": width,
+            "height": height,
+            "element_count": len(elements),
+            "connection_count": len(connections),
+            "board_name": board.name,
+        }
+    )
 
 
 @allow_guest
@@ -773,33 +803,37 @@ def export_png(request, room_code):
     - width: output width in pixels (default: actual, max 2400)
     """
     import base64
+
     import cairosvg
 
     board = get_object_or_404(Board, room_code=room_code.upper())
-    theme = request.GET.get('theme', 'light')
+    theme = request.GET.get("theme", "light")
 
     svg_content, width, height = _generate_svg(board, theme=theme)
 
     if svg_content is None:
         return JsonResponse({"error": "Whiteboard is empty"}, status=400)
 
-    output_width = min(int(request.GET.get('width', width)), 2400)
+    output_width = min(int(request.GET.get("width", width)), 2400)
     png_bytes = cairosvg.svg2png(
-        bytestring=svg_content.encode('utf-8'),
+        bytestring=svg_content.encode("utf-8"),
         output_width=output_width,
     )
 
-    return JsonResponse({
-        "png": base64.b64encode(png_bytes).decode('utf-8'),
-        "width": output_width,
-        "height": height,
-        "board_name": board.name,
-    })
+    return JsonResponse(
+        {
+            "png": base64.b64encode(png_bytes).decode("utf-8"),
+            "width": output_width,
+            "height": height,
+            "board_name": board.name,
+        }
+    )
 
 
 # ============================================================================
 # Guest Invite Management
 # ============================================================================
+
 
 @gated_paid
 @require_http_methods(["POST"])
@@ -825,12 +859,15 @@ def create_guest_invite(request, room_code):
     active_count = BoardGuestInvite.objects.filter(board=board, is_active=True).count()
 
     if active_count >= limit:
-        return JsonResponse({
-            "error": f"Guest invite limit reached ({limit} per board on your plan)",
-            "limit": limit,
-            "active": active_count,
-            "upgrade_url": "/billing/checkout/",
-        }, status=403)
+        return JsonResponse(
+            {
+                "error": f"Guest invite limit reached ({limit} per board on your plan)",
+                "limit": limit,
+                "active": active_count,
+                "upgrade_url": "/billing/checkout/",
+            },
+            status=403,
+        )
 
     # Compute expiration
     expiry_days = GUEST_INVITE_EXPIRY_DAYS.get(tier, 7)
@@ -840,9 +877,7 @@ def create_guest_invite(request, room_code):
         expires_at = timezone.now() + timedelta(days=36500)  # ~100 years
 
     # Assign color from pool (avoid collisions with existing participants/guests)
-    used_colors = set(
-        board.participants.values_list("color", flat=True)
-    ) | set(
+    used_colors = set(board.participants.values_list("color", flat=True)) | set(
         BoardGuestInvite.objects.filter(board=board, is_active=True).values_list("color", flat=True)
     )
     color = "#ff7eb9"
@@ -861,14 +896,16 @@ def create_guest_invite(request, room_code):
         color=color,
     )
 
-    return JsonResponse({
-        "id": str(invite.id),
-        "token": token,
-        "url": f"/app/whiteboard/guest/{token}/",
-        "permission": permission,
-        "expires_at": invite.expires_at.isoformat(),
-        "color": color,
-    })
+    return JsonResponse(
+        {
+            "id": str(invite.id),
+            "token": token,
+            "url": f"/app/whiteboard/guest/{token}/",
+            "permission": permission,
+            "expires_at": invite.expires_at.isoformat(),
+            "color": color,
+        }
+    )
 
 
 @gated_paid
@@ -883,23 +920,25 @@ def list_guest_invites(request, room_code):
     invites = BoardGuestInvite.objects.filter(board=board).order_by("-created_at")
     cutoff = timezone.now() - timedelta(seconds=30)
 
-    return JsonResponse({
-        "invites": [
-            {
-                "id": str(inv.id),
-                "display_name": inv.display_name or "(waiting to join)",
-                "permission": inv.permission,
-                "is_active": inv.is_active,
-                "is_expired": inv.is_expired,
-                "is_online": inv.last_seen is not None and inv.last_seen >= cutoff,
-                "created_at": inv.created_at.isoformat(),
-                "expires_at": inv.expires_at.isoformat(),
-                "url": f"/app/whiteboard/guest/{inv.token}/",
-                "color": inv.color,
-            }
-            for inv in invites
-        ],
-    })
+    return JsonResponse(
+        {
+            "invites": [
+                {
+                    "id": str(inv.id),
+                    "display_name": inv.display_name or "(waiting to join)",
+                    "permission": inv.permission,
+                    "is_active": inv.is_active,
+                    "is_expired": inv.is_expired,
+                    "is_online": inv.last_seen is not None and inv.last_seen >= cutoff,
+                    "created_at": inv.created_at.isoformat(),
+                    "expires_at": inv.expires_at.isoformat(),
+                    "url": f"/app/whiteboard/guest/{inv.token}/",
+                    "color": inv.color,
+                }
+                for inv in invites
+            ],
+        }
+    )
 
 
 @gated_paid
@@ -959,6 +998,7 @@ def set_guest_name(request, room_code):
 # Guest Page View (serves HTML, not API)
 # ============================================================================
 
+
 def guest_board_view(request, token):
     """Serve the whiteboard template for a guest user."""
     from django.shortcuts import render
@@ -969,19 +1009,33 @@ def guest_board_view(request, token):
         return render(request, "guest_invalid.html", status=404)
 
     if not invite.is_active:
-        return render(request, "guest_invalid.html", {
-            "reason": "This invite has been revoked by the board owner.",
-        }, status=403)
+        return render(
+            request,
+            "guest_invalid.html",
+            {
+                "reason": "This invite has been revoked by the board owner.",
+            },
+            status=403,
+        )
 
     if invite.is_expired:
-        return render(request, "guest_invalid.html", {
-            "reason": "This invite link has expired.",
-        }, status=403)
+        return render(
+            request,
+            "guest_invalid.html",
+            {
+                "reason": "This invite link has expired.",
+            },
+            status=403,
+        )
 
-    return render(request, "whiteboard.html", {
-        "base_template": "base_guest.html",
-        "guest_token": token,
-        "guest_room_code": invite.board.room_code,
-        "guest_display_name": invite.display_name,
-        "guest_permission": invite.permission,
-    })
+    return render(
+        request,
+        "whiteboard.html",
+        {
+            "base_template": "base_guest.html",
+            "guest_token": token,
+            "guest_room_code": invite.board.room_code,
+            "guest_display_name": invite.display_name,
+            "guest_permission": invite.permission,
+        },
+    )

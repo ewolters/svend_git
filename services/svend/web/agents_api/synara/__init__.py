@@ -24,40 +24,40 @@ DSL for formal hypotheses uses operators:
 Example: if [num_holidays] > 3 then [monthly_sales] < 100000
 """
 
-from .kernel import (
-    HypothesisRegion,
-    Evidence,
-    CausalLink,
-    CausalGraph,
-    ExpansionSignal,
-)
 from .belief import BeliefEngine
-from .synara import Synara, UpdateResult
-from .llm_interface import SynaraLLMInterface, LogicalIssue, GraphAnalysis
 from .dsl import (
+    Comparison,
+    ComparisonOp,
+    DomainCondition,
     DSLParser,
     Hypothesis,
-    Quantifier,
-    LogicalOp,
-    ComparisonOp,
-    Variable,
-    Literal,
-    Comparison,
-    LogicalExpr,
     Implication,
+    Literal,
+    LogicalExpr,
+    LogicalOp,
     Quantified,
-    DomainCondition,
+    Quantifier,
+    Variable,
     format_hypothesis,
 )
+from .kernel import (
+    CausalGraph,
+    CausalLink,
+    Evidence,
+    ExpansionSignal,
+    HypothesisRegion,
+)
+from .llm_interface import GraphAnalysis, LogicalIssue, SynaraLLMInterface
 from .logic_engine import (
-    LogicEngine,
     EvaluationResult,
-    HypothesisEvaluation,
     Fallacy,
     FallacyType,
+    HypothesisEvaluation,
+    LogicEngine,
     parse_and_evaluate,
     validate_hypothesis,
 )
+from .synara import Synara, UpdateResult
 
 __all__ = [
     # Kernel

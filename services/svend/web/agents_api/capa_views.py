@@ -6,9 +6,8 @@ source linking, evidence hooks, and RCA bridge.
 
 import json
 import logging
-from datetime import date
-
 from collections import defaultdict
+from datetime import date
 
 from django.db.models import Avg, Count, F
 from django.http import JsonResponse
@@ -116,8 +115,16 @@ def capa_list_create(request):
         if assigned_to:
             capas = capas.filter(assigned_to_id=assigned_to)
         allowed_sorts = {
-            "created_at", "-created_at", "priority", "-priority",
-            "status", "-status", "due_date", "-due_date", "title", "-title",
+            "created_at",
+            "-created_at",
+            "priority",
+            "-priority",
+            "status",
+            "-status",
+            "due_date",
+            "-due_date",
+            "title",
+            "-title",
         }
         if sort in allowed_sorts:
             capas = capas.order_by(sort)
@@ -193,8 +200,13 @@ def capa_detail(request, capa_id):
     if new_status and new_status != capa.status:
         # Apply field updates before checking transition requirements
         capa_fields = [
-            "title", "description", "containment_action", "root_cause",
-            "corrective_action", "preventive_action", "verification_method",
+            "title",
+            "description",
+            "containment_action",
+            "root_cause",
+            "corrective_action",
+            "preventive_action",
+            "verification_method",
             "verification_result",
         ]
         for field in capa_fields:
@@ -231,9 +243,15 @@ def capa_detail(request, capa_id):
 
     # Update fields (with change logging)
     capa_fields = [
-        "title", "description", "containment_action", "root_cause",
-        "corrective_action", "preventive_action", "verification_method",
-        "verification_result", "priority",
+        "title",
+        "description",
+        "containment_action",
+        "root_cause",
+        "corrective_action",
+        "preventive_action",
+        "verification_method",
+        "verification_result",
+        "priority",
     ]
     _log_field_changes("capa", capa.id, capa, data, capa_fields, request.user)
     for field in capa_fields:
@@ -305,9 +323,9 @@ def capa_stats(request):
     open_capas = capas.exclude(status="closed")
     overdue = open_capas.filter(due_date__lt=date.today()).count()
 
-    avg_close = capas.filter(closed_at__isnull=False).aggregate(
-        avg_days=Avg(F("closed_at") - F("created_at"))
-    )["avg_days"]
+    avg_close = capas.filter(closed_at__isnull=False).aggregate(avg_days=Avg(F("closed_at") - F("created_at")))[
+        "avg_days"
+    ]
     avg_close_days = avg_close.days if avg_close else None
 
     by_status = {}
@@ -334,15 +352,17 @@ def capa_stats(request):
     for status_key, durations in state_durations.items():
         aging[status_key] = round(sum(durations) / len(durations), 1)
 
-    return JsonResponse({
-        "total": capas.count(),
-        "open": open_capas.count(),
-        "overdue": overdue,
-        "avg_close_days": avg_close_days,
-        "by_status": by_status,
-        "by_priority": by_priority,
-        "aging": aging,
-    })
+    return JsonResponse(
+        {
+            "total": capas.count(),
+            "open": open_capas.count(),
+            "overdue": overdue,
+            "avg_close_days": avg_close_days,
+            "by_status": by_status,
+            "by_priority": by_priority,
+            "aging": aging,
+        }
+    )
 
 
 @require_team
@@ -362,19 +382,19 @@ def capa_launch_rca(request, capa_id):
     if capa.source_type == "ncr" and capa.source_id:
         try:
             ncr = NonconformanceRecord.objects.get(
-                id=capa.source_id, owner=request.user,
+                id=capa.source_id,
+                owner=request.user,
             )
-            event_text = (
-                f"{ncr.title}\n\n{ncr.description}"
-                if ncr.description else ncr.title
-            )
+            event_text = f"{ncr.title}\n\n{ncr.description}" if ncr.description else ncr.title
             # Seed chain with NCR containment if present
             if ncr.containment_action:
-                rca_chain.append({
-                    "claim": f"Containment (from NCR): {ncr.containment_action}",
-                    "source": "ncr",
-                    "accepted": True,
-                })
+                rca_chain.append(
+                    {
+                        "claim": f"Containment (from NCR): {ncr.containment_action}",
+                        "source": "ncr",
+                        "accepted": True,
+                    }
+                )
         except NonconformanceRecord.DoesNotExist:
             pass
 
@@ -396,8 +416,11 @@ def capa_launch_rca(request, capa_id):
             user=request.user,
         )
 
-    return JsonResponse({
-        "ok": True,
-        "rca_session_id": str(session.id),
-        "pre_populated_from_ncr": bool(rca_chain),
-    }, status=201)
+    return JsonResponse(
+        {
+            "ok": True,
+            "rca_session_id": str(session.id),
+            "pre_populated_from_ncr": bool(rca_chain),
+        },
+        status=201,
+    )

@@ -1,6 +1,5 @@
 """Quality validators for generated data."""
 
-import statistics
 from typing import Any
 
 

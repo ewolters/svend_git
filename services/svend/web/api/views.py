@@ -3,24 +3,42 @@
 import logging
 import random
 import re
+
 from rest_framework import status
-from rest_framework.decorators import api_view, authentication_classes, permission_classes, throttle_classes
-from rest_framework.throttling import AnonRateThrottle
-from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+    throttle_classes,
+)
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 
 from accounts.constants import (
-    TIER_FEATURES, Tier, Industry, Role, ExperienceLevel, OrganizationSize,
+    TIER_FEATURES,
+    ExperienceLevel,
+    Industry,
+    OrganizationSize,
+    Role,
+    Tier,
 )
-from chat.models import Conversation, EventLog, Message, SharedConversation, TraceLog, TrainingCandidate
+from chat.models import (
+    Conversation,
+    EventLog,
+    Message,
+    SharedConversation,
+    TraceLog,
+    TrainingCandidate,
+)
 from inference import process_query
-from inference.flywheel import get_flywheel, FlywheelResult
+from inference.flywheel import get_flywheel
 
 from .serializers import (
-    ConversationSerializer,
-    ConversationListSerializer,
-    MessageSerializer,
     ChatInputSerializer,
+    ConversationListSerializer,
+    ConversationSerializer,
+    MessageSerializer,
     ShareSerializer,
 )
 
@@ -29,6 +47,7 @@ logger = logging.getLogger(__name__)
 
 class RegistrationThrottle(AnonRateThrottle):
     """Limit registration attempts to 5/hour per IP."""
+
     rate = "5/hour"
 
 
@@ -43,6 +62,7 @@ ENTERPRISE_MODELS = {
 
 class EnterpriseModelResult:
     """Simple result container for enterprise model calls."""
+
     def __init__(self, response: str, inference_time_ms: int = 0):
         self.response = response
         self.inference_time_ms = inference_time_ms
@@ -51,17 +71,15 @@ class EnterpriseModelResult:
 def call_enterprise_model(query: str, model: str, conversation) -> EnterpriseModelResult:
     """Call a specific model for enterprise users."""
     import time
+
     from django.conf import settings
 
     start = time.time()
 
     # Get conversation history for context
     messages = []
-    for msg in conversation.messages.order_by('created_at')[:20]:  # Last 20 messages
-        messages.append({
-            "role": "user" if msg.role == "user" else "assistant",
-            "content": msg.content
-        })
+    for msg in conversation.messages.order_by("created_at")[:20]:  # Last 20 messages
+        messages.append({"role": "user" if msg.role == "user" else "assistant", "content": msg.content})
 
     # Add current query
     messages.append({"role": "user", "content": query})
@@ -69,36 +87,28 @@ def call_enterprise_model(query: str, model: str, conversation) -> EnterpriseMod
     if model == "qwen":
         # Use local Qwen via cognition pipeline
         result = process_query(query, mode="auto")
-        return EnterpriseModelResult(
-            response=result.response,
-            inference_time_ms=int(result.inference_time_ms)
-        )
+        return EnterpriseModelResult(response=result.response, inference_time_ms=int(result.inference_time_ms))
 
     # Call Anthropic API
     try:
         import anthropic
+
         client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
         response = client.messages.create(
             model=ENTERPRISE_MODELS.get(model, "claude-sonnet-4-20250514"),
             max_tokens=4096,
             system="You are SVEND, a helpful AI assistant specializing in reasoning, problem-solving, and data analysis.",
-            messages=messages
+            messages=messages,
         )
 
         time_ms = int((time.time() - start) * 1000)
-        return EnterpriseModelResult(
-            response=response.content[0].text,
-            inference_time_ms=time_ms
-        )
+        return EnterpriseModelResult(response=response.content[0].text, inference_time_ms=time_ms)
 
     except Exception as e:
         logger.error(f"Enterprise model call failed: {e}")
         time_ms = int((time.time() - start) * 1000)
-        return EnterpriseModelResult(
-            response=f"Model call failed: {str(e)}",
-            inference_time_ms=time_ms
-        )
+        return EnterpriseModelResult(response=f"Model call failed: {str(e)}", inference_time_ms=time_ms)
 
 
 # Correctness gate thresholds
@@ -247,19 +257,21 @@ def chat(request):
 
             user.increment_queries()
 
-            return Response({
-                "response": final_response,
-                "conversation_id": str(conversation.id),
-                "message_id": str(assistant_message.id),
-                "model": selected_model,
-                "trace_id": str(trace_log.id) if trace_log.id else None,
-            })
+            return Response(
+                {
+                    "response": final_response,
+                    "conversation_id": str(conversation.id),
+                    "message_id": str(assistant_message.id),
+                    "model": selected_model,
+                    "trace_id": str(trace_log.id) if trace_log.id else None,
+                }
+            )
 
         # Get result from appropriate pipeline
         result = process_query(message_text, mode=mode)
 
         # Capture visualizations from coder mode
-        if hasattr(result, 'visualizations') and result.visualizations:
+        if hasattr(result, "visualizations") and result.visualizations:
             visualizations = result.visualizations
 
         # Handle cognition pipeline (all modes including EXECUTIVE)
@@ -406,6 +418,7 @@ def chat(request):
             tool_calls = None
             inference_time_ms = None
             formatted_trace = None
+
         result = ErrorResult()
 
     # Save assistant response
@@ -436,7 +449,10 @@ def chat(request):
         if trace_log.error_stage:
             should_collect = True
             candidate_type = TrainingCandidate.CandidateType.ERROR
-        elif result.verification_confidence is not None and result.verification_confidence < VERIFICATION_CONFIDENCE_THRESHOLD:
+        elif (
+            result.verification_confidence is not None
+            and result.verification_confidence < VERIFICATION_CONFIDENCE_THRESHOLD
+        ):
             should_collect = True
             candidate_type = TrainingCandidate.CandidateType.LOW_CONFIDENCE
         elif result.verified is False:
@@ -473,33 +489,33 @@ def chat(request):
         "conversation_id": str(conversation.id),
         "user_message": MessageSerializer(user_message).data,
         "assistant_message": MessageSerializer(assistant_message).data,
-        "pipeline_type": result.pipeline_type if hasattr(result, 'pipeline_type') else "synara",
+        "pipeline_type": result.pipeline_type if hasattr(result, "pipeline_type") else "synara",
     }
 
     # Include cognition mode info
-    if hasattr(result, 'selected_mode') and result.selected_mode:
+    if hasattr(result, "selected_mode") and result.selected_mode:
         response_data["selected_mode"] = result.selected_mode
-    if hasattr(result, 'mode_scores') and result.mode_scores:
+    if hasattr(result, "mode_scores") and result.mode_scores:
         response_data["mode_scores"] = result.mode_scores
-    if hasattr(result, 'confidence') and result.confidence:
+    if hasattr(result, "confidence") and result.confidence:
         response_data["confidence"] = result.confidence
 
     # Include formatted trace for frontend rendering (KaTeX, visualizations)
-    if hasattr(result, 'formatted_trace') and result.formatted_trace:
+    if hasattr(result, "formatted_trace") and result.formatted_trace:
         response_data["formatted_trace"] = result.formatted_trace
 
     # Include code and visualizations from coder/executive mode
-    if hasattr(result, 'code') and result.code:
+    if hasattr(result, "code") and result.code:
         response_data["code"] = result.code
     if visualizations:
         response_data["visualizations"] = visualizations  # Base64 PNGs
 
     # Include execution outputs for executive mode
-    if hasattr(result, 'execution_outputs') and result.execution_outputs:
+    if hasattr(result, "execution_outputs") and result.execution_outputs:
         response_data["execution_outputs"] = result.execution_outputs
-    if hasattr(result, 'execution_errors') and result.execution_errors:
+    if hasattr(result, "execution_errors") and result.execution_errors:
         response_data["execution_errors"] = result.execution_errors
-    if hasattr(result, 'tools_used') and result.tools_used:
+    if hasattr(result, "tools_used") and result.tools_used:
         response_data["tools_used"] = result.tools_used
 
     # Include flywheel metadata
@@ -537,10 +553,12 @@ def share_conversation(request):
         conversation=conversation,
     )
 
-    return Response({
-        "share_id": str(share.id),
-        "url": f"/chat/shared/{share.id}/",
-    })
+    return Response(
+        {
+            "share_id": str(share.id),
+            "url": f"/chat/shared/{share.id}/",
+        }
+    )
 
 
 @api_view(["GET"])
@@ -548,13 +566,15 @@ def share_conversation(request):
 def user_info(request):
     """Get current user info and usage."""
     user = request.user
-    return Response({
-        "email": user.email,
-        "tier": user.tier,
-        "queries_today": user.queries_today,
-        "daily_limit": user.daily_limit,
-        "subscription_active": hasattr(user, 'subscription') and user.subscription.is_active,
-    })
+    return Response(
+        {
+            "email": user.email,
+            "tier": user.tier,
+            "queries_today": user.queries_today,
+            "daily_limit": user.daily_limit,
+            "subscription_active": hasattr(user, "subscription") and user.subscription.is_active,
+        }
+    )
 
 
 @api_view(["POST"])
@@ -578,15 +598,16 @@ def flag_message(request, message_id):
     reason = request.data.get("reason", "")
 
     # Get or create trace log
-    trace_log = getattr(message, 'trace_log', None)
+    trace_log = getattr(message, "trace_log", None)
     if not trace_log:
         # Create minimal trace log for older messages
         trace_log = TraceLog.objects.create(
             message=message,
-            input_text=message.conversation.messages.filter(
-                role=Message.Role.USER,
-                created_at__lt=message.created_at
-            ).last().content if message.role == Message.Role.ASSISTANT else message.content,
+            input_text=message.conversation.messages.filter(role=Message.Role.USER, created_at__lt=message.created_at)
+            .last()
+            .content
+            if message.role == Message.Role.ASSISTANT
+            else message.content,
             user_id=request.user.id,
             response=message.content,
         )
@@ -603,7 +624,7 @@ def flag_message(request, message_id):
             "model_response": message.content,
             "verification_confidence": message.verification_confidence,
             "reviewer_notes": f"User flagged: {reason}",
-        }
+        },
     )
 
     if not created:
@@ -620,9 +641,10 @@ def flag_message(request, message_id):
 @permission_classes([IsAdminUser])
 def trace_stats(request):
     """Get trace logging statistics (for monitoring dashboard). Admin only."""
-    from django.db.models import Count, Avg
-    from django.utils import timezone
     from datetime import timedelta
+
+    from django.db.models import Avg, Count
+    from django.utils import timezone
 
     # Last 24 hours
     since = timezone.now() - timedelta(hours=24)
@@ -632,15 +654,17 @@ def trace_stats(request):
     gate_failed = TraceLog.objects.filter(created_at__gte=since, has_gate_passed=False).count()
     errors = TraceLog.objects.filter(created_at__gte=since).exclude(error_stage="").count()
 
-    avg_time = TraceLog.objects.filter(
-        created_at__gte=since,
-        total_time_ms__isnull=False
-    ).aggregate(avg=Avg('total_time_ms'))['avg']
+    avg_time = TraceLog.objects.filter(created_at__gte=since, total_time_ms__isnull=False).aggregate(
+        avg=Avg("total_time_ms")
+    )["avg"]
 
     # Domain breakdown
-    domains = TraceLog.objects.filter(
-        created_at__gte=since
-    ).values('domain').annotate(count=Count('id')).order_by('-count')[:10]
+    domains = (
+        TraceLog.objects.filter(created_at__gte=since)
+        .values("domain")
+        .annotate(count=Count("id"))
+        .order_by("-count")[:10]
+    )
 
     # Training candidates
     candidates = TrainingCandidate.objects.filter(created_at__gte=since)
@@ -648,21 +672,23 @@ def trace_stats(request):
         "total": candidates.count(),
         "pending": candidates.filter(status=TrainingCandidate.Status.PENDING).count(),
         "by_type": dict(
-            candidates.values('candidate_type').annotate(count=Count('id')).values_list('candidate_type', 'count')
+            candidates.values("candidate_type").annotate(count=Count("id")).values_list("candidate_type", "count")
         ),
     }
 
-    return Response({
-        "period": "24h",
-        "total_requests": total,
-        "gate_passed": gate_passed,
-        "gate_failed": gate_failed,
-        "error_count": errors,
-        "avg_inference_time_ms": round(avg_time, 1) if avg_time else None,
-        "pass_rate": round(gate_passed / total * 100, 1) if total > 0 else 0,
-        "domains": list(domains),
-        "training_candidates": candidate_counts,
-    })
+    return Response(
+        {
+            "period": "24h",
+            "total_requests": total,
+            "gate_passed": gate_passed,
+            "gate_failed": gate_failed,
+            "error_count": errors,
+            "avg_inference_time_ms": round(avg_time, 1) if avg_time else None,
+            "pass_rate": round(gate_passed / total * 100, 1) if total > 0 else 0,
+            "domains": list(domains),
+            "training_candidates": candidate_counts,
+        }
+    )
 
 
 @api_view(["GET"])
@@ -673,14 +699,15 @@ def flywheel_stats(request):
     stats = flywheel.get_stats()
 
     # Add pattern analysis if requested
-    if request.query_params.get('analyze') == 'true':
-        stats['patterns'] = flywheel.analyze_patterns()
+    if request.query_params.get("analyze") == "true":
+        stats["patterns"] = flywheel.analyze_patterns()
 
     return Response(stats)
 
 
 class LoginRateThrottle(AnonRateThrottle):
     """Rate limit login attempts to prevent brute force."""
+
     rate = "5/minute"
 
 
@@ -690,7 +717,9 @@ class LoginRateThrottle(AnonRateThrottle):
 @throttle_classes([LoginRateThrottle])
 def login(request):
     """Login and create session. Rate limited to 5 attempts/minute."""
-    from django.contrib.auth import authenticate, login as auth_login
+    from django.contrib.auth import authenticate
+    from django.contrib.auth import login as auth_login
+
     from accounts.models import LoginAttempt
 
     username = request.data.get("username", "").strip()
@@ -717,6 +746,7 @@ def login(request):
     if user is None:
         # Try email as username
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
         try:
             user_by_email = User.objects.get(email=username)
@@ -746,16 +776,18 @@ def login(request):
     auth_login(request, user)
     logger.info(f"User logged in: {user.username}")
 
-    return Response({
-        "status": "logged_in",
-        "user": {
-            "id": str(user.id),
-            "username": user.username,
-            "email": user.email,
-            "tier": user.tier,
-            "daily_limit": user.daily_limit,
-        },
-    })
+    return Response(
+        {
+            "status": "logged_in",
+            "user": {
+                "id": str(user.id),
+                "username": user.username,
+                "email": user.email,
+                "tier": user.tier,
+                "daily_limit": user.daily_limit,
+            },
+        }
+    )
 
 
 @api_view(["POST"])
@@ -776,32 +808,37 @@ def logout(request):
 def me(request):
     """Get current authenticated user details."""
     user = request.user
-    return Response({
-        "id": str(user.id),
-        "username": user.username,
-        "email": user.email,
-        "email_verified": user.is_email_verified,
-        "tier": user.tier,
-        "display_name": user.display_name or user.username,
-        "avatar_url": user.avatar_url,
-        "bio": user.bio,
-        "industry": user.industry,
-        "role": user.role,
-        "experience_level": user.experience_level,
-        "organization_size": user.organization_size,
-        "is_staff": user.is_staff,
-        "is_internal": user.is_staff or user.memberships.filter(
-            tenant__slug__in={"svend"}, role__in=("owner", "admin"), is_active=True,
-        ).exists(),
-        "queries_today": user.queries_today,
-        "daily_limit": user.daily_limit,
-        "total_queries": user.total_queries,
-        "subscription_active": hasattr(user, 'subscription') and user.subscription.is_active,
-        "preferences": user.preferences or {},
-        "current_theme": user.current_theme,
-        "onboarding_completed": user.onboarding_completed_at is not None,
-        "features": TIER_FEATURES.get(user.tier, TIER_FEATURES[Tier.FREE]),
-    })
+    return Response(
+        {
+            "id": str(user.id),
+            "username": user.username,
+            "email": user.email,
+            "email_verified": user.is_email_verified,
+            "tier": user.tier,
+            "display_name": user.display_name or user.username,
+            "avatar_url": user.avatar_url,
+            "bio": user.bio,
+            "industry": user.industry,
+            "role": user.role,
+            "experience_level": user.experience_level,
+            "organization_size": user.organization_size,
+            "is_staff": user.is_staff,
+            "is_internal": user.is_staff
+            or user.memberships.filter(
+                tenant__slug__in={"svend"},
+                role__in=("owner", "admin"),
+                is_active=True,
+            ).exists(),
+            "queries_today": user.queries_today,
+            "daily_limit": user.daily_limit,
+            "total_queries": user.total_queries,
+            "subscription_active": hasattr(user, "subscription") and user.subscription.is_active,
+            "preferences": user.preferences or {},
+            "current_theme": user.current_theme,
+            "onboarding_completed": user.onboarding_completed_at is not None,
+            "features": TIER_FEATURES.get(user.tier, TIER_FEATURES[Tier.FREE]),
+        }
+    )
 
 
 @api_view(["PATCH"])
@@ -812,8 +849,15 @@ def update_profile(request):
 
     # Allowed fields to update
     allowed = [
-        "display_name", "avatar_url", "bio", "preferences", "current_theme",
-        "industry", "role", "experience_level", "organization_size",
+        "display_name",
+        "avatar_url",
+        "bio",
+        "preferences",
+        "current_theme",
+        "industry",
+        "role",
+        "experience_level",
+        "organization_size",
     ]
 
     # Valid choices for constrained fields
@@ -836,20 +880,22 @@ def update_profile(request):
 
     user.save()
 
-    return Response({
-        "status": "updated",
-        "user": {
-            "display_name": user.display_name,
-            "avatar_url": user.avatar_url,
-            "bio": user.bio,
-            "preferences": user.preferences,
-            "current_theme": user.current_theme,
-            "industry": user.industry,
-            "role": user.role,
-            "experience_level": user.experience_level,
-            "organization_size": user.organization_size,
-        },
-    })
+    return Response(
+        {
+            "status": "updated",
+            "user": {
+                "display_name": user.display_name,
+                "avatar_url": user.avatar_url,
+                "bio": user.bio,
+                "preferences": user.preferences,
+                "current_theme": user.current_theme,
+                "industry": user.industry,
+                "role": user.role,
+                "experience_level": user.experience_level,
+                "organization_size": user.organization_size,
+            },
+        }
+    )
 
 
 @api_view(["POST"])
@@ -894,7 +940,8 @@ def register(request):
     if not username:
         import re
         import secrets
-        base = re.sub(r'[^a-zA-Z0-9]', '', email.split('@')[0])[:20]
+
+        base = re.sub(r"[^a-zA-Z0-9]", "", email.split("@")[0])[:20]
         if len(base) < 3:
             base = "user"
         username = base
@@ -939,16 +986,20 @@ def register(request):
 
     # Auto-login so the user doesn't have to re-enter credentials
     from django.contrib.auth import login as auth_login
+
     auth_login(request, user)
 
-    return Response({
-        "status": "registered",
-        "username": username,
-        "tier": user.tier,
-        "email_verified": False,
-        "verification_sent": verification_sent,
-        "message": "Welcome to SVEND! Please check your email to verify your account.",
-    }, status=status.HTTP_201_CREATED)
+    return Response(
+        {
+            "status": "registered",
+            "username": username,
+            "tier": user.tier,
+            "email_verified": False,
+            "verification_sent": verification_sent,
+            "message": "Welcome to SVEND! Please check your email to verify your account.",
+        },
+        status=status.HTTP_201_CREATED,
+    )
 
 
 @api_view(["POST"])
@@ -986,6 +1037,7 @@ def change_password(request):
     # Apply Django's password validators
     from django.contrib.auth.password_validation import validate_password
     from django.core.exceptions import ValidationError as DjangoValidationError
+
     try:
         validate_password(new_password, user=user)
     except DjangoValidationError as e:
@@ -999,6 +1051,7 @@ def change_password(request):
 
     # Re-authenticate to maintain session
     from django.contrib.auth import update_session_auth_hash
+
     update_session_auth_hash(request, user)
 
     logger.info(f"Password changed for user: {user.username}")
@@ -1053,14 +1106,17 @@ def verify_email(request):
 
     try:
         from core.encryption import hash_token
+
         user = User.objects.get(email_verification_token=hash_token(token))
         if user.verify_email(token):
             logger.info(f"Email verified for user: {user.username}")
-            return Response({
-                "status": "verified",
-                "username": user.username,
-                "message": "Email verified successfully! You can now use all features.",
-            })
+            return Response(
+                {
+                    "status": "verified",
+                    "username": user.username,
+                    "message": "Email verified successfully! You can now use all features.",
+                }
+            )
         else:
             return Response(
                 {"error": "Invalid or expired token"},
@@ -1084,9 +1140,10 @@ def export_pdf(request):
         title: str - Document title (optional)
         include_math: bool - Whether to render LaTeX math (default: True)
     """
+    import os
     import subprocess
     import tempfile
-    import os
+
     from django.http import HttpResponse
 
     content = request.data.get("content", "")
@@ -1104,16 +1161,16 @@ def export_pdf(request):
     if content_format == "markdown":
         try:
             import markdown as md_lib
-            html_content = md_lib.markdown(
-                content,
-                extensions=['tables', 'fenced_code', 'toc']
-            )
+
+            html_content = md_lib.markdown(content, extensions=["tables", "fenced_code", "toc"])
         except ImportError:
             # Fallback: basic HTML escaping
             import html
+
             html_content = f"<div>{html.escape(content).replace(chr(10), '<br>')}</div>"
     elif content_format == "text":
         import html
+
         html_content = f"<pre>{html.escape(content)}</pre>"
     else:
         html_content = content
@@ -1121,16 +1178,20 @@ def export_pdf(request):
     # Sanitize HTML to prevent script injection in PDF renderer
     # Strip dangerous tags and event handler attributes
     html_content = re.sub(
-        r'<\s*(script|iframe|object|embed|applet|form|input|link|meta|base)[^>]*>.*?</\s*\1\s*>',
-        '', html_content, flags=re.IGNORECASE | re.DOTALL,
+        r"<\s*(script|iframe|object|embed|applet|form|input|link|meta|base)[^>]*>.*?</\s*\1\s*>",
+        "",
+        html_content,
+        flags=re.IGNORECASE | re.DOTALL,
     )
     html_content = re.sub(
-        r'<\s*(script|iframe|object|embed|applet|form|input|link|meta|base)[^>]*/?\s*>',
-        '', html_content, flags=re.IGNORECASE,
+        r"<\s*(script|iframe|object|embed|applet|form|input|link|meta|base)[^>]*/?\s*>",
+        "",
+        html_content,
+        flags=re.IGNORECASE,
     )
     # Strip event handlers (onclick, onerror, onload, etc.)
-    html_content = re.sub(r'\s+on\w+\s*=\s*["\'][^"\']*["\']', '', html_content, flags=re.IGNORECASE)
-    html_content = re.sub(r'\s+on\w+\s*=\s*\S+', '', html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r'\s+on\w+\s*=\s*["\'][^"\']*["\']', "", html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r"\s+on\w+\s*=\s*\S+", "", html_content, flags=re.IGNORECASE)
     # Strip javascript: URLs
     html_content = re.sub(r'(href|src|action)\s*=\s*["\']?\s*javascript:', r'\1="', html_content, flags=re.IGNORECASE)
 
@@ -1140,7 +1201,7 @@ def export_pdf(request):
 <head>
     <meta charset="UTF-8">
     <title>{title}</title>
-    {'<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">' if include_math else ''}
+    {'<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">' if include_math else ""}
     <style>
         body {{
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -1195,48 +1256,59 @@ def export_pdf(request):
 
     # Try to generate PDF with wkhtmltopdf or weasyprint
     try:
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False) as html_file:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as html_file:
             html_file.write(html_doc)
             html_path = html_file.name
 
-        pdf_path = html_path.replace('.html', '.pdf')
+        pdf_path = html_path.replace(".html", ".pdf")
 
         # Try wkhtmltopdf first (faster, better CSS support)
         try:
             subprocess.run(
-                ['wkhtmltopdf', '--quiet',
-                 '--disable-local-file-access',
-                 '--margin-top', '20mm', '--margin-bottom', '20mm',
-                 '--margin-left', '15mm', '--margin-right', '15mm',
-                 html_path, pdf_path],
+                [
+                    "wkhtmltopdf",
+                    "--quiet",
+                    "--disable-local-file-access",
+                    "--margin-top",
+                    "20mm",
+                    "--margin-bottom",
+                    "20mm",
+                    "--margin-left",
+                    "15mm",
+                    "--margin-right",
+                    "15mm",
+                    html_path,
+                    pdf_path,
+                ],
                 check=True,
                 capture_output=True,
-                timeout=30
+                timeout=30,
             )
         except (subprocess.CalledProcessError, FileNotFoundError):
             # Fallback to weasyprint
             try:
                 from weasyprint import HTML
+
                 HTML(filename=html_path).write_pdf(pdf_path)
             except ImportError:
                 # Last resort: return HTML for browser printing
                 os.unlink(html_path)
-                response = HttpResponse(html_doc, content_type='text/html')
-                safe_title = re.sub(r'[\x00-\x1f\x7f"\\/:*?<>|]', '_', title) or 'export'
-                response['Content-Disposition'] = f'inline; filename="{safe_title}.html"'
+                response = HttpResponse(html_doc, content_type="text/html")
+                safe_title = re.sub(r'[\x00-\x1f\x7f"\\/:*?<>|]', "_", title) or "export"
+                response["Content-Disposition"] = f'inline; filename="{safe_title}.html"'
                 return response
 
         # Read and return PDF
-        with open(pdf_path, 'rb') as pdf_file:
+        with open(pdf_path, "rb") as pdf_file:
             pdf_content = pdf_file.read()
 
         # Cleanup
         os.unlink(html_path)
         os.unlink(pdf_path)
 
-        response = HttpResponse(pdf_content, content_type='application/pdf')
-        safe_title = re.sub(r'[\x00-\x1f\x7f"\\/:*?<>|]', '_', title) or 'export'
-        response['Content-Disposition'] = f'attachment; filename="{safe_title}.pdf"'
+        response = HttpResponse(pdf_content, content_type="application/pdf")
+        safe_title = re.sub(r'[\x00-\x1f\x7f"\\/:*?<>|]', "_", title) or "export"
+        response["Content-Disposition"] = f'attachment; filename="{safe_title}.pdf"'
         return response
 
     except Exception as e:
@@ -1266,16 +1338,18 @@ def track_event(request):
         et = evt.get("event_type", "page_view")
         if et not in VALID_EVENT_TYPES:
             continue
-        objs.append(EventLog(
-            user=request.user,
-            event_type=et,
-            category=evt.get("category", "")[:50],
-            action=evt.get("action", "")[:100],
-            label=evt.get("label", "")[:200],
-            page=evt.get("page", "")[:200],
-            session_id=evt.get("session_id", "")[:64],
-            metadata=evt.get("metadata"),
-        ))
+        objs.append(
+            EventLog(
+                user=request.user,
+                event_type=et,
+                category=evt.get("category", "")[:50],
+                action=evt.get("action", "")[:100],
+                label=evt.get("label", "")[:200],
+                page=evt.get("page", "")[:200],
+                session_id=evt.get("session_id", "")[:64],
+                metadata=evt.get("metadata"),
+            )
+        )
 
     if objs:
         EventLog.objects.bulk_create(objs)
@@ -1288,7 +1362,7 @@ def track_event(request):
 # ---------------------------------------------------------------------------
 
 # 1x1 transparent GIF
-TRACKING_PIXEL = b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x00\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b'
+TRACKING_PIXEL = b"\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x00\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b"
 
 
 @api_view(["GET"])
@@ -1296,12 +1370,14 @@ TRACKING_PIXEL = b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\
 def email_track_open(request, recipient_id):
     """Track email open via 1x1 pixel."""
     from django.http import HttpResponse
+
     from api.models import EmailRecipient
 
     try:
         rcpt = EmailRecipient.objects.get(id=recipient_id)
         if not rcpt.opened_at:
             from django.utils import timezone as tz
+
             rcpt.opened_at = tz.now()
             rcpt.save(update_fields=["opened_at"])
     except EmailRecipient.DoesNotExist:
@@ -1314,8 +1390,10 @@ def email_track_open(request, recipient_id):
 @permission_classes([AllowAny])
 def email_track_click(request, recipient_id):
     """Track email link click and redirect."""
-    from django.http import HttpResponseRedirect
     from urllib.parse import urlparse
+
+    from django.http import HttpResponseRedirect
+
     from api.models import EmailRecipient
 
     ALLOWED_REDIRECT_DOMAINS = {"svend.ai", "www.svend.ai"}
@@ -1334,6 +1412,7 @@ def email_track_click(request, recipient_id):
         rcpt = EmailRecipient.objects.get(id=recipient_id)
         if not rcpt.clicked_at:
             from django.utils import timezone as tz
+
             rcpt.clicked_at = tz.now()
             rcpt.save(update_fields=["clicked_at"])
             # Also mark as opened if not already
@@ -1352,6 +1431,7 @@ def email_unsubscribe(request):
     """Unsubscribe from marketing/automation emails via signed token."""
     from django.core.signing import BadSignature, Signer
     from django.http import HttpResponse
+
     from accounts.models import User
 
     token = request.GET.get("token", "")
@@ -1387,6 +1467,7 @@ a{color:#4a9f6e;}</style></head><body><div class="card">
 def make_unsubscribe_url(user):
     """Generate a signed unsubscribe URL for a user."""
     from django.core.signing import Signer
+
     signer = Signer(salt="email-unsubscribe")
     token = signer.sign(str(user.id))
     return f"https://svend.ai/api/email/unsubscribe/?token={token}"
@@ -1395,6 +1476,7 @@ def make_unsubscribe_url(user):
 # ---------------------------------------------------------------------------
 # Feedback
 # ---------------------------------------------------------------------------
+
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -1431,7 +1513,9 @@ def site_duration(request):
     """
     import hashlib
     from datetime import timedelta
+
     from django.utils import timezone
+
     from api.models import SiteVisit
 
     path = (request.data.get("path") or "")[:300]
@@ -1449,10 +1533,7 @@ def site_duration(request):
     if duration < 1000 or duration > 1_800_000:
         return Response(status=204)
 
-    ip = (
-        request.META.get("HTTP_CF_CONNECTING_IP", "")
-        or request.META.get("REMOTE_ADDR", "")
-    )
+    ip = request.META.get("HTTP_CF_CONNECTING_IP", "") or request.META.get("REMOTE_ADDR", "")
     if not ip:
         return Response(status=204)
 
@@ -1461,8 +1542,7 @@ def site_duration(request):
 
     try:
         visit = (
-            SiteVisit.objects
-            .filter(ip_hash=ip_hash, path=path, viewed_at__gte=cutoff, duration_ms__isnull=True)
+            SiteVisit.objects.filter(ip_hash=ip_hash, path=path, viewed_at__gte=cutoff, duration_ms__isnull=True)
             .order_by("-viewed_at")
             .first()
         )
@@ -1480,8 +1560,11 @@ def site_duration(request):
 # ---------------------------------------------------------------------------
 
 FUNNEL_ACTIONS = {
-    "email_focus", "password_focus", "submit_attempt",
-    "submit_error", "submit_success",
+    "email_focus",
+    "password_focus",
+    "submit_attempt",
+    "submit_error",
+    "submit_success",
 }
 
 
@@ -1495,6 +1578,7 @@ def funnel_event(request):
     No new model — queryable via ``path__contains='#_'``.
     """
     import hashlib
+
     from api.models import SiteVisit
 
     page = (request.data.get("page") or "")[:300]
@@ -1503,10 +1587,7 @@ def funnel_event(request):
     if not page or action not in FUNNEL_ACTIONS:
         return Response(status=204)
 
-    ip = (
-        request.META.get("HTTP_CF_CONNECTING_IP", "")
-        or request.META.get("REMOTE_ADDR", "")
-    )
+    ip = request.META.get("HTTP_CF_CONNECTING_IP", "") or request.META.get("REMOTE_ADDR", "")
     if not ip:
         return Response(status=204)
 
@@ -1548,7 +1629,14 @@ ONBOARDING_GOALS = [
 ]
 
 TOOLS_OPTIONS = [
-    "minitab", "jmp", "excel", "r", "python", "spss", "stata", "none",
+    "minitab",
+    "jmp",
+    "excel",
+    "r",
+    "python",
+    "spss",
+    "stata",
+    "none",
 ]
 
 
@@ -1560,32 +1648,37 @@ def onboarding_status(request):
     survey = None
     try:
         from api.models import OnboardingSurvey
+
         survey = OnboardingSurvey.objects.get(user=user)
     except Exception:
         pass
 
-    return Response({
-        "completed": user.onboarding_completed_at is not None,
-        "survey": {
-            "industry": survey.industry if survey else "",
-            "role": survey.role if survey else "",
-            "experience_level": survey.experience_level if survey else "",
-            "organization_size": survey.organization_size if survey else "",
-            "primary_goal": survey.primary_goal if survey else "",
-            "tools_used": survey.tools_used if survey else [],
-            "confidence_stats": survey.confidence_stats if survey else 3,
-            "urgency": survey.urgency if survey else 3,
-            "biggest_challenge": survey.biggest_challenge if survey else "",
-        } if survey else None,
-        "options": {
-            "industries": [{"value": c[0], "label": c[1]} for c in Industry.choices],
-            "roles": [{"value": c[0], "label": c[1]} for c in Role.choices],
-            "experience_levels": [{"value": c[0], "label": c[1]} for c in ExperienceLevel.choices],
-            "organization_sizes": [{"value": c[0], "label": c[1]} for c in OrganizationSize.choices],
-            "goals": [{"value": g[0], "label": g[1]} for g in ONBOARDING_GOALS],
-            "tools": TOOLS_OPTIONS,
-        },
-    })
+    return Response(
+        {
+            "completed": user.onboarding_completed_at is not None,
+            "survey": {
+                "industry": survey.industry if survey else "",
+                "role": survey.role if survey else "",
+                "experience_level": survey.experience_level if survey else "",
+                "organization_size": survey.organization_size if survey else "",
+                "primary_goal": survey.primary_goal if survey else "",
+                "tools_used": survey.tools_used if survey else [],
+                "confidence_stats": survey.confidence_stats if survey else 3,
+                "urgency": survey.urgency if survey else 3,
+                "biggest_challenge": survey.biggest_challenge if survey else "",
+            }
+            if survey
+            else None,
+            "options": {
+                "industries": [{"value": c[0], "label": c[1]} for c in Industry.choices],
+                "roles": [{"value": c[0], "label": c[1]} for c in Role.choices],
+                "experience_levels": [{"value": c[0], "label": c[1]} for c in ExperienceLevel.choices],
+                "organization_sizes": [{"value": c[0], "label": c[1]} for c in OrganizationSize.choices],
+                "goals": [{"value": g[0], "label": g[1]} for g in ONBOARDING_GOALS],
+                "tools": TOOLS_OPTIONS,
+            },
+        }
+    )
 
 
 @api_view(["POST"])
@@ -1593,7 +1686,8 @@ def onboarding_status(request):
 def onboarding_complete(request):
     """Save onboarding survey and trigger welcome email drip."""
     from django.utils import timezone as tz
-    from api.models import OnboardingSurvey, OnboardingEmail
+
+    from api.models import OnboardingEmail, OnboardingSurvey
 
     user = request.user
     data = request.data
@@ -1636,19 +1730,24 @@ def onboarding_complete(request):
     if data.get("organization_size"):
         user.organization_size = data["organization_size"]
     user.onboarding_completed_at = tz.now()
-    user.save(update_fields=[
-        "industry", "role", "experience_level", "organization_size",
-        "onboarding_completed_at",
-    ])
+    user.save(
+        update_fields=[
+            "industry",
+            "role",
+            "experience_level",
+            "organization_size",
+            "onboarding_completed_at",
+        ]
+    )
 
     # Schedule drip emails via syn.sched
     now = tz.now()
     drip_schedule = [
-        ("welcome", now),                                      # Immediate
-        ("getting_started", now + tz.timedelta(hours=1)),       # 1 hour
-        ("tips", now + tz.timedelta(hours=24)),                 # 24 hours
-        ("learning_path", now + tz.timedelta(days=3)),          # 3 days
-        ("checkin", now + tz.timedelta(days=7)),                # 7 days
+        ("welcome", now),  # Immediate
+        ("getting_started", now + tz.timedelta(hours=1)),  # 1 hour
+        ("tips", now + tz.timedelta(hours=24)),  # 24 hours
+        ("learning_path", now + tz.timedelta(days=3)),  # 3 days
+        ("checkin", now + tz.timedelta(days=7)),  # 7 days
     ]
 
     for email_key, scheduled_for in drip_schedule:
@@ -1661,6 +1760,7 @@ def onboarding_complete(request):
     # Fire welcome email immediately via syn.sched
     try:
         from syn.sched.scheduler import schedule_task
+
         schedule_task(
             name=f"onboarding_welcome_{user.id}",
             func="api.send_onboarding_email",
@@ -1672,11 +1772,13 @@ def onboarding_complete(request):
     except Exception as e:
         logger.warning(f"Failed to schedule welcome email: {e}")
 
-    return Response({
-        "status": "completed",
-        "learning_path": survey.learning_path,
-        "message": "Welcome aboard! Check your email for your personalized getting started guide.",
-    })
+    return Response(
+        {
+            "status": "completed",
+            "learning_path": survey.learning_path,
+            "message": "Welcome aboard! Check your email for your personalized getting started guide.",
+        }
+    )
 
 
 # =============================================================================
@@ -1687,11 +1789,12 @@ def onboarding_complete(request):
 def compliance_page(request):
     """Public compliance landing page showing current check state + standards."""
     from django.shortcuts import render
-    from syn.audit.models import ComplianceCheck, ComplianceReport
 
     # Current state: latest result per check (use run_at, not UUID pk)
     from syn.audit.compliance import ALL_CHECKS, get_all_soc2_controls
+    from syn.audit.models import ComplianceCheck, ComplianceReport
     from syn.audit.standards import parse_standard_titles
+
     current_checks = []
     for check_name in sorted(ALL_CHECKS.keys()):
         latest = ComplianceCheck.objects.filter(check_name=check_name).order_by("-run_at").first()
@@ -1720,8 +1823,14 @@ def compliance_page(request):
     for std_name, desc in sorted(std_descriptions.items()):
         standards[std_name] = {
             "description": desc,
-            "total": 0, "passed": 0, "failed": 0, "pass_rate": 0,
-            "tests_total": 0, "tests_passed": 0, "tests_ran": 0, "tests_skipped": 0,
+            "total": 0,
+            "passed": 0,
+            "failed": 0,
+            "pass_rate": 0,
+            "tests_total": 0,
+            "tests_passed": 0,
+            "tests_ran": 0,
+            "tests_skipped": 0,
         }
 
     standards_total = 0
@@ -1730,6 +1839,7 @@ def compliance_page(request):
 
     # Compute assertion and test hook counts LIVE from standards files (fast — no test execution)
     from syn.audit.standards import parse_all_standards
+
     live_assertions = parse_all_standards()
     seen_tests = set()
     live_by_standard = {}
@@ -1765,16 +1875,18 @@ def compliance_page(request):
                     elif tc.get("ran"):
                         std_tests_ran += 1
             entry = standards.setdefault(std_name, {"description": std_descriptions.get(std_name, "")})
-            entry.update({
-                "total": info["total"],
-                "passed": info["passed"],
-                "failed": info["failed"],
-                "pass_rate": round(info["passed"] / info["total"] * 100) if info["total"] else 0,
-                "tests_total": std_tests_total,
-                "tests_passed": std_tests_passed,
-                "tests_ran": std_tests_ran,
-                "tests_skipped": std_tests_skipped,
-            })
+            entry.update(
+                {
+                    "total": info["total"],
+                    "passed": info["passed"],
+                    "failed": info["failed"],
+                    "pass_rate": round(info["passed"] / info["total"] * 100) if info["total"] else 0,
+                    "tests_total": std_tests_total,
+                    "tests_passed": std_tests_passed,
+                    "tests_ran": std_tests_ran,
+                    "tests_skipped": std_tests_skipped,
+                }
+            )
             standards_total += info["total"]
             standards_passed += info["passed"]
 
@@ -1792,20 +1904,24 @@ def compliance_page(request):
         sla_data["unmeasurable"] = d.get("unmeasurable", 0)
         # Public-safe SLA results: description, target, status, severity (no internal paths)
         for r in d.get("sla_results", []):
-            sla_data["slas"].append({
-                "description": r.get("description", ""),
-                "target": r.get("target", ""),
-                "window": r.get("window", ""),
-                "severity": r.get("severity", ""),
-                "status": r.get("status", ""),
-                "current_value": r.get("current_value"),
-                "metric": r.get("metric", ""),
-            })
+            sla_data["slas"].append(
+                {
+                    "description": r.get("description", ""),
+                    "target": r.get("target", ""),
+                    "window": r.get("window", ""),
+                    "severity": r.get("severity", ""),
+                    "status": r.get("status", ""),
+                    "current_value": r.get("current_value"),
+                    "metric": r.get("metric", ""),
+                }
+            )
 
     # Overlay live availability from HealthPing (replaces stale cached value)
     try:
-        from syn.audit.models import HealthPing
         from django.utils import timezone as tz
+
+        from syn.audit.models import HealthPing
+
         now = tz.now()
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         pings = HealthPing.objects.filter(timestamp__gte=month_start)
@@ -1840,25 +1956,29 @@ def compliance_page(request):
     # Most recent check run timestamp
     last_check_run = max((c.run_at for c in current_checks), default=None) if current_checks else None
 
-    response = render(request, "compliance.html", {
-        "report": latest_report,
-        "current_pass_rate": current_pass_rate,
-        "current_checks": current_checks,
-        "current_total": all_total,
-        "current_passed": all_passed,
-        "categories": categories,
-        "standards": standards,
-        "standards_total": standards_total,
-        "standards_passed": standards_passed,
-        "soc2_controls_count": len(soc2_controls),
-        "tests_linked": tests_linked,
-        "tests_unique": tests_unique,
-        "tests_passed": tests_passed,
-        "tests_failed": tests_failed,
-        "tests_skipped": tests_skipped,
-        "sla_data": sla_data,
-        "last_check_run": last_check_run,
-    })
+    response = render(
+        request,
+        "compliance.html",
+        {
+            "report": latest_report,
+            "current_pass_rate": current_pass_rate,
+            "current_checks": current_checks,
+            "current_total": all_total,
+            "current_passed": all_passed,
+            "categories": categories,
+            "standards": standards,
+            "standards_total": standards_total,
+            "standards_passed": standards_passed,
+            "soc2_controls_count": len(soc2_controls),
+            "tests_linked": tests_linked,
+            "tests_unique": tests_unique,
+            "tests_passed": tests_passed,
+            "tests_failed": tests_failed,
+            "tests_skipped": tests_skipped,
+            "sla_data": sla_data,
+            "last_check_run": last_check_run,
+        },
+    )
     response["Cache-Control"] = "no-cache, must-revalidate, max-age=0"
     return response
 
@@ -1873,12 +1993,14 @@ def compliance_data(request):
     reports = ComplianceReport.objects.filter(is_published=True).order_by("-period_start")[:6]
     data = []
     for r in reports:
-        data.append({
-            "period_start": r.period_start.isoformat(),
-            "period_end": r.period_end.isoformat(),
-            "pass_rate": r.pass_rate,
-            "total_checks": r.total_checks,
-            "public_report": r.public_report,
-        })
+        data.append(
+            {
+                "period_start": r.period_start.isoformat(),
+                "period_end": r.period_end.isoformat(),
+                "pass_rate": r.pass_rate,
+                "total_checks": r.total_checks,
+                "public_report": r.public_report,
+            }
+        )
 
     return Response({"reports": data})

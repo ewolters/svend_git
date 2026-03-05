@@ -26,7 +26,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 from django.db import models
 from django.utils import timezone
@@ -47,6 +47,7 @@ class VersionChangeType(Enum):
     MINOR: Backward-compatible additions
     PATCH: Non-functional changes
     """
+
     MAJOR = "major"
     MINOR = "minor"
     PATCH = "patch"
@@ -59,6 +60,7 @@ class VersionLifecycle(Enum):
 
     Deprecation lifecycle: ACTIVE → DEPRECATED → END_OF_LIFE → RETIRED
     """
+
     DRAFT = "draft"
     ACTIVE = "active"
     DEPRECATED = "deprecated"
@@ -70,6 +72,7 @@ class VersionCompatibility(Enum):
     """
     Version compatibility levels per SCHEMA-001 §6.2.
     """
+
     FORWARD_COMPATIBLE = "forward_compatible"  # 1.x.x → 1.y.z (y > x)
     BREAKING = "breaking"  # 1.x.x → 2.0.0
     TRANSPARENT = "transparent"  # 1.x.x → 1.x.y (y > x)
@@ -88,22 +91,23 @@ class SemanticVersion:
         3.0.0-beta.1
         1.2.3+build.456
     """
+
     major: int
     minor: int
     patch: int
-    prerelease: Optional[str] = None
-    build: Optional[str] = None
+    prerelease: str | None = None
+    build: str | None = None
 
     # Regex pattern for semantic version parsing
     SEMVER_PATTERN = re.compile(
-        r'^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)'
-        r'(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)'
-        r'(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?'
-        r'(?:\+(?P<build>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$'
+        r"^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)"
+        r"(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)"
+        r"(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?"
+        r"(?:\+(?P<build>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"
     )
 
     @classmethod
-    def parse(cls, version_string: str) -> "SemanticVersion":
+    def parse(cls, version_string: str) -> SemanticVersion:
         """
         Parse version string into SemanticVersion.
 
@@ -139,7 +143,7 @@ class SemanticVersion:
         )
 
     @classmethod
-    def from_int(cls, version: int) -> "SemanticVersion":
+    def from_int(cls, version: int) -> SemanticVersion:
         """
         Convert integer version to semantic version.
 
@@ -162,21 +166,21 @@ class SemanticVersion:
             version += f"+{self.build}"
         return version
 
-    def __lt__(self, other: "SemanticVersion") -> bool:
+    def __lt__(self, other: SemanticVersion) -> bool:
         """Compare versions for ordering."""
         if not isinstance(other, SemanticVersion):
             return NotImplemented
         return self._compare_tuple() < other._compare_tuple()
 
-    def __le__(self, other: "SemanticVersion") -> bool:
+    def __le__(self, other: SemanticVersion) -> bool:
         return self == other or self < other
 
-    def __gt__(self, other: "SemanticVersion") -> bool:
+    def __gt__(self, other: SemanticVersion) -> bool:
         if not isinstance(other, SemanticVersion):
             return NotImplemented
         return self._compare_tuple() > other._compare_tuple()
 
-    def __ge__(self, other: "SemanticVersion") -> bool:
+    def __ge__(self, other: SemanticVersion) -> bool:
         return self == other or self > other
 
     def __eq__(self, other: object) -> bool:
@@ -198,19 +202,19 @@ class SemanticVersion:
         prerelease_key = (0, self.prerelease) if self.prerelease else (1, "")
         return (self.major, self.minor, self.patch, prerelease_key)
 
-    def bump_major(self) -> "SemanticVersion":
+    def bump_major(self) -> SemanticVersion:
         """Increment major version (breaking change)."""
         return SemanticVersion(self.major + 1, 0, 0)
 
-    def bump_minor(self) -> "SemanticVersion":
+    def bump_minor(self) -> SemanticVersion:
         """Increment minor version (backward-compatible)."""
         return SemanticVersion(self.major, self.minor + 1, 0)
 
-    def bump_patch(self) -> "SemanticVersion":
+    def bump_patch(self) -> SemanticVersion:
         """Increment patch version (non-functional)."""
         return SemanticVersion(self.major, self.minor, self.patch + 1)
 
-    def is_compatible_with(self, other: "SemanticVersion") -> bool:
+    def is_compatible_with(self, other: SemanticVersion) -> bool:
         """
         Check if this version is compatible with another.
 
@@ -218,7 +222,7 @@ class SemanticVersion:
         """
         return self.major == other.major
 
-    def get_compatibility(self, other: "SemanticVersion") -> VersionCompatibility:
+    def get_compatibility(self, other: SemanticVersion) -> VersionCompatibility:
         """
         Determine compatibility level between versions.
 
@@ -241,6 +245,7 @@ class SemanticVersion:
 @dataclass
 class SchemaChange:
     """Represents a single change between schema versions."""
+
     change_type: VersionChangeType
     field: str
     change: str  # type_changed, constraint_changed, required_changed, etc.
@@ -256,16 +261,17 @@ class SchemaDiff:
 
     Per SCHEMA-001 §6.5: Schema diff tool output.
     """
+
     version_change: VersionChangeType
-    added_fields: List[str] = field(default_factory=list)
-    removed_fields: List[str] = field(default_factory=list)
-    modified_fields: List[SchemaChange] = field(default_factory=list)
+    added_fields: list[str] = field(default_factory=list)
+    removed_fields: list[str] = field(default_factory=list)
+    modified_fields: list[SchemaChange] = field(default_factory=list)
     compatibility: VersionCompatibility = VersionCompatibility.TRANSPARENT
     migration_required: bool = False
     estimated_impact: int = 0
     migration_complexity: str = "LOW"  # LOW, MEDIUM, HIGH
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API response."""
         return {
             "version_change": self.version_change.value,
@@ -287,10 +293,7 @@ class SchemaDiff:
         }
 
 
-def detect_breaking_changes(
-    old_schema: Dict[str, Any],
-    new_schema: Dict[str, Any]
-) -> SchemaDiff:
+def detect_breaking_changes(old_schema: dict[str, Any], new_schema: dict[str, Any]) -> SchemaDiff:
     """
     Detect breaking changes between two schema versions.
 
@@ -342,13 +345,15 @@ def detect_breaking_changes(
 
             # Type change → MAJOR
             if old_field.get("type") != new_field.get("type"):
-                diff.modified_fields.append(SchemaChange(
-                    change_type=VersionChangeType.MAJOR,
-                    field=field_name,
-                    change="type_changed",
-                    old_value=old_field.get("type"),
-                    new_value=new_field.get("type"),
-                ))
+                diff.modified_fields.append(
+                    SchemaChange(
+                        change_type=VersionChangeType.MAJOR,
+                        field=field_name,
+                        change="type_changed",
+                        old_value=old_field.get("type"),
+                        new_value=new_field.get("type"),
+                    )
+                )
                 diff.version_change = VersionChangeType.MAJOR
                 diff.migration_required = True
 
@@ -356,13 +361,15 @@ def detect_breaking_changes(
             was_required = field_name in old_required
             is_required = field_name in new_required
             if not was_required and is_required:
-                diff.modified_fields.append(SchemaChange(
-                    change_type=VersionChangeType.MAJOR,
-                    field=field_name,
-                    change="required_changed",
-                    old_value=False,
-                    new_value=True,
-                ))
+                diff.modified_fields.append(
+                    SchemaChange(
+                        change_type=VersionChangeType.MAJOR,
+                        field=field_name,
+                        change="required_changed",
+                        old_value=False,
+                        new_value=True,
+                    )
+                )
                 diff.version_change = VersionChangeType.MAJOR
                 diff.migration_required = True
 
@@ -386,10 +393,7 @@ def detect_breaking_changes(
 
 
 def _check_constraint_changes(
-    old_field: Dict[str, Any],
-    new_field: Dict[str, Any],
-    field_name: str,
-    diff: SchemaDiff
+    old_field: dict[str, Any], new_field: dict[str, Any], field_name: str, diff: SchemaDiff
 ) -> None:
     """Check for constraint changes between field definitions."""
     # Minimum constraint tightening
@@ -397,14 +401,16 @@ def _check_constraint_changes(
     new_min = new_field.get("minimum")
     if old_min is not None and new_min is not None:
         if new_min > old_min:
-            diff.modified_fields.append(SchemaChange(
-                change_type=VersionChangeType.MAJOR,
-                field=field_name,
-                change="constraint_changed",
-                old_value={"minimum": old_min},
-                new_value={"minimum": new_min},
-                description="Minimum constraint tightened",
-            ))
+            diff.modified_fields.append(
+                SchemaChange(
+                    change_type=VersionChangeType.MAJOR,
+                    field=field_name,
+                    change="constraint_changed",
+                    old_value={"minimum": old_min},
+                    new_value={"minimum": new_min},
+                    description="Minimum constraint tightened",
+                )
+            )
             diff.version_change = VersionChangeType.MAJOR
             diff.migration_required = True
 
@@ -413,14 +419,16 @@ def _check_constraint_changes(
     new_max = new_field.get("maximum")
     if old_max is not None and new_max is not None:
         if new_max < old_max:
-            diff.modified_fields.append(SchemaChange(
-                change_type=VersionChangeType.MAJOR,
-                field=field_name,
-                change="constraint_changed",
-                old_value={"maximum": old_max},
-                new_value={"maximum": new_max},
-                description="Maximum constraint tightened",
-            ))
+            diff.modified_fields.append(
+                SchemaChange(
+                    change_type=VersionChangeType.MAJOR,
+                    field=field_name,
+                    change="constraint_changed",
+                    old_value={"maximum": old_max},
+                    new_value={"maximum": new_max},
+                    description="Maximum constraint tightened",
+                )
+            )
             diff.version_change = VersionChangeType.MAJOR
             diff.migration_required = True
 
@@ -428,23 +436,22 @@ def _check_constraint_changes(
     old_pattern = old_field.get("pattern")
     new_pattern = new_field.get("pattern")
     if old_pattern != new_pattern and new_pattern is not None:
-        diff.modified_fields.append(SchemaChange(
-            change_type=VersionChangeType.MAJOR,
-            field=field_name,
-            change="constraint_changed",
-            old_value={"pattern": old_pattern},
-            new_value={"pattern": new_pattern},
-            description="Pattern constraint changed",
-        ))
+        diff.modified_fields.append(
+            SchemaChange(
+                change_type=VersionChangeType.MAJOR,
+                field=field_name,
+                change="constraint_changed",
+                old_value={"pattern": old_pattern},
+                new_value={"pattern": new_pattern},
+                description="Pattern constraint changed",
+            )
+        )
         diff.version_change = VersionChangeType.MAJOR
         diff.migration_required = True
 
 
 def _check_enum_changes(
-    old_field: Dict[str, Any],
-    new_field: Dict[str, Any],
-    field_name: str,
-    diff: SchemaDiff
+    old_field: dict[str, Any], new_field: dict[str, Any], field_name: str, diff: SchemaDiff
 ) -> None:
     """Check for enum value changes."""
     old_enum = set(old_field.get("enum", []))
@@ -453,14 +460,16 @@ def _check_enum_changes(
     if old_enum and new_enum:
         removed_values = old_enum - new_enum
         if removed_values:
-            diff.modified_fields.append(SchemaChange(
-                change_type=VersionChangeType.MAJOR,
-                field=field_name,
-                change="enum_values_removed",
-                old_value=list(old_enum),
-                new_value=list(new_enum),
-                description=f"Removed enum values: {removed_values}",
-            ))
+            diff.modified_fields.append(
+                SchemaChange(
+                    change_type=VersionChangeType.MAJOR,
+                    field=field_name,
+                    change="enum_values_removed",
+                    old_value=list(old_enum),
+                    new_value=list(new_enum),
+                    description=f"Removed enum values: {removed_values}",
+                )
+            )
             diff.version_change = VersionChangeType.MAJOR
             diff.migration_required = True
 
@@ -479,11 +488,12 @@ class DeprecationInfo:
     """
     Deprecation metadata per SCHEMA-001 §6.3.
     """
-    deprecated_at: Optional[datetime] = None
+
+    deprecated_at: datetime | None = None
     deprecated_by: str = ""
-    sunset_date: Optional[datetime] = None
+    sunset_date: datetime | None = None
     migration_path: str = ""
-    successor_version: Optional[str] = None
+    successor_version: str | None = None
     reason: str = ""
 
     # Minimum sunset period (180 days per SCHEMA-001 §6.3.1)
@@ -522,7 +532,7 @@ class DeprecationInfo:
             return VersionLifecycle.END_OF_LIFE
         return VersionLifecycle.DEPRECATED
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API response."""
         return {
             "deprecated_at": self.deprecated_at.isoformat() if self.deprecated_at else None,
@@ -540,7 +550,7 @@ class DeprecationInfo:
 # =============================================================================
 
 
-def compute_version_checksum(definition: Dict[str, Any]) -> str:
+def compute_version_checksum(definition: dict[str, Any]) -> str:
     """
     Compute SHA-256 checksum for version integrity.
 
@@ -557,7 +567,7 @@ def compute_version_checksum(definition: Dict[str, Any]) -> str:
     return hashlib.sha256(definition_json.encode("utf-8")).hexdigest()
 
 
-def verify_version_checksum(definition: Dict[str, Any], expected_checksum: str) -> bool:
+def verify_version_checksum(definition: dict[str, Any], expected_checksum: str) -> bool:
     """
     Verify checksum matches definition.
 
@@ -599,7 +609,7 @@ class VersionManager:
         self.entity_class = entity_class
         self.tenant_id = tenant_id
 
-    def get_current_version(self, entity_id: str) -> Optional[SemanticVersion]:
+    def get_current_version(self, entity_id: str) -> SemanticVersion | None:
         """Get current active version for an entity."""
         try:
             entity = self.entity_class.objects.get(
@@ -610,7 +620,7 @@ class VersionManager:
         except (self.entity_class.DoesNotExist, ValueError):
             return None
 
-    def get_version_history(self, slug: str) -> List[Dict[str, Any]]:
+    def get_version_history(self, slug: str) -> list[dict[str, Any]]:
         """Get all versions of an entity."""
         versions = self.entity_class.objects.filter(
             slug=slug,
@@ -627,11 +637,7 @@ class VersionManager:
             for v in versions
         ]
 
-    def compute_next_version(
-        self,
-        current: SemanticVersion,
-        change_type: VersionChangeType
-    ) -> SemanticVersion:
+    def compute_next_version(self, current: SemanticVersion, change_type: VersionChangeType) -> SemanticVersion:
         """
         Compute next version based on change type.
 
@@ -649,11 +655,7 @@ class VersionManager:
         else:
             return current.bump_patch()
 
-    def validate_rollback(
-        self,
-        current_version: str,
-        target_version: str
-    ) -> Tuple[bool, List[str]]:
+    def validate_rollback(self, current_version: str, target_version: str) -> tuple[bool, list[str]]:
         """
         Validate rollback is safe.
 
@@ -706,10 +708,7 @@ class SynaraVersionedMixin(models.Model):
 
     # Semantic version (MAJOR.MINOR.PATCH)
     version = models.CharField(
-        max_length=50,
-        default="1.0.0",
-        db_index=True,
-        help_text="Semantic version (MAJOR.MINOR.PATCH) per SDK-001 §6"
+        max_length=50, default="1.0.0", db_index=True, help_text="Semantic version (MAJOR.MINOR.PATCH) per SDK-001 §6"
     )
 
     # Version lifecycle status
@@ -724,42 +723,24 @@ class SynaraVersionedMixin(models.Model):
         ],
         default="active",
         db_index=True,
-        help_text="Version lifecycle status per SCHEMA-001 §6.3"
+        help_text="Version lifecycle status per SCHEMA-001 §6.3",
     )
 
     # Checksum for integrity
     version_checksum = models.CharField(
-        max_length=64,
-        blank=True,
-        default="",
-        help_text="SHA-256 checksum of definition for integrity"
+        max_length=64, blank=True, default="", help_text="SHA-256 checksum of definition for integrity"
     )
 
     # Deprecation metadata
-    deprecated_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="When this version was deprecated"
-    )
+    deprecated_at = models.DateTimeField(null=True, blank=True, help_text="When this version was deprecated")
 
-    sunset_date = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="When this version reaches end of life"
-    )
+    sunset_date = models.DateTimeField(null=True, blank=True, help_text="When this version reaches end of life")
 
     successor_version = models.CharField(
-        max_length=50,
-        blank=True,
-        default="",
-        help_text="Recommended successor version"
+        max_length=50, blank=True, default="", help_text="Recommended successor version"
     )
 
-    deprecation_reason = models.TextField(
-        blank=True,
-        default="",
-        help_text="Reason for deprecation"
-    )
+    deprecation_reason = models.TextField(blank=True, default="", help_text="Reason for deprecation")
 
     class Meta:
         abstract = True
@@ -786,12 +767,7 @@ class SynaraVersionedMixin(models.Model):
 
         return str(new_version)
 
-    def deprecate(
-        self,
-        reason: str,
-        successor: Optional[str] = None,
-        sunset_date: Optional[datetime] = None
-    ) -> None:
+    def deprecate(self, reason: str, successor: str | None = None, sunset_date: datetime | None = None) -> None:
         """
         Mark version as deprecated.
 
@@ -810,14 +786,16 @@ class SynaraVersionedMixin(models.Model):
             # Default: 180 days from now
             self.sunset_date = timezone.now() + timedelta(days=180)
 
-        self.save(update_fields=[
-            "lifecycle_status",
-            "deprecated_at",
-            "deprecation_reason",
-            "successor_version",
-            "sunset_date",
-            "updated_at"
-        ])
+        self.save(
+            update_fields=[
+                "lifecycle_status",
+                "deprecated_at",
+                "deprecation_reason",
+                "successor_version",
+                "sunset_date",
+                "updated_at",
+            ]
+        )
 
     def is_deprecated(self) -> bool:
         """Check if version is deprecated or beyond."""
@@ -827,13 +805,13 @@ class SynaraVersionedMixin(models.Model):
         """Check if version can be used for new instances."""
         return self.lifecycle_status in ("draft", "active", "deprecated")
 
-    def compute_checksum(self, definition: Dict[str, Any]) -> str:
+    def compute_checksum(self, definition: dict[str, Any]) -> str:
         """Compute and store checksum for definition."""
         checksum = compute_version_checksum(definition)
         self.version_checksum = checksum
         return checksum
 
-    def verify_checksum(self, definition: Dict[str, Any]) -> bool:
+    def verify_checksum(self, definition: dict[str, Any]) -> bool:
         """Verify stored checksum matches definition."""
         if not self.version_checksum:
             return True  # No checksum stored

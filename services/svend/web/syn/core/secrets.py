@@ -23,20 +23,16 @@ Architecture:
 """
 
 import base64
-import json
 import logging
 import os
-from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from datetime import timedelta
+from typing import Any
 
+from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.utils import timezone
-
-from cryptography.fernet import Fernet, InvalidToken
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 logger = logging.getLogger(__name__)
 
@@ -349,7 +345,7 @@ def set_secret(
     tenant_id: str,
     created_by: str = "",
     rotation_days: int = 90,
-    metadata: Optional[Dict[str, Any]] = None,
+    metadata: dict[str, Any] | None = None,
 ) -> SecretStore:
     """
     Store an encrypted secret.
@@ -459,7 +455,7 @@ def get_secret(name: str, tenant_id: str) -> str:
     return plaintext
 
 
-def rotate_secret(name: str, tenant_id: str, new_value: Optional[str] = None) -> SecretStore:
+def rotate_secret(name: str, tenant_id: str, new_value: str | None = None) -> SecretStore:
     """
     Rotate a secret by re-encrypting with a new DEK.
 

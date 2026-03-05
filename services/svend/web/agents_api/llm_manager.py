@@ -27,7 +27,7 @@ Note: Custom Qwen/DeepSeek models temporarily disabled while testing Synara.
 import logging
 import os
 import threading
-from typing import Optional, Any
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ class LLMManager:
         return cls._instance
 
     @classmethod
-    def get_anthropic(cls) -> Optional[Any]:
+    def get_anthropic(cls) -> Any | None:
         """Get Anthropic client.
 
         Returns None if ANTHROPIC_API_KEY not set.
@@ -82,7 +82,7 @@ class LLMManager:
             if cls._anthropic_loaded:
                 return cls._anthropic_client
 
-            api_key = os.environ.get('ANTHROPIC_API_KEY')
+            api_key = os.environ.get("ANTHROPIC_API_KEY")
             if not api_key:
                 logger.warning("ANTHROPIC_API_KEY not set - LLM features unavailable")
                 cls._anthropic_loaded = True
@@ -90,6 +90,7 @@ class LLMManager:
 
             try:
                 import anthropic
+
                 cls._anthropic_client = anthropic.Anthropic(api_key=api_key)
                 cls._anthropic_loaded = True
                 logger.info("Anthropic client initialized")
@@ -114,7 +115,7 @@ class LLMManager:
     def get_model_for_user(cls, user) -> str:
         """Get the Claude model ID for a user based on their subscription."""
         try:
-            tier = user.subscription_tier if hasattr(user, 'subscription_tier') else "FREE"
+            tier = user.subscription_tier if hasattr(user, "subscription_tier") else "FREE"
             return cls.get_model_for_tier(tier)
         except Exception:
             return CLAUDE_MODELS["haiku"]
@@ -129,7 +130,7 @@ class LLMManager:
         temperature: float = 0.7,
         skip_rate_limit: bool = False,
         **kwargs,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """Send a chat request using the appropriate Claude model for the user's tier.
 
         Args:
@@ -149,7 +150,8 @@ class LLMManager:
         # Check rate limit
         if not skip_rate_limit:
             try:
-                from .models import check_rate_limit, LLMUsage
+                from .models import LLMUsage, check_rate_limit
+
                 allowed, remaining, limit = check_rate_limit(user)
                 if not allowed:
                     logger.warning(f"Rate limit exceeded for user {user.id}: {limit} requests/day")
@@ -187,6 +189,7 @@ class LLMManager:
             # Record usage
             try:
                 from .models import LLMUsage, check_rate_limit
+
                 # Map full model name to short name
                 model_short = "haiku" if "haiku" in model else "sonnet" if "sonnet" in model else "opus"
                 LLMUsage.record_usage(user, model_short, input_tokens, output_tokens)
@@ -216,7 +219,7 @@ class LLMManager:
     @classmethod
     def anthropic_available(cls) -> bool:
         """Check if Anthropic API is available."""
-        return bool(os.environ.get('ANTHROPIC_API_KEY'))
+        return bool(os.environ.get("ANTHROPIC_API_KEY"))
 
     @classmethod
     def reset(cls):
@@ -259,13 +262,13 @@ class LLMManager:
     # =========================================================================
 
     @classmethod
-    def get_shared(cls) -> Optional[Any]:
+    def get_shared(cls) -> Any | None:
         """DEPRECATED: Custom LLMs disabled. Use get_anthropic() instead."""
         logger.warning("get_shared() is deprecated - custom LLMs temporarily disabled")
         return None
 
     @classmethod
-    def get_coder(cls) -> Optional[Any]:
+    def get_coder(cls) -> Any | None:
         """DEPRECATED: Custom LLMs disabled. Use get_anthropic() instead."""
         logger.warning("get_coder() is deprecated - custom LLMs temporarily disabled")
         return None

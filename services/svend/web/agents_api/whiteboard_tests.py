@@ -3,12 +3,12 @@
 import json
 from datetime import timedelta
 
-from django.test import TestCase, RequestFactory, override_settings
 from django.contrib.auth import get_user_model
+from django.test import RequestFactory, TestCase, override_settings
 from django.utils import timezone
 
-from agents_api.models import Board, BoardParticipant, BoardVote, BoardGuestInvite
-from core.models import Project, Hypothesis
+from agents_api.models import Board, BoardGuestInvite, BoardParticipant, BoardVote
+from core.models import Hypothesis, Project
 
 User = get_user_model()
 
@@ -20,19 +20,25 @@ class WhiteboardTestBase(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
         self.owner = User.objects.create_user(
-            username="owner", email="owner@test.com", password="pass123",
+            username="owner",
+            email="owner@test.com",
+            password="pass123",
         )
         self.owner.tier = "pro"
         self.owner.save()
 
         self.other = User.objects.create_user(
-            username="other", email="other@test.com", password="pass123",
+            username="other",
+            email="other@test.com",
+            password="pass123",
         )
         self.other.tier = "pro"
         self.other.save()
 
         self.free_user = User.objects.create_user(
-            username="freeuser", email="free@test.com", password="pass123",
+            username="freeuser",
+            email="free@test.com",
+            password="pass123",
         )
         # free_user.tier defaults to "free"
 
@@ -106,7 +112,6 @@ class WhiteboardTestBase(TestCase):
 
 
 class BoardCreateTest(WhiteboardTestBase):
-
     def test_create_board(self):
         data = self._create_board("My Board")
         self.assertEqual(data["name"], "My Board")
@@ -145,13 +150,13 @@ class BoardCreateTest(WhiteboardTestBase):
     def test_creator_becomes_participant(self):
         data = self._create_board()
         board = Board.objects.get(room_code=data["room_code"])
-        self.assertTrue(
-            BoardParticipant.objects.filter(board=board, user=self.owner).exists()
-        )
+        self.assertTrue(BoardParticipant.objects.filter(board=board, user=self.owner).exists())
 
     def test_free_user_blocked(self):
         resp = self._auth_post(
-            "/api/whiteboard/boards/create/", {"name": "X"}, user=self.free_user,
+            "/api/whiteboard/boards/create/",
+            {"name": "X"},
+            user=self.free_user,
         )
         self.assertEqual(resp.status_code, 403)
 
@@ -165,7 +170,6 @@ class BoardCreateTest(WhiteboardTestBase):
 
 
 class BoardGetTest(WhiteboardTestBase):
-
     def test_get_board(self):
         board_data = self._create_board()
         resp = self._auth_get(f"/api/whiteboard/boards/{board_data['room_code']}/")
@@ -190,15 +194,14 @@ class BoardGetTest(WhiteboardTestBase):
     def test_other_user_joins_as_participant(self):
         board_data = self._create_board()
         resp = self._auth_get(
-            f"/api/whiteboard/boards/{board_data['room_code']}/", user=self.other,
+            f"/api/whiteboard/boards/{board_data['room_code']}/",
+            user=self.other,
         )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertFalse(data["is_owner"])
         board = Board.objects.get(room_code=board_data["room_code"])
-        self.assertTrue(
-            BoardParticipant.objects.filter(board=board, user=self.other).exists()
-        )
+        self.assertTrue(BoardParticipant.objects.filter(board=board, user=self.other).exists())
 
     def test_get_board_includes_vote_counts(self):
         board_data = self._create_board()
@@ -223,7 +226,6 @@ class BoardGetTest(WhiteboardTestBase):
 
 
 class BoardUpdateTest(WhiteboardTestBase):
-
     def test_update_elements(self):
         board_data = self._create_board()
         elements = [{"id": "el-1", "type": "postit", "x": 100, "y": 200, "text": "Hello"}]
@@ -346,7 +348,6 @@ class BoardUpdateTest(WhiteboardTestBase):
 
 
 class BoardDeleteTest(WhiteboardTestBase):
-
     def test_delete_board(self):
         board_data = self._create_board()
         resp = self._auth_delete(
@@ -372,7 +373,6 @@ class BoardDeleteTest(WhiteboardTestBase):
 
 
 class BoardListTest(WhiteboardTestBase):
-
     def test_list_empty(self):
         resp = self._auth_get("/api/whiteboard/boards/")
         self.assertEqual(resp.status_code, 200)
@@ -416,7 +416,6 @@ class BoardListTest(WhiteboardTestBase):
 
 
 class CursorTest(WhiteboardTestBase):
-
     def test_update_cursor(self):
         board_data = self._create_board()
         resp = self._auth_post(
@@ -425,7 +424,8 @@ class CursorTest(WhiteboardTestBase):
         )
         self.assertEqual(resp.status_code, 200)
         p = BoardParticipant.objects.get(
-            board__room_code=board_data["room_code"], user=self.owner,
+            board__room_code=board_data["room_code"],
+            user=self.owner,
         )
         self.assertAlmostEqual(p.cursor_x, 150.5)
         self.assertAlmostEqual(p.cursor_y, 200.3)
@@ -437,7 +437,6 @@ class CursorTest(WhiteboardTestBase):
 
 
 class VotingTest(WhiteboardTestBase):
-
     def setUp(self):
         super().setUp()
         bd = self._create_board("Vote Board")
@@ -557,7 +556,8 @@ class VotingTest(WhiteboardTestBase):
         self.board.is_voting_active = True
         self.board.save()
         resp = self._auth_post(
-            f"/api/whiteboard/boards/{self.room}/vote/", {},
+            f"/api/whiteboard/boards/{self.room}/vote/",
+            {},
         )
         self.assertEqual(resp.status_code, 400)
 
@@ -568,7 +568,6 @@ class VotingTest(WhiteboardTestBase):
 
 
 class GuestInviteTest(WhiteboardTestBase):
-
     def setUp(self):
         super().setUp()
         bd = self._create_board("Guest Board")
@@ -583,7 +582,8 @@ class GuestInviteTest(WhiteboardTestBase):
 
     def test_create_invite_default_permission(self):
         resp = self._auth_post(
-            f"/api/whiteboard/boards/{self.room}/guests/create/", {},
+            f"/api/whiteboard/boards/{self.room}/guests/create/",
+            {},
         )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["permission"], "view")
@@ -651,7 +651,6 @@ class GuestInviteTest(WhiteboardTestBase):
 
 
 class GuestBoardAccessTest(WhiteboardTestBase):
-
     def setUp(self):
         super().setUp()
         bd = self._create_board("Collab Board")
@@ -755,7 +754,6 @@ class GuestBoardAccessTest(WhiteboardTestBase):
 
 
 class GuestVotingTest(WhiteboardTestBase):
-
     def setUp(self):
         super().setUp()
         bd = self._create_board("Vote Guest Board")
@@ -829,7 +827,6 @@ class GuestVotingTest(WhiteboardTestBase):
 
 
 class SVGExportTest(WhiteboardTestBase):
-
     def test_empty_board_svg(self):
         board_data = self._create_board()
         resp = self._auth_get(
@@ -844,7 +841,16 @@ class SVGExportTest(WhiteboardTestBase):
         board_data = self._create_board()
         board = Board.objects.get(room_code=board_data["room_code"])
         board.elements = [
-            {"id": "el-1", "type": "postit", "x": 50, "y": 50, "width": 120, "height": 80, "text": "Test", "color": "yellow"},
+            {
+                "id": "el-1",
+                "type": "postit",
+                "x": 50,
+                "y": 50,
+                "width": 120,
+                "height": 80,
+                "text": "Test",
+                "color": "yellow",
+            },
             {"id": "el-2", "type": "rectangle", "x": 200, "y": 50, "width": 120, "height": 60, "text": "Rect"},
         ]
         board.connections = [
@@ -905,8 +911,16 @@ class SVGExportTest(WhiteboardTestBase):
         board_data = self._create_board()
         board = Board.objects.get(room_code=board_data["room_code"])
         board.elements = [
-            {"id": "e1", "type": "postit", "x": 0, "y": 0, "width": 100, "height": 60,
-             "text": 'A < B & C > D "test"', "color": "yellow"},
+            {
+                "id": "e1",
+                "type": "postit",
+                "x": 0,
+                "y": 0,
+                "width": 100,
+                "height": 60,
+                "text": 'A < B & C > D "test"',
+                "color": "yellow",
+            },
         ]
         board.save()
 
@@ -922,7 +936,7 @@ class SVGExportTest(WhiteboardTestBase):
         board = Board.objects.get(room_code=board_data["room_code"])
         board.elements = [{"id": "e1", "type": "postit", "x": 0, "y": 0, "width": 100, "height": 60, "text": "X"}]
         board.save()
-        invite = self._create_invite(self.room if hasattr(self, 'room') else board_data["room_code"], "view")
+        invite = self._create_invite(self.room if hasattr(self, "room") else board_data["room_code"], "view")
         resp = self._guest_get(
             f"/api/whiteboard/boards/{board_data['room_code']}/svg/",
             invite["token"],
@@ -936,7 +950,6 @@ class SVGExportTest(WhiteboardTestBase):
 
 
 class HypothesisExportTest(WhiteboardTestBase):
-
     def setUp(self):
         super().setUp()
         self.project = Project.objects.create(user=self.owner, title="Research")
@@ -1029,7 +1042,6 @@ class HypothesisExportTest(WhiteboardTestBase):
 
 
 class GuestPageViewTest(WhiteboardTestBase):
-
     def test_valid_guest_page(self):
         bd = self._create_board()
         invite = self._create_invite(bd["room_code"], "edit")

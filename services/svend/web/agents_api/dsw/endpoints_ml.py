@@ -2,31 +2,31 @@
 
 import json
 import logging
-import uuid
 import tempfile
+import uuid
 from pathlib import Path
 
-from django.http import JsonResponse, FileResponse
-from django.views.decorators.http import require_http_methods
 from django.conf import settings
+from django.http import FileResponse, JsonResponse
+from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated, gated_paid, require_auth
+
 from ..models import DSWResult, SavedModel
 from .common import (
-    log_agent_action,
+    _auto_train,
+    _bayesian_model_beliefs,
+    _build_ml_diagnostics,
+    _claude_generate_schema,
+    _clean_for_ml,
+    _create_ml_evidence,
+    _generate_data_from_schema,
     cache_model,
     get_cached_model,
-    save_model_to_disk,
+    log_agent_action,
     sanitize_for_json,
-    _create_ml_evidence,
-    _claude_generate_schema,
-    _generate_data_from_schema,
-    _clean_for_ml,
-    _auto_train,
-    _build_ml_diagnostics,
-    _bayesian_model_beliefs,
+    save_model_to_disk,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,9 @@ logger = logging.getLogger(__name__)
 def _read_csv_safe(file_or_path):
     """Read CSV with encoding fallback: UTF-8 → latin-1."""
     import io
+
     import pandas as pd
+
     if hasattr(file_or_path, "read"):
         raw = file_or_path.read()
         try:
@@ -59,20 +61,21 @@ def dsw_from_intent(request):
     intent = data.get("intent", "").strip()
     domain = data.get("domain")
     n_records = min(int(data.get("n_records", 500)), 5000)
-    priority = data.get("priority", "balanced")
+    data.get("priority", "balanced")
 
     if not intent:
         return JsonResponse({"error": "Intent is required"}, status=400)
 
     try:
-        import pandas as pd
-
         schema = _claude_generate_schema(request.user, intent, domain, n_records)
         if not schema:
-            return JsonResponse({
-                "error": "Could not generate a dataset schema from your intent. Try rephrasing.",
-                "suggestion": "Be specific about what you want to predict and what factors might influence it.",
-            }, status=500)
+            return JsonResponse(
+                {
+                    "error": "Could not generate a dataset schema from your intent. Try rephrasing.",
+                    "suggestion": "Be specific about what you want to predict and what factors might influence it.",
+                },
+                status=500,
+            )
 
         df = _generate_data_from_schema(schema, n_records)
         target_name = schema.get("target", "target")
@@ -82,8 +85,14 @@ def dsw_from_intent(request):
         model, metrics, importances, task, X_test, y_test, y_pred = _auto_train(X, y)
 
         diag_plots = _build_ml_diagnostics(
-            model, X_test, y_test, y_pred, feature_names, task,
-            label_map=label_map, model_name=type(model).__name__,
+            model,
+            X_test,
+            y_test,
+            y_pred,
+            feature_names,
+            task,
+            label_map=label_map,
+            model_name=type(model).__name__,
         )
 
         # Pop non-scalar entries before belief computation
@@ -99,38 +108,68 @@ def dsw_from_intent(request):
         df.to_csv(data_path, index=False)
 
         training_config = {
-            "features": feature_names, "target": target_name,
-            "task_type": task, "model_class": type(model).__name__,
+            "features": feature_names,
+            "target": target_name,
+            "task_type": task,
+            "model_class": type(model).__name__,
             "hyperparams": model.get_params() if hasattr(model, "get_params") else {},
-            "source": "from_intent", "intent": intent, "n_records": n_records,
+            "source": "from_intent",
+            "intent": intent,
+            "n_records": n_records,
         }
         data_lineage_info = {
-            "source_type": "synthetic", "intent": intent,
+            "source_type": "synthetic",
+            "intent": intent,
             "domain": domain or "auto-detected",
-            "original_shape": list(df.shape), "data_path": str(data_path),
+            "original_shape": list(df.shape),
+            "data_path": str(data_path),
         }
 
         project_id = data.get("project_id")
         model_key = str(uuid.uuid4())
-        cache_model(request.user.id, model_key, model, {
-            "model_type": type(model).__name__, "metrics": metrics,
-            "features": feature_names, "target": target_name,
-            "training_config": training_config, "data_lineage": data_lineage_info,
-        })
+        cache_model(
+            request.user.id,
+            model_key,
+            model,
+            {
+                "model_type": type(model).__name__,
+                "metrics": metrics,
+                "features": feature_names,
+                "target": target_name,
+                "training_config": training_config,
+                "data_lineage": data_lineage_info,
+            },
+        )
 
         result_data = {
             "schema": {
                 "name": schema.get("name", f"Schema for: {intent[:50]}"),
-                "intent": intent, "domain": domain or "auto-detected",
-                "features": feature_names, "target": target_name, "task": task,
+                "intent": intent,
+                "domain": domain or "auto-detected",
+                "features": feature_names,
+                "target": target_name,
+                "task": task,
             },
-            "data_shape": list(df.shape), "data_path": str(data_path),
-            "model_type": type(model).__name__, "metrics": metrics,
+            "data_shape": list(df.shape),
+            "data_path": str(data_path),
+            "model_type": type(model).__name__,
+            "metrics": metrics,
             "feature_importance": importances[:10],
-            "pipeline": ["schema_generation", "data_synthesis", "data_cleaning", "model_training", "diagnostics", "belief_assessment"],
+            "pipeline": [
+                "schema_generation",
+                "data_synthesis",
+                "data_cleaning",
+                "model_training",
+                "diagnostics",
+                "belief_assessment",
+            ],
             "warnings": [
-                {"level": "critical" if b["probability"] > 0.7 else "warning" if b["probability"] > 0.4 else "info", "msg": b["narrative"]}
-                for b in belief_result["beliefs"] if b["probability"] > 0.3
+                {
+                    "level": "critical" if b["probability"] > 0.7 else "warning" if b["probability"] > 0.4 else "info",
+                    "msg": b["narrative"],
+                }
+                for b in belief_result["beliefs"]
+                if b["probability"] > 0.3
             ],
             "model_confidence": belief_result["model_confidence"],
             "beliefs": belief_result["beliefs"],
@@ -140,26 +179,44 @@ def dsw_from_intent(request):
             "summary": (
                 f"Generated {n_records} synthetic records based on intent: {intent}. "
                 f"Trained {type(model).__name__} ({task}). "
-                + (f"Accuracy: {metrics.get('accuracy', 'N/A')}" if task == "classification"
-                   else f"R\u00b2: {metrics.get('r2', 'N/A')}")
+                + (
+                    f"Accuracy: {metrics.get('accuracy', 'N/A')}"
+                    if task == "classification"
+                    else f"R\u00b2: {metrics.get('r2', 'N/A')}"
+                )
             ),
-            "model_key": model_key, "plots": diag_plots,
+            "model_key": model_key,
+            "plots": diag_plots,
         }
 
-        DSWResult.objects.create(id=result_id, user=request.user, result_type="from_intent", data=json.dumps(result_data))
+        DSWResult.objects.create(
+            id=result_id, user=request.user, result_type="from_intent", data=json.dumps(result_data)
+        )
 
         saved_model = save_model_to_disk(
-            user=request.user, model=model, model_type=type(model).__name__,
-            dsw_result_id=result_id, name=f"Intent: {intent[:50]}",
-            metrics=metrics, features=feature_names, target=target_name,
-            project_id=project_id, training_config=training_config, data_lineage=data_lineage_info,
+            user=request.user,
+            model=model,
+            model_type=type(model).__name__,
+            dsw_result_id=result_id,
+            name=f"Intent: {intent[:50]}",
+            metrics=metrics,
+            features=feature_names,
+            target=target_name,
+            project_id=project_id,
+            training_config=training_config,
+            data_lineage=data_lineage_info,
         )
 
         if project_id:
             _create_ml_evidence(request.user, project_id, type(model).__name__, metrics, importances, task, target_name)
 
-        log_agent_action(user=request.user, agent="dsw", action="from_intent", success=True,
-                         metadata={"result_id": result_id, "task": task, "n_records": n_records})
+        log_agent_action(
+            user=request.user,
+            agent="dsw",
+            action="from_intent",
+            success=True,
+            metadata={"result_id": result_id, "task": task, "n_records": n_records},
+        )
 
         response_data = {"result_id": result_id, **result_data}
         if saved_model:
@@ -167,11 +224,25 @@ def dsw_from_intent(request):
         return JsonResponse(sanitize_for_json(response_data))
 
     except Exception as e:
-        import traceback; traceback.print_exc()
+        import traceback
+
+        traceback.print_exc()
         logger.error(f"DSW from_intent failed: {e}")
-        log_agent_action(user=request.user, agent="dsw", action="from_intent", success=False,
-                         error_message=str(e)[:500], metadata={"intent": intent[:100], "domain": domain})
-        return JsonResponse({"error": f"Pipeline failed: {str(e)[:200]}", "suggestion": "Try rephrasing your intent or use a different domain."}, status=500)
+        log_agent_action(
+            user=request.user,
+            agent="dsw",
+            action="from_intent",
+            success=False,
+            error_message=str(e)[:500],
+            metadata={"intent": intent[:100], "domain": domain},
+        )
+        return JsonResponse(
+            {
+                "error": f"Pipeline failed: {str(e)[:200]}",
+                "suggestion": "Try rephrasing your intent or use a different domain.",
+            },
+            status=500,
+        )
 
 
 @require_http_methods(["POST"])
@@ -189,7 +260,6 @@ def dsw_from_data(request):
         return JsonResponse({"error": "Target column is required"}, status=400)
 
     try:
-        import pandas as pd
         df = _read_csv_safe(file)
 
         if target not in df.columns:
@@ -203,8 +273,14 @@ def dsw_from_data(request):
         model, metrics, importances, task, X_test, y_test, y_pred = _auto_train(X, y)
 
         diag_plots = _build_ml_diagnostics(
-            model, X_test, y_test, y_pred, feature_names, task,
-            label_map=label_map, model_name=type(model).__name__,
+            model,
+            X_test,
+            y_test,
+            y_pred,
+            feature_names,
+            task,
+            label_map=label_map,
+            model_name=type(model).__name__,
         )
 
         # Pop non-scalar entries before belief computation
@@ -220,33 +296,53 @@ def dsw_from_data(request):
         df.to_csv(data_path, index=False)
 
         training_config = {
-            "features": feature_names, "target": target, "task_type": task,
+            "features": feature_names,
+            "target": target,
+            "task_type": task,
             "model_class": type(model).__name__,
             "hyperparams": model.get_params() if hasattr(model, "get_params") else {},
             "source": "from_data",
         }
         data_lineage_info = {
-            "source_type": "upload", "original_file": file.name,
-            "original_shape": original_shape, "cleaned_shape": [X.shape[0], X.shape[1]],
+            "source_type": "upload",
+            "original_file": file.name,
+            "original_shape": original_shape,
+            "cleaned_shape": [X.shape[0], X.shape[1]],
             "data_path": str(data_path),
         }
 
         project_id = request.POST.get("project_id")
         model_key = str(uuid.uuid4())
-        cache_model(request.user.id, model_key, model, {
-            "model_type": type(model).__name__, "metrics": metrics,
-            "features": feature_names, "target": target,
-            "training_config": training_config, "data_lineage": data_lineage_info,
-        })
+        cache_model(
+            request.user.id,
+            model_key,
+            model,
+            {
+                "model_type": type(model).__name__,
+                "metrics": metrics,
+                "features": feature_names,
+                "target": target,
+                "training_config": training_config,
+                "data_lineage": data_lineage_info,
+            },
+        )
 
         result_data = {
-            "original_shape": original_shape, "cleaned_shape": [X.shape[0], X.shape[1]],
-            "data_path": str(data_path), "model_type": type(model).__name__,
-            "task": task, "metrics": metrics, "feature_importance": importances[:10],
+            "original_shape": original_shape,
+            "cleaned_shape": [X.shape[0], X.shape[1]],
+            "data_path": str(data_path),
+            "model_type": type(model).__name__,
+            "task": task,
+            "metrics": metrics,
+            "feature_importance": importances[:10],
             "pipeline": ["data_loading", "data_cleaning", "model_training", "diagnostics", "belief_assessment"],
             "warnings": [
-                {"level": "critical" if b["probability"] > 0.7 else "warning" if b["probability"] > 0.4 else "info", "msg": b["narrative"]}
-                for b in belief_result["beliefs"] if b["probability"] > 0.3
+                {
+                    "level": "critical" if b["probability"] > 0.7 else "warning" if b["probability"] > 0.4 else "info",
+                    "msg": b["narrative"],
+                }
+                for b in belief_result["beliefs"]
+                if b["probability"] > 0.3
             ],
             "model_confidence": belief_result["model_confidence"],
             "beliefs": belief_result["beliefs"],
@@ -256,26 +352,42 @@ def dsw_from_data(request):
             "summary": (
                 f"Processed {original_shape[0]} rows with {original_shape[1]} columns. Target: {target}. "
                 f"Trained {type(model).__name__} ({task}). "
-                + (f"Accuracy: {metrics.get('accuracy', 'N/A')}" if task == "classification"
-                   else f"R²: {metrics.get('r2', 'N/A')}")
+                + (
+                    f"Accuracy: {metrics.get('accuracy', 'N/A')}"
+                    if task == "classification"
+                    else f"R²: {metrics.get('r2', 'N/A')}"
+                )
             ),
-            "model_key": model_key, "plots": diag_plots,
+            "model_key": model_key,
+            "plots": diag_plots,
         }
 
         DSWResult.objects.create(id=result_id, user=request.user, result_type="from_data", data=json.dumps(result_data))
 
         saved_model = save_model_to_disk(
-            user=request.user, model=model, model_type=type(model).__name__,
-            dsw_result_id=result_id, name=f"Data: {target} prediction",
-            metrics=metrics, features=feature_names, target=target,
-            project_id=project_id, training_config=training_config, data_lineage=data_lineage_info,
+            user=request.user,
+            model=model,
+            model_type=type(model).__name__,
+            dsw_result_id=result_id,
+            name=f"Data: {target} prediction",
+            metrics=metrics,
+            features=feature_names,
+            target=target,
+            project_id=project_id,
+            training_config=training_config,
+            data_lineage=data_lineage_info,
         )
 
         if project_id:
             _create_ml_evidence(request.user, project_id, type(model).__name__, metrics, importances, task, target)
 
-        log_agent_action(user=request.user, agent="dsw", action="from_data", success=True,
-                         metadata={"result_id": result_id, "task": task, "rows": original_shape[0]})
+        log_agent_action(
+            user=request.user,
+            agent="dsw",
+            action="from_data",
+            success=True,
+            metadata={"result_id": result_id, "task": task, "rows": original_shape[0]},
+        )
 
         response_data = {"result_id": result_id, **result_data}
         if saved_model:
@@ -285,14 +397,20 @@ def dsw_from_data(request):
         if problem_id:
             try:
                 from ..views import add_finding_to_problem
+
                 summary = (
                     f"Built {type(model).__name__} on {target}. "
                     f"{'Accuracy' if task == 'classification' else 'R²'}: "
                     f"{metrics.get('accuracy' if task == 'classification' else 'r2', 'N/A')}, "
                     f"Top features: {', '.join(f['feature'] for f in importances[:3])}"
                 )
-                evidence = add_finding_to_problem(user=request.user, problem_id=problem_id, summary=summary,
-                                                  evidence_type="data_analysis", source="DSW (from-data)")
+                evidence = add_finding_to_problem(
+                    user=request.user,
+                    problem_id=problem_id,
+                    summary=summary,
+                    evidence_type="data_analysis",
+                    source="DSW (from-data)",
+                )
                 if evidence:
                     response_data["problem_updated"] = True
                     response_data["evidence_id"] = evidence["id"]
@@ -302,11 +420,25 @@ def dsw_from_data(request):
         return JsonResponse(sanitize_for_json(response_data))
 
     except Exception as e:
-        import traceback; traceback.print_exc()
+        import traceback
+
+        traceback.print_exc()
         logger.error(f"DSW from_data failed: {e}")
-        log_agent_action(user=request.user, agent="dsw", action="from_data", success=False,
-                         error_message=str(e)[:500], metadata={"target": target, "intent": intent[:100] if intent else None})
-        return JsonResponse({"error": f"Pipeline failed: {str(e)[:200]}", "suggestion": "Check that your data is properly formatted and the target column exists."}, status=500)
+        log_agent_action(
+            user=request.user,
+            agent="dsw",
+            action="from_data",
+            success=False,
+            error_message=str(e)[:500],
+            metadata={"target": target, "intent": intent[:100] if intent else None},
+        )
+        return JsonResponse(
+            {
+                "error": f"Pipeline failed: {str(e)[:200]}",
+                "suggestion": "Check that your data is properly formatted and the target column exists.",
+            },
+            status=500,
+        )
 
 
 @require_http_methods(["GET"])
@@ -362,8 +494,11 @@ def dsw_download(request, result_id, file_type):
                     saved_model = SavedModel.objects.get(dsw_result_id=result_id, user=request.user)
                     model_path = Path(saved_model.model_path)
                     if model_path.exists():
-                        return FileResponse(open(model_path, "rb"), as_attachment=True,
-                                            filename=f"{saved_model.name.replace(' ', '_')}.pkl")
+                        return FileResponse(
+                            open(model_path, "rb"),
+                            as_attachment=True,
+                            filename=f"{saved_model.name.replace(' ', '_')}.pkl",
+                        )
                     else:
                         return JsonResponse({"error": "Model file not found"}, status=404)
                 except SavedModel.DoesNotExist:
@@ -384,23 +519,30 @@ def list_models(request):
     if project_id:
         models_qs = models_qs.filter(project_id=project_id)
 
-    return JsonResponse({
-        "models": [
-            {
-                "id": str(m.id), "name": m.name, "description": m.description,
-                "model_type": m.model_type, "dsw_result_id": m.dsw_result_id,
-                "metrics": json.loads(m.metrics) if m.metrics else None,
-                "features": json.loads(m.feature_names) if m.feature_names else None,
-                "target": m.target_name, "created_at": m.created_at.isoformat(),
-                "project_id": str(m.project_id) if m.project_id else None,
-                "project_title": m.project.title if m.project else None,
-                "training_config": m.training_config or {}, "data_lineage": m.data_lineage or {},
-                "version": m.version,
-                "parent_model_id": str(m.parent_model_id) if m.parent_model_id else None,
-            }
-            for m in models_qs
-        ]
-    })
+    return JsonResponse(
+        {
+            "models": [
+                {
+                    "id": str(m.id),
+                    "name": m.name,
+                    "description": m.description,
+                    "model_type": m.model_type,
+                    "dsw_result_id": m.dsw_result_id,
+                    "metrics": json.loads(m.metrics) if m.metrics else None,
+                    "features": json.loads(m.feature_names) if m.feature_names else None,
+                    "target": m.target_name,
+                    "created_at": m.created_at.isoformat(),
+                    "project_id": str(m.project_id) if m.project_id else None,
+                    "project_title": m.project.title if m.project else None,
+                    "training_config": m.training_config or {},
+                    "data_lineage": m.data_lineage or {},
+                    "version": m.version,
+                    "parent_model_id": str(m.parent_model_id) if m.parent_model_id else None,
+                }
+                for m in models_qs
+            ]
+        }
+    )
 
 
 @require_http_methods(["POST"])
@@ -420,23 +562,35 @@ def save_model_from_cache(request):
         if not cached:
             return JsonResponse({"error": "Model not found in cache. It may have expired."}, status=404)
 
-        model = cached['model']
-        metadata = cached['metadata']
+        model = cached["model"]
+        metadata = cached["metadata"]
 
         saved = save_model_to_disk(
-            user=request.user, model=model, model_type=metadata.get('model_type', 'unknown'),
-            dsw_result_id=model_key, name=name, metrics=metadata.get('metrics'),
-            features=metadata.get('features'), target=metadata.get('target'),
-            project_id=data.get('project_id'), training_config=metadata.get('training_config'),
-            data_lineage=metadata.get('data_lineage'),
+            user=request.user,
+            model=model,
+            model_type=metadata.get("model_type", "unknown"),
+            dsw_result_id=model_key,
+            name=name,
+            metrics=metadata.get("metrics"),
+            features=metadata.get("features"),
+            target=metadata.get("target"),
+            project_id=data.get("project_id"),
+            training_config=metadata.get("training_config"),
+            data_lineage=metadata.get("data_lineage"),
         )
 
         if saved:
             if description:
                 saved.description = description
                 saved.save()
-            return JsonResponse({"success": True, "model_id": str(saved.id), "name": saved.name,
-                                 "message": f"Model '{name}' saved successfully"})
+            return JsonResponse(
+                {
+                    "success": True,
+                    "model_id": str(saved.id),
+                    "name": saved.name,
+                    "message": f"Model '{name}' saved successfully",
+                }
+            )
         else:
             return JsonResponse({"error": "Failed to save model"}, status=500)
 
@@ -454,8 +608,9 @@ def download_model(request, model_id):
         model_path = Path(saved_model.model_path)
         if not model_path.exists():
             return JsonResponse({"error": "Model file not found"}, status=404)
-        return FileResponse(open(model_path, "rb"), as_attachment=True,
-                            filename=f"{saved_model.name.replace(' ', '_')}.pkl")
+        return FileResponse(
+            open(model_path, "rb"), as_attachment=True, filename=f"{saved_model.name.replace(' ', '_')}.pkl"
+        )
     except SavedModel.DoesNotExist:
         return JsonResponse({"error": "Model not found"}, status=404)
 
@@ -481,8 +636,9 @@ def run_model(request, model_id):
     """Run inference with a saved model."""
     try:
         import pickle
-        import pandas as pd
+
         import numpy as np
+        import pandas as pd
 
         saved_model = SavedModel.objects.get(id=model_id, user=request.user)
         model_path = Path(saved_model.model_path)
@@ -540,10 +696,13 @@ def run_model(request, model_id):
         conformal_state = training_config.get("conformal_state")
         if conformal_state:
             try:
-                from ..conformal import ConformalRegressor, ConformalClassifier
+                from ..conformal import ConformalClassifier, ConformalRegressor
+
                 if conformal_state["type"] == "regression":
                     cf = ConformalRegressor.from_state(conformal_state)
-                    pred_arr = np.array(predictions if isinstance(predictions, list) else predictions.tolist(), dtype=np.float64)
+                    pred_arr = np.array(
+                        predictions if isinstance(predictions, list) else predictions.tolist(), dtype=np.float64
+                    )
                     lo, hi = cf.predict_interval(pred_arr, alpha=0.10)
                     intervals = [[round(float(lo[i]), 4), round(float(hi[i]), 4)] for i in range(len(lo))]
                 elif conformal_state["type"] == "classification" and probabilities is not None:
@@ -595,7 +754,10 @@ def run_model(request, model_id):
 def optimize_model(request, model_id):
     """Find optimal input values with density awareness, constraints, costs, and diminishing returns."""
     try:
-        import pickle, numpy as np, pandas as pd
+        import pickle
+
+        import numpy as np
+        import pandas as pd
         from scipy.optimize import differential_evolution
 
         saved_model = SavedModel.objects.get(id=model_id, user=request.user)
@@ -628,9 +790,12 @@ def optimize_model(request, model_id):
                 numeric_feats.append(feat)
                 lo, hi = info.get("min", 0), info.get("max", 100)
                 ub = user_bounds.get(feat, {})
-                if ub.get("min") is not None: lo = max(lo, float(ub["min"]))
-                if ub.get("max") is not None: hi = min(hi, float(ub["max"]))
-                if lo >= hi: hi = lo + 1e-4
+                if ub.get("min") is not None:
+                    lo = max(lo, float(ub["min"]))
+                if ub.get("max") is not None:
+                    hi = min(hi, float(ub["max"]))
+                if lo >= hi:
+                    hi = lo + 1e-4
                 bounds.append((lo, hi))
                 ranges.append(hi - lo if hi > lo else 1)
 
@@ -638,7 +803,9 @@ def optimize_model(request, model_id):
             return JsonResponse({"error": "No numeric features to optimize"}, status=400)
 
         num_idx = {f: i for i, f in enumerate(numeric_feats)}
-        current_numeric = np.array([float(current_values.get(f, (bounds[i][0] + bounds[i][1]) / 2)) for i, f in enumerate(numeric_feats)])
+        current_numeric = np.array(
+            [float(current_values.get(f, (bounds[i][0] + bounds[i][1]) / 2)) for i, f in enumerate(numeric_feats)]
+        )
         ranges_arr = np.array(ranges)
         cost_arr = np.array([float(cost_weights.get(f, 1)) for f in numeric_feats])
         has_costs = any(cost_weights.get(f) and float(cost_weights[f]) != 1 for f in numeric_feats)
@@ -655,35 +822,52 @@ def optimize_model(request, model_id):
             except Exception:
                 cov_inv = None
 
-        baseline_pred = abs(_predict_numeric(model, current_numeric, {f: current_values.get(f, "") for f in cat_feats},
-                                             numeric_feats, cat_feats, features, feature_info, current_values))
+        baseline_pred = abs(
+            _predict_numeric(
+                model,
+                current_numeric,
+                {f: current_values.get(f, "") for f in cat_feats},
+                numeric_feats,
+                cat_feats,
+                features,
+                feature_info,
+                current_values,
+            )
+        )
         pred_scale = max(baseline_pred, 1.0)
 
         def _predict_row(numeric_vals, cat_vals):
-            return _predict_numeric(model, numeric_vals, cat_vals, numeric_feats, cat_feats, features, feature_info, current_values)
+            return _predict_numeric(
+                model, numeric_vals, cat_vals, numeric_feats, cat_feats, features, feature_info, current_values
+            )
 
         cat_combos = [current_values]
         if cat_feats:
             from itertools import product
+
             cat_options = []
             for feat in cat_feats:
                 info = feature_info.get(feat, {})
                 cats = info.get("categories", [current_values.get(feat, "")])
                 cat_options.append([(feat, c) for c in cats[:5]])
             total_combos = 1
-            for opts in cat_options: total_combos *= len(opts)
+            for opts in cat_options:
+                total_combos *= len(opts)
             if total_combos <= 20:
                 cat_combos = [dict(combo) for combo in product(*cat_options)]
 
         best_val, best_inputs = None, None
 
         for cat_vals in cat_combos:
+
             def objective(x, _cv=cat_vals):
                 pred = _predict_row(x, _cv)
                 obj = -pred if goal == "maximize" else (pred if goal == "minimize" else abs(pred - target_value))
                 if cov_inv is not None:
                     sf = feature_stats["numeric_features"]
-                    x_full = np.array([float(x[num_idx[f]]) if f in num_idx else means_arr[i] for i, f in enumerate(sf)])
+                    x_full = np.array(
+                        [float(x[num_idx[f]]) if f in num_idx else means_arr[i] for i, f in enumerate(sf)]
+                    )
                     diff = x_full - means_arr
                     mahal = float(np.sqrt(max(0, diff @ cov_inv @ diff)))
                     if mahal > density_threshold:
@@ -692,7 +876,11 @@ def optimize_model(request, model_id):
                     deltas = np.abs(x - current_numeric) / ranges_arr
                     obj += 0.03 * pred_scale * float(np.sum(cost_arr * deltas))
                 for sc in sum_constraints:
-                    sc_feats, sc_op, sc_limit = sc.get("features", []), sc.get("operator", "<="), float(sc.get("limit", 0))
+                    sc_feats, sc_op, sc_limit = (
+                        sc.get("features", []),
+                        sc.get("operator", "<="),
+                        float(sc.get("limit", 0)),
+                    )
                     feat_sum = sum(float(x[num_idx[f]]) for f in sc_feats if f in num_idx)
                     if sc_op == "<=" and feat_sum > sc_limit:
                         obj += 10 * pred_scale * ((feat_sum - sc_limit) / max(sc_limit, 1)) ** 2
@@ -700,15 +888,28 @@ def optimize_model(request, model_id):
                         obj += 10 * pred_scale * ((sc_limit - feat_sum) / max(sc_limit, 1)) ** 2
                 return obj
 
-            result = differential_evolution(objective, bounds, maxiter=30, tol=1e-4, seed=42, polish=True, init="latinhypercube", popsize=10)
+            result = differential_evolution(
+                objective, bounds, maxiter=30, tol=1e-4, seed=42, polish=True, init="latinhypercube", popsize=10
+            )
             pred = _predict_row(result.x, cat_vals)
-            if best_val is None or (goal == "maximize" and pred > best_val) or (goal == "minimize" and pred < best_val) or (goal == "target" and abs(pred - target_value) < abs(best_val - target_value)):
+            if (
+                best_val is None
+                or (goal == "maximize" and pred > best_val)
+                or (goal == "minimize" and pred < best_val)
+                or (goal == "target" and abs(pred - target_value) < abs(best_val - target_value))
+            ):
                 best_val = pred
                 best_inputs = {}
-                for i, feat in enumerate(numeric_feats): best_inputs[feat] = round(float(result.x[i]), 4)
-                for feat in cat_feats: best_inputs[feat] = cat_vals.get(feat, current_values.get(feat, ""))
+                for i, feat in enumerate(numeric_feats):
+                    best_inputs[feat] = round(float(result.x[i]), 4)
+                for feat in cat_feats:
+                    best_inputs[feat] = cat_vals.get(feat, current_values.get(feat, ""))
 
-        response = {"optimal_inputs": best_inputs, "predicted_value": round(best_val, 4) if best_val is not None else None, "goal": goal}
+        response = {
+            "optimal_inputs": best_inputs,
+            "predicted_value": round(best_val, 4) if best_val is not None else None,
+            "goal": goal,
+        }
         if not best_inputs:
             return JsonResponse(response)
 
@@ -719,21 +920,33 @@ def optimize_model(request, model_id):
         prescription = []
         for feat in features:
             curr, opt = current_values.get(feat), best_inputs.get(feat)
-            if curr is None or opt is None: continue
+            if curr is None or opt is None:
+                continue
             info = feature_info.get(feat, {})
             if info.get("categories"):
-                if str(curr) != str(opt): prescription.append({"feature": feat, "from": str(curr), "to": str(opt), "type": "switch"})
+                if str(curr) != str(opt):
+                    prescription.append({"feature": feat, "from": str(curr), "to": str(opt), "type": "switch"})
             else:
                 try:
                     delta = float(opt) - float(curr)
-                    if abs(delta) < 1e-6: prescription.append({"feature": feat, "action": "hold", "value": round(float(opt), 4)})
+                    if abs(delta) < 1e-6:
+                        prescription.append({"feature": feat, "action": "hold", "value": round(float(opt), 4)})
                     else:
                         feat_range = (info.get("max", 100) - info.get("min", 0)) or 1
-                        prescription.append({"feature": feat, "from": round(float(curr), 4), "to": round(float(opt), 4),
-                                             "delta": round(delta, 4), "direction": "increase" if delta > 0 else "decrease",
-                                             "magnitude_pct": round(abs(delta) / feat_range * 100, 1), "type": "adjust",
-                                             "cost": float(cost_weights.get(feat, 1))})
-                except (ValueError, TypeError): pass
+                        prescription.append(
+                            {
+                                "feature": feat,
+                                "from": round(float(curr), 4),
+                                "to": round(float(opt), 4),
+                                "delta": round(delta, 4),
+                                "direction": "increase" if delta > 0 else "decrease",
+                                "magnitude_pct": round(abs(delta) / feat_range * 100, 1),
+                                "type": "adjust",
+                                "cost": float(cost_weights.get(feat, 1)),
+                            }
+                        )
+                except (ValueError, TypeError):
+                    pass
         response["prescription"] = prescription
 
         # Edge warnings
@@ -742,10 +955,13 @@ def optimize_model(request, model_id):
             info = feature_info.get(feat, {})
             lo, hi = info.get("min", 0), info.get("max", 100)
             val = best_inputs.get(feat)
-            if val is None: continue
+            if val is None:
+                continue
             feat_range = (hi - lo) or 1
-            if (val - lo) / feat_range < 0.05: edge_warnings.append({"feature": feat, "edge": "lower", "value": round(val, 4), "bound": round(lo, 4)})
-            elif (hi - val) / feat_range < 0.05: edge_warnings.append({"feature": feat, "edge": "upper", "value": round(val, 4), "bound": round(hi, 4)})
+            if (val - lo) / feat_range < 0.05:
+                edge_warnings.append({"feature": feat, "edge": "lower", "value": round(val, 4), "bound": round(lo, 4)})
+            elif (hi - val) / feat_range < 0.05:
+                edge_warnings.append({"feature": feat, "edge": "upper", "value": round(val, 4), "bound": round(hi, 4)})
         response["edge_warnings"] = edge_warnings
 
         # Feasibility
@@ -759,21 +975,48 @@ def optimize_model(request, model_id):
                 p = len(stat_feats)
                 threshold_ok, threshold_warn = np.sqrt(p) * 1.5, np.sqrt(p) * 2.5
                 if mahal_dist <= threshold_ok:
-                    feasibility = {"score": round(1.0 - mahal_dist / (threshold_warn * 1.5), 2), "label": "high", "mahalanobis": round(mahal_dist, 2), "details": "This combination is well within your observed data -- prediction is reliable."}
+                    feasibility = {
+                        "score": round(1.0 - mahal_dist / (threshold_warn * 1.5), 2),
+                        "label": "high",
+                        "mahalanobis": round(mahal_dist, 2),
+                        "details": "This combination is well within your observed data -- prediction is reliable.",
+                    }
                 elif mahal_dist <= threshold_warn:
-                    feasibility = {"score": round(0.5 - (mahal_dist - threshold_ok) / (threshold_warn * 2), 2), "label": "moderate", "mahalanobis": round(mahal_dist, 2), "details": "This combination is at the edge of your data. Prediction has moderate uncertainty."}
+                    feasibility = {
+                        "score": round(0.5 - (mahal_dist - threshold_ok) / (threshold_warn * 2), 2),
+                        "label": "moderate",
+                        "mahalanobis": round(mahal_dist, 2),
+                        "details": "This combination is at the edge of your data. Prediction has moderate uncertainty.",
+                    }
                 else:
-                    feasibility = {"score": max(0.0, round(0.2 - mahal_dist / (threshold_warn * 5), 2)), "label": "low", "mahalanobis": round(mahal_dist, 2), "details": "This combination is far from any training data -- the model is extrapolating. Collect data near these values before acting."}
+                    feasibility = {
+                        "score": max(0.0, round(0.2 - mahal_dist / (threshold_warn * 5), 2)),
+                        "label": "low",
+                        "mahalanobis": round(mahal_dist, 2),
+                        "details": "This combination is far from any training data -- the model is extrapolating. Collect data near these values before acting.",
+                    }
                 violated = []
                 for corr in feature_stats.get("strong_correlations", []):
                     f1, f2, r = corr["f1"], corr["f2"], corr["r"]
                     if f1 in best_inputs and f2 in best_inputs:
-                        v1 = (float(best_inputs[f1]) - feature_stats["means"].get(f1, 0)) / max(feature_stats["stds"].get(f1, 1), 1e-6)
-                        v2 = (float(best_inputs[f2]) - feature_stats["means"].get(f2, 0)) / max(feature_stats["stds"].get(f2, 1), 1e-6)
-                        if r > 0 and v1 * v2 < -1: violated.append(f"{f1} and {f2} are positively correlated (r={r}) but the optimum pushes them apart")
-                        elif r < 0 and v1 * v2 > 1: violated.append(f"{f1} and {f2} are negatively correlated (r={r}) but the optimum pushes them together")
-                if violated: feasibility["correlation_warnings"] = violated
-            except Exception: pass
+                        v1 = (float(best_inputs[f1]) - feature_stats["means"].get(f1, 0)) / max(
+                            feature_stats["stds"].get(f1, 1), 1e-6
+                        )
+                        v2 = (float(best_inputs[f2]) - feature_stats["means"].get(f2, 0)) / max(
+                            feature_stats["stds"].get(f2, 1), 1e-6
+                        )
+                        if r > 0 and v1 * v2 < -1:
+                            violated.append(
+                                f"{f1} and {f2} are positively correlated (r={r}) but the optimum pushes them apart"
+                            )
+                        elif r < 0 and v1 * v2 > 1:
+                            violated.append(
+                                f"{f1} and {f2} are negatively correlated (r={r}) but the optimum pushes them together"
+                            )
+                if violated:
+                    feasibility["correlation_warnings"] = violated
+            except Exception:
+                pass
         response["feasibility"] = feasibility
 
         # Sensitivity
@@ -788,7 +1031,9 @@ def optimize_model(request, model_id):
             x_down[i] = max(opt_val - step, lo)
             pred_up, pred_down = _predict_row(x_up, best_cat), _predict_row(x_down, best_cat)
             gradient = (pred_up - pred_down) / (2 * step) if step > 0 else 0
-            sensitivity.append({"feature": feat, "gradient": round(gradient, 6), "impact": round(abs(gradient) * (hi - lo), 4)})
+            sensitivity.append(
+                {"feature": feat, "gradient": round(gradient, 6), "impact": round(abs(gradient) * (hi - lo), 4)}
+            )
         sensitivity.sort(key=lambda s: abs(s["impact"]), reverse=True)
         response["sensitivity"] = sensitivity
 
@@ -797,19 +1042,32 @@ def optimize_model(request, model_id):
         for i, feat in enumerate(numeric_feats):
             curr_val = float(current_values.get(feat, current_numeric[i]))
             opt_val = float(best_inputs.get(feat, curr_val))
-            if abs(opt_val - curr_val) < 1e-6: continue
+            if abs(opt_val - curr_val) < 1e-6:
+                continue
             steps = np.linspace(curr_val, opt_val, 11)
-            preds = [_predict_row([sv if j == i else best_num[j] for j in range(len(numeric_feats))], best_cat) for sv in steps]
+            preds = [
+                _predict_row([sv if j == i else best_num[j] for j in range(len(numeric_feats))], best_cat)
+                for sv in steps
+            ]
             total_gain = abs(preds[-1] - preds[0])
-            if total_gain < 1e-8: continue
+            if total_gain < 1e-8:
+                continue
             knee_pct, knee_val = 100, opt_val
             for k in range(1, len(preds)):
                 if abs(preds[k] - preds[0]) / total_gain >= 0.8:
                     knee_pct = round(k / (len(preds) - 1) * 100)
                     knee_val = round(float(steps[k]), 4)
                     break
-            diminishing.append({"feature": feat, "knee_pct": knee_pct, "knee_value": knee_val,
-                                "total_gain": round(total_gain, 4), "current": round(curr_val, 4), "optimal": round(opt_val, 4)})
+            diminishing.append(
+                {
+                    "feature": feat,
+                    "knee_pct": knee_pct,
+                    "knee_value": knee_val,
+                    "total_gain": round(total_gain, 4),
+                    "current": round(curr_val, 4),
+                    "optimal": round(opt_val, 4),
+                }
+            )
         response["diminishing_returns"] = diminishing
 
         # Constraint satisfaction
@@ -817,9 +1075,20 @@ def optimize_model(request, model_id):
         for sc in sum_constraints:
             sc_feats, sc_op, sc_limit = sc.get("features", []), sc.get("operator", "<="), float(sc.get("limit", 0))
             feat_sum = sum(float(best_inputs.get(f, 0)) for f in sc_feats if f in best_inputs)
-            satisfied = (sc_op == "<=" and feat_sum <= sc_limit + 1e-6) or (sc_op == ">=" and feat_sum >= sc_limit - 1e-6)
-            constraint_status.append({"features": sc_feats, "operator": sc_op, "limit": sc_limit, "actual": round(feat_sum, 4), "satisfied": satisfied})
-        if constraint_status: response["constraints"] = constraint_status
+            satisfied = (sc_op == "<=" and feat_sum <= sc_limit + 1e-6) or (
+                sc_op == ">=" and feat_sum >= sc_limit - 1e-6
+            )
+            constraint_status.append(
+                {
+                    "features": sc_feats,
+                    "operator": sc_op,
+                    "limit": sc_limit,
+                    "actual": round(feat_sum, 4),
+                    "satisfied": satisfied,
+                }
+            )
+        if constraint_status:
+            response["constraints"] = constraint_status
 
         # Prediction interval at optimal point
         if hasattr(model, "estimators_"):
@@ -828,14 +1097,21 @@ def optimize_model(request, model_id):
                 opt_df = pd.DataFrame([opt_row])
                 for col in opt_df.select_dtypes(include=["object", "category"]).columns:
                     if col in feature_info and feature_info[col].get("categories"):
-                        opt_df[col] = pd.Categorical(opt_df[col], categories=sorted(feature_info[col]["categories"])).codes.astype(int)
+                        opt_df[col] = pd.Categorical(
+                            opt_df[col], categories=sorted(feature_info[col]["categories"])
+                        ).codes.astype(int)
                     else:
                         opt_df[col] = pd.Categorical(opt_df[col]).codes.astype(int)
                 opt_df = opt_df.fillna(0).replace(-1, 0)
                 X_opt = opt_df[features] if all(f in opt_df.columns for f in features) else opt_df
                 tree_preds = np.array([t.predict(X_opt)[0] for t in model.estimators_])
-                response["interval"] = {"lower": round(float(np.percentile(tree_preds, 5)), 4), "upper": round(float(np.percentile(tree_preds, 95)), 4), "std": round(float(np.std(tree_preds)), 4)}
-            except Exception: pass
+                response["interval"] = {
+                    "lower": round(float(np.percentile(tree_preds, 5)), 4),
+                    "upper": round(float(np.percentile(tree_preds, 95)), 4),
+                    "std": round(float(np.std(tree_preds)), 4),
+                }
+            except Exception:
+                pass
 
         return JsonResponse(response)
 
@@ -849,9 +1125,12 @@ def optimize_model(request, model_id):
 def _predict_numeric(model, numeric_vals, cat_vals, numeric_feats, cat_feats, features, feature_info, current_values):
     """Shared prediction helper for optimize -- builds DataFrame from numeric array + cat dict."""
     import pandas as pd
+
     row = {}
-    for i, feat in enumerate(numeric_feats): row[feat] = numeric_vals[i]
-    for feat in cat_feats: row[feat] = cat_vals.get(feat, current_values.get(feat, ""))
+    for i, feat in enumerate(numeric_feats):
+        row[feat] = numeric_vals[i]
+    for feat in cat_feats:
+        row[feat] = cat_vals.get(feat, current_values.get(feat, ""))
     df = pd.DataFrame([row])
     for col in df.select_dtypes(include=["object", "category"]).columns:
         if col in feature_info and feature_info[col].get("categories"):
@@ -867,8 +1146,9 @@ def _predict_numeric(model, numeric_vals, cat_vals, numeric_feats, cat_feats, fe
 @require_auth
 def models_summary(request):
     """Summary stats for ML Hub dashboard."""
-    from django.utils import timezone
     from datetime import timedelta
+
+    from django.utils import timezone
 
     models_qs = SavedModel.objects.filter(user=request.user).select_related("project")
     week_ago = timezone.now() - timedelta(days=7)
@@ -877,8 +1157,11 @@ def models_summary(request):
     for m in models_qs:
         key = str(m.project_id) if m.project_id else "ungrouped"
         if key not in projects:
-            projects[key] = {"project_id": str(m.project_id) if m.project_id else None,
-                             "project_title": m.project.title if m.project else "Ungrouped", "model_count": 0}
+            projects[key] = {
+                "project_id": str(m.project_id) if m.project_id else None,
+                "project_title": m.project.title if m.project else "Ungrouped",
+                "model_count": 0,
+            }
         projects[key]["model_count"] += 1
         try:
             metrics = json.loads(m.metrics) if m.metrics else {}
@@ -886,10 +1169,17 @@ def models_summary(request):
             if isinstance(primary, (int, float)) and primary > best_metric:
                 best_metric = primary
                 best_model = {"id": str(m.id), "name": m.name, "metric": primary}
-        except (json.JSONDecodeError, TypeError): pass
+        except (json.JSONDecodeError, TypeError):
+            pass
 
-    return JsonResponse({"total_models": models_qs.count(), "recent_models": models_qs.filter(created_at__gte=week_ago).count(),
-                         "project_groups": list(projects.values()), "best_model": best_model})
+    return JsonResponse(
+        {
+            "total_models": models_qs.count(),
+            "recent_models": models_qs.filter(created_at__gte=week_ago).count(),
+            "project_groups": list(projects.values()),
+            "best_model": best_model,
+        }
+    )
 
 
 @require_http_methods(["GET"])
@@ -904,10 +1194,16 @@ def model_versions(request, model_id):
     versions, current, seen = [], model, set()
     while current and current.id not in seen:
         seen.add(current.id)
-        versions.append({"id": str(current.id), "name": current.name, "version": current.version,
-                         "model_type": current.model_type,
-                         "metrics": json.loads(current.metrics) if current.metrics else {},
-                         "created_at": current.created_at.isoformat()})
+        versions.append(
+            {
+                "id": str(current.id),
+                "name": current.name,
+                "version": current.version,
+                "model_type": current.model_type,
+                "metrics": json.loads(current.metrics) if current.metrics else {},
+                "created_at": current.created_at.isoformat(),
+            }
+        )
         current = current.parent_model
     return JsonResponse({"versions": versions})
 
@@ -940,13 +1236,18 @@ def model_report(request, model_id):
 
     cleaning = None
     if data_lineage.get("triage_applied"):
-        cleaning = {"original_shape": data_lineage.get("original_shape"), "cleaned_shape": data_lineage.get("cleaned_shape")}
+        cleaning = {
+            "original_shape": data_lineage.get("original_shape"),
+            "cleaned_shape": data_lineage.get("cleaned_shape"),
+        }
 
     augmentation = None
     if data_lineage.get("forge_applied"):
-        augmentation = {"original_rows": (data_lineage.get("original_shape") or [0])[0],
-                        "synthetic_rows": data_lineage.get("synthetic_rows"),
-                        "total_rows": (data_lineage.get("augmented_shape") or [0])[0]}
+        augmentation = {
+            "original_rows": (data_lineage.get("original_shape") or [0])[0],
+            "synthetic_rows": data_lineage.get("synthetic_rows"),
+            "total_rows": (data_lineage.get("augmented_shape") or [0])[0],
+        }
 
     def _is_shap(p):
         title = p.get("title") or ""
@@ -959,34 +1260,46 @@ def model_report(request, model_id):
     shap_plots = [p for p in plots if _is_shap(p)]
     other_plots = [p for p in plots if not _is_shap(p)]
 
-    return JsonResponse({
-        "pipeline_stages": [{"name": s["name"], "success": s.get("status") == "completed"} for s in steps],
-        "cleaning": cleaning, "augmentation": augmentation,
-        "comparison": result_data.get("comparison"), "tuning": result_data.get("tuning"),
-        "model_type": result_data.get("model_type"), "task": result_data.get("task"),
-        "metrics": result_data.get("metrics"), "shap_plots": shap_plots, "plots": other_plots,
-        "recipe": result_data.get("training_config"), "elapsed_seconds": result_data.get("elapsed_seconds"),
-    })
+    return JsonResponse(
+        {
+            "pipeline_stages": [{"name": s["name"], "success": s.get("status") == "completed"} for s in steps],
+            "cleaning": cleaning,
+            "augmentation": augmentation,
+            "comparison": result_data.get("comparison"),
+            "tuning": result_data.get("tuning"),
+            "model_type": result_data.get("model_type"),
+            "task": result_data.get("task"),
+            "metrics": result_data.get("metrics"),
+            "shap_plots": shap_plots,
+            "plots": other_plots,
+            "recipe": result_data.get("training_config"),
+            "elapsed_seconds": result_data.get("elapsed_seconds"),
+        }
+    )
 
 
 # =============================================================================
 # Scrub Endpoints - Standalone Data Cleaning
 # =============================================================================
 
+
 @require_http_methods(["POST"])
 @gated
 def scrub_data(request):
     """Clean uploaded data using Scrub. POST with file upload or JSON data."""
     import pandas as pd
+
     try:
-        from scrub import DataCleaner, CleaningConfig
+        from scrub import CleaningConfig, DataCleaner
 
         if "file" in request.FILES:
             df = _read_csv_safe(request.FILES["file"])
         elif request.body:
             data = json.loads(request.body)
-            if "data" in data: df = pd.DataFrame(data["data"])
-            else: return JsonResponse({"error": "No data provided"}, status=400)
+            if "data" in data:
+                df = pd.DataFrame(data["data"])
+            else:
+                return JsonResponse({"error": "No data provided"}, status=400)
         else:
             return JsonResponse({"error": "No data provided"}, status=400)
 
@@ -995,7 +1308,8 @@ def scrub_data(request):
             try:
                 body = json.loads(request.body)
                 config_data = body.get("config", {})
-            except: pass
+            except Exception:
+                pass
 
         config = CleaningConfig(
             detect_outliers=config_data.get("detect_outliers", True),
@@ -1008,15 +1322,20 @@ def scrub_data(request):
         df_clean, result = cleaner.clean(df, config)
         request.user.increment_queries()
 
-        return JsonResponse({
-            "success": True, "original_shape": list(result.original_shape),
-            "cleaned_shape": list(result.cleaned_shape),
-            "outliers_flagged": result.outliers.count if result.outliers else 0,
-            "missing_filled": result.missing.total_filled if result.missing else 0,
-            "normalizations": result.normalization.total_changes if result.normalization else 0,
-            "warnings": result.warnings, "report_markdown": result.to_markdown(),
-            "report_summary": result.summary(), "data": df_clean.to_dict(orient="records"),
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "original_shape": list(result.original_shape),
+                "cleaned_shape": list(result.cleaned_shape),
+                "outliers_flagged": result.outliers.count if result.outliers else 0,
+                "missing_filled": result.missing.total_filled if result.missing else 0,
+                "normalizations": result.normalization.total_changes if result.normalization else 0,
+                "warnings": result.warnings,
+                "report_markdown": result.to_markdown(),
+                "report_summary": result.summary(),
+                "data": df_clean.to_dict(orient="records"),
+            }
+        )
     except Exception as e:
         logger.exception("Scrub error")
         return JsonResponse({"error": str(e)}, status=500)
@@ -1027,6 +1346,7 @@ def scrub_data(request):
 def scrub_analyze(request):
     """Analyze data without modifying it. Returns analysis of what would be cleaned + potential biases."""
     import pandas as pd
+
     try:
         from scrub import DataCleaner
 
@@ -1034,8 +1354,10 @@ def scrub_analyze(request):
             df = _read_csv_safe(request.FILES["file"])
         elif request.body:
             data = json.loads(request.body)
-            if "data" in data: df = pd.DataFrame(data["data"])
-            else: return JsonResponse({"error": "No data provided"}, status=400)
+            if "data" in data:
+                df = pd.DataFrame(data["data"])
+            else:
+                return JsonResponse({"error": "No data provided"}, status=400)
         else:
             return JsonResponse({"error": "No data provided"}, status=400)
 
@@ -1050,40 +1372,66 @@ def scrub_analyze(request):
 
 def _detect_data_biases(df) -> list:
     """Detect potential biases in dataset."""
-    import pandas as pd
     warnings = []
 
-    sensitive_patterns = ["gender", "sex", "race", "ethnicity", "religion", "age",
-                          "disability", "marital", "nationality", "origin", "zip", "zipcode"]
+    sensitive_patterns = [
+        "gender",
+        "sex",
+        "race",
+        "ethnicity",
+        "religion",
+        "age",
+        "disability",
+        "marital",
+        "nationality",
+        "origin",
+        "zip",
+        "zipcode",
+    ]
 
     for col in df.columns:
         col_lower = col.lower()
         for pattern in sensitive_patterns:
             if pattern in col_lower:
-                warnings.append({"type": "sensitive_feature", "column": col,
-                                 "message": f"Column '{col}' may contain sensitive/protected information. Consider whether it should be used in modeling.",
-                                 "severity": "high"})
+                warnings.append(
+                    {
+                        "type": "sensitive_feature",
+                        "column": col,
+                        "message": f"Column '{col}' may contain sensitive/protected information. Consider whether it should be used in modeling.",
+                        "severity": "high",
+                    }
+                )
                 break
 
     for col in df.columns:
-        if df[col].dtype in ['object', 'bool', 'category'] or df[col].nunique() <= 10:
+        if df[col].dtype in ["object", "bool", "category"] or df[col].nunique() <= 10:
             value_counts = df[col].value_counts(normalize=True)
             if len(value_counts) >= 2:
                 max_ratio, min_ratio = value_counts.iloc[0], value_counts.iloc[-1]
                 if max_ratio > 0.9:
-                    warnings.append({"type": "class_imbalance", "column": col,
-                                     "message": f"Column '{col}' has severe class imbalance ({max_ratio:.1%} vs {min_ratio:.1%}). Consider resampling strategies.",
-                                     "severity": "medium"})
+                    warnings.append(
+                        {
+                            "type": "class_imbalance",
+                            "column": col,
+                            "message": f"Column '{col}' has severe class imbalance ({max_ratio:.1%} vs {min_ratio:.1%}). Consider resampling strategies.",
+                            "severity": "medium",
+                        }
+                    )
 
     missing_cols = df.columns[df.isnull().any()].tolist()
     if len(missing_cols) > 1:
         for i, col1 in enumerate(missing_cols):
-            for col2 in missing_cols[i+1:]:
+            for col2 in missing_cols[i + 1 :]:
                 both_missing = (df[col1].isnull() & df[col2].isnull()).mean()
                 col1_missing, col2_missing = df[col1].isnull().mean(), df[col2].isnull().mean()
                 expected = col1_missing * col2_missing
                 if both_missing > 2 * expected and both_missing > 0.05:
-                    warnings.append({"type": "correlated_missing", "columns": [col1, col2],
-                                     "message": f"Missing data in '{col1}' and '{col2}' are correlated. This could indicate systematic bias in data collection.",
-                                     "severity": "medium"})
+                    warnings.append(
+                        {
+                            "type": "correlated_missing",
+                            "columns": [col1, col2],
+                            "message": f"Missing data in '{col1}' and '{col2}' are correlated. This could indicate systematic bias in data collection.",
+                            "severity": "medium",
+                        }
+                    )
     return warnings

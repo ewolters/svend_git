@@ -46,9 +46,10 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, List, Optional, Set, TYPE_CHECKING
+from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
 from django.utils import timezone
 
@@ -85,15 +86,15 @@ class TemporalControllerConfig:
     max_compensating_tasks_per_cycle: int = 5
 
     # Callbacks
-    on_rule_activated: Optional[Callable[[TemporalPolicyRule, Dict], None]] = None
-    on_outcome_completed: Optional[Callable[[ReflexOutcome], None]] = None
-    on_error: Optional[Callable[[Exception], None]] = None
+    on_rule_activated: Callable[[TemporalPolicyRule, dict], None] | None = None
+    on_outcome_completed: Callable[[ReflexOutcome], None] | None = None
+    on_error: Callable[[Exception], None] | None = None
 
     # Integration callbacks
-    task_submitter: Optional[Callable[[CompensatingTask], Any]] = None
-    context_provider: Optional[Callable[[], Dict[str, Any]]] = None
+    task_submitter: Callable[[CompensatingTask], Any] | None = None
+    context_provider: Callable[[], dict[str, Any]] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "evaluation_interval_seconds": self.evaluation_interval_seconds,
             "expiration_check_interval_seconds": self.expiration_check_interval_seconds,
@@ -117,12 +118,12 @@ class TemporalMetrics:
 
     # Cycle counts
     evaluation_cycles: int = 0
-    last_evaluation: Optional[datetime] = None
+    last_evaluation: datetime | None = None
 
     # Rule metrics
     rules_evaluated: int = 0
     rules_activated: int = 0
-    rules_by_trigger: Dict[str, int] = field(default_factory=dict)
+    rules_by_trigger: dict[str, int] = field(default_factory=dict)
 
     # Outcome metrics
     outcomes_completed: int = 0
@@ -131,7 +132,7 @@ class TemporalMetrics:
 
     # Compensating task metrics
     compensating_tasks_scheduled: int = 0
-    compensating_tasks_by_type: Dict[str, int] = field(default_factory=dict)
+    compensating_tasks_by_type: dict[str, int] = field(default_factory=dict)
 
     # Active state
     active_outcomes: int = 0
@@ -144,7 +145,7 @@ class TemporalMetrics:
     max_evaluation_ms: float = 0.0
     total_evaluation_ms: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "evaluation_cycles": self.evaluation_cycles,
             "last_evaluation": self.last_evaluation.isoformat() if self.last_evaluation else None,
@@ -214,9 +215,9 @@ class TemporalController:
 
     def __init__(
         self,
-        policy: Optional[TemporalPolicy] = None,
-        reflex: Optional[TemporalReflex] = None,
-        config: Optional[TemporalControllerConfig] = None,
+        policy: TemporalPolicy | None = None,
+        reflex: TemporalReflex | None = None,
+        config: TemporalControllerConfig | None = None,
     ):
         """
         Initialize the temporal controller.
@@ -235,24 +236,24 @@ class TemporalController:
             self._reflex.set_task_submitter(self._config.task_submitter)
 
         # Context sources
-        self._backpressure: Optional[BackpressureController] = None
-        self._governance_provider: Optional[Callable[[], Dict[str, Any]]] = None
-        self._scheduler_provider: Optional[Callable[[], Dict[str, Any]]] = None
-        self._custom_context_provider: Optional[Callable[[], Dict[str, Any]]] = None
+        self._backpressure: BackpressureController | None = None
+        self._governance_provider: Callable[[], dict[str, Any]] | None = None
+        self._scheduler_provider: Callable[[], dict[str, Any]] | None = None
+        self._custom_context_provider: Callable[[], dict[str, Any]] | None = None
 
         # State
         self._running = False
         self._lock = threading.RLock()
-        self._eval_thread: Optional[threading.Thread] = None
-        self._expiration_thread: Optional[threading.Thread] = None
+        self._eval_thread: threading.Thread | None = None
+        self._expiration_thread: threading.Thread | None = None
         self._shutdown_event = threading.Event()
 
         # Metrics
         self._metrics = TemporalMetrics()
 
         # Last context for debugging
-        self._last_context: Dict[str, Any] = {}
-        self._last_activated_rules: List[TemporalPolicyRule] = []
+        self._last_context: dict[str, Any] = {}
+        self._last_activated_rules: list[TemporalPolicyRule] = []
 
     # =========================================================================
     # Lifecycle
@@ -315,15 +316,15 @@ class TemporalController:
         """Set the backpressure controller for context."""
         self._backpressure = controller
 
-    def set_governance_provider(self, provider: Callable[[], Dict[str, Any]]) -> None:
+    def set_governance_provider(self, provider: Callable[[], dict[str, Any]]) -> None:
         """Set callback to get governance context."""
         self._governance_provider = provider
 
-    def set_scheduler_provider(self, provider: Callable[[], Dict[str, Any]]) -> None:
+    def set_scheduler_provider(self, provider: Callable[[], dict[str, Any]]) -> None:
         """Set callback to get scheduler context."""
         self._scheduler_provider = provider
 
-    def set_custom_context_provider(self, provider: Callable[[], Dict[str, Any]]) -> None:
+    def set_custom_context_provider(self, provider: Callable[[], dict[str, Any]]) -> None:
         """Set callback to provide additional context."""
         self._custom_context_provider = provider
 
@@ -446,9 +447,9 @@ class TemporalController:
     # Context Collection
     # =========================================================================
 
-    def _collect_context(self) -> Dict[str, Any]:
+    def _collect_context(self) -> dict[str, Any]:
         """Collect context from all sources."""
-        context: Dict[str, Any] = {
+        context: dict[str, Any] = {
             "timestamp": timezone.now().isoformat(),
         }
 
@@ -458,32 +459,30 @@ class TemporalController:
                 health = self._backpressure.get_health_metrics()
                 bp_metrics = self._backpressure.get_backpressure_metrics()
 
-                context.update({
-                    # Queue metrics
-                    "queue_depth": health.queue_depth,
-                    "queue_utilization": health.queue_utilization,
-
-                    # Throttle metrics
-                    "throttle_level": bp_metrics.current_level.name,
-                    "throttle_level_value": bp_metrics.current_level.value,
-                    "confidence_penalty": bp_metrics.current_confidence_penalty,
-                    "is_emergency": self._backpressure.is_emergency(),
-
-                    # Health status
-                    "health_status": health.status.value,
-                    "running_tasks": health.running_tasks,
-                    "worker_count": health.worker_count,
-                    "worker_utilization": health.worker_utilization,
-
-                    # DLQ metrics
-                    "dlq_size": health.dlq_pending_count,
-                    "dlq_growth_rate": health.dlq_growth_rate,
-
-                    # Circuit metrics
-                    "circuits_open": health.circuit_breakers_open,
-                    "circuits_total": health.circuit_breakers_total,
-                    "circuit_open_ratio": health.circuit_open_ratio,
-                })
+                context.update(
+                    {
+                        # Queue metrics
+                        "queue_depth": health.queue_depth,
+                        "queue_utilization": health.queue_utilization,
+                        # Throttle metrics
+                        "throttle_level": bp_metrics.current_level.name,
+                        "throttle_level_value": bp_metrics.current_level.value,
+                        "confidence_penalty": bp_metrics.current_confidence_penalty,
+                        "is_emergency": self._backpressure.is_emergency(),
+                        # Health status
+                        "health_status": health.status.value,
+                        "running_tasks": health.running_tasks,
+                        "worker_count": health.worker_count,
+                        "worker_utilization": health.worker_utilization,
+                        # DLQ metrics
+                        "dlq_size": health.dlq_pending_count,
+                        "dlq_growth_rate": health.dlq_growth_rate,
+                        # Circuit metrics
+                        "circuits_open": health.circuit_breakers_open,
+                        "circuits_total": health.circuit_breakers_total,
+                        "circuit_open_ratio": health.circuit_open_ratio,
+                    }
+                )
             except Exception as e:
                 logger.warning(f"[TEMPORAL CONTROLLER] Failed to collect backpressure context: {e}")
 
@@ -491,14 +490,16 @@ class TemporalController:
         if self._config.enable_governance_context and self._governance_provider:
             try:
                 gov_context = self._governance_provider()
-                context.update({
-                    "governance_risk": gov_context.get("risk_score", 0.0),
-                    "governance_blocked_rate": gov_context.get("blocked_rate", 0.0),
-                    "governance_escalation_rate": gov_context.get("escalation_rate", 0.0),
-                    "confidence_score": gov_context.get("confidence_score", 1.0),
-                    "incident_active": 1 if gov_context.get("incident_active", False) else 0,
-                    "incident_severity": gov_context.get("incident_severity", 0),
-                })
+                context.update(
+                    {
+                        "governance_risk": gov_context.get("risk_score", 0.0),
+                        "governance_blocked_rate": gov_context.get("blocked_rate", 0.0),
+                        "governance_escalation_rate": gov_context.get("escalation_rate", 0.0),
+                        "confidence_score": gov_context.get("confidence_score", 1.0),
+                        "incident_active": 1 if gov_context.get("incident_active", False) else 0,
+                        "incident_severity": gov_context.get("incident_severity", 0),
+                    }
+                )
             except Exception as e:
                 logger.warning(f"[TEMPORAL CONTROLLER] Failed to collect governance context: {e}")
 
@@ -506,13 +507,15 @@ class TemporalController:
         if self._config.enable_scheduler_context and self._scheduler_provider:
             try:
                 sched_context = self._scheduler_provider()
-                context.update({
-                    "available_schedules": sched_context.get("schedules", []),
-                    "pending_tasks": sched_context.get("pending_tasks", 0),
-                    "running_tasks": sched_context.get("running_tasks", context.get("running_tasks", 0)),
-                    "cascade_depth": sched_context.get("max_cascade_depth", 0),
-                    "cascade_budget_remaining": sched_context.get("cascade_budget_remaining", 1.0),
-                })
+                context.update(
+                    {
+                        "available_schedules": sched_context.get("schedules", []),
+                        "pending_tasks": sched_context.get("pending_tasks", 0),
+                        "running_tasks": sched_context.get("running_tasks", context.get("running_tasks", 0)),
+                        "cascade_depth": sched_context.get("max_cascade_depth", 0),
+                        "cascade_budget_remaining": sched_context.get("cascade_budget_remaining", 1.0),
+                    }
+                )
             except Exception as e:
                 logger.warning(f"[TEMPORAL CONTROLLER] Failed to collect scheduler context: {e}")
 
@@ -566,7 +569,7 @@ class TemporalController:
     # Manual Evaluation (for testing/debugging)
     # =========================================================================
 
-    def evaluate_now(self, context: Optional[Dict[str, Any]] = None) -> List[ReflexOutcome]:
+    def evaluate_now(self, context: dict[str, Any] | None = None) -> list[ReflexOutcome]:
         """
         Force immediate policy evaluation.
 
@@ -590,7 +593,7 @@ class TemporalController:
 
         return outcomes
 
-    def simulate(self, context: Dict[str, Any]) -> List[TemporalPolicyRule]:
+    def simulate(self, context: dict[str, Any]) -> list[TemporalPolicyRule]:
         """
         Simulate policy evaluation without executing actions.
 
@@ -612,9 +615,7 @@ class TemporalController:
         self._metrics.last_evaluation = timezone.now()
         self._metrics.total_evaluation_ms += elapsed_ms
         self._metrics.max_evaluation_ms = max(self._metrics.max_evaluation_ms, elapsed_ms)
-        self._metrics.avg_evaluation_ms = (
-            self._metrics.total_evaluation_ms / self._metrics.evaluation_cycles
-        )
+        self._metrics.avg_evaluation_ms = self._metrics.total_evaluation_ms / self._metrics.evaluation_cycles
 
     def _update_state_metrics(self) -> None:
         """Update state metrics."""
@@ -648,23 +649,23 @@ class TemporalController:
             total_evaluation_ms=self._metrics.total_evaluation_ms,
         )
 
-    def get_reflex_state(self) -> Dict[str, Any]:
+    def get_reflex_state(self) -> dict[str, Any]:
         """Get current reflex state."""
         return self._reflex.get_state().to_dict()
 
-    def get_last_context(self) -> Dict[str, Any]:
+    def get_last_context(self) -> dict[str, Any]:
         """Get the last collected context (for debugging)."""
         return dict(self._last_context)
 
-    def get_last_activated_rules(self) -> List[Dict[str, Any]]:
+    def get_last_activated_rules(self) -> list[dict[str, Any]]:
         """Get the last activated rules (for debugging)."""
         return [r.to_dict() for r in self._last_activated_rules]
 
-    def get_active_outcomes(self) -> List[Dict[str, Any]]:
+    def get_active_outcomes(self) -> list[dict[str, Any]]:
         """Get currently active outcomes."""
         return [o.to_dict() for o in self._reflex.get_active_outcomes()]
 
-    def get_outcome_history(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_outcome_history(self, limit: int = 50) -> list[dict[str, Any]]:
         """Get recent outcome history."""
         return [o.to_dict() for o in self._reflex.get_outcome_history(limit)]
 
@@ -684,11 +685,11 @@ class TemporalController:
         """Enable or disable a rule."""
         return self._policy.set_rule_enabled(rule_id, enabled)
 
-    def get_rules(self) -> List[Dict[str, Any]]:
+    def get_rules(self) -> list[dict[str, Any]]:
         """Get all policy rules."""
         return [r.to_dict() for r in self._policy.get_rules()]
 
-    def get_rule(self, rule_id: str) -> Optional[Dict[str, Any]]:
+    def get_rule(self, rule_id: str) -> dict[str, Any] | None:
         """Get a specific rule by ID."""
         rule = self._policy.get_rule(rule_id)
         return rule.to_dict() if rule else None

@@ -12,17 +12,11 @@ Tests cover:
 Compliance: ISO 27001 A.10.1 (Cryptographic Controls)
 """
 
-import base64
 import os
 import uuid
-from datetime import timedelta
-from unittest.mock import MagicMock, patch
 
-from django.test import TestCase, override_settings
-from django.utils import timezone
-
-import pytest
 from cryptography.fernet import Fernet
+from django.test import TestCase, override_settings
 from freezegun import freeze_time
 
 from syn.core.secrets import (
@@ -448,7 +442,8 @@ class KMSFallbackTestCase(TestCase):
         # To properly test this, we need to install boto3 and configure real KMS
         # For now, we test that the KMS client initialization path works
         try:
-            import boto3
+            import boto3  # noqa: F401
+
             # Skip if boto3 is available but not configured - would need real AWS credentials
             self.skipTest("KMS integration test requires AWS credentials")
         except ImportError:

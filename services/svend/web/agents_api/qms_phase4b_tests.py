@@ -7,16 +7,20 @@ CR: Phase 4B — Resource Management Models & Endpoints
 import json
 import secrets
 from datetime import date, timedelta
+
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from accounts.models import User
 from agents_api.models import (
-    Employee, ResourceCommitment, ActionToken,
-    HoshinProject, Site,
+    ActionToken,
+    Employee,
+    HoshinProject,
+    ResourceCommitment,
+    Site,
 )
 from core.models.project import Project
-from core.models.tenant import Tenant, Membership
+from core.models.tenant import Membership, Tenant
 
 SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
@@ -49,14 +53,20 @@ class EmployeeModelTest(TestCase):
     def setUpTestData(cls):
         cls.user, cls.tenant = _make_enterprise_user("emp_model", "emp_model@test.com")
         cls.site = Site.objects.create(
-            tenant=cls.tenant, name="Plant A", code="FTW",
+            tenant=cls.tenant,
+            name="Plant A",
+            code="FTW",
         )
 
     def test_employee_fields_exist(self):
         """Employee has all required fields per QMS-002 §2.1."""
         emp = Employee.objects.create(
-            tenant=self.tenant, name="Alice", email="alice@test.com",
-            role="Facilitator", department="Operations", site=self.site,
+            tenant=self.tenant,
+            name="Alice",
+            email="alice@test.com",
+            role="Facilitator",
+            department="Operations",
+            site=self.site,
         )
         self.assertEqual(emp.name, "Alice")
         self.assertEqual(emp.email, "alice@test.com")
@@ -68,23 +78,32 @@ class EmployeeModelTest(TestCase):
     def test_tenant_email_unique(self):
         """Email is unique per tenant."""
         Employee.objects.create(
-            tenant=self.tenant, name="Bob", email="bob@test.com",
+            tenant=self.tenant,
+            name="Bob",
+            email="bob@test.com",
         )
         from django.db import IntegrityError
+
         with self.assertRaises(IntegrityError):
             Employee.objects.create(
-                tenant=self.tenant, name="Bob2", email="bob@test.com",
+                tenant=self.tenant,
+                name="Bob2",
+                email="bob@test.com",
             )
 
     def test_user_link_nullable(self):
         """user_link FK is optional (nullable)."""
         emp_no_link = Employee.objects.create(
-            tenant=self.tenant, name="Carol", email="carol@test.com",
+            tenant=self.tenant,
+            name="Carol",
+            email="carol@test.com",
         )
         self.assertIsNone(emp_no_link.user_link)
 
         emp_linked = Employee.objects.create(
-            tenant=self.tenant, name="Dave", email="dave@test.com",
+            tenant=self.tenant,
+            name="Dave",
+            email="dave@test.com",
             user_link=self.user,
         )
         self.assertEqual(emp_linked.user_link, self.user)
@@ -92,7 +111,9 @@ class EmployeeModelTest(TestCase):
     def test_soft_delete(self):
         """Setting is_active=False soft-deletes the employee."""
         emp = Employee.objects.create(
-            tenant=self.tenant, name="Eve", email="eve@test.com",
+            tenant=self.tenant,
+            name="Eve",
+            email="eve@test.com",
         )
         self.assertTrue(emp.is_active)
         emp.is_active = False
@@ -109,15 +130,20 @@ class ResourceCommitmentModelTest(TestCase):
         cls.user, cls.tenant = _make_enterprise_user("rc_model", "rc_model@test.com")
         cls.site = Site.objects.create(tenant=cls.tenant, name="Plant B", code="DFW")
         cls.emp = Employee.objects.create(
-            tenant=cls.tenant, name="Frank", email="frank@test.com",
+            tenant=cls.tenant,
+            name="Frank",
+            email="frank@test.com",
         )
         cls.project = _make_hoshin_project(cls.user, cls.tenant, cls.site, "Reduce Waste")
 
     def test_commitment_fields_exist(self):
         """ResourceCommitment has all required fields per QMS-002 §2.2."""
         rc = ResourceCommitment.objects.create(
-            employee=self.emp, project=self.project, role="facilitator",
-            start_date=date(2026, 4, 1), end_date=date(2026, 6, 30),
+            employee=self.emp,
+            project=self.project,
+            role="facilitator",
+            start_date=date(2026, 4, 1),
+            end_date=date(2026, 6, 30),
             requested_by=self.user,
         )
         self.assertEqual(rc.employee, self.emp)
@@ -132,16 +158,22 @@ class ResourceCommitmentModelTest(TestCase):
         """Role field accepts all defined choices."""
         for role_val, _ in ResourceCommitment.ROLE_CHOICES:
             rc = ResourceCommitment.objects.create(
-                employee=self.emp, project=self.project, role=role_val,
-                start_date=date(2026, 7, 1), end_date=date(2026, 7, 31),
+                employee=self.emp,
+                project=self.project,
+                role=role_val,
+                start_date=date(2026, 7, 1),
+                end_date=date(2026, 7, 31),
             )
             self.assertEqual(rc.role, role_val)
 
     def test_status_lifecycle_transitions(self):
         """Status lifecycle: requested → confirmed → active → completed."""
         rc = ResourceCommitment.objects.create(
-            employee=self.emp, project=self.project, role="team_member",
-            start_date=date(2026, 8, 1), end_date=date(2026, 9, 30),
+            employee=self.emp,
+            project=self.project,
+            role="team_member",
+            start_date=date(2026, 8, 1),
+            end_date=date(2026, 9, 30),
         )
         self.assertEqual(rc.status, "requested")
 
@@ -168,19 +200,26 @@ class ResourceCommitmentModelTest(TestCase):
     def test_availability_overlap_detection(self):
         """check_availability detects overlapping commitments."""
         ResourceCommitment.objects.create(
-            employee=self.emp, project=self.project, role="facilitator",
-            start_date=date(2026, 4, 1), end_date=date(2026, 6, 30),
+            employee=self.emp,
+            project=self.project,
+            role="facilitator",
+            start_date=date(2026, 4, 1),
+            end_date=date(2026, 6, 30),
             status="confirmed",
         )
         # Overlapping range
         conflicts = ResourceCommitment.check_availability(
-            self.emp, date(2026, 5, 1), date(2026, 7, 31),
+            self.emp,
+            date(2026, 5, 1),
+            date(2026, 7, 31),
         )
         self.assertEqual(conflicts.count(), 1)
 
         # Non-overlapping range
         no_conflicts = ResourceCommitment.check_availability(
-            self.emp, date(2026, 7, 1), date(2026, 8, 31),
+            self.emp,
+            date(2026, 7, 1),
+            date(2026, 8, 31),
         )
         self.assertEqual(no_conflicts.count(), 0)
 
@@ -192,13 +231,16 @@ class ActionTokenModelTest(TestCase):
     def setUpTestData(cls):
         cls.user, cls.tenant = _make_enterprise_user("at_model", "at_model@test.com")
         cls.emp = Employee.objects.create(
-            tenant=cls.tenant, name="Grace", email="grace@test.com",
+            tenant=cls.tenant,
+            name="Grace",
+            email="grace@test.com",
         )
 
     def test_auto_generated_token(self):
         """Token is auto-generated with ≥32 bytes of randomness."""
         tok = ActionToken.objects.create(
-            employee=self.emp, action_type="confirm_availability",
+            employee=self.emp,
+            action_type="confirm_availability",
         )
         self.assertIsNotNone(tok.token)
         self.assertGreaterEqual(len(tok.token), 32)
@@ -207,7 +249,8 @@ class ActionTokenModelTest(TestCase):
         """Default expiry is ~72 hours from creation."""
         before = timezone.now()
         tok = ActionToken.objects.create(
-            employee=self.emp, action_type="decline",
+            employee=self.emp,
+            action_type="decline",
         )
         after = timezone.now()
         expected_min = before + timedelta(hours=71, minutes=59)
@@ -218,7 +261,8 @@ class ActionTokenModelTest(TestCase):
     def test_single_use(self):
         """use() sets used_at, making token invalid."""
         tok = ActionToken.objects.create(
-            employee=self.emp, action_type="update_progress",
+            employee=self.emp,
+            action_type="update_progress",
         )
         self.assertTrue(tok.is_valid)
         self.assertIsNone(tok.used_at)
@@ -231,7 +275,8 @@ class ActionTokenModelTest(TestCase):
     def test_is_valid_expired(self):
         """Expired token is invalid."""
         tok = ActionToken.objects.create(
-            employee=self.emp, action_type="view_dashboard",
+            employee=self.emp,
+            action_type="view_dashboard",
             expires_at=timezone.now() - timedelta(hours=1),
             token=secrets.token_urlsafe(32),
         )
@@ -257,12 +302,14 @@ class EmployeeAPITest(TestCase):
         self.client.force_login(self.user)
         resp = self.client.post(
             "/api/hoshin/employees/",
-            data=json.dumps({
-                "name": "Alice",
-                "email": "alice@example.com",
-                "role": "Engineer",
-                "department": "Quality",
-            }),
+            data=json.dumps(
+                {
+                    "name": "Alice",
+                    "email": "alice@example.com",
+                    "role": "Engineer",
+                    "department": "Quality",
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 201)
@@ -274,11 +321,15 @@ class EmployeeAPITest(TestCase):
         """GET /api/hoshin/employees/?department=X filters correctly."""
         self.client.force_login(self.user)
         Employee.objects.create(
-            tenant=self.tenant, name="Bob", email="bob@example.com",
+            tenant=self.tenant,
+            name="Bob",
+            email="bob@example.com",
             department="Quality",
         )
         Employee.objects.create(
-            tenant=self.tenant, name="Carol", email="carol@example.com",
+            tenant=self.tenant,
+            name="Carol",
+            email="carol@example.com",
             department="Operations",
         )
         resp = self.client.get("/api/hoshin/employees/?department=Quality")
@@ -290,7 +341,9 @@ class EmployeeAPITest(TestCase):
     def test_update_employee(self):
         """PUT /api/hoshin/employees/<id>/ updates fields."""
         emp = Employee.objects.create(
-            tenant=self.tenant, name="Dave", email="dave@example.com",
+            tenant=self.tenant,
+            name="Dave",
+            email="dave@example.com",
         )
         self.client.force_login(self.user)
         resp = self.client.put(
@@ -304,7 +357,9 @@ class EmployeeAPITest(TestCase):
     def test_soft_delete(self):
         """DELETE /api/hoshin/employees/<id>/ soft-deletes."""
         emp = Employee.objects.create(
-            tenant=self.tenant, name="Eve", email="eve@example.com",
+            tenant=self.tenant,
+            name="Eve",
+            email="eve@example.com",
         )
         self.client.force_login(self.user)
         resp = self.client.delete(f"/api/hoshin/employees/{emp.id}/")
@@ -322,7 +377,9 @@ class CommitmentAPITest(TestCase):
         cls.user, cls.tenant = _make_enterprise_user("rc_api", "rc_api@test.com")
         cls.site = Site.objects.create(tenant=cls.tenant, name="Plant D", code="HOU")
         cls.emp = Employee.objects.create(
-            tenant=cls.tenant, name="Frank", email="frank@example.com",
+            tenant=cls.tenant,
+            name="Frank",
+            email="frank@example.com",
         )
         cls.project = _make_hoshin_project(cls.user, cls.tenant, cls.site, "Improve OEE")
 
@@ -331,13 +388,15 @@ class CommitmentAPITest(TestCase):
         self.client.force_login(self.user)
         resp = self.client.post(
             "/api/hoshin/commitments/",
-            data=json.dumps({
-                "employee_id": str(self.emp.id),
-                "project_id": str(self.project.id),
-                "role": "facilitator",
-                "start_date": "2026-04-01",
-                "end_date": "2026-06-30",
-            }),
+            data=json.dumps(
+                {
+                    "employee_id": str(self.emp.id),
+                    "project_id": str(self.project.id),
+                    "role": "facilitator",
+                    "start_date": "2026-04-01",
+                    "end_date": "2026-06-30",
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 201)
@@ -348,8 +407,11 @@ class CommitmentAPITest(TestCase):
     def test_update_status_transition(self):
         """PUT /api/hoshin/commitments/<id>/ enforces valid transitions."""
         rc = ResourceCommitment.objects.create(
-            employee=self.emp, project=self.project, role="team_member",
-            start_date=date(2026, 4, 1), end_date=date(2026, 6, 30),
+            employee=self.emp,
+            project=self.project,
+            role="team_member",
+            start_date=date(2026, 4, 1),
+            end_date=date(2026, 6, 30),
             requested_by=self.user,
         )
         self.client.force_login(self.user)
@@ -365,8 +427,11 @@ class CommitmentAPITest(TestCase):
     def test_reject_invalid_transition(self):
         """PUT rejects invalid status transitions."""
         rc = ResourceCommitment.objects.create(
-            employee=self.emp, project=self.project, role="team_member",
-            start_date=date(2026, 7, 1), end_date=date(2026, 9, 30),
+            employee=self.emp,
+            project=self.project,
+            role="team_member",
+            start_date=date(2026, 7, 1),
+            end_date=date(2026, 9, 30),
             requested_by=self.user,
         )
         self.client.force_login(self.user)
@@ -384,8 +449,11 @@ class CommitmentAPITest(TestCase):
     def test_list_by_project(self):
         """GET /api/hoshin/commitments/?project=<id> filters by project."""
         ResourceCommitment.objects.create(
-            employee=self.emp, project=self.project, role="sponsor",
-            start_date=date(2026, 4, 1), end_date=date(2026, 6, 30),
+            employee=self.emp,
+            project=self.project,
+            role="sponsor",
+            start_date=date(2026, 4, 1),
+            end_date=date(2026, 6, 30),
         )
         self.client.force_login(self.user)
         resp = self.client.get(f"/api/hoshin/commitments/?project={self.project.id}")
@@ -401,7 +469,9 @@ class ActionTokenAPITest(TestCase):
     def setUpTestData(cls):
         cls.user, cls.tenant = _make_enterprise_user("at_api", "at_api@test.com")
         cls.emp = Employee.objects.create(
-            tenant=cls.tenant, name="Grace", email="grace@example.com",
+            tenant=cls.tenant,
+            name="Grace",
+            email="grace@example.com",
         )
 
     def test_get_returns_scoped_info(self):
@@ -420,7 +490,8 @@ class ActionTokenAPITest(TestCase):
     def test_post_marks_used(self):
         """POST /action/<token>/ executes action and marks token used."""
         tok = ActionToken.objects.create(
-            employee=self.emp, action_type="decline",
+            employee=self.emp,
+            action_type="decline",
         )
         resp = self.client.post(f"/action/{tok.token}/")
         self.assertEqual(resp.status_code, 200)
@@ -433,7 +504,8 @@ class ActionTokenAPITest(TestCase):
     def test_expired_token_returns_410(self):
         """Expired token returns 410 Gone."""
         tok = ActionToken.objects.create(
-            employee=self.emp, action_type="update_progress",
+            employee=self.emp,
+            action_type="update_progress",
             expires_at=timezone.now() - timedelta(hours=1),
             token=secrets.token_urlsafe(32),
         )
@@ -458,6 +530,7 @@ class EmployeeImportTest(TestCase):
     def _make_csv(self, rows):
         """Build an in-memory CSV file from list of dicts."""
         import io
+
         lines = []
         if rows:
             lines.append(",".join(rows[0].keys()))
@@ -471,10 +544,12 @@ class EmployeeImportTest(TestCase):
     def test_import_creates_employees(self):
         """CSV upload creates new employees."""
         self.client.force_login(self.user)
-        csv_file = self._make_csv([
-            {"name": "Alice", "email": "alice@import.com", "role": "Engineer", "department": "QA"},
-            {"name": "Bob", "email": "bob@import.com", "role": "Technician", "department": "Ops"},
-        ])
+        csv_file = self._make_csv(
+            [
+                {"name": "Alice", "email": "alice@import.com", "role": "Engineer", "department": "QA"},
+                {"name": "Bob", "email": "bob@import.com", "role": "Technician", "department": "Ops"},
+            ]
+        )
         resp = self.client.post(
             "/api/hoshin/employees/import/",
             {"file": csv_file},
@@ -489,12 +564,17 @@ class EmployeeImportTest(TestCase):
     def test_import_deduplicates_by_email(self):
         """Re-importing same email updates instead of creating duplicate."""
         Employee.objects.create(
-            tenant=self.tenant, name="Carol", email="carol@import.com", role="Old Role",
+            tenant=self.tenant,
+            name="Carol",
+            email="carol@import.com",
+            role="Old Role",
         )
         self.client.force_login(self.user)
-        csv_file = self._make_csv([
-            {"name": "Carol Updated", "email": "carol@import.com", "role": "New Role", "department": "Engineering"},
-        ])
+        csv_file = self._make_csv(
+            [
+                {"name": "Carol Updated", "email": "carol@import.com", "role": "New Role", "department": "Engineering"},
+            ]
+        )
         resp = self.client.post(
             "/api/hoshin/employees/import/",
             {"file": csv_file},
@@ -510,9 +590,11 @@ class EmployeeImportTest(TestCase):
     def test_import_missing_columns_returns_error(self):
         """CSV without required columns returns 400."""
         self.client.force_login(self.user)
-        csv_file = self._make_csv([
-            {"foo": "bar", "baz": "qux"},
-        ])
+        csv_file = self._make_csv(
+            [
+                {"foo": "bar", "baz": "qux"},
+            ]
+        )
         resp = self.client.post(
             "/api/hoshin/employees/import/",
             {"file": csv_file},
@@ -532,20 +614,30 @@ class EmployeeTimelineTest(TestCase):
         cls.user, cls.tenant = _make_enterprise_user("tl_api", "tl_api@test.com")
         cls.site = Site.objects.create(tenant=cls.tenant, name="Plant TL", code="TL1")
         cls.emp = Employee.objects.create(
-            tenant=cls.tenant, name="Dave", email="dave@tl.com",
+            tenant=cls.tenant,
+            name="Dave",
+            email="dave@tl.com",
         )
         cls.project = _make_hoshin_project(cls.user, cls.tenant, cls.site, "Timeline Project")
         # Active commitment in April-June 2026
         ResourceCommitment.objects.create(
-            employee=cls.emp, project=cls.project, role="facilitator",
-            start_date=date(2026, 4, 1), end_date=date(2026, 6, 30),
-            status="active", hours_per_day=4,
+            employee=cls.emp,
+            project=cls.project,
+            role="facilitator",
+            start_date=date(2026, 4, 1),
+            end_date=date(2026, 6, 30),
+            status="active",
+            hours_per_day=4,
         )
         # Completed commitment (should be excluded)
         ResourceCommitment.objects.create(
-            employee=cls.emp, project=cls.project, role="team_member",
-            start_date=date(2026, 1, 1), end_date=date(2026, 3, 31),
-            status="completed", hours_per_day=8,
+            employee=cls.emp,
+            project=cls.project,
+            role="team_member",
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 3, 31),
+            status="completed",
+            hours_per_day=8,
         )
 
     def test_timeline_returns_active_commitments(self):
@@ -578,21 +670,31 @@ class FacilitatorCalendarTest(TestCase):
         cls.user, cls.tenant = _make_enterprise_user("fac_api", "fac_api@test.com")
         cls.site = Site.objects.create(tenant=cls.tenant, name="Plant FC", code="FC1")
         cls.emp = Employee.objects.create(
-            tenant=cls.tenant, name="Eve", email="eve@fc.com",
+            tenant=cls.tenant,
+            name="Eve",
+            email="eve@fc.com",
         )
         cls.proj1 = _make_hoshin_project(cls.user, cls.tenant, cls.site, "Project Alpha")
         cls.proj2 = _make_hoshin_project(cls.user, cls.tenant, cls.site, "Project Beta")
 
         # Two overlapping facilitator commitments (5h + 5h = 10h > 8h)
         ResourceCommitment.objects.create(
-            employee=cls.emp, project=cls.proj1, role="facilitator",
-            start_date=date(2026, 4, 1), end_date=date(2026, 4, 10),
-            status="confirmed", hours_per_day=5,
+            employee=cls.emp,
+            project=cls.proj1,
+            role="facilitator",
+            start_date=date(2026, 4, 1),
+            end_date=date(2026, 4, 10),
+            status="confirmed",
+            hours_per_day=5,
         )
         ResourceCommitment.objects.create(
-            employee=cls.emp, project=cls.proj2, role="facilitator",
-            start_date=date(2026, 4, 5), end_date=date(2026, 4, 15),
-            status="confirmed", hours_per_day=5,
+            employee=cls.emp,
+            project=cls.proj2,
+            role="facilitator",
+            start_date=date(2026, 4, 5),
+            end_date=date(2026, 4, 15),
+            status="confirmed",
+            hours_per_day=5,
         )
 
     def test_returns_facilitators(self):

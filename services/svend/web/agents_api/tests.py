@@ -17,119 +17,119 @@ class WorkflowAPITest(TestCase):
 
     def setUp(self):
         self.client = APIClient()
-        self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
-        )
+        self.user = User.objects.create_user(username="testuser", email="test@example.com", password="testpass123")
         self.client.force_authenticate(user=self.user)
 
     def test_list_workflows_empty(self):
         """Should return empty list when no workflows exist."""
         # Login the user first for session auth
-        self.client.login(username='testuser', password='testpass123')
-        response = self.client.get('/api/workflows/')
+        self.client.login(username="testuser", password="testpass123")
+        response = self.client.get("/api/workflows/")
         if response.status_code == 401:
             self.skipTest("Session auth not working in test environment")
         self.assertEqual(response.status_code, 200)
         data = response.json()
         # Response format may vary - check for list or workflows key
-        workflows = data.get('workflows', data) if isinstance(data, dict) else data
+        workflows = data.get("workflows", data) if isinstance(data, dict) else data
         self.assertEqual(workflows, [])
 
     def test_create_workflow(self):
         """Should create a new workflow."""
-        self.client.login(username='testuser', password='testpass123')
-        response = self.client.post('/api/workflows/', {
-            'name': 'Test Workflow',
-            'steps': [
-                {'type': 'researcher', 'name': 'Research Step', 'query': 'test query'}
-            ]
-        }, format='json')
+        self.client.login(username="testuser", password="testpass123")
+        response = self.client.post(
+            "/api/workflows/",
+            {
+                "name": "Test Workflow",
+                "steps": [{"type": "researcher", "name": "Research Step", "query": "test query"}],
+            },
+            format="json",
+        )
         # Accept 200, 201, or 401 if auth not working
         if response.status_code == 401:
             self.skipTest("Auth not working in test environment")
         self.assertIn(response.status_code, [200, 201])
         data = response.json()
         # Check for various response formats
-        self.assertTrue(
-            'name' in data or 'success' in data or 'id' in data,
-            f"Expected workflow data, got: {data}"
-        )
+        self.assertTrue("name" in data or "success" in data or "id" in data, f"Expected workflow data, got: {data}")
 
     def test_get_workflow(self):
         """Should get a specific workflow."""
         # Create first
-        create_response = self.client.post('/api/workflows/', {
-            'name': 'Test Workflow',
-            'steps': [
-                {'type': 'researcher', 'name': 'Research', 'query': 'test'}
-            ]
-        }, format='json')
+        create_response = self.client.post(
+            "/api/workflows/",
+            {"name": "Test Workflow", "steps": [{"type": "researcher", "name": "Research", "query": "test"}]},
+            format="json",
+        )
 
         if create_response.status_code not in [200, 201]:
             self.skipTest("Could not create workflow for test")
 
         data = create_response.json()
-        workflow_id = data.get('id') or data.get('workflow', {}).get('id')
+        workflow_id = data.get("id") or data.get("workflow", {}).get("id")
 
         if not workflow_id:
             self.skipTest("No workflow ID in response")
 
         # Get it
-        response = self.client.get(f'/api/workflows/{workflow_id}/')
+        response = self.client.get(f"/api/workflows/{workflow_id}/")
         self.assertEqual(response.status_code, 200)
 
     def test_update_workflow(self):
         """Should update an existing workflow."""
         # Create first
-        create_response = self.client.post('/api/workflows/', {
-            'name': 'Original Name',
-            'steps': [{'type': 'researcher', 'name': 'Step 1', 'query': 'q1'}]
-        }, format='json')
+        create_response = self.client.post(
+            "/api/workflows/",
+            {"name": "Original Name", "steps": [{"type": "researcher", "name": "Step 1", "query": "q1"}]},
+            format="json",
+        )
 
         if create_response.status_code not in [200, 201]:
             self.skipTest("Could not create workflow for test")
 
         data = create_response.json()
-        workflow_id = data.get('id') or data.get('workflow', {}).get('id')
+        workflow_id = data.get("id") or data.get("workflow", {}).get("id")
 
         if not workflow_id:
             self.skipTest("No workflow ID in response")
 
         # Update it
-        response = self.client.put(f'/api/workflows/{workflow_id}/', {
-            'name': 'Updated Name',
-            'steps': [
-                {'type': 'researcher', 'name': 'Step 1', 'query': 'q1'},
-                {'type': 'writer', 'name': 'Step 2', 'template': 'general'}
-            ]
-        }, format='json')
+        response = self.client.put(
+            f"/api/workflows/{workflow_id}/",
+            {
+                "name": "Updated Name",
+                "steps": [
+                    {"type": "researcher", "name": "Step 1", "query": "q1"},
+                    {"type": "writer", "name": "Step 2", "template": "general"},
+                ],
+            },
+            format="json",
+        )
         self.assertIn(response.status_code, [200, 204])
 
     def test_delete_workflow(self):
         """Should delete a workflow."""
         # Create first
-        create_response = self.client.post('/api/workflows/', {
-            'name': 'To Delete',
-            'steps': [{'type': 'researcher', 'name': 'Step', 'query': 'q'}]
-        }, format='json')
+        create_response = self.client.post(
+            "/api/workflows/",
+            {"name": "To Delete", "steps": [{"type": "researcher", "name": "Step", "query": "q"}]},
+            format="json",
+        )
 
         if create_response.status_code not in [200, 201]:
             self.skipTest("Could not create workflow for test")
 
         data = create_response.json()
-        workflow_id = data.get('id') or data.get('workflow', {}).get('id')
+        workflow_id = data.get("id") or data.get("workflow", {}).get("id")
 
         if not workflow_id:
             self.skipTest("No workflow ID in response")
 
         # Delete it
-        response = self.client.delete(f'/api/workflows/{workflow_id}/')
+        response = self.client.delete(f"/api/workflows/{workflow_id}/")
         self.assertIn(response.status_code, [200, 204])
 
         # Verify deleted
-        get_response = self.client.get(f'/api/workflows/{workflow_id}/')
+        get_response = self.client.get(f"/api/workflows/{workflow_id}/")
         self.assertEqual(get_response.status_code, 404)
 
 
@@ -138,24 +138,20 @@ class TriageAPITest(TestCase):
 
     def setUp(self):
         self.client = APIClient()
-        self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
-        )
+        self.user = User.objects.create_user(username="testuser", email="test@example.com", password="testpass123")
         self.client.force_authenticate(user=self.user)
 
     def test_preview_endpoint(self):
         """Preview should analyze data without cleaning."""
         # This would need actual file upload handling
         # For now, test that endpoint exists (not 404 or 405)
-        response = self.client.post('/api/triage/preview/', {}, format='json')
+        response = self.client.post("/api/triage/preview/", {}, format="json")
         # Should return 400/415 for missing data, not 404/405
         self.assertNotIn(response.status_code, [404, 405], "Endpoint should exist")
 
     def test_clean_endpoint_exists(self):
         """Clean endpoint should exist."""
-        response = self.client.post('/api/triage/clean/', {}, format='json')
+        response = self.client.post("/api/triage/clean/", {}, format="json")
         # Should return 400/415 for missing data, not 404/405
         self.assertNotIn(response.status_code, [404, 405], "Endpoint should exist")
 
@@ -165,25 +161,19 @@ class DSWAPITest(TestCase):
 
     def setUp(self):
         self.client = APIClient()
-        self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
-        )
+        self.user = User.objects.create_user(username="testuser", email="test@example.com", password="testpass123")
         self.client.force_authenticate(user=self.user)
-        self.client.login(username='testuser', password='testpass123')
+        self.client.login(username="testuser", password="testpass123")
 
     def test_list_sessions(self):
         """Should list DSW sessions or be not implemented."""
-        response = self.client.get('/api/dsw/')
+        response = self.client.get("/api/dsw/")
         # DSW may not be fully implemented - accept 404 or success
         self.assertIn(response.status_code, [200, 404], "DSW endpoint response")
 
     def test_create_session(self):
         """Should create a new DSW session or be not implemented."""
-        response = self.client.post('/api/dsw/', {
-            'name': 'Test Analysis'
-        }, format='json')
+        response = self.client.post("/api/dsw/", {"name": "Test Analysis"}, format="json")
         # DSW may not be fully implemented - accept various responses
         self.assertIn(response.status_code, [200, 201, 404, 405], "DSW endpoint response")
 
@@ -194,7 +184,8 @@ class AgentExecutionTest(TestCase):
     def test_researcher_agent_import(self):
         """Researcher agent should be importable."""
         try:
-            from researcher.agent import ResearchAgent
+            from researcher.agent import ResearchAgent  # noqa: F401
+
             self.assertTrue(True)
         except ImportError:
             pass
@@ -202,7 +193,8 @@ class AgentExecutionTest(TestCase):
     def test_writer_agent_import(self):
         """Writer agent should be importable."""
         try:
-            from writer.agent import WriterAgent
+            from writer.agent import WriterAgent  # noqa: F401
+
             self.assertTrue(True)
         except ImportError:
             pass
@@ -210,8 +202,9 @@ class AgentExecutionTest(TestCase):
     def test_experimenter_import(self):
         """Experimenter modules should be importable."""
         try:
-            from agents.experimenter.stats import PowerAnalyzer
-            from agents.experimenter.doe import DOEGenerator
+            from agents.experimenter.doe import DOEGenerator  # noqa: F401
+            from agents.experimenter.stats import PowerAnalyzer  # noqa: F401
+
             self.assertTrue(True)
         except ImportError:
             pass
@@ -223,7 +216,8 @@ class SearchProviderTest(TestCase):
     def test_multi_search_import(self):
         """MultiSearch class should be importable."""
         try:
-            from agent_core.search import MultiSearch, SearchResult
+            from agent_core.search import MultiSearch, SearchResult  # noqa: F401
+
             self.assertTrue(True)
         except ImportError:
             pass
@@ -231,7 +225,8 @@ class SearchProviderTest(TestCase):
     def test_search_providers(self):
         """Search providers should be importable."""
         try:
-            from agent_core.search import SemanticScholarSearch
+            from agent_core.search import SemanticScholarSearch  # noqa: F401
+
             self.assertTrue(True)
         except ImportError:
             pass
@@ -242,16 +237,13 @@ class EvidenceIntegrationTest(TestCase):
 
     def setUp(self):
         self.client = APIClient()
-        self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
-        )
+        self.user = User.objects.create_user(username="testuser", email="test@example.com", password="testpass123")
         self.client.force_authenticate(user=self.user)
-        self.client.login(username='testuser', password='testpass123')
+        self.client.login(username="testuser", password="testpass123")
 
         # Create a Problem to link evidence to
         from .models import Problem
+
         self.problem = Problem.objects.create(
             user=self.user,
             title="Test Investigation",
@@ -260,7 +252,6 @@ class EvidenceIntegrationTest(TestCase):
 
     def test_problem_add_evidence(self):
         """Problem.add_evidence() should append to the evidence JSON list."""
-        from .models import Problem
         evidence = self.problem.add_evidence(
             summary="Test finding",
             evidence_type="data_analysis",
@@ -278,6 +269,7 @@ class EvidenceIntegrationTest(TestCase):
     def test_add_finding_to_problem_helper(self):
         """add_finding_to_problem() should create evidence on a Problem."""
         from .views import add_finding_to_problem
+
         evidence = add_finding_to_problem(
             user=self.user,
             problem_id=str(self.problem.id),
@@ -294,6 +286,7 @@ class EvidenceIntegrationTest(TestCase):
     def test_add_finding_to_problem_invalid_id(self):
         """add_finding_to_problem() should return None for bad problem_id."""
         from .views import add_finding_to_problem
+
         result = add_finding_to_problem(
             user=self.user,
             problem_id="nonexistent-uuid",
@@ -306,6 +299,7 @@ class EvidenceIntegrationTest(TestCase):
     def test_add_finding_to_problem_empty_id(self):
         """add_finding_to_problem() should return None for empty problem_id."""
         from .views import add_finding_to_problem
+
         result = add_finding_to_problem(
             user=self.user,
             problem_id="",
@@ -315,9 +309,9 @@ class EvidenceIntegrationTest(TestCase):
 
     def test_dsw_analysis_with_problem_id(self):
         """DSW run_analysis should accept problem_id and create evidence."""
-        import tempfile
         import csv
         import os
+        import tempfile
         from pathlib import Path
 
         # Create test data file
@@ -335,13 +329,15 @@ class EvidenceIntegrationTest(TestCase):
         try:
             response = self.client.post(
                 "/api/dsw/analysis/",
-                json.dumps({
-                    "type": "stats",
-                    "analysis": "descriptive",
-                    "config": {"vars": ["value"]},
-                    "data_id": data_id,
-                    "problem_id": str(self.problem.id),
-                }),
+                json.dumps(
+                    {
+                        "type": "stats",
+                        "analysis": "descriptive",
+                        "config": {"vars": ["value"]},
+                        "data_id": data_id,
+                        "problem_id": str(self.problem.id),
+                    }
+                ),
                 content_type="application/json",
             )
             # Accept success or auth issues in test env
@@ -362,9 +358,9 @@ class EvidenceIntegrationTest(TestCase):
 
     def test_dsw_analysis_without_problem_id(self):
         """DSW run_analysis without problem_id should NOT create evidence."""
-        import tempfile
         import csv
         import os
+        import tempfile
         from pathlib import Path
 
         data_id = "data_test456"
@@ -381,12 +377,14 @@ class EvidenceIntegrationTest(TestCase):
         try:
             response = self.client.post(
                 "/api/dsw/analysis/",
-                json.dumps({
-                    "type": "stats",
-                    "analysis": "descriptive",
-                    "config": {"vars": ["value"]},
-                    "data_id": data_id,
-                }),
+                json.dumps(
+                    {
+                        "type": "stats",
+                        "analysis": "descriptive",
+                        "config": {"vars": ["value"]},
+                        "data_id": data_id,
+                    }
+                ),
                 content_type="application/json",
             )
             if response.status_code == 401:
@@ -409,15 +407,15 @@ class DualWriteMigrationTest(TestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123',
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
         )
 
     def test_ensure_core_project_creates_project(self):
         """ensure_core_project() should create a core.Project on first call."""
+
         from .models import Problem
-        from core.models import Project
 
         problem = Problem.objects.create(
             user=self.user,
@@ -439,8 +437,8 @@ class DualWriteMigrationTest(TestCase):
 
     def test_sync_hypothesis_to_core(self):
         """sync_hypothesis_to_core() should create a core.Hypothesis."""
+
         from .models import Problem
-        from core.models.hypothesis import Hypothesis
 
         problem = Problem.objects.create(
             user=self.user,
@@ -461,8 +459,9 @@ class DualWriteMigrationTest(TestCase):
 
     def test_sync_evidence_to_core_with_links(self):
         """sync_evidence_to_core() should create Evidence and EvidenceLinks."""
+        from core.models.hypothesis import EvidenceLink
+
         from .models import Problem
-        from core.models.hypothesis import Evidence, EvidenceLink
 
         problem = Problem.objects.create(
             user=self.user,
@@ -510,16 +509,16 @@ class SynaraPersistenceTest(TestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123',
+            username="testuser",
+            email="test@example.com",
+            password="testpass123",
         )
 
     def test_synara_save_and_load(self):
         """Synara state should survive save/load round-trip."""
         from core.models import Project
-        from .synara_views import get_synara, save_synara, _synara_cache
-        from .synara.synara import Synara
+
+        from .synara_views import _synara_cache, get_synara, save_synara
 
         project = Project.objects.create(
             user=self.user,
@@ -529,7 +528,7 @@ class SynaraPersistenceTest(TestCase):
         wb_id = str(project.id)
 
         synara = get_synara(wb_id)
-        h = synara.create_hypothesis(description="Test cause", prior=0.6)
+        synara.create_hypothesis(description="Test cause", prior=0.6)
         save_synara(wb_id, synara)
 
         # Clear cache, force reload from DB
@@ -547,7 +546,7 @@ class SynaraPersistenceTest(TestCase):
     def test_synara_via_problem_id(self):
         """Synara should resolve Problem UUID to core.Project."""
         from .models import Problem
-        from .synara_views import _resolve_project, _synara_cache
+        from .synara_views import _resolve_project
 
         problem = Problem.objects.create(
             user=self.user,
@@ -563,7 +562,8 @@ class SynaraPersistenceTest(TestCase):
     def test_synara_evidence_updates_persist(self):
         """Evidence-driven belief updates should persist."""
         from core.models import Project
-        from .synara_views import get_synara, save_synara, _synara_cache
+
+        from .synara_views import _synara_cache, get_synara, save_synara
 
         project = Project.objects.create(
             user=self.user,
@@ -596,7 +596,7 @@ class SynaraPersistenceTest(TestCase):
 # =============================================================================
 
 # Ensure synara package is importable
-_synara_pkg = os.path.join(os.path.dirname(__file__), 'synara')
+_synara_pkg = os.path.join(os.path.dirname(__file__), "synara")
 if _synara_pkg not in sys.path:
     sys.path.insert(0, os.path.dirname(__file__))
 
@@ -606,6 +606,7 @@ class KernelHypothesisRegionTest(unittest.TestCase):
 
     def test_matches_context_full_match(self):
         from .synara.kernel import HypothesisRegion
+
         h = HypothesisRegion(
             id="h1",
             description="Night shift defects",
@@ -616,6 +617,7 @@ class KernelHypothesisRegionTest(unittest.TestCase):
 
     def test_matches_context_partial(self):
         from .synara.kernel import HypothesisRegion
+
         h = HypothesisRegion(
             id="h1",
             description="Night shift",
@@ -626,12 +628,14 @@ class KernelHypothesisRegionTest(unittest.TestCase):
 
     def test_matches_context_no_conditions(self):
         from .synara.kernel import HypothesisRegion
+
         h = HypothesisRegion(id="h1", description="General")
         score = h.matches_context({"shift": "night"})
         self.assertAlmostEqual(score, 0.5)  # neutral
 
     def test_to_dict_from_dict_roundtrip(self):
         from .synara.kernel import HypothesisRegion
+
         h = HypothesisRegion(
             id="h1",
             description="Test hypothesis",
@@ -657,6 +661,7 @@ class KernelEvidenceTest(unittest.TestCase):
 
     def test_to_dict_from_dict_roundtrip(self):
         from .synara.kernel import Evidence
+
         e = Evidence(
             id="e1",
             event="out_of_control_point",
@@ -679,7 +684,8 @@ class KernelCausalGraphTest(unittest.TestCase):
 
     def _build_chain(self):
         """Build a simple A -> B -> C chain."""
-        from .synara.kernel import HypothesisRegion, CausalLink, CausalGraph
+        from .synara.kernel import CausalGraph, CausalLink, HypothesisRegion
+
         graph = CausalGraph()
         for hid in ["A", "B", "C"]:
             graph.add_hypothesis(HypothesisRegion(id=hid, description=f"Hyp {hid}"))
@@ -716,7 +722,8 @@ class KernelCausalGraphTest(unittest.TestCase):
         self.assertEqual(paths[0], ["A", "B", "C"])
 
     def test_add_link_updates_references(self):
-        from .synara.kernel import HypothesisRegion, CausalLink, CausalGraph
+        from .synara.kernel import CausalGraph, CausalLink, HypothesisRegion
+
         graph = CausalGraph()
         graph.add_hypothesis(HypothesisRegion(id="X", description="X"))
         graph.add_hypothesis(HypothesisRegion(id="Y", description="Y"))
@@ -726,7 +733,8 @@ class KernelCausalGraphTest(unittest.TestCase):
 
     def test_diamond_graph(self):
         """A -> B, A -> C, B -> D, C -> D."""
-        from .synara.kernel import HypothesisRegion, CausalLink, CausalGraph
+        from .synara.kernel import CausalGraph, CausalLink, HypothesisRegion
+
         graph = CausalGraph()
         for hid in ["A", "B", "C", "D"]:
             graph.add_hypothesis(HypothesisRegion(id=hid, description=hid))
@@ -754,7 +762,8 @@ class BeliefEngineComputeLikelihoodTest(unittest.TestCase):
 
     def test_explicit_support(self):
         from .synara.belief import BeliefEngine
-        from .synara.kernel import HypothesisRegion, Evidence
+        from .synara.kernel import Evidence, HypothesisRegion
+
         engine = BeliefEngine()
         h = HypothesisRegion(id="h1", description="Test")
         e = Evidence(id="e1", event="observation", supports=["h1"])
@@ -764,7 +773,8 @@ class BeliefEngineComputeLikelihoodTest(unittest.TestCase):
 
     def test_explicit_weaken(self):
         from .synara.belief import BeliefEngine
-        from .synara.kernel import HypothesisRegion, Evidence
+        from .synara.kernel import Evidence, HypothesisRegion
+
         engine = BeliefEngine()
         h = HypothesisRegion(id="h1", description="Test")
         e = Evidence(id="e1", event="observation", weakens=["h1"])
@@ -773,7 +783,8 @@ class BeliefEngineComputeLikelihoodTest(unittest.TestCase):
 
     def test_neutral_evidence(self):
         from .synara.belief import BeliefEngine
-        from .synara.kernel import HypothesisRegion, Evidence
+        from .synara.kernel import Evidence, HypothesisRegion
+
         engine = BeliefEngine()
         h = HypothesisRegion(id="h1", description="Test")
         e = Evidence(id="e1", event="random observation")
@@ -783,7 +794,8 @@ class BeliefEngineComputeLikelihoodTest(unittest.TestCase):
 
     def test_low_strength_pulls_toward_neutral(self):
         from .synara.belief import BeliefEngine
-        from .synara.kernel import HypothesisRegion, Evidence
+        from .synara.kernel import Evidence, HypothesisRegion
+
         engine = BeliefEngine()
         h = HypothesisRegion(id="h1", description="Test")
         e = Evidence(id="e1", event="observation", supports=["h1"], strength=0.0)
@@ -792,7 +804,8 @@ class BeliefEngineComputeLikelihoodTest(unittest.TestCase):
 
     def test_behavior_alignment_positive(self):
         from .synara.belief import BeliefEngine
-        from .synara.kernel import HypothesisRegion, Evidence
+        from .synara.kernel import Evidence, HypothesisRegion
+
         engine = BeliefEngine()
         h = HypothesisRegion(
             id="h1",
@@ -805,7 +818,8 @@ class BeliefEngineComputeLikelihoodTest(unittest.TestCase):
 
     def test_behavior_alignment_conflicting(self):
         from .synara.belief import BeliefEngine
-        from .synara.kernel import HypothesisRegion, Evidence
+        from .synara.kernel import Evidence, HypothesisRegion
+
         engine = BeliefEngine()
         h = HypothesisRegion(
             id="h1",
@@ -822,7 +836,8 @@ class BeliefEngineUpdatePosteriorsTest(unittest.TestCase):
 
     def test_supporting_evidence_increases_posterior(self):
         from .synara.belief import BeliefEngine
-        from .synara.kernel import HypothesisRegion, Evidence, CausalGraph
+        from .synara.kernel import CausalGraph, Evidence, HypothesisRegion
+
         engine = BeliefEngine()
         graph = CausalGraph()
         graph.add_hypothesis(HypothesisRegion(id="h1", description="A", posterior=0.5))
@@ -837,7 +852,8 @@ class BeliefEngineUpdatePosteriorsTest(unittest.TestCase):
 
     def test_posteriors_sum_to_approximately_one(self):
         from .synara.belief import BeliefEngine
-        from .synara.kernel import HypothesisRegion, Evidence, CausalGraph
+        from .synara.kernel import CausalGraph, Evidence, HypothesisRegion
+
         engine = BeliefEngine()
         graph = CausalGraph()
         graph.add_hypothesis(HypothesisRegion(id="h1", description="A", posterior=0.5))
@@ -852,8 +868,9 @@ class BeliefEngineUpdatePosteriorsTest(unittest.TestCase):
         self.assertAlmostEqual(total, 1.0, places=1)
 
     def test_posteriors_clamped(self):
-        from .synara.belief import BeliefEngine, MIN_PROBABILITY, MAX_PROBABILITY
-        from .synara.kernel import HypothesisRegion, Evidence, CausalGraph
+        from .synara.belief import MAX_PROBABILITY, MIN_PROBABILITY, BeliefEngine
+        from .synara.kernel import CausalGraph, Evidence, HypothesisRegion
+
         engine = BeliefEngine()
         graph = CausalGraph()
         graph.add_hypothesis(HypothesisRegion(id="h1", description="A", posterior=0.99))
@@ -869,7 +886,8 @@ class BeliefEngineUpdatePosteriorsTest(unittest.TestCase):
 
     def test_evidence_tracking(self):
         from .synara.belief import BeliefEngine
-        from .synara.kernel import HypothesisRegion, Evidence, CausalGraph
+        from .synara.kernel import CausalGraph, Evidence, HypothesisRegion
+
         engine = BeliefEngine()
         graph = CausalGraph()
         graph.add_hypothesis(HypothesisRegion(id="h1", description="A", posterior=0.5))
@@ -888,7 +906,8 @@ class BeliefEnginePropagationTest(unittest.TestCase):
 
     def test_propagation_through_chain(self):
         from .synara.belief import BeliefEngine
-        from .synara.kernel import HypothesisRegion, CausalLink, CausalGraph
+        from .synara.kernel import CausalGraph, CausalLink, HypothesisRegion
+
         engine = BeliefEngine()
         graph = CausalGraph()
         graph.add_hypothesis(HypothesisRegion(id="A", description="Root", posterior=0.8))
@@ -902,7 +921,8 @@ class BeliefEnginePropagationTest(unittest.TestCase):
 
     def test_no_propagation_without_downstream(self):
         from .synara.belief import BeliefEngine
-        from .synara.kernel import HypothesisRegion, CausalGraph
+        from .synara.kernel import CausalGraph, HypothesisRegion
+
         engine = BeliefEngine()
         graph = CausalGraph()
         graph.add_hypothesis(HypothesisRegion(id="A", description="Leaf", posterior=0.8))
@@ -913,6 +933,7 @@ class BeliefEnginePropagationTest(unittest.TestCase):
     def test_nonexistent_hypothesis(self):
         from .synara.belief import BeliefEngine
         from .synara.kernel import CausalGraph
+
         engine = BeliefEngine()
         graph = CausalGraph()
 
@@ -926,6 +947,7 @@ class BeliefEngineExpansionTest(unittest.TestCase):
     def test_expansion_signal_when_all_below_threshold(self):
         from .synara.belief import BeliefEngine
         from .synara.kernel import Evidence
+
         engine = BeliefEngine(expansion_threshold=0.1)
         e = Evidence(id="e1", event="anomaly", context={"location": "lab"})
         likelihoods = {"h1": 0.05, "h2": 0.03}
@@ -940,6 +962,7 @@ class BeliefEngineExpansionTest(unittest.TestCase):
     def test_no_expansion_when_above_threshold(self):
         from .synara.belief import BeliefEngine
         from .synara.kernel import Evidence
+
         engine = BeliefEngine(expansion_threshold=0.1)
         e = Evidence(id="e1", event="normal observation")
         likelihoods = {"h1": 0.8, "h2": 0.3}
@@ -950,6 +973,7 @@ class BeliefEngineExpansionTest(unittest.TestCase):
     def test_no_expansion_for_empty_likelihoods(self):
         from .synara.belief import BeliefEngine
         from .synara.kernel import Evidence
+
         engine = BeliefEngine()
         e = Evidence(id="e1", event="test")
 
@@ -961,7 +985,8 @@ class DSLParserBasicTest(unittest.TestCase):
     """Test DSLParser basic parsing."""
 
     def test_simple_comparison(self):
-        from .synara.dsl import DSLParser, Comparison, ComparisonOp
+        from .synara.dsl import Comparison, ComparisonOp, DSLParser
+
         parser = DSLParser()
         result = parser.parse("[temperature] > 30")
         self.assertEqual(len(result.parse_errors), 0)
@@ -971,7 +996,8 @@ class DSLParserBasicTest(unittest.TestCase):
         self.assertEqual(result.ast.op, ComparisonOp.GT)
 
     def test_string_comparison(self):
-        from .synara.dsl import DSLParser, Comparison, ComparisonOp
+        from .synara.dsl import Comparison, ComparisonOp, DSLParser
+
         parser = DSLParser()
         result = parser.parse('[shift] = "night"')
         self.assertEqual(len(result.parse_errors), 0)
@@ -981,6 +1007,7 @@ class DSLParserBasicTest(unittest.TestCase):
 
     def test_implication(self):
         from .synara.dsl import DSLParser, Implication
+
         parser = DSLParser()
         result = parser.parse("if [num_holidays] > 3 then [monthly_sales] < 100000")
         self.assertEqual(len(result.parse_errors), 0)
@@ -990,6 +1017,7 @@ class DSLParserBasicTest(unittest.TestCase):
 
     def test_quantified_always(self):
         from .synara.dsl import DSLParser, Quantified, Quantifier
+
         parser = DSLParser()
         result = parser.parse("ALWAYS [temperature] > 20")
         self.assertEqual(len(result.parse_errors), 0)
@@ -999,6 +1027,7 @@ class DSLParserBasicTest(unittest.TestCase):
 
     def test_quantified_never(self):
         from .synara.dsl import DSLParser, Quantified, Quantifier
+
         parser = DSLParser()
         result = parser.parse("NEVER [defect_rate] > 0.05")
         self.assertEqual(len(result.parse_errors), 0)
@@ -1007,6 +1036,7 @@ class DSLParserBasicTest(unittest.TestCase):
 
     def test_logical_and(self):
         from .synara.dsl import DSLParser, LogicalExpr, LogicalOp
+
         parser = DSLParser()
         result = parser.parse("[x] > 10 AND [y] < 20")
         self.assertEqual(len(result.parse_errors), 0)
@@ -1016,6 +1046,7 @@ class DSLParserBasicTest(unittest.TestCase):
 
     def test_logical_or(self):
         from .synara.dsl import DSLParser, LogicalExpr, LogicalOp
+
         parser = DSLParser()
         result = parser.parse("[status] = 1 OR [override] = 1")
         self.assertEqual(len(result.parse_errors), 0)
@@ -1024,6 +1055,7 @@ class DSLParserBasicTest(unittest.TestCase):
 
     def test_domain_condition_when(self):
         from .synara.dsl import DSLParser, Quantified
+
         parser = DSLParser()
         result = parser.parse('NEVER [defect_rate] > 0.05 WHEN [shift] = "night"')
         self.assertEqual(len(result.parse_errors), 0)
@@ -1032,6 +1064,7 @@ class DSLParserBasicTest(unittest.TestCase):
 
     def test_empty_input(self):
         from .synara.dsl import DSLParser
+
         parser = DSLParser()
         result = parser.parse("")
         self.assertFalse(result.is_falsifiable)
@@ -1039,12 +1072,14 @@ class DSLParserBasicTest(unittest.TestCase):
 
     def test_tautology_detection(self):
         from .synara.dsl import DSLParser
+
         parser = DSLParser()
         result = parser.parse("[x] = [x]")
         self.assertFalse(result.is_falsifiable)
 
     def test_variable_extraction(self):
         from .synara.dsl import DSLParser
+
         parser = DSLParser()
         result = parser.parse("[a] > 1 AND [b] < 2 AND [c] = 3")
         self.assertEqual(set(result.variables), {"a", "b", "c"})
@@ -1055,6 +1090,7 @@ class DSLParserToDictTest(unittest.TestCase):
 
     def test_comparison_to_dict(self):
         from .synara.dsl import DSLParser
+
         parser = DSLParser()
         result = parser.parse("[x] > 10")
         d = result.to_dict()
@@ -1065,6 +1101,7 @@ class DSLParserToDictTest(unittest.TestCase):
 
     def test_implication_to_dict(self):
         from .synara.dsl import DSLParser
+
         parser = DSLParser()
         result = parser.parse("if [a] > 1 then [b] < 2")
         d = result.to_dict()
@@ -1074,6 +1111,7 @@ class DSLParserToDictTest(unittest.TestCase):
 
     def test_quantified_to_dict(self):
         from .synara.dsl import DSLParser
+
         parser = DSLParser()
         result = parser.parse("ALWAYS [x] > 5")
         d = result.to_dict()
@@ -1086,6 +1124,7 @@ class DSLFormatTest(unittest.TestCase):
 
     def test_format_natural(self):
         from .synara.dsl import DSLParser, format_hypothesis
+
         parser = DSLParser()
         result = parser.parse("[temperature] > 30")
         text = format_hypothesis(result, style="natural")
@@ -1094,6 +1133,7 @@ class DSLFormatTest(unittest.TestCase):
 
     def test_format_formal(self):
         from .synara.dsl import DSLParser, format_hypothesis
+
         parser = DSLParser()
         result = parser.parse("[x] > 10 AND [y] < 20")
         text = format_hypothesis(result, style="formal")
@@ -1102,6 +1142,7 @@ class DSLFormatTest(unittest.TestCase):
 
     def test_format_code(self):
         from .synara.dsl import DSLParser, format_hypothesis
+
         parser = DSLParser()
         result = parser.parse("[x] > 10")
         text = format_hypothesis(result, style="code")
@@ -1113,11 +1154,13 @@ class DSLFormatTest(unittest.TestCase):
 # Synara Fallacy Detection Tests
 # =============================================================================
 
+
 class FallacyDetectionTest(unittest.TestCase):
     """Test logic engine fallacy detection patterns."""
 
     def setUp(self):
         from .synara.logic_engine import LogicEngine
+
         self.engine = LogicEngine()
 
     def _get_fallacy_types(self, text):
@@ -1152,8 +1195,15 @@ class FallacyDetectionTest(unittest.TestCase):
 
     def test_false_dichotomy_xor_two_options(self):
         """XOR with exactly 2 options => false dichotomy."""
-        from .synara.dsl import DSLParser, LogicalExpr, LogicalOp, Comparison, Variable, Literal, ComparisonOp
-        from .synara.logic_engine import LogicEngine, FallacyType
+        from .synara.dsl import (
+            Comparison,
+            ComparisonOp,
+            Literal,
+            LogicalExpr,
+            LogicalOp,
+            Variable,
+        )
+        from .synara.logic_engine import FallacyType, LogicEngine
 
         # Build an XOR AST manually (DSL parser may not support XOR syntax)
         xor_expr = LogicalExpr(
@@ -1161,7 +1211,7 @@ class FallacyDetectionTest(unittest.TestCase):
             operands=[
                 Comparison(Variable("x"), ComparisonOp.EQ, Literal("a")),
                 Comparison(Variable("x"), ComparisonOp.EQ, Literal("b")),
-            ]
+            ],
         )
         engine = LogicEngine()
         fallacies = engine._check_fallacy_patterns(xor_expr)
@@ -1170,8 +1220,17 @@ class FallacyDetectionTest(unittest.TestCase):
 
     def test_false_dichotomy_overlapping_never(self):
         """Two NEVER constraints on same variable => false dichotomy."""
-        from .synara.dsl import Quantified, Quantifier, Comparison, Variable, Literal, ComparisonOp, LogicalExpr, LogicalOp
-        from .synara.logic_engine import LogicEngine, FallacyType
+        from .synara.dsl import (
+            Comparison,
+            ComparisonOp,
+            Literal,
+            LogicalExpr,
+            LogicalOp,
+            Quantified,
+            Quantifier,
+            Variable,
+        )
+        from .synara.logic_engine import FallacyType, LogicEngine
 
         # NEVER [x] > 10 AND NEVER [x] < 5
         ast = LogicalExpr(
@@ -1185,7 +1244,7 @@ class FallacyDetectionTest(unittest.TestCase):
                     quantifier=Quantifier.NEVER,
                     body=Comparison(Variable("x"), ComparisonOp.LT, Literal(5)),
                 ),
-            ]
+            ],
         )
         engine = LogicEngine()
         fallacies = engine._check_fallacy_patterns(ast)
@@ -1196,8 +1255,8 @@ class FallacyDetectionTest(unittest.TestCase):
 
     def test_overgeneralization_nested_quantifiers(self):
         """Nested quantifiers => overgeneralization."""
-        from .synara.dsl import Quantified, Quantifier, Comparison, Variable, Literal, ComparisonOp
-        from .synara.logic_engine import LogicEngine, FallacyType
+        from .synara.dsl import Comparison, ComparisonOp, Literal, Quantified, Quantifier, Variable
+        from .synara.logic_engine import FallacyType, LogicEngine
 
         ast = Quantified(
             quantifier=Quantifier.ALWAYS,
@@ -1215,8 +1274,16 @@ class FallacyDetectionTest(unittest.TestCase):
 
     def test_affirming_consequent_shared_vars(self):
         """Two implications with shared consequent/antecedent vars => warning."""
-        from .synara.dsl import Implication, Comparison, Variable, Literal, ComparisonOp, LogicalExpr, LogicalOp
-        from .synara.logic_engine import LogicEngine, FallacyType
+        from .synara.dsl import (
+            Comparison,
+            ComparisonOp,
+            Implication,
+            Literal,
+            LogicalExpr,
+            LogicalOp,
+            Variable,
+        )
+        from .synara.logic_engine import FallacyType, LogicEngine
 
         # if [rain] > 0 then [wet] = 1  AND  if [wet] = 1 then [slippery] = 1
         # 'wet' is consequent in first, antecedent in second
@@ -1231,7 +1298,7 @@ class FallacyDetectionTest(unittest.TestCase):
                     antecedent=Comparison(Variable("wet"), ComparisonOp.EQ, Literal(1)),
                     consequent=Comparison(Variable("slippery"), ComparisonOp.EQ, Literal(1)),
                 ),
-            ]
+            ],
         )
         engine = LogicEngine()
         fallacies = engine._check_fallacy_patterns(ast)
@@ -1242,8 +1309,16 @@ class FallacyDetectionTest(unittest.TestCase):
 
     def test_denying_antecedent(self):
         """Implication + negation of antecedent => denying antecedent."""
-        from .synara.dsl import Implication, Comparison, Variable, Literal, ComparisonOp, LogicalExpr, LogicalOp
-        from .synara.logic_engine import LogicEngine, FallacyType
+        from .synara.dsl import (
+            Comparison,
+            ComparisonOp,
+            Implication,
+            Literal,
+            LogicalExpr,
+            LogicalOp,
+            Variable,
+        )
+        from .synara.logic_engine import FallacyType, LogicEngine
 
         # if [rain] > 0 then [wet] = 1  AND  NOT [rain] > 0
         ast = LogicalExpr(
@@ -1257,7 +1332,7 @@ class FallacyDetectionTest(unittest.TestCase):
                     op=LogicalOp.NOT,
                     operands=[Comparison(Variable("rain"), ComparisonOp.GT, Literal(0))],
                 ),
-            ]
+            ],
         )
         engine = LogicEngine()
         fallacies = engine._check_fallacy_patterns(ast)
@@ -1268,20 +1343,22 @@ class FallacyDetectionTest(unittest.TestCase):
 
     def test_collect_nodes(self):
         """_collect_nodes finds all nodes of a given type."""
-        from .synara.dsl import Comparison, Variable, Literal, ComparisonOp, LogicalExpr, LogicalOp
+        from .synara.dsl import Comparison, ComparisonOp, Literal, LogicalExpr, LogicalOp, Variable
+
         ast = LogicalExpr(
             op=LogicalOp.AND,
             operands=[
                 Comparison(Variable("x"), ComparisonOp.GT, Literal(1)),
                 Comparison(Variable("y"), ComparisonOp.LT, Literal(2)),
-            ]
+            ],
         )
         comps = self.engine._collect_nodes(ast, Comparison)
         self.assertEqual(len(comps), 2)
 
     def test_get_variables(self):
         """_get_variables extracts variable names from AST."""
-        from .synara.dsl import Comparison, Variable, Literal, ComparisonOp
+        from .synara.dsl import Comparison, ComparisonOp, Literal, Variable
+
         ast = Comparison(Variable("temperature"), ComparisonOp.GT, Literal(30))
         vars = self.engine._get_variables(ast)
         self.assertEqual(vars, {"temperature"})
@@ -1291,6 +1368,7 @@ class FallacyDetectionTest(unittest.TestCase):
     def test_validate_hypothesis_clean(self):
         """validate_hypothesis returns valid=True for clean hypothesis."""
         from .synara.logic_engine import validate_hypothesis
+
         result = validate_hypothesis("[x] > 10")
         self.assertTrue(result["valid"])
         self.assertIn("variables", result)
@@ -1299,6 +1377,7 @@ class FallacyDetectionTest(unittest.TestCase):
     def test_validate_hypothesis_with_fallacy(self):
         """validate_hypothesis detects fallacies in universal claims."""
         from .synara.logic_engine import validate_hypothesis
+
         result = validate_hypothesis("ALWAYS [x] > 10")
         # Should be valid (fallacies are warnings, not errors) but have fallacies
         self.assertTrue(result["valid"])

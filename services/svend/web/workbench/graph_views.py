@@ -8,11 +8,12 @@ import json
 import logging
 
 from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
+from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import require_auth
-from .models import Workbench, KnowledgeGraph, EpistemicLog, Project, Hypothesis
+
+from .models import EpistemicLog, Hypothesis, KnowledgeGraph, Project, Workbench
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +23,7 @@ def get_or_create_graph(workbench_id: str, user) -> KnowledgeGraph:
     workbench = get_object_or_404(Workbench, id=workbench_id, user=user)
 
     graph, created = KnowledgeGraph.objects.get_or_create(
-        workbench=workbench,
-        user=user,
-        defaults={"title": f"Graph: {workbench.title}"}
+        workbench=workbench, user=user, defaults={"title": f"Graph: {workbench.title}"}
     )
 
     if created:
@@ -45,9 +44,7 @@ def get_or_create_project_graph(project_id: str, user) -> KnowledgeGraph:
     project = get_object_or_404(Project, id=project_id, user=user)
 
     graph, created = KnowledgeGraph.objects.get_or_create(
-        project=project,
-        user=user,
-        defaults={"title": f"Graph: {project.title}"}
+        project=project, user=user, defaults={"title": f"Graph: {project.title}"}
     )
 
     if created:
@@ -66,6 +63,7 @@ def get_or_create_project_graph(project_id: str, user) -> KnowledgeGraph:
 # =============================================================================
 # Graph CRUD
 # =============================================================================
+
 
 @require_auth
 @require_http_methods(["GET"])
@@ -91,6 +89,7 @@ def clear_graph(request, workbench_id: str):
 # =============================================================================
 # Node operations
 # =============================================================================
+
 
 @require_auth
 @require_http_methods(["POST"])
@@ -154,15 +153,18 @@ def get_nodes(request, workbench_id: str):
     """Get all nodes in the graph."""
     graph = get_or_create_graph(workbench_id, request.user)
 
-    return JsonResponse({
-        "nodes": graph.nodes,
-        "count": len(graph.nodes),
-    })
+    return JsonResponse(
+        {
+            "nodes": graph.nodes,
+            "count": len(graph.nodes),
+        }
+    )
 
 
 # =============================================================================
 # Edge operations (causal vectors)
 # =============================================================================
+
 
 @require_auth
 @require_http_methods(["POST"])
@@ -258,12 +260,14 @@ def update_edge_weight(request, workbench_id: str, edge_id: str):
         evidence_id=body.get("evidence_id"),
     )
 
-    return JsonResponse({
-        "success": True,
-        "edge_id": edge_id,
-        "old_weight": old_weight,
-        "new_weight": new_weight,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "edge_id": edge_id,
+            "old_weight": old_weight,
+            "new_weight": new_weight,
+        }
+    )
 
 
 @require_auth
@@ -272,15 +276,18 @@ def get_edges(request, workbench_id: str):
     """Get all edges in the graph."""
     graph = get_or_create_graph(workbench_id, request.user)
 
-    return JsonResponse({
-        "edges": graph.edges,
-        "count": len(graph.edges),
-    })
+    return JsonResponse(
+        {
+            "edges": graph.edges,
+            "count": len(graph.edges),
+        }
+    )
 
 
 # =============================================================================
 # Evidence & Bayesian updates
 # =============================================================================
+
 
 @require_auth
 @require_http_methods(["POST"])
@@ -337,11 +344,13 @@ def apply_evidence(request, workbench_id: str):
                 evidence_id=evidence_id,
             )
 
-    return JsonResponse({
-        "success": True,
-        "evidence_id": evidence_id,
-        "updates": updates,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "evidence_id": evidence_id,
+            "updates": updates,
+        }
+    )
 
 
 @require_auth
@@ -377,20 +386,25 @@ def check_expansion(request, workbench_id: str):
             signal_data=signal,
         )
 
-        return JsonResponse({
-            "expansion_needed": True,
-            "signal": signal,
-        })
+        return JsonResponse(
+            {
+                "expansion_needed": True,
+                "signal": signal,
+            }
+        )
 
-    return JsonResponse({
-        "expansion_needed": False,
-        "max_likelihood": max(likelihoods.values()) if likelihoods else 0,
-    })
+    return JsonResponse(
+        {
+            "expansion_needed": False,
+            "max_likelihood": max(likelihoods.values()) if likelihoods else 0,
+        }
+    )
 
 
 # =============================================================================
 # Graph traversal
 # =============================================================================
+
 
 @require_auth
 @require_http_methods(["GET"])
@@ -409,12 +423,14 @@ def get_causal_chain(request, workbench_id: str, from_node: str, to_node: str):
         source="user",
     )
 
-    return JsonResponse({
-        "from_node": from_node,
-        "to_node": to_node,
-        "chains": chains,
-        "count": len(chains),
-    })
+    return JsonResponse(
+        {
+            "from_node": from_node,
+            "to_node": to_node,
+            "chains": chains,
+            "count": len(chains),
+        }
+    )
 
 
 @require_auth
@@ -426,17 +442,20 @@ def get_upstream_causes(request, workbench_id: str, node_id: str):
     depth = int(request.GET.get("depth", 3))
     causes = graph.get_upstream_causes(node_id, depth)
 
-    return JsonResponse({
-        "node_id": node_id,
-        "depth": depth,
-        "causes": causes,
-        "count": len(causes),
-    })
+    return JsonResponse(
+        {
+            "node_id": node_id,
+            "depth": depth,
+            "causes": causes,
+            "count": len(causes),
+        }
+    )
 
 
 # =============================================================================
 # Expansion signals
 # =============================================================================
+
 
 @require_auth
 @require_http_methods(["GET"])
@@ -446,10 +465,12 @@ def get_expansion_signals(request, workbench_id: str):
 
     pending = [s for s in graph.expansion_signals if s.get("status") == "pending"]
 
-    return JsonResponse({
-        "signals": pending,
-        "count": len(pending),
-    })
+    return JsonResponse(
+        {
+            "signals": pending,
+            "count": len(pending),
+        }
+    )
 
 
 @require_auth
@@ -502,11 +523,13 @@ def resolve_expansion(request, workbench_id: str, signal_id: str):
                 source="user",
             )
 
-            return JsonResponse({
-                "success": True,
-                "resolution": body.get("resolution"),
-                "new_node": new_node,
-            })
+            return JsonResponse(
+                {
+                    "success": True,
+                    "resolution": body.get("resolution"),
+                    "new_node": new_node,
+                }
+            )
 
     return JsonResponse({"error": "Signal not found"}, status=404)
 
@@ -514,6 +537,7 @@ def resolve_expansion(request, workbench_id: str, signal_id: str):
 # =============================================================================
 # Epistemic log
 # =============================================================================
+
 
 @require_auth
 @require_http_methods(["GET"])
@@ -531,21 +555,23 @@ def get_epistemic_log(request, workbench_id: str):
 
     logs = logs[:limit]
 
-    return JsonResponse({
-        "logs": [
-            {
-                "id": str(log.id),
-                "event_type": log.event_type,
-                "event_data": log.event_data,
-                "source": log.source,
-                "led_to_insight": log.has_led_to_insight,
-                "led_to_dead_end": log.has_led_to_dead_end,
-                "created_at": log.created_at.isoformat(),
-            }
-            for log in logs
-        ],
-        "count": len(logs),
-    })
+    return JsonResponse(
+        {
+            "logs": [
+                {
+                    "id": str(log.id),
+                    "event_type": log.event_type,
+                    "event_data": log.event_data,
+                    "source": log.source,
+                    "led_to_insight": log.has_led_to_insight,
+                    "led_to_dead_end": log.has_led_to_dead_end,
+                    "created_at": log.created_at.isoformat(),
+                }
+                for log in logs
+            ],
+            "count": len(logs),
+        }
+    )
 
 
 @require_auth
@@ -572,17 +598,20 @@ def mark_log_outcome(request, workbench_id: str, log_id: str):
         has_led_to_dead_end=body.get("led_to_dead_end"),
     )
 
-    return JsonResponse({
-        "success": True,
-        "log_id": str(log_id),
-        "led_to_insight": log.has_led_to_insight,
-        "led_to_dead_end": log.has_led_to_dead_end,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "log_id": str(log_id),
+            "led_to_insight": log.has_led_to_insight,
+            "led_to_dead_end": log.has_led_to_dead_end,
+        }
+    )
 
 
 # =============================================================================
 # Project-level Knowledge Graph (for connecting hypotheses)
 # =============================================================================
+
 
 @require_auth
 @require_http_methods(["GET"])
@@ -622,17 +651,10 @@ def add_hypothesis_to_graph(request, project_id: str, hypothesis_id: str):
     graph = get_or_create_project_graph(project_id, request.user)
 
     # Check if hypothesis is already in graph
-    existing = next(
-        (n for n in graph.nodes if n.get("hypothesis_id") == str(hypothesis_id)),
-        None
-    )
+    existing = next((n for n in graph.nodes if n.get("hypothesis_id") == str(hypothesis_id)), None)
 
     if existing:
-        return JsonResponse({
-            "success": True,
-            "node": existing,
-            "already_exists": True
-        })
+        return JsonResponse({"success": True, "node": existing, "already_exists": True})
 
     # Add hypothesis as node
     node = graph.add_node(
@@ -643,7 +665,7 @@ def add_hypothesis_to_graph(request, project_id: str, hypothesis_id: str):
             "hypothesis_id": str(hypothesis.id),
             "probability": hypothesis.current_probability,
             "status": hypothesis.status,
-            **(body.get("metadata", {}))
+            **(body.get("metadata", {})),
         },
     )
 
@@ -677,11 +699,13 @@ def add_hypothesis_to_graph(request, project_id: str, hypothesis_id: str):
         source="user",
     )
 
-    return JsonResponse({
-        "success": True,
-        "node": node,
-        "edges_created": edges_created,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "node": node,
+            "edges_created": edges_created,
+        }
+    )
 
 
 @require_auth
@@ -713,14 +737,8 @@ def connect_hypotheses(request, project_id: str):
         return JsonResponse({"error": "Both hypothesis IDs are required"}, status=400)
 
     # Find or create nodes for both hypotheses
-    from_node = next(
-        (n for n in graph.nodes if n.get("metadata", {}).get("hypothesis_id") == from_hyp_id),
-        None
-    )
-    to_node = next(
-        (n for n in graph.nodes if n.get("metadata", {}).get("hypothesis_id") == to_hyp_id),
-        None
-    )
+    from_node = next((n for n in graph.nodes if n.get("metadata", {}).get("hypothesis_id") == from_hyp_id), None)
+    to_node = next((n for n in graph.nodes if n.get("metadata", {}).get("hypothesis_id") == to_hyp_id), None)
 
     # Auto-add hypotheses to graph if not present
     if not from_node:
@@ -771,12 +789,14 @@ def connect_hypotheses(request, project_id: str):
         source="user",
     )
 
-    return JsonResponse({
-        "success": True,
-        "edge": edge,
-        "from_node": from_node,
-        "to_node": to_node,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "edge": edge,
+            "from_node": from_node,
+            "to_node": to_node,
+        }
+    )
 
 
 @require_auth
@@ -784,46 +804,51 @@ def connect_hypotheses(request, project_id: str):
 def get_hypothesis_connections(request, project_id: str, hypothesis_id: str):
     """Get all connections to/from a hypothesis in the knowledge graph."""
     project = get_object_or_404(Project, id=project_id, user=request.user)
-    hypothesis = get_object_or_404(Hypothesis, id=hypothesis_id, project=project)
+    get_object_or_404(Hypothesis, id=hypothesis_id, project=project)
 
     graph = get_or_create_project_graph(project_id, request.user)
 
     # Find the node for this hypothesis
-    node = next(
-        (n for n in graph.nodes if n.get("metadata", {}).get("hypothesis_id") == str(hypothesis_id)),
-        None
-    )
+    node = next((n for n in graph.nodes if n.get("metadata", {}).get("hypothesis_id") == str(hypothesis_id)), None)
 
     if not node:
-        return JsonResponse({
-            "hypothesis_id": str(hypothesis_id),
-            "in_graph": False,
-            "causes": [],
-            "effects": [],
-        })
+        return JsonResponse(
+            {
+                "hypothesis_id": str(hypothesis_id),
+                "in_graph": False,
+                "causes": [],
+                "effects": [],
+            }
+        )
 
     # Get edges from/to this node
     effects = []  # This hypothesis causes...
-    causes = []   # This hypothesis is caused by...
+    causes = []  # This hypothesis is caused by...
 
     for edge in graph.edges:
         if edge["from_node"] == node["id"]:
             target_node = graph.get_node(edge["to_node"])
-            effects.append({
-                "edge": edge,
-                "node": target_node,
-            })
+            effects.append(
+                {
+                    "edge": edge,
+                    "node": target_node,
+                }
+            )
         elif edge["to_node"] == node["id"]:
             source_node = graph.get_node(edge["from_node"])
-            causes.append({
-                "edge": edge,
-                "node": source_node,
-            })
+            causes.append(
+                {
+                    "edge": edge,
+                    "node": source_node,
+                }
+            )
 
-    return JsonResponse({
-        "hypothesis_id": str(hypothesis_id),
-        "in_graph": True,
-        "node": node,
-        "causes": causes,
-        "effects": effects,
-    })
+    return JsonResponse(
+        {
+            "hypothesis_id": str(hypothesis_id),
+            "in_graph": True,
+            "node": node,
+            "causes": causes,
+            "effects": effects,
+        }
+    )

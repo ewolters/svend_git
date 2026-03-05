@@ -61,48 +61,45 @@ __standard__ = "API-002"
 # Middleware (API-002 §8-10)
 # =============================================================================
 
+# =============================================================================
+# Events (API-002 §4, EVT-001 §5)
+# =============================================================================
+from syn.api.events import (
+    API_EVENTS,
+    build_auth_unauthorized_payload,
+    build_client_error_payload,
+    build_deprecation_endpoint_called_payload,
+    build_governance_api_alert_payload,
+    build_health_check_payload,
+    build_idempotency_key_replayed_payload,
+    build_rate_limit_exceeded_payload,
+    build_request_processed_payload,
+    build_request_received_payload,
+    build_server_error_payload,
+    emit_api_event,
+)
 from syn.api.middleware import (
-    SynRequestIdMiddleware,
-    APIHeadersMiddleware,
-    IdempotencyMiddleware,
-    ErrorEnvelopeMiddleware,
+    HEADER_IDEMPOTENCY_KEY,
     HEADER_SYN_REQUEST_ID,
     HEADER_TRACEPARENT,
-    HEADER_IDEMPOTENCY_KEY,
+    APIHeadersMiddleware,
+    ErrorEnvelopeMiddleware,
+    IdempotencyMiddleware,
+    SynRequestIdMiddleware,
 )
 
 # =============================================================================
 # Pagination (API-002 §7)
 # =============================================================================
-
 from syn.api.pagination import (
+    DEFAULT_PAGE_SIZE,
+    MAX_PAGE_SIZE,
+    MIN_PAGE_SIZE,
     SynaraCursorPagination,
     SynaraListPagination,
     create_cursor_response,
-    encode_cursor,
     decode_cursor,
-    DEFAULT_PAGE_SIZE,
-    MIN_PAGE_SIZE,
-    MAX_PAGE_SIZE,
-)
-
-# =============================================================================
-# Events (API-002 §4, EVT-001 §5)
-# =============================================================================
-
-from syn.api.events import (
-    API_EVENTS,
-    emit_api_event,
-    build_request_received_payload,
-    build_request_processed_payload,
-    build_auth_unauthorized_payload,
-    build_rate_limit_exceeded_payload,
-    build_idempotency_key_replayed_payload,
-    build_client_error_payload,
-    build_server_error_payload,
-    build_deprecation_endpoint_called_payload,
-    build_health_check_payload,
-    build_governance_api_alert_payload,
+    encode_cursor,
 )
 
 # =============================================================================

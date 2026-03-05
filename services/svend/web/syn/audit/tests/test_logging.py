@@ -13,7 +13,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
-from django.test import SimpleTestCase, RequestFactory, override_settings
+from django.test import RequestFactory, SimpleTestCase
 
 from syn.log.handlers import (
     ActorFilter,
@@ -39,14 +39,17 @@ class ContextVarsTest(SimpleTestCase):
 
     def test_correlation_id_var_is_contextvar(self):
         from contextvars import ContextVar
+
         self.assertIsInstance(correlation_id_var, ContextVar)
 
     def test_tenant_id_var_is_contextvar(self):
         from contextvars import ContextVar
+
         self.assertIsInstance(tenant_id_var, ContextVar)
 
     def test_actor_id_var_is_contextvar(self):
         from contextvars import ContextVar
+
         self.assertIsInstance(actor_id_var, ContextVar)
 
     def test_set_and_get_correlation_id(self):
@@ -298,6 +301,7 @@ class LogLevelConstantsTest(SimpleTestCase):
 
     def test_level_numeric_values(self):
         from syn.log.models import LOG_LEVEL_NUMERIC
+
         self.assertEqual(LOG_LEVEL_NUMERIC["DEBUG"], 10)
         self.assertEqual(LOG_LEVEL_NUMERIC["INFO"], 20)
         self.assertEqual(LOG_LEVEL_NUMERIC["WARNING"], 30)
@@ -310,10 +314,12 @@ class DjangoLoggingConfigTest(SimpleTestCase):
 
     def test_settings_has_logging(self):
         from django.conf import settings
+
         self.assertTrue(hasattr(settings, "LOGGING"))
 
     def test_logging_has_handlers(self):
         from django.conf import settings
+
         logging_config = getattr(settings, "LOGGING", {})
         if logging_config:
             self.assertIn("handlers", logging_config)

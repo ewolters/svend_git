@@ -2,7 +2,6 @@
 
 from ._datasets import SHARED_DATASET  # noqa: F401
 
-
 CHOOSING_TESTS = {
     "id": "choosing-tests",
     "title": "Choosing the Right Test",
@@ -14,7 +13,7 @@ CHOOSING_TESTS = {
             "Choose the number of groups you are comparing",
             "Indicate whether your data is paired or independent",
             "Review the recommended test and its assumptions",
-            "Toggle the non-normal option to see the nonparametric alternative"
+            "Toggle the non-normal option to see the nonparametric alternative",
         ],
     },
     "content": """
@@ -84,7 +83,7 @@ Or better: Bayesian A/B test (gives probability of improvement, not just "signif
             "show_decision_tree": True,
             "allow_data_type_input": True,
             "recommend_test": True,
-        }
+        },
     },
     "key_takeaways": [
         "Start with your question, not the test",
@@ -97,14 +96,14 @@ Or better: Bayesian A/B test (gives probability of improvement, not just "signif
         {
             "question": "You have satisfaction scores (1-10) for 3 customer segments and suspect the data is heavily skewed. What test do you use?",
             "answer": "Kruskal-Wallis test. You have 3+ groups with a continuous-ish outcome, but skewed data violates the normality assumption for ANOVA. Kruskal-Wallis is the non-parametric alternative that compares medians across groups.",
-            "hint": "3+ groups + non-normal data → non-parametric alternative to ANOVA"
+            "hint": "3+ groups + non-normal data → non-parametric alternative to ANOVA",
         },
         {
             "question": "You want to know if there's a relationship between education level (high school / bachelor's / master's / PhD) and voting preference (candidate A / B / C). What test?",
             "answer": "Chi-square test of independence. Both variables are categorical. You'd create a 4×3 contingency table and test whether education and voting preference are independent. If any expected cell count is <5, use Fisher's exact test instead.",
-            "hint": "Both variables categorical → contingency table test"
+            "hint": "Both variables categorical → contingency table test",
         },
-    ]
+    ],
 }
 
 
@@ -119,7 +118,7 @@ INTERPRETING_RESULTS = {
             "Review the simulated p-value distribution",
             "Check the confidence interval width",
             "Calculate the effect size (Cohen's d)",
-            "Decide: is this statistically AND practically significant?"
+            "Decide: is this statistically AND practically significant?",
         ],
         "dsw_type": "stats:ttest",
         "dsw_config": {"var1": "diameter_mm", "mu": 25.0},
@@ -200,7 +199,7 @@ With enough data, any tiny effect becomes "statistically significant." Always as
             "show_pvalue_simulator": True,
             "show_ci_visualizer": True,
             "show_effect_size_calculator": True,
-        }
+        },
     },
     "key_takeaways": [
         "P-values answer a narrow question - understand what it is",
@@ -213,14 +212,14 @@ With enough data, any tiny effect becomes "statistically significant." Always as
         {
             "question": "An A/B test shows: treatment mean = 4.52, control mean = 4.50, p = 0.001, n = 2,000,000 per group, 95% CI for difference: [0.01, 0.03]. Is this result actionable?",
             "answer": "Probably not. While statistically significant (p=0.001), the effect is tiny: 0.02 units on a scale where the CI tops out at 0.03. Cohen's d would be minuscule. With 2M per group, even trivial differences reach significance. Ask: would anyone notice a 0.02 difference? Does it justify the cost of change?",
-            "hint": "Look at the CI range, not just the p-value"
+            "hint": "Look at the CI range, not just the p-value",
         },
         {
             "question": "A study reports 'p = 0.06, a trend toward significance.' How should you interpret this?",
             "answer": "There is no such thing as 'a trend toward significance.' p=0.06 is weak evidence against the null — not qualitatively different from p=0.04. Report the effect size and CI instead. If CI is [-0.5, 12.3], the data is simply inconclusive (wide CI spanning zero). The study may be underpowered.",
-            "hint": "P-values are continuous — 0.06 and 0.04 provide similar evidence"
+            "hint": "P-values are continuous — 0.06 and 0.04 provide similar evidence",
         },
-    ]
+    ],
 }
 
 
@@ -235,7 +234,7 @@ MULTIPLE_COMPARISONS = {
             "Run the simulation with all null hypotheses true",
             "Count how many come back significant at p<0.05",
             "Apply Bonferroni correction and re-check",
-            "Switch to FDR (Benjamini-Hochberg) and compare the results"
+            "Switch to FDR (Benjamini-Hochberg) and compare the results",
         ],
         "dsw_type": "stats:anova",
         "dsw_config": {"response": "diameter_mm", "factor": "line"},
@@ -375,7 +374,7 @@ Both are valid, but different:
             "show_false_positive_accumulation": True,
             "show_correction_methods": True,
             "show_p_hacking_simulation": True,
-        }
+        },
     },
     "key_takeaways": [
         "With many tests, false positives are expected, not rare",
@@ -388,14 +387,14 @@ Both are valid, but different:
         {
             "question": "A study tests whether a drug affects any of 10 biomarkers. One shows p=0.03. Should we conclude the drug affects this biomarker?",
             "answer": "No. With 10 tests, Bonferroni-adjusted threshold is 0.05/10=0.005. The finding p=0.03 is not significant after correction. Expected ~0.5 false positives among 10 tests; this could easily be one.",
-            "hint": "Apply Bonferroni correction."
+            "hint": "Apply Bonferroni correction.",
         },
         {
             "question": "A paper reports p=0.048 and mentions they 'excluded 3 outliers.' What should you ask?",
             "answer": "Were the exclusion criteria specified before analysis? How were outliers defined? What's the p-value without exclusions? This pattern (p just under 0.05 after exclusions) suggests potential p-hacking.",
-            "hint": "The p-value being just under 0.05 after a decision is suspicious."
-        }
-    ]
+            "hint": "The p-value being just under 0.05 after a decision is suspicious.",
+        },
+    ],
 }
 
 
@@ -410,7 +409,7 @@ P_VALUES_DEEP_DIVE = {
             "Run the simulation 20 times with n=30 per group",
             "Count how many p-values fall below 0.05",
             "Observe the wide spread of p-values from the same truth",
-            "Set effect to zero and see the uniform distribution of p-values"
+            "Set effect to zero and see the uniform distribution of p-values",
         ],
         "dsw_type": "stats:ttest",
         "dsw_config": {"var1": "diameter_mm", "mu": 25.0},
@@ -521,14 +520,14 @@ Always report:
         {
             "question": "A colleague says 'We got p=0.03 so there's a 97% chance the treatment works.' Correct their reasoning.",
             "answer": "This inverts the conditional. P=0.03 means: IF the null is true, there's a 3% chance of data this extreme. It is NOT the probability the null is false. To get P(treatment works | data), you need Bayes' theorem — which requires a prior probability. If the prior probability of the treatment working was low (say 10%), p=0.03 might only bring you to ~75% confidence, not 97%.",
-            "hint": "P(data|null) ≠ P(null|data) — this is the prosecutor's fallacy"
+            "hint": "P(data|null) ≠ P(null|data) — this is the prosecutor's fallacy",
         },
         {
             "question": "You run the same experiment 4 times with the same true effect (d=0.5). You get p-values of 0.001, 0.12, 0.04, and 0.23. Is this contradictory?",
             "answer": "No — this is completely normal. P-values dance around across replications. With a real effect of d=0.5, your power determines how often you'll get p<0.05. If power is ~60%, you'd expect roughly 2 of 4 replications to fail to reach significance. The pattern is consistent with a real but moderate effect.",
-            "hint": "P-values from the same truth vary wildly — this is expected"
+            "hint": "P-values from the same truth vary wildly — this is expected",
         },
-    ]
+    ],
 }
 
 
@@ -543,7 +542,7 @@ CONFIDENCE_INTERVALS = {
             "Review the 95% CI for the difference",
             "Check whether the CI includes zero",
             "Increase the sample size and watch the CI narrow",
-            "Compare individual CIs vs the CI for the difference"
+            "Compare individual CIs vs the CI for the difference",
         ],
         "dsw_type": "stats:bootstrap_ci",
         "dsw_config": {"var": "diameter_mm", "statistic": "mean"},
@@ -637,14 +636,14 @@ The Bayesian version is what most people think CIs mean (and what they want to k
         {
             "question": "Group A: mean=50, 95% CI [45, 55]. Group B: mean=54, 95% CI [49, 59]. The CIs overlap. Can you conclude there's no difference?",
             "answer": "No! Overlapping individual CIs don't prove no difference. The CI for the difference (B-A) might be [0.5, 7.5] — which excludes zero and is significant. Individual CIs overlap more readily than you'd expect. Always compute the CI for the difference directly.",
-            "hint": "Overlapping CIs is not the same as CI-of-difference including zero"
+            "hint": "Overlapping CIs is not the same as CI-of-difference including zero",
         },
         {
             "question": "A study reports: 'Mean weight loss was 3.2 kg (95% CI: -1.1 to 7.5 kg), p=0.14.' What do you conclude?",
             "answer": "The data is inconclusive. The CI spans from a slight weight gain (-1.1) to a substantial loss (7.5 kg). While the point estimate is positive, the study can't distinguish between the treatment causing weight gain or meaningful weight loss. The study is likely underpowered — a larger sample would narrow the CI to resolve the question.",
-            "hint": "A wide CI spanning zero means the study couldn't resolve the question"
+            "hint": "A wide CI spanning zero means the study couldn't resolve the question",
         },
-    ]
+    ],
 }
 
 
@@ -658,7 +657,7 @@ EFFECT_SIZES = {
             "Enter two group means and a pooled standard deviation",
             "Calculate Cohen's d and classify as small, medium, or large",
             "For a binary outcome, compute the NNT",
-            "Compare: is d=0.08 with p<0.001 worth acting on?"
+            "Compare: is d=0.08 with p<0.001 worth acting on?",
         ],
         "dsw_type": "stats:ttest",
         "dsw_config": {"var1": "diameter_mm", "mu": 25.0},
@@ -769,14 +768,12 @@ Always interpret effect sizes in context:
         {
             "question": "A drug reduces heart attack risk from 2% to 1.5%. Calculate the NNT. Is this clinically meaningful?",
             "answer": "NNT = 1 / |0.02 - 0.015| = 1 / 0.005 = 200. You'd need to treat 200 patients to prevent one heart attack. Whether this is meaningful depends on: cost/side effects of the drug, severity of the outcome (heart attacks are severe), and available alternatives. For a cheap, safe drug preventing a fatal event, NNT=200 may be worthwhile. For an expensive drug with side effects, maybe not.",
-            "hint": "NNT = 1 / absolute risk reduction"
+            "hint": "NNT = 1 / absolute risk reduction",
         },
         {
             "question": "Study A reports d=0.3 for a free email intervention (n=10,000). Study B reports d=0.8 for a $50,000 training program (n=40). Which finding is more useful?",
             "answer": "Study A is likely more useful despite the smaller effect. d=0.3 for a free, scalable intervention affecting 10,000 people creates far more total impact than d=0.8 for an expensive program with n=40 (which may not replicate — small sample, large effect is a red flag). Effect sizes must be interpreted in context of cost, scalability, and sample reliability.",
-            "hint": "Context matters: cost, scalability, and sample size all affect practical significance"
+            "hint": "Context matters: cost, scalability, and sample size all affect practical significance",
         },
-    ]
+    ],
 }
-
-

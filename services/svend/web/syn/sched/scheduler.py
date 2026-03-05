@@ -9,7 +9,7 @@ Drop-in replacement for tempora.scheduler with syn.sched models.
 import logging
 import uuid
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any
 
 from django.utils import timezone
 
@@ -19,14 +19,14 @@ logger = logging.getLogger(__name__)
 def schedule_task(
     name: str,
     func: str,
-    args: Optional[Dict[str, Any]] = None,
-    run_at: Optional[datetime] = None,
+    args: dict[str, Any] | None = None,
+    run_at: datetime | None = None,
     delay_seconds: int = 0,
-    cron: Optional[str] = None,
-    interval_seconds: Optional[int] = None,
+    cron: str | None = None,
+    interval_seconds: int | None = None,
     priority: int = 2,
     queue: str = "core",
-    tenant_id: Optional[uuid.UUID] = None,
+    tenant_id: uuid.UUID | None = None,
 ) -> str:
     """
     Schedule a task for execution.
@@ -47,7 +47,7 @@ def schedule_task(
         Task ID for tracking
     """
     from syn.sched.models import CognitiveTask, Schedule
-    from syn.sched.types import TaskState, ScheduleType
+    from syn.sched.types import ScheduleType, TaskState
 
     args = args or {}
     tenant_id = tenant_id or uuid.UUID("00000000-0000-0000-0000-000000000000")
@@ -72,9 +72,11 @@ def schedule_task(
         if cron:
             try:
                 from croniter import croniter
+
                 next_run = croniter(cron, timezone.now()).get_next(datetime)
                 if timezone.is_naive(next_run):
                     from django.utils.timezone import make_aware
+
                     next_run = make_aware(next_run)
             except ImportError:
                 pass
@@ -118,7 +120,7 @@ def schedule_task(
     return str(task.id)
 
 
-def get_task_status(task_id: str) -> Optional[Dict[str, Any]]:
+def get_task_status(task_id: str) -> dict[str, Any] | None:
     """Get the status of a scheduled task."""
     from syn.sched.models import CognitiveTask
 
@@ -129,7 +131,7 @@ def get_task_status(task_id: str) -> Optional[Dict[str, Any]]:
             "id": str(task.id),
             "name": task.task_name,
             "state": task.state,
-            "created_at": task.created_at.isoformat() if hasattr(task, 'created_at') else None,
+            "created_at": task.created_at.isoformat() if hasattr(task, "created_at") else None,
             "scheduled_at": task.scheduled_at.isoformat() if task.scheduled_at else None,
             "attempts": task.attempts,
             "result": task.result,

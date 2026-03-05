@@ -9,10 +9,7 @@ Usage:
 Compliance: SOC 2 CC7.2 / ISO 27001 A.12.7
 """
 
-import sys
-
 from django.core.management.base import BaseCommand, CommandError
-from django.db.models import Count
 
 from syn.audit.models import SysLogEntry
 from syn.audit.utils import record_integrity_violation, verify_chain_integrity
@@ -112,4 +109,4 @@ class Command(BaseCommand):
         if total_violations == 0:
             self.stdout.write(self.style.SUCCESS("\n✓ All audit log chains are intact"))
         else:
-            self.stdout.write(self.style.ERROR(f"\n✗ Integrity violations detected. " f"Investigate immediately!"))
+            self.stdout.write(self.style.ERROR("\n✗ Integrity violations detected. Investigate immediately!"))

@@ -14,7 +14,6 @@ from django.conf import settings
 from django.test import SimpleTestCase
 
 from syn.audit.compliance import (
-    ALL_CHECKS,
     _ARCH_CORE_LAYER_EXEMPT,
     _ARCH_CROSS_IMPORT_EXEMPT_FILES,
     _ARCH_FEATURE_APPS,
@@ -23,8 +22,8 @@ from syn.audit.compliance import (
     _ARCH_FILES_PER_APP_FAIL,
     _ARCH_FILES_PER_APP_WARN,
     _ARCH_KNOWN_LARGE_APPS,
-    _ARCH_PROHIBITED_DIRS,
     _ARCH_REQUIRED_DIRS,
+    ALL_CHECKS,
     _check_arch_core_layer,
     _check_arch_cross_imports,
     _check_arch_dir_naming,
@@ -97,10 +96,7 @@ class LayerBoundaryTest(SimpleTestCase):
     def test_syn_no_feature_imports(self):
         violations = _check_arch_layer_boundaries(WEB_ROOT)
         if violations:
-            detail = "\n".join(
-                f"  {v['file']}:{v['line']} imports {v['import']}"
-                for v in violations[:10]
-            )
+            detail = "\n".join(f"  {v['file']}:{v['line']} imports {v['import']}" for v in violations[:10])
             self.fail(f"syn/ imports from feature apps:\n{detail}")
 
     def test_feature_apps_list_complete(self):
@@ -115,10 +111,7 @@ class GrowthBoundaryTest(SimpleTestCase):
         oversized = _check_arch_file_sizes(WEB_ROOT)
         failures = [f for f in oversized if f["severity"] == "fail"]
         if failures:
-            detail = "\n".join(
-                f"  {f['file']}: {f['lines']} lines"
-                for f in failures[:10]
-            )
+            detail = "\n".join(f"  {f['file']}: {f['lines']} lines" for f in failures[:10])
             self.fail(f"Files exceed {_ARCH_FILE_SIZE_FAIL} lines:\n{detail}")
 
     def test_threshold_constants(self):
@@ -132,7 +125,8 @@ class RootFileTest(SimpleTestCase):
     def test_no_unexpected_root_files(self):
         unexpected = _check_arch_root_files(WEB_ROOT)
         self.assertEqual(
-            unexpected, [],
+            unexpected,
+            [],
             f"Unexpected files at web root: {unexpected}",
         )
 
@@ -149,6 +143,7 @@ class DirectoryNamingTest(SimpleTestCase):
 
     def test_all_app_dirs_snake_case(self):
         import re
+
         pattern = re.compile(r"^[a-z][a-z0-9_]*$")
         for app in _ARCH_FEATURE_APPS:
             self.assertTrue(
@@ -172,10 +167,7 @@ class FilesPerAppTest(SimpleTestCase):
         oversized = _check_arch_files_per_app(WEB_ROOT)
         failures = [f for f in oversized if f["severity"] == "fail"]
         if failures:
-            detail = "\n".join(
-                f"  {f['app']}: {f['files']} files"
-                for f in failures
-            )
+            detail = "\n".join(f"  {f['app']}: {f['files']} files" for f in failures)
             self.fail(f"Apps exceed {_ARCH_FILES_PER_APP_FAIL} files:\n{detail}")
 
     def test_threshold_constants(self):
@@ -192,10 +184,7 @@ class CoreLayerTest(SimpleTestCase):
     def test_no_core_feature_imports(self):
         violations = _check_arch_core_layer(WEB_ROOT)
         if violations:
-            detail = "\n".join(
-                f"  {v['file']}:{v['line']} imports {v['import']}"
-                for v in violations[:10]
-            )
+            detail = "\n".join(f"  {v['file']}:{v['line']} imports {v['import']}" for v in violations[:10])
             self.fail(f"core/ imports from feature apps:\n{detail}")
 
     def test_exempt_list_documented(self):
@@ -250,10 +239,7 @@ class TestCaseInProdTest(SimpleTestCase):
     def test_no_testcase_in_prod(self):
         violations = _check_arch_testcase_in_prod(WEB_ROOT)
         if violations:
-            detail = "\n".join(
-                f"  {v['file']}:{v['line']} class {v['class']}({v['base']})"
-                for v in violations[:10]
-            )
+            detail = "\n".join(f"  {v['file']}:{v['line']} class {v['class']}({v['base']})" for v in violations[:10])
             self.fail(f"TestCase subclasses in non-test files:\n{detail}")
 
 

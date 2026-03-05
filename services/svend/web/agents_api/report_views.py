@@ -7,14 +7,15 @@ import json
 import logging
 
 from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
+from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
+from core.models import Hypothesis, Project
+
 from .evidence_bridge import create_tool_evidence
-from .models import Report, Board, DSWResult, RCASession
+from .models import Board, DSWResult, RCASession, Report
 from .report_types import REPORT_TYPES
-from core.models import Project, Hypothesis
 
 logger = logging.getLogger(__name__)
 
@@ -39,17 +40,19 @@ def _dsw_plots_count(dsw_result):
 @require_http_methods(["GET"])
 def list_report_types(request):
     """List available report types and their section definitions."""
-    return JsonResponse({
-        "report_types": {
-            key: {
-                "name": rt["name"],
-                "description": rt["description"],
-                "sections": rt["sections"],
-                "layout": rt.get("layout", "single_column"),
-            }
-            for key, rt in REPORT_TYPES.items()
-        },
-    })
+    return JsonResponse(
+        {
+            "report_types": {
+                key: {
+                    "name": rt["name"],
+                    "description": rt["description"],
+                    "sections": rt["sections"],
+                    "layout": rt.get("layout", "single_column"),
+                }
+                for key, rt in REPORT_TYPES.items()
+            },
+        }
+    )
 
 
 @gated_paid
@@ -62,7 +65,7 @@ def list_reports(request):
     - report_type: filter by type (capa, 8d)
     - status: filter by status
     """
-    reports = Report.objects.filter(owner=request.user).select_related('project')
+    reports = Report.objects.filter(owner=request.user).select_related("project")
 
     project_id = request.GET.get("project_id")
     if project_id:
@@ -76,9 +79,11 @@ def list_reports(request):
     if status:
         reports = reports.filter(status=status)
 
-    return JsonResponse({
-        "reports": [r.to_dict() for r in reports[:50]],
-    })
+    return JsonResponse(
+        {
+            "reports": [r.to_dict() for r in reports[:50]],
+        }
+    )
 
 
 @gated_paid
@@ -104,9 +109,12 @@ def create_report(request):
     if not project_id:
         return JsonResponse({"error": "project_id required"}, status=400)
     if not report_type or report_type not in REPORT_TYPES:
-        return JsonResponse({
-            "error": f"report_type must be one of: {', '.join(REPORT_TYPES.keys())}",
-        }, status=400)
+        return JsonResponse(
+            {
+                "error": f"report_type must be one of: {', '.join(REPORT_TYPES.keys())}",
+            },
+            status=400,
+        )
 
     try:
         project = Project.objects.get(id=project_id, user=request.user)
@@ -131,7 +139,7 @@ def create_report(request):
             if rca.chain:
                 rca_content += "**Causal Chain:**\n"
                 for i, step in enumerate(rca.chain):
-                    rca_content += f"{i+1}. {step.get('claim', '')}\n"
+                    rca_content += f"{i + 1}. {step.get('claim', '')}\n"
             if rca.root_cause:
                 rca_content += f"\n**Root Cause:** {rca.root_cause}\n"
             if rca.countermeasure:
@@ -159,17 +167,22 @@ def create_report(request):
     if rca_linked:
         report.imported_from = report.imported_from or {}
         section_key = "root_cause_analysis" if "root_cause_analysis" in sections else "root_cause"
-        report.imported_from[section_key] = [{
-            "source": "rca", "id": str(rca_linked.id),
-            "summary": rca_linked.title or rca_linked.event[:100],
-        }]
+        report.imported_from[section_key] = [
+            {
+                "source": "rca",
+                "id": str(rca_linked.id),
+                "summary": rca_linked.title or rca_linked.event[:100],
+            }
+        ]
         report.save(update_fields=["imported_from"])
 
     project.log_event("report_created", f"{report_type.upper()} report: {title}", user=request.user)
-    return JsonResponse({
-        "id": str(report.id),
-        "report": report.to_dict(),
-    })
+    return JsonResponse(
+        {
+            "id": str(report.id),
+            "report": report.to_dict(),
+        }
+    )
 
 
 @gated_paid
@@ -179,54 +192,61 @@ def get_report(request, report_id):
     report = get_object_or_404(Report, id=report_id, owner=request.user)
 
     project = report.project
-    hypotheses = list(Hypothesis.objects.filter(project=project).values(
-        'id', 'statement', 'current_probability', 'status'
-    )[:20])
-    boards = list(Board.objects.filter(project=project).values(
-        'id', 'name', 'room_code'
-    )[:10])
-    dsw_results = DSWResult.objects.filter(
-        project=project
-    ).order_by('-created_at')[:20]
-    rca_sessions = RCASession.objects.filter(
-        project=project
-    ).order_by('-updated_at')[:10]
+    hypotheses = list(
+        Hypothesis.objects.filter(project=project).values("id", "statement", "current_probability", "status")[:20]
+    )
+    boards = list(Board.objects.filter(project=project).values("id", "name", "room_code")[:10])
+    dsw_results = DSWResult.objects.filter(project=project).order_by("-created_at")[:20]
+    rca_sessions = RCASession.objects.filter(project=project).order_by("-updated_at")[:10]
 
     # Get the type definition for the frontend
     type_def = REPORT_TYPES.get(report.report_type, {})
 
-    return JsonResponse({
-        "report": report.to_dict(),
-        "type_definition": type_def,
-        "project": {
-            "id": str(project.id),
-            "title": project.title,
-            "description": getattr(project, 'problem_statement', '') or '',
-        },
-        "available_imports": {
-            "hypotheses": [
-                {"id": str(h["id"]), "statement": h["statement"],
-                 "probability": h["current_probability"], "status": h["status"]}
-                for h in hypotheses
-            ],
-            "boards": [
-                {"id": str(b["id"]), "name": b["name"], "room_code": b["room_code"]}
-                for b in boards
-            ],
-            "dsw_results": [
-                {"id": r.id, "title": r.title, "type": r.result_type,
-                 "summary": r.get_summary(), "created": r.created_at.isoformat(),
-                 "has_charts": _dsw_has_charts(r), "plots_count": _dsw_plots_count(r)}
-                for r in dsw_results
-            ],
-            "rca_sessions": [
-                {"id": str(r.id), "title": r.title, "event": r.event[:200],
-                 "root_cause": r.root_cause[:200] if r.root_cause else "",
-                 "status": r.status}
-                for r in rca_sessions
-            ],
-        },
-    })
+    return JsonResponse(
+        {
+            "report": report.to_dict(),
+            "type_definition": type_def,
+            "project": {
+                "id": str(project.id),
+                "title": project.title,
+                "description": getattr(project, "problem_statement", "") or "",
+            },
+            "available_imports": {
+                "hypotheses": [
+                    {
+                        "id": str(h["id"]),
+                        "statement": h["statement"],
+                        "probability": h["current_probability"],
+                        "status": h["status"],
+                    }
+                    for h in hypotheses
+                ],
+                "boards": [{"id": str(b["id"]), "name": b["name"], "room_code": b["room_code"]} for b in boards],
+                "dsw_results": [
+                    {
+                        "id": r.id,
+                        "title": r.title,
+                        "type": r.result_type,
+                        "summary": r.get_summary(),
+                        "created": r.created_at.isoformat(),
+                        "has_charts": _dsw_has_charts(r),
+                        "plots_count": _dsw_plots_count(r),
+                    }
+                    for r in dsw_results
+                ],
+                "rca_sessions": [
+                    {
+                        "id": str(r.id),
+                        "title": r.title,
+                        "event": r.event[:200],
+                        "root_cause": r.root_cause[:200] if r.root_cause else "",
+                        "status": r.status,
+                    }
+                    for r in rca_sessions
+                ],
+            },
+        }
+    )
 
 
 @gated_paid
@@ -276,10 +296,12 @@ def update_report(request, report_id):
                     source_type=sec_def.get("evidence_source_type", "analysis"),
                 )
 
-    return JsonResponse({
-        "success": True,
-        "report": report.to_dict(),
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "report": report.to_dict(),
+        }
+    )
 
 
 @gated_paid
@@ -369,6 +391,7 @@ def import_to_report(request, report_id):
             dsw_result = DSWResult.objects.get(id=source_id, user=request.user)
             import json as json_module
             import re
+
             result_data = json_module.loads(dsw_result.data)
 
             include = set(data.get("include", ["narrative", "statistics", "charts"]))
@@ -398,6 +421,7 @@ def import_to_report(request, report_id):
             chart_embeds = []
             if "charts" in include and result_data.get("plots"):
                 from .dsw.chart_render import render_dsw_charts
+
                 chart_embeds = render_dsw_charts(result_data["plots"])
 
             import_ref["summary"] = dsw_result.title or "DSW Analysis"
@@ -413,7 +437,7 @@ def import_to_report(request, report_id):
                 content += "**Causal Chain:**\n"
                 for i, step in enumerate(rca.chain):
                     claim = step.get("claim", "")
-                    content += f"{i+1}. {claim}\n"
+                    content += f"{i + 1}. {claim}\n"
             if rca.root_cause:
                 content += f"\n**Root Cause:** {rca.root_cause}\n"
             if rca.countermeasure:
@@ -451,12 +475,14 @@ def import_to_report(request, report_id):
 
     report.save()
 
-    return JsonResponse({
-        "success": True,
-        "section": section,
-        "content": sections[section],
-        "report": report.to_dict(),
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "section": section,
+            "content": sections[section],
+            "report": report.to_dict(),
+        }
+    )
 
 
 @gated_paid
@@ -491,7 +517,7 @@ def auto_populate_report(request, report_id):
     boards = list(Board.objects.filter(project=project)[:5])
 
     context_parts = [f"Study: {project.title}"]
-    if getattr(project, 'problem_statement', ''):
+    if getattr(project, "problem_statement", ""):
         context_parts.append(f"Description: {project.problem_statement}")
     if hypotheses:
         context_parts.append("\nHypotheses:")
@@ -517,9 +543,9 @@ def auto_populate_report(request, report_id):
         if not sec_def:
             continue
 
-        prompt = f"""Based on the project context below, write the "{sec_def['label']}" section of a {type_def['name']}.
+        prompt = f"""Based on the project context below, write the "{sec_def["label"]}" section of a {type_def["name"]}.
 
-{sec_def.get('help', '')}
+{sec_def.get("help", "")}
 
 Project Context:
 {context}
@@ -543,20 +569,25 @@ Write a concise but thorough response (3-5 sentences) suitable for this report s
         elif response and response.get("rate_limited"):
             report.sections = sections
             report.save()
-            return JsonResponse({
-                "error": response["error"],
-                "rate_limited": True,
-                "partial_results": results,
-            }, status=429)
+            return JsonResponse(
+                {
+                    "error": response["error"],
+                    "rate_limited": True,
+                    "partial_results": results,
+                },
+                status=429,
+            )
 
     report.sections = sections
     report.save()
 
-    return JsonResponse({
-        "success": True,
-        "populated_sections": list(results.keys()),
-        "report": report.to_dict(),
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "populated_sections": list(results.keys()),
+            "report": report.to_dict(),
+        }
+    )
 
 
 @gated_paid
@@ -593,7 +624,7 @@ def embed_diagram(request, report_id):
     except Board.DoesNotExist:
         return JsonResponse({"error": "Whiteboard not found"}, status=404)
 
-    from .whiteboard_views import _render_element_svg, _render_connection_svg
+    from .whiteboard_views import _render_connection_svg, _render_element_svg
 
     elements = board.elements or []
     connections = board.connections or []
@@ -601,10 +632,10 @@ def embed_diagram(request, report_id):
     if not elements:
         return JsonResponse({"error": "Whiteboard is empty"}, status=400)
 
-    min_x = min(el.get('x', 0) for el in elements)
-    min_y = min(el.get('y', 0) for el in elements)
-    max_x = max(el.get('x', 0) + el.get('width', 120) for el in elements)
-    max_y = max(el.get('y', 0) + el.get('height', 60) for el in elements)
+    min_x = min(el.get("x", 0) for el in elements)
+    min_y = min(el.get("y", 0) for el in elements)
+    max_x = max(el.get("x", 0) + el.get("width", 120) for el in elements)
+    max_y = max(el.get("y", 0) + el.get("height", 60) for el in elements)
 
     padding = 20
     width = max_x - min_x + padding * 2
@@ -620,33 +651,38 @@ def embed_diagram(request, report_id):
         svg_parts.append(_render_connection_svg(conn, elements, offset_x, offset_y))
     for el in elements:
         svg_parts.append(_render_element_svg(el, offset_x, offset_y))
-    svg_parts.append('</svg>')
-    svg_content = '\n'.join(svg_parts)
+    svg_parts.append("</svg>")
+    svg_content = "\n".join(svg_parts)
 
     diagrams = report.embedded_diagrams or {}
     if section not in diagrams:
         diagrams[section] = []
 
     import uuid
+
     diagram_id = str(uuid.uuid4())[:8]
-    diagrams[section].append({
-        "id": diagram_id,
-        "svg": svg_content,
-        "board_name": board.name,
-        "room_code": board.room_code,
-        "width": width,
-        "height": height,
-    })
+    diagrams[section].append(
+        {
+            "id": diagram_id,
+            "svg": svg_content,
+            "board_name": board.name,
+            "room_code": board.room_code,
+            "width": width,
+            "height": height,
+        }
+    )
     report.embedded_diagrams = diagrams
     report.save()
 
-    return JsonResponse({
-        "success": True,
-        "diagram_id": diagram_id,
-        "section": section,
-        "board_name": board.name,
-        "svg": svg_content,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "diagram_id": diagram_id,
+            "section": section,
+            "board_name": board.name,
+            "svg": svg_content,
+        }
+    )
 
 
 @gated_paid
@@ -690,6 +726,7 @@ def export_report_pdf(request, report_id):
 
     try:
         import markdown
+
         md = markdown.Markdown(extensions=["tables", "fenced_code"])
     except ImportError:
         md = None
@@ -705,34 +742,43 @@ def export_report_pdf(request, report_id):
             md.reset()
         elif clean_content:
             from django.utils.html import escape
+
             html = f"<p>{escape(clean_content)}</p>"
         else:
             html = '<p class="empty-section">Not completed</p>'
 
-        rendered_sections.append({
-            "key": key,
-            "label": sec_def["label"],
-            "html": html,
-            "diagrams": diagrams.get(key, []),
-        })
+        rendered_sections.append(
+            {
+                "key": key,
+                "label": sec_def["label"],
+                "html": html,
+                "diagrams": diagrams.get(key, []),
+            }
+        )
 
     from django.template.loader import render_to_string
-    html_string = render_to_string("report_print.html", {
-        "report": report,
-        "type_name": type_def.get("name", report.report_type.upper()),
-        "status_display": report.get_status_display(),
-        "project_title": report.project.title if report.project else "",
-        "rendered_sections": rendered_sections,
-    })
+
+    html_string = render_to_string(
+        "report_print.html",
+        {
+            "report": report,
+            "type_name": type_def.get("name", report.report_type.upper()),
+            "status_display": report.get_status_display(),
+            "project_title": report.project.title if report.project else "",
+            "rendered_sections": rendered_sections,
+        },
+    )
 
     try:
         from weasyprint import HTML
+
         pdf_buffer = BytesIO()
         HTML(string=html_string, base_url="https://svend.ai").write_pdf(pdf_buffer)
         pdf_buffer.seek(0)
 
         safe_name = re.sub(r"[^\w\-.]", "_", report.title)[:60] or "report"
         from django.http import HttpResponse
+
         response = HttpResponse(pdf_buffer.read(), content_type="application/pdf")
         response["Content-Disposition"] = f'inline; filename="{safe_name}.pdf"'
         return response

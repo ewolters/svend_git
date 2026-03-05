@@ -10,8 +10,8 @@ CR: 5528303a — INIT-009 / E9-002
 import logging
 import re
 
-from .registry import get_entry, ANALYSIS_REGISTRY
 from .chart_defaults import apply_chart_defaults
+from .registry import get_entry
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +81,7 @@ def standardize_output(result, analysis_type, analysis_id):
     if not result["education"]:
         try:
             from .education import get_education
+
             edu = get_education(analysis_type, analysis_id)
             if edu:
                 result["education"] = edu
@@ -106,6 +107,7 @@ def standardize_output(result, analysis_type, analysis_id):
     if p_val is not None and not result.get("evidence_grade"):
         try:
             from .common import _evidence_grade
+
             bf10 = None
             if result.get("bayesian_shadow"):
                 bf10 = result["bayesian_shadow"].get("bf10")
@@ -146,8 +148,7 @@ _BOUNDED_METRICS = [
 # Metrics that must be positive: (key_names,)
 _POSITIVE_METRICS = ("bf10",)
 # Metrics that must be finite: (key_names,)
-_FINITE_METRICS = ("cp", "cpk", "pp", "ppk", "cohens_d", "cohens_f",
-                    "odds_ratio", "relative_risk")
+_FINITE_METRICS = ("cp", "cpk", "pp", "ppk", "cohens_d", "cohens_f", "odds_ratio", "relative_risk")
 
 
 def _validate_statistics_bounds(result):
@@ -179,8 +180,7 @@ def _validate_statistics_bounds(result):
                     d[key] = None
                 elif fval < lo or fval > hi:
                     clamped = max(lo, min(hi, fval))
-                    logger.warning("QUAL-001: %s=%s out of [%s,%s], clamping to %s",
-                                   key, fval, lo, hi, clamped)
+                    logger.warning("QUAL-001: %s=%s out of [%s,%s], clamping to %s", key, fval, lo, hi, clamped)
                     d[key] = clamped
 
         # Positive metrics
@@ -193,8 +193,7 @@ def _validate_statistics_bounds(result):
             except (TypeError, ValueError):
                 continue
             if not math.isfinite(fval) or fval <= 0:
-                logger.warning("QUAL-001: %s=%s invalid (must be positive finite), setting to None",
-                               key, val)
+                logger.warning("QUAL-001: %s=%s invalid (must be positive finite), setting to None", key, val)
                 d[key] = None
 
         # Finite metrics
@@ -223,7 +222,7 @@ def _narrative_from_summary(summary):
         return None
 
     # Split on double newline or bullet patterns to extract sections
-    lines = [l.strip() for l in clean.split("\n") if l.strip()]
+    lines = [line.strip() for line in clean.split("\n") if line.strip()]
     if not lines:
         return None
 
@@ -321,6 +320,7 @@ def _auto_shadow(result, shadow_type):
     the result dict.
     """
     from .common import _bayesian_shadow
+
     stats = result.get("statistics", {})
     if not isinstance(stats, dict):
         stats = {}
@@ -390,17 +390,25 @@ def _normalize_what_if(result, entry):
     pe = result.get("power_explorer")
     if pe and isinstance(pe, dict):
         params = []
-        test_type = pe.get("test_type", "")
+        pe.get("test_type", "")
         obs_n = pe.get("observed_n", 30)
         obs_d = pe.get("cohens_d", 0.5)
         alpha = pe.get("alpha", 0.05)
 
-        params.append({"name": "effect_size", "label": "Effect Size (Cohen's d)",
-                        "min": 0.1, "max": 2.0, "step": 0.05, "value": round(obs_d, 2)})
-        params.append({"name": "sample_size", "label": "Sample Size",
-                        "min": 5, "max": 500, "step": 5, "value": obs_n})
-        params.append({"name": "alpha", "label": "Significance Level",
-                        "min": 0.01, "max": 0.10, "step": 0.01, "value": alpha})
+        params.append(
+            {
+                "name": "effect_size",
+                "label": "Effect Size (Cohen's d)",
+                "min": 0.1,
+                "max": 2.0,
+                "step": 0.05,
+                "value": round(obs_d, 2),
+            }
+        )
+        params.append({"name": "sample_size", "label": "Sample Size", "min": 5, "max": 500, "step": 5, "value": obs_n})
+        params.append(
+            {"name": "alpha", "label": "Significance Level", "min": 0.01, "max": 0.10, "step": 0.01, "value": alpha}
+        )
 
         return {
             "type": "slider",
@@ -415,14 +423,16 @@ def _normalize_what_if(result, entry):
     if wid and isinstance(wid, dict) and wid.get("type") == "regression":
         params = []
         for feat, ranges in (wid.get("feature_ranges") or {}).items():
-            params.append({
-                "name": feat,
-                "label": feat,
-                "min": round(ranges.get("min", 0), 4),
-                "max": round(ranges.get("max", 1), 4),
-                "step": round((ranges.get("max", 1) - ranges.get("min", 0)) / 20, 4),
-                "value": round(ranges.get("mean", 0), 4),
-            })
+            params.append(
+                {
+                    "name": feat,
+                    "label": feat,
+                    "min": round(ranges.get("min", 0), 4),
+                    "max": round(ranges.get("max", 1), 4),
+                    "step": round((ranges.get("max", 1) - ranges.get("min", 0)) / 20, 4),
+                    "value": round(ranges.get("mean", 0), 4),
+                }
+            )
 
         return {
             "type": "slider",

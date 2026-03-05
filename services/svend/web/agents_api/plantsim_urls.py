@@ -1,6 +1,7 @@
 """Plant Simulator API URLs."""
 
 from django.urls import path
+
 from . import plantsim_views
 
 urlpatterns = [

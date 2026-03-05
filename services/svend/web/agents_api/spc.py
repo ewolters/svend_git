@@ -12,10 +12,8 @@ Designed to integrate with the Problem/DMAIC workflow.
 
 import math
 import statistics
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass
 from typing import Literal, Optional
-import json
-
 
 # =============================================================================
 # Control Chart Constants
@@ -24,14 +22,14 @@ import json
 # Constants for control chart calculations (from statistical tables)
 # A2, A3, B3, B4, D3, D4 for subgroup sizes 2-25
 CONTROL_CHART_CONSTANTS = {
-    2:  {"A2": 1.880, "A3": 2.659, "B3": 0.000, "B4": 3.267, "D3": 0.000, "D4": 3.267, "d2": 1.128, "c4": 0.7979},
-    3:  {"A2": 1.023, "A3": 1.954, "B3": 0.000, "B4": 2.568, "D3": 0.000, "D4": 2.574, "d2": 1.693, "c4": 0.8862},
-    4:  {"A2": 0.729, "A3": 1.628, "B3": 0.000, "B4": 2.266, "D3": 0.000, "D4": 2.282, "d2": 2.059, "c4": 0.9213},
-    5:  {"A2": 0.577, "A3": 1.427, "B3": 0.000, "B4": 2.089, "D3": 0.000, "D4": 2.114, "d2": 2.326, "c4": 0.9400},
-    6:  {"A2": 0.483, "A3": 1.287, "B3": 0.030, "B4": 1.970, "D3": 0.000, "D4": 2.004, "d2": 2.534, "c4": 0.9515},
-    7:  {"A2": 0.419, "A3": 1.182, "B3": 0.118, "B4": 1.882, "D3": 0.076, "D4": 1.924, "d2": 2.704, "c4": 0.9594},
-    8:  {"A2": 0.373, "A3": 1.099, "B3": 0.185, "B4": 1.815, "D3": 0.136, "D4": 1.864, "d2": 2.847, "c4": 0.9650},
-    9:  {"A2": 0.337, "A3": 1.032, "B3": 0.239, "B4": 1.761, "D3": 0.184, "D4": 1.816, "d2": 2.970, "c4": 0.9693},
+    2: {"A2": 1.880, "A3": 2.659, "B3": 0.000, "B4": 3.267, "D3": 0.000, "D4": 3.267, "d2": 1.128, "c4": 0.7979},
+    3: {"A2": 1.023, "A3": 1.954, "B3": 0.000, "B4": 2.568, "D3": 0.000, "D4": 2.574, "d2": 1.693, "c4": 0.8862},
+    4: {"A2": 0.729, "A3": 1.628, "B3": 0.000, "B4": 2.266, "D3": 0.000, "D4": 2.282, "d2": 2.059, "c4": 0.9213},
+    5: {"A2": 0.577, "A3": 1.427, "B3": 0.000, "B4": 2.089, "D3": 0.000, "D4": 2.114, "d2": 2.326, "c4": 0.9400},
+    6: {"A2": 0.483, "A3": 1.287, "B3": 0.030, "B4": 1.970, "D3": 0.000, "D4": 2.004, "d2": 2.534, "c4": 0.9515},
+    7: {"A2": 0.419, "A3": 1.182, "B3": 0.118, "B4": 1.882, "D3": 0.076, "D4": 1.924, "d2": 2.704, "c4": 0.9594},
+    8: {"A2": 0.373, "A3": 1.099, "B3": 0.185, "B4": 1.815, "D3": 0.136, "D4": 1.864, "d2": 2.847, "c4": 0.9650},
+    9: {"A2": 0.337, "A3": 1.032, "B3": 0.239, "B4": 1.761, "D3": 0.184, "D4": 1.816, "d2": 2.970, "c4": 0.9693},
     10: {"A2": 0.308, "A3": 0.975, "B3": 0.284, "B4": 1.716, "D3": 0.223, "D4": 1.777, "d2": 3.078, "c4": 0.9727},
 }
 
@@ -48,21 +46,24 @@ IMR_CONSTANTS = {
 # Data Classes
 # =============================================================================
 
+
 @dataclass
 class ControlLimits:
     """Control limits for a control chart."""
+
     ucl: float  # Upper Control Limit
-    cl: float   # Center Line
+    cl: float  # Center Line
     lcl: float  # Lower Control Limit
 
     # Optional specification limits
-    usl: Optional[float] = None  # Upper Spec Limit
-    lsl: Optional[float] = None  # Lower Spec Limit
+    usl: float | None = None  # Upper Spec Limit
+    lsl: float | None = None  # Lower Spec Limit
 
 
 @dataclass
 class ControlChartResult:
     """Result from control chart analysis."""
+
     chart_type: str
     data_points: list[float]
     limits: ControlLimits
@@ -90,31 +91,32 @@ class ControlChartResult:
 @dataclass
 class ProcessCapability:
     """Process capability analysis results."""
+
     # Short-term capability (within subgroup variation)
-    cp: float       # Capability index
-    cpk: float      # Capability index (centered)
-    cpu: float      # Upper capability
-    cpl: float      # Lower capability
+    cp: float  # Capability index
+    cpk: float  # Capability index (centered)
+    cpu: float  # Upper capability
+    cpl: float  # Lower capability
 
     # Long-term performance (total variation)
-    pp: float       # Performance index
-    ppk: float      # Performance index (centered)
-    ppu: float      # Upper performance
-    ppl: float      # Lower performance
+    pp: float  # Performance index
+    ppk: float  # Performance index (centered)
+    ppu: float  # Upper performance
+    ppl: float  # Lower performance
 
     # Sigma metrics
-    sigma_within: float   # Within-subgroup std dev
+    sigma_within: float  # Within-subgroup std dev
     sigma_overall: float  # Overall std dev
-    sigma_level: float    # Process sigma level (Z score)
+    sigma_level: float  # Process sigma level (Z score)
 
     # Defect metrics
-    dpmo: float           # Defects per million opportunities
+    dpmo: float  # Defects per million opportunities
     yield_percent: float  # Process yield %
 
     # Specs
     usl: float
     lsl: float
-    target: Optional[float]
+    target: float | None
 
     # Data summary
     mean: float
@@ -130,6 +132,7 @@ class ProcessCapability:
 @dataclass
 class StatisticalSummary:
     """Statistical summary of a dataset."""
+
     n: int
     mean: float
     median: float
@@ -145,8 +148,8 @@ class StatisticalSummary:
     kurtosis: float
 
     # Normality indicators
-    anderson_darling: Optional[float] = None
-    is_normal: Optional[bool] = None
+    anderson_darling: float | None = None
+    is_normal: bool | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -155,6 +158,7 @@ class StatisticalSummary:
 # =============================================================================
 # Statistical Functions
 # =============================================================================
+
 
 def calculate_summary(data: list[float]) -> StatisticalSummary:
     """Calculate comprehensive statistical summary."""
@@ -177,13 +181,13 @@ def calculate_summary(data: list[float]) -> StatisticalSummary:
 
     # Skewness (Fisher's)
     if std_dev > 0:
-        skewness = sum((x - mean) ** 3 for x in data) / (n * std_dev ** 3)
+        skewness = sum((x - mean) ** 3 for x in data) / (n * std_dev**3)
     else:
         skewness = 0.0
 
     # Kurtosis (excess)
     if std_dev > 0:
-        kurtosis = sum((x - mean) ** 4 for x in data) / (n * std_dev ** 4) - 3
+        kurtosis = sum((x - mean) ** 4 for x in data) / (n * std_dev**4) - 3
     else:
         kurtosis = 0.0
 
@@ -239,34 +243,55 @@ def dpmo_to_sigma(dpmo: float) -> float:
         return 6.0
 
     # Approximate inverse normal
-    a = [0, -3.969683028665376e+01, 2.209460984245205e+02,
-         -2.759285104469687e+02, 1.383577518672690e+02,
-         -3.066479806614716e+01, 2.506628277459239e+00]
-    b = [0, -5.447609879822406e+01, 1.615858368580409e+02,
-         -1.556989798598866e+02, 6.680131188771972e+01,
-         -1.328068155288572e+01]
-    c = [0, -7.784894002430293e-03, -3.223964580411365e-01,
-         -2.400758277161838e+00, -2.549732539343734e+00,
-         4.374664141464968e+00, 2.938163982698783e+00]
-    d = [0, 7.784695709041462e-03, 3.224671290700398e-01,
-         2.445134137142996e+00, 3.754408661907416e+00]
+    a = [
+        0,
+        -3.969683028665376e01,
+        2.209460984245205e02,
+        -2.759285104469687e02,
+        1.383577518672690e02,
+        -3.066479806614716e01,
+        2.506628277459239e00,
+    ]
+    b = [
+        0,
+        -5.447609879822406e01,
+        1.615858368580409e02,
+        -1.556989798598866e02,
+        6.680131188771972e01,
+        -1.328068155288572e01,
+    ]
+    c = [
+        0,
+        -7.784894002430293e-03,
+        -3.223964580411365e-01,
+        -2.400758277161838e00,
+        -2.549732539343734e00,
+        4.374664141464968e00,
+        2.938163982698783e00,
+    ]
+    d = [0, 7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e00, 3.754408661907416e00]
 
     p_low = 0.02425
     p_high = 1 - p_low
 
     if p < p_low:
         q = math.sqrt(-2 * math.log(p))
-        z = (((((c[1]*q + c[2])*q + c[3])*q + c[4])*q + c[5])*q + c[6]) / \
-            ((((d[1]*q + d[2])*q + d[3])*q + d[4])*q + 1)
+        z = (((((c[1] * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) * q + c[6]) / (
+            (((d[1] * q + d[2]) * q + d[3]) * q + d[4]) * q + 1
+        )
     elif p <= p_high:
         q = p - 0.5
         r = q * q
-        z = (((((a[1]*r + a[2])*r + a[3])*r + a[4])*r + a[5])*r + a[6])*q / \
-            (((((b[1]*r + b[2])*r + b[3])*r + b[4])*r + b[5])*r + 1)
+        z = (
+            (((((a[1] * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * r + a[6])
+            * q
+            / (((((b[1] * r + b[2]) * r + b[3]) * r + b[4]) * r + b[5]) * r + 1)
+        )
     else:
         q = math.sqrt(-2 * math.log(1 - p))
-        z = -(((((c[1]*q + c[2])*q + c[3])*q + c[4])*q + c[5])*q + c[6]) / \
-             ((((d[1]*q + d[2])*q + d[3])*q + d[4])*q + 1)
+        z = -(((((c[1] * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) * q + c[6]) / (
+            (((d[1] * q + d[2]) * q + d[3]) * q + d[4]) * q + 1
+        )
 
     # Add 1.5 sigma shift
     return z + 1.5
@@ -276,10 +301,11 @@ def dpmo_to_sigma(dpmo: float) -> float:
 # Control Charts
 # =============================================================================
 
+
 def individuals_moving_range_chart(
     data: list[float],
-    usl: Optional[float] = None,
-    lsl: Optional[float] = None,
+    usl: float | None = None,
+    lsl: float | None = None,
 ) -> ControlChartResult:
     """
     Create I-MR (Individuals and Moving Range) control chart.
@@ -291,7 +317,7 @@ def individuals_moving_range_chart(
         raise ValueError("Need at least 2 data points")
 
     # Calculate moving ranges
-    moving_ranges = [abs(data[i] - data[i-1]) for i in range(1, n)]
+    moving_ranges = [abs(data[i] - data[i - 1]) for i in range(1, n)]
 
     # Center lines
     x_bar = statistics.mean(data)
@@ -366,8 +392,8 @@ def individuals_moving_range_chart(
 
 def xbar_r_chart(
     subgroups: list[list[float]],
-    usl: Optional[float] = None,
-    lsl: Optional[float] = None,
+    usl: float | None = None,
+    lsl: float | None = None,
 ) -> ControlChartResult:
     """
     Create X-bar and R control chart.
@@ -507,7 +533,7 @@ def p_chart(
 
     summary_parts = [
         f"p-Chart Analysis (k={n_samples})",
-        f"Average Proportion Defective (p-bar): {p_bar:.4f} ({p_bar*100:.2f}%)",
+        f"Average Proportion Defective (p-bar): {p_bar:.4f} ({p_bar * 100:.2f}%)",
         f"Total Defectives: {total_defectives} / {total_inspected}",
         f"UCL: {ucl:.4f}, LCL: {lcl:.4f}",
     ]
@@ -606,51 +632,59 @@ def check_nelson_rules(
     # Rule 2: Nine points in a row on same side of center
     if n >= 9:
         for i in range(8, n):
-            window = zones[i-8:i+1]
+            window = zones[i - 8 : i + 1]
             if all(z > 0 for z in window):
-                violations.append({
-                    "rule": 2,
-                    "indices": list(range(i-8, i+1)),
-                    "description": "9 consecutive points above center line",
-                })
+                violations.append(
+                    {
+                        "rule": 2,
+                        "indices": list(range(i - 8, i + 1)),
+                        "description": "9 consecutive points above center line",
+                    }
+                )
             elif all(z < 0 for z in window):
-                violations.append({
-                    "rule": 2,
-                    "indices": list(range(i-8, i+1)),
-                    "description": "9 consecutive points below center line",
-                })
+                violations.append(
+                    {
+                        "rule": 2,
+                        "indices": list(range(i - 8, i + 1)),
+                        "description": "9 consecutive points below center line",
+                    }
+                )
 
     # Rule 3: Six points in a row steadily increasing or decreasing
     if n >= 6:
         for i in range(5, n):
-            window = data[i-5:i+1]
-            increasing = all(window[j] < window[j+1] for j in range(5))
-            decreasing = all(window[j] > window[j+1] for j in range(5))
+            window = data[i - 5 : i + 1]
+            increasing = all(window[j] < window[j + 1] for j in range(5))
+            decreasing = all(window[j] > window[j + 1] for j in range(5))
             if increasing:
-                violations.append({
-                    "rule": 3,
-                    "indices": list(range(i-5, i+1)),
-                    "description": "6 consecutive points steadily increasing",
-                })
+                violations.append(
+                    {
+                        "rule": 3,
+                        "indices": list(range(i - 5, i + 1)),
+                        "description": "6 consecutive points steadily increasing",
+                    }
+                )
             elif decreasing:
-                violations.append({
-                    "rule": 3,
-                    "indices": list(range(i-5, i+1)),
-                    "description": "6 consecutive points steadily decreasing",
-                })
+                violations.append(
+                    {
+                        "rule": 3,
+                        "indices": list(range(i - 5, i + 1)),
+                        "description": "6 consecutive points steadily decreasing",
+                    }
+                )
 
     # Rule 4: Fourteen points in a row alternating up and down
     if n >= 14:
         for i in range(13, n):
-            window = data[i-13:i+1]
+            window = data[i - 13 : i + 1]
             alternating = True
             for j in range(13):
                 if j % 2 == 0:
-                    if window[j] >= window[j+1]:
+                    if window[j] >= window[j + 1]:
                         alternating = False
                         break
                 else:
-                    if window[j] <= window[j+1]:
+                    if window[j] <= window[j + 1]:
                         alternating = False
                         break
             if not alternating:
@@ -658,83 +692,97 @@ def check_nelson_rules(
                 alternating = True
                 for j in range(13):
                     if j % 2 == 0:
-                        if window[j] <= window[j+1]:
+                        if window[j] <= window[j + 1]:
                             alternating = False
                             break
                     else:
-                        if window[j] >= window[j+1]:
+                        if window[j] >= window[j + 1]:
                             alternating = False
                             break
             if alternating:
-                violations.append({
-                    "rule": 4,
-                    "indices": list(range(i-13, i+1)),
-                    "description": "14 consecutive points alternating up and down",
-                })
+                violations.append(
+                    {
+                        "rule": 4,
+                        "indices": list(range(i - 13, i + 1)),
+                        "description": "14 consecutive points alternating up and down",
+                    }
+                )
 
     # Rule 5: Two of three consecutive points beyond 2 sigma (same side)
     if n >= 3:
         for i in range(2, n):
-            window = zones[i-2:i+1]
+            window = zones[i - 2 : i + 1]
             above_2 = sum(1 for z in window if z > 2)
             below_2 = sum(1 for z in window if z < -2)
             if above_2 >= 2:
-                violations.append({
-                    "rule": 5,
-                    "indices": list(range(i-2, i+1)),
-                    "description": "2 of 3 points beyond +2 sigma",
-                })
+                violations.append(
+                    {
+                        "rule": 5,
+                        "indices": list(range(i - 2, i + 1)),
+                        "description": "2 of 3 points beyond +2 sigma",
+                    }
+                )
             if below_2 >= 2:
-                violations.append({
-                    "rule": 5,
-                    "indices": list(range(i-2, i+1)),
-                    "description": "2 of 3 points beyond -2 sigma",
-                })
+                violations.append(
+                    {
+                        "rule": 5,
+                        "indices": list(range(i - 2, i + 1)),
+                        "description": "2 of 3 points beyond -2 sigma",
+                    }
+                )
 
     # Rule 6: Four of five consecutive points beyond 1 sigma (same side)
     if n >= 5:
         for i in range(4, n):
-            window = zones[i-4:i+1]
+            window = zones[i - 4 : i + 1]
             above_1 = sum(1 for z in window if z > 1)
             below_1 = sum(1 for z in window if z < -1)
             if above_1 >= 4:
-                violations.append({
-                    "rule": 6,
-                    "indices": list(range(i-4, i+1)),
-                    "description": "4 of 5 points beyond +1 sigma",
-                })
+                violations.append(
+                    {
+                        "rule": 6,
+                        "indices": list(range(i - 4, i + 1)),
+                        "description": "4 of 5 points beyond +1 sigma",
+                    }
+                )
             if below_1 >= 4:
-                violations.append({
-                    "rule": 6,
-                    "indices": list(range(i-4, i+1)),
-                    "description": "4 of 5 points beyond -1 sigma",
-                })
+                violations.append(
+                    {
+                        "rule": 6,
+                        "indices": list(range(i - 4, i + 1)),
+                        "description": "4 of 5 points beyond -1 sigma",
+                    }
+                )
 
     # Rule 7: Fifteen consecutive points within 1 sigma of center (stratification)
     if n >= 15:
         for i in range(14, n):
-            window = zones[i-14:i+1]
+            window = zones[i - 14 : i + 1]
             if all(-1 < z < 1 for z in window):
-                violations.append({
-                    "rule": 7,
-                    "indices": list(range(i-14, i+1)),
-                    "description": "15 consecutive points within +/- 1 sigma (stratification)",
-                })
+                violations.append(
+                    {
+                        "rule": 7,
+                        "indices": list(range(i - 14, i + 1)),
+                        "description": "15 consecutive points within +/- 1 sigma (stratification)",
+                    }
+                )
 
     # Rule 8: Eight points in a row beyond 1 sigma (either side, mixture)
     if n >= 8:
         for i in range(7, n):
-            window = zones[i-7:i+1]
+            window = zones[i - 7 : i + 1]
             if all(abs(z) > 1 for z in window):
                 # Check that it's a mixture (not all on one side)
                 above = sum(1 for z in window if z > 1)
                 below = sum(1 for z in window if z < -1)
                 if above > 0 and below > 0:
-                    violations.append({
-                        "rule": 8,
-                        "indices": list(range(i-7, i+1)),
-                        "description": "8 consecutive points beyond +/- 1 sigma (mixture)",
-                    })
+                    violations.append(
+                        {
+                            "rule": 8,
+                            "indices": list(range(i - 7, i + 1)),
+                            "description": "8 consecutive points beyond +/- 1 sigma (mixture)",
+                        }
+                    )
 
     # Deduplicate violations (same rule, overlapping indices)
     seen = set()
@@ -762,11 +810,12 @@ def check_western_electric_rules(
 # Process Capability
 # =============================================================================
 
+
 def calculate_capability(
     data: list[float],
     usl: float,
     lsl: float,
-    target: Optional[float] = None,
+    target: float | None = None,
     subgroup_size: int = 1,
 ) -> ProcessCapability:
     """
@@ -797,14 +846,14 @@ def calculate_capability(
     # Within-subgroup standard deviation estimate
     if subgroup_size == 1:
         # Use moving range method
-        moving_ranges = [abs(data[i] - data[i-1]) for i in range(1, n)]
+        moving_ranges = [abs(data[i] - data[i - 1]) for i in range(1, n)]
         mr_bar = statistics.mean(moving_ranges)
         sigma_within = mr_bar / IMR_CONSTANTS["d2"]
     else:
         # Use pooled within-subgroup variance
         # Reshape data into subgroups
         n_subgroups = n // subgroup_size
-        subgroups = [data[i*subgroup_size:(i+1)*subgroup_size] for i in range(n_subgroups)]
+        subgroups = [data[i * subgroup_size : (i + 1) * subgroup_size] for i in range(n_subgroups)]
 
         if subgroup_size in CONTROL_CHART_CONSTANTS:
             # Use R-bar method
@@ -839,8 +888,8 @@ def calculate_capability(
     def norm_cdf(x):
         return 0.5 * (1 + math.erf(x / math.sqrt(2)))
 
-    z_upper = (usl - mean) / sigma_overall if sigma_overall > 0 else float('inf')
-    z_lower = (mean - lsl) / sigma_overall if sigma_overall > 0 else float('inf')
+    z_upper = (usl - mean) / sigma_overall if sigma_overall > 0 else float("inf")
+    z_lower = (mean - lsl) / sigma_overall if sigma_overall > 0 else float("inf")
 
     p_above_usl = 1 - norm_cdf(z_upper)
     p_below_lsl = norm_cdf(-z_lower)
@@ -890,10 +939,11 @@ def calculate_capability(
 # Helper Functions for API
 # =============================================================================
 
+
 def recommend_chart_type(
     data_type: Literal["continuous", "attribute"],
     subgroup_size: int = 1,
-    attribute_type: Optional[Literal["defectives", "defects"]] = None,
+    attribute_type: Literal["defectives", "defects"] | None = None,
 ) -> str:
     """Recommend appropriate control chart type."""
     if data_type == "continuous":
@@ -912,13 +962,13 @@ def recommend_chart_type(
 
 def parse_csv_data(csv_text: str, has_header: bool = True) -> list[float]:
     """Parse CSV data into flat list of floats."""
-    lines = csv_text.strip().split('\n')
+    lines = csv_text.strip().split("\n")
     if has_header:
         lines = lines[1:]
 
     data = []
     for line in lines:
-        for val in line.split(','):
+        for val in line.split(","):
             try:
                 data.append(float(val.strip()))
             except ValueError:
@@ -929,14 +979,14 @@ def parse_csv_data(csv_text: str, has_header: bool = True) -> list[float]:
 
 def parse_subgroup_data(csv_text: str, has_header: bool = True) -> list[list[float]]:
     """Parse CSV data into subgroups (each row is a subgroup)."""
-    lines = csv_text.strip().split('\n')
+    lines = csv_text.strip().split("\n")
     if has_header:
         lines = lines[1:]
 
     subgroups = []
     for line in lines:
         subgroup = []
-        for val in line.split(','):
+        for val in line.split(","):
             try:
                 subgroup.append(float(val.strip()))
             except ValueError:
@@ -951,17 +1001,19 @@ def parse_subgroup_data(csv_text: str, has_header: bool = True) -> list[list[flo
 # File Parsing for XLSX/CSV Upload
 # =============================================================================
 
+
 @dataclass
 class ColumnInfo:
     """Information about a data column."""
+
     name: str
     dtype: str  # 'numeric', 'datetime', 'text', 'mixed'
     sample_values: list
     null_count: int
     unique_count: int
-    min_val: Optional[float] = None
-    max_val: Optional[float] = None
-    mean_val: Optional[float] = None
+    min_val: float | None = None
+    max_val: float | None = None
+    mean_val: float | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -970,6 +1022,7 @@ class ColumnInfo:
 @dataclass
 class ParsedDataset:
     """Result of parsing an uploaded file."""
+
     filename: str
     row_count: int
     columns: list[ColumnInfo]
@@ -992,16 +1045,17 @@ def parse_uploaded_file(file_path: str, filename: str) -> ParsedDataset:
 
     Returns column information and data for field mapping.
     """
-    import pandas as pd
     from pathlib import Path
+
+    import pandas as pd
 
     errors = []
     ext = Path(filename).suffix.lower()
 
     try:
-        if ext in ['.xlsx', '.xls']:
-            df = pd.read_excel(file_path, engine='openpyxl')
-        elif ext == '.csv':
+        if ext in [".xlsx", ".xls"]:
+            df = pd.read_excel(file_path, engine="openpyxl")
+        elif ext == ".csv":
             try:
                 df = pd.read_csv(file_path, encoding="utf-8")
             except UnicodeDecodeError:
@@ -1084,8 +1138,8 @@ def parse_uploaded_file(file_path: str, filename: str) -> ParsedDataset:
 def extract_spc_data(
     parsed: ParsedDataset,
     value_column: str,
-    subgroup_column: Optional[str] = None,
-    timestamp_column: Optional[str] = None,
+    subgroup_column: str | None = None,
+    timestamp_column: str | None = None,
 ) -> dict:
     """
     Extract SPC-ready data from a parsed dataset.
@@ -1142,8 +1196,8 @@ def extract_spc_data(
 def hotelling_t_squared_chart(
     data: list[list[float]],
     alpha: float = 0.05,
-    usl: Optional[float] = None,
-    lsl: Optional[float] = None,
+    usl: float | None = None,
+    lsl: float | None = None,
 ) -> ControlChartResult:
     """
     Hotelling's T² control chart for multivariate data.
@@ -1165,7 +1219,7 @@ def hotelling_t_squared_chart(
     n, p = X.shape
 
     if n < p + 1:
-        raise ValueError(f"Need at least {p+1} observations for {p} variables, got {n}")
+        raise ValueError(f"Need at least {p + 1} observations for {p} variables, got {n}")
 
     # Mean vector and covariance matrix
     x_bar = X.mean(axis=0)
@@ -1201,27 +1255,29 @@ def hotelling_t_squared_chart(
             diff = X[i] - x_bar
             contributions = []
             for j in range(p):
-                contrib = diff[j]**2 * S_inv[j, j]
+                contrib = diff[j] ** 2 * S_inv[j, j]
                 contributions.append(contrib)
             max_contrib_idx = int(np.argmax(contributions))
-            out_of_control.append({
-                "index": i,
-                "value": round(t2, 4),
-                "reason": f"T²={t2:.2f} > UCL={ucl:.2f} (largest contributor: var {max_contrib_idx + 1})"
-            })
+            out_of_control.append(
+                {
+                    "index": i,
+                    "value": round(t2, 4),
+                    "reason": f"T²={t2:.2f} > UCL={ucl:.2f} (largest contributor: var {max_contrib_idx + 1})",
+                }
+            )
 
     in_control = len(out_of_control) == 0
 
     # Summary
     summary_parts = [
-        f"Hotelling's T² Control Chart",
-        f"{'='*50}",
+        "Hotelling's T² Control Chart",
+        f"{'=' * 50}",
         f"Observations: {n}",
         f"Variables: {p}",
         f"UCL (α={alpha}): {ucl:.4f}",
         f"Mean T²: {np.mean(t2_values):.4f}",
         f"Max T²: {np.max(t2_values):.4f}",
-        f"",
+        "",
         f"Out of control: {len(out_of_control)} point(s)",
         f"Process status: {'IN CONTROL' if in_control else 'OUT OF CONTROL'}",
     ]
@@ -1243,10 +1299,10 @@ def hotelling_t_squared_chart(
         corr = np.corrcoef(X, rowvar=False)
         summary_parts.append("")
         summary_parts.append("Correlation Matrix:")
-        header = "       " + "  ".join(f"V{j+1:5d}" for j in range(p))
+        header = "       " + "  ".join(f"V{j + 1:5d}" for j in range(p))
         summary_parts.append(header)
         for i in range(p):
-            row = f"  V{i+1}  " + "  ".join(f"{corr[i,j]:6.3f}" for j in range(p))
+            row = f"  V{i + 1}  " + "  ".join(f"{corr[i, j]:6.3f}" for j in range(p))
             summary_parts.append(row)
 
     return ControlChartResult(
@@ -1264,9 +1320,11 @@ def hotelling_t_squared_chart(
 # Gage R&R (Measurement System Analysis)
 # =============================================================================
 
+
 @dataclass
 class GageRRResult:
     """Gage R&R (Crossed) study results."""
+
     # Variance components
     var_repeatability: float
     var_reproducibility: float
@@ -1278,16 +1336,16 @@ class GageRRResult:
 
     # Percentage metrics
     pct_contribution: dict  # {source: %}
-    pct_study_var: dict     # {source: %}
-    pct_tolerance: dict     # {source: %} (empty if no tolerance)
+    pct_study_var: dict  # {source: %}
+    pct_tolerance: dict  # {source: %} (empty if no tolerance)
 
     # Key metrics
-    ndc: int                # Number of distinct categories
-    grr_percent: float      # %Study Var for GRR (headline number)
-    assessment: str         # Acceptable / Marginal / Unacceptable
+    ndc: int  # Number of distinct categories
+    grr_percent: float  # %Study Var for GRR (headline number)
+    assessment: str  # Acceptable / Marginal / Unacceptable
 
     # ANOVA table
-    anova_table: list       # [{source, df, ss, ms, f, p}, ...]
+    anova_table: list  # [{source, df, ss, ms, f, p}, ...]
     interaction_significant: bool
     interaction_pooled: bool
 
@@ -1296,7 +1354,7 @@ class GageRRResult:
     n_operators: int
     n_replicates: int
     n_total: int
-    tolerance: Optional[float]
+    tolerance: float | None
 
     # Plot data (Plotly JSON)
     plots: dict
@@ -1309,7 +1367,7 @@ def gage_rr_crossed(
     parts: list,
     operators: list,
     measurements: list[float],
-    tolerance: Optional[float] = None,
+    tolerance: float | None = None,
     alpha_interaction: float = 0.25,
     study_var_k: float = 6.0,
 ) -> GageRRResult:
@@ -1367,7 +1425,9 @@ def gage_rr_crossed(
             replicate_counts.add(len(cell_list))
 
     if len(replicate_counts) > 1:
-        raise ValueError(f"Unbalanced design: replicate counts vary ({replicate_counts}). Gage R&R requires a balanced design.")
+        raise ValueError(
+            f"Unbalanced design: replicate counts vary ({replicate_counts}). Gage R&R requires a balanced design."
+        )
 
     r_count = replicate_counts.pop()
     if r_count < 2:
@@ -1380,17 +1440,15 @@ def gage_rr_crossed(
     grand_mean = float(data_array.mean())
 
     # Marginal means
-    part_means = data_array.mean(axis=(1, 2))   # (p,)
-    op_means = data_array.mean(axis=(0, 2))     # (o,)
-    cell_means = data_array.mean(axis=2)        # (p, o)
+    part_means = data_array.mean(axis=(1, 2))  # (p,)
+    op_means = data_array.mean(axis=(0, 2))  # (o,)
+    cell_means = data_array.mean(axis=2)  # (p, o)
 
     # Sum of Squares
     ss_total = float(np.sum((data_array - grand_mean) ** 2))
     ss_part = float(o_count * r_count * np.sum((part_means - grand_mean) ** 2))
     ss_operator = float(p_count * r_count * np.sum((op_means - grand_mean) ** 2))
-    ss_interaction = float(r_count * np.sum(
-        (cell_means - part_means[:, None] - op_means[None, :] + grand_mean) ** 2
-    ))
+    ss_interaction = float(r_count * np.sum((cell_means - part_means[:, None] - op_means[None, :] + grand_mean) ** 2))
     ss_error = ss_total - ss_part - ss_operator - ss_interaction
 
     # Degrees of freedom
@@ -1427,7 +1485,9 @@ def gage_rr_crossed(
         f_part = ms_part / ms_error_pooled if ms_error_pooled > 0 else 0.0
         p_part = float(1 - scipy_stats.f.cdf(f_part, df_part, df_error_pooled)) if ms_error_pooled > 0 else 1.0
         f_operator = ms_operator / ms_error_pooled if ms_error_pooled > 0 else 0.0
-        p_operator = float(1 - scipy_stats.f.cdf(f_operator, df_operator, df_error_pooled)) if ms_error_pooled > 0 else 1.0
+        p_operator = (
+            float(1 - scipy_stats.f.cdf(f_operator, df_operator, df_error_pooled)) if ms_error_pooled > 0 else 1.0
+        )
 
         # Variance components (EMS method)
         var_repeatability = ms_error_pooled
@@ -1439,7 +1499,9 @@ def gage_rr_crossed(
         f_part = ms_part / ms_interaction if ms_interaction > 0 else 0.0
         p_part = float(1 - scipy_stats.f.cdf(f_part, df_part, df_interaction)) if ms_interaction > 0 else 1.0
         f_operator = ms_operator / ms_interaction if ms_interaction > 0 else 0.0
-        p_operator = float(1 - scipy_stats.f.cdf(f_operator, df_operator, df_interaction)) if ms_interaction > 0 else 1.0
+        p_operator = (
+            float(1 - scipy_stats.f.cdf(f_operator, df_operator, df_interaction)) if ms_interaction > 0 else 1.0
+        )
 
         # Variance components (EMS method)
         var_repeatability = ms_error
@@ -1467,19 +1529,29 @@ def gage_rr_crossed(
     # %Study Variation (std dev-based)
     sigma_total = math.sqrt(var_total)
     pct_study_var = {}
-    for source, var in [("GRR", var_grr), ("Repeatability", var_repeatability),
-                        ("Reproducibility", var_reproducibility), ("Operator", var_operator),
-                        ("Operator x Part", var_interaction), ("Part-to-Part", var_part),
-                        ("Total", var_total)]:
+    for source, var in [
+        ("GRR", var_grr),
+        ("Repeatability", var_repeatability),
+        ("Reproducibility", var_reproducibility),
+        ("Operator", var_operator),
+        ("Operator x Part", var_interaction),
+        ("Part-to-Part", var_part),
+        ("Total", var_total),
+    ]:
         pct_study_var[source] = math.sqrt(var) / sigma_total * 100 if sigma_total > 0 else 0.0
 
     # %Tolerance
     pct_tolerance = {}
     if tolerance and tolerance > 0:
-        for source, var in [("GRR", var_grr), ("Repeatability", var_repeatability),
-                            ("Reproducibility", var_reproducibility), ("Operator", var_operator),
-                            ("Operator x Part", var_interaction), ("Part-to-Part", var_part),
-                            ("Total", var_total)]:
+        for source, var in [
+            ("GRR", var_grr),
+            ("Repeatability", var_repeatability),
+            ("Reproducibility", var_reproducibility),
+            ("Operator", var_operator),
+            ("Operator x Part", var_interaction),
+            ("Part-to-Part", var_part),
+            ("Total", var_total),
+        ]:
             pct_tolerance[source] = (study_var_k * math.sqrt(var)) / tolerance * 100
 
     # Number of Distinct Categories
@@ -1498,37 +1570,74 @@ def gage_rr_crossed(
 
     # Build ANOVA table
     anova_table = [
-        {"source": "Part", "df": df_part, "ss": round(ss_part, 6),
-         "ms": round(ms_part, 6), "f": round(f_part, 4), "p": round(p_part, 4)},
-        {"source": "Operator", "df": df_operator, "ss": round(ss_operator, 6),
-         "ms": round(ms_operator, 6), "f": round(f_operator, 4), "p": round(p_operator, 4)},
-        {"source": "Part x Operator", "df": df_interaction, "ss": round(ss_interaction, 6),
-         "ms": round(ms_interaction, 6), "f": round(f_interaction, 4), "p": round(p_interaction, 4)},
+        {
+            "source": "Part",
+            "df": df_part,
+            "ss": round(ss_part, 6),
+            "ms": round(ms_part, 6),
+            "f": round(f_part, 4),
+            "p": round(p_part, 4),
+        },
+        {
+            "source": "Operator",
+            "df": df_operator,
+            "ss": round(ss_operator, 6),
+            "ms": round(ms_operator, 6),
+            "f": round(f_operator, 4),
+            "p": round(p_operator, 4),
+        },
+        {
+            "source": "Part x Operator",
+            "df": df_interaction,
+            "ss": round(ss_interaction, 6),
+            "ms": round(ms_interaction, 6),
+            "f": round(f_interaction, 4),
+            "p": round(p_interaction, 4),
+        },
     ]
 
     if interaction_pooled:
-        anova_table.append({
-            "source": "Repeatability", "df": df_interaction + df_error,
-            "ss": round(ss_interaction + ss_error, 6),
-            "ms": round(ms_error_pooled, 6), "f": None, "p": None,
-            "note": "Interaction pooled",
-        })
+        anova_table.append(
+            {
+                "source": "Repeatability",
+                "df": df_interaction + df_error,
+                "ss": round(ss_interaction + ss_error, 6),
+                "ms": round(ms_error_pooled, 6),
+                "f": None,
+                "p": None,
+                "note": "Interaction pooled",
+            }
+        )
     else:
-        anova_table.append({
-            "source": "Repeatability", "df": df_error,
-            "ss": round(ss_error, 6), "ms": round(ms_error, 6),
-            "f": None, "p": None,
-        })
+        anova_table.append(
+            {
+                "source": "Repeatability",
+                "df": df_error,
+                "ss": round(ss_error, 6),
+                "ms": round(ms_error, 6),
+                "f": None,
+                "p": None,
+            }
+        )
 
-    anova_table.append({
-        "source": "Total", "df": df_total, "ss": round(ss_total, 6),
-        "ms": None, "f": None, "p": None,
-    })
+    anova_table.append(
+        {
+            "source": "Total",
+            "df": df_total,
+            "ss": round(ss_total, 6),
+            "ms": None,
+            "f": None,
+            "p": None,
+        }
+    )
 
     # Generate Plotly charts
     plots = _generate_grr_plots(
-        data_array, unique_parts, unique_operators,
-        pct_contribution, cell_means,
+        data_array,
+        unique_parts,
+        unique_operators,
+        pct_contribution,
+        cell_means,
     )
 
     return GageRRResult(
@@ -1557,8 +1666,7 @@ def gage_rr_crossed(
     )
 
 
-def _generate_grr_plots(data_array, unique_parts, unique_operators,
-                        pct_contribution, cell_means):
+def _generate_grr_plots(data_array, unique_parts, unique_operators, pct_contribution, cell_means):
     """Generate the 4 Plotly charts for Gage R&R."""
     p, o, r = data_array.shape
     part_labels = [str(x) for x in unique_parts]
@@ -1569,14 +1677,16 @@ def _generate_grr_plots(data_array, unique_parts, unique_operators,
     vals = [pct_contribution.get(s, 0) for s in sources]
 
     components_chart = {
-        "traces": [{
-            "type": "bar",
-            "x": sources,
-            "y": vals,
-            "marker": {"color": ["#e74c3c", "#e67e22", "#f39c12", "#27ae60"]},
-            "text": [f"{v:.1f}%" for v in vals],
-            "textposition": "outside",
-        }],
+        "traces": [
+            {
+                "type": "bar",
+                "x": sources,
+                "y": vals,
+                "marker": {"color": ["#e74c3c", "#e67e22", "#f39c12", "#27ae60"]},
+                "text": [f"{v:.1f}%" for v in vals],
+                "textposition": "outside",
+            }
+        ],
         "layout": {
             "title": "% Contribution to Total Variation",
             "yaxis": {"title": "% Contribution", "range": [0, max(vals) * 1.2 if vals else 100]},
@@ -1587,15 +1697,17 @@ def _generate_grr_plots(data_array, unique_parts, unique_operators,
     # 2. Measurement by Part (box plot)
     by_part_traces = []
     for pi in range(p):
-        by_part_traces.append({
-            "type": "box",
-            "y": data_array[pi, :, :].flatten().tolist(),
-            "name": part_labels[pi],
-            "boxpoints": "all",
-            "jitter": 0.3,
-            "pointpos": -1.8,
-            "marker": {"size": 4},
-        })
+        by_part_traces.append(
+            {
+                "type": "box",
+                "y": data_array[pi, :, :].flatten().tolist(),
+                "name": part_labels[pi],
+                "boxpoints": "all",
+                "jitter": 0.3,
+                "pointpos": -1.8,
+                "marker": {"size": 4},
+            }
+        )
 
     by_part_chart = {
         "traces": by_part_traces,
@@ -1611,15 +1723,17 @@ def _generate_grr_plots(data_array, unique_parts, unique_operators,
     # 3. Measurement by Operator (box plot)
     by_op_traces = []
     for oi in range(o):
-        by_op_traces.append({
-            "type": "box",
-            "y": data_array[:, oi, :].flatten().tolist(),
-            "name": op_labels[oi],
-            "boxpoints": "all",
-            "jitter": 0.3,
-            "pointpos": -1.8,
-            "marker": {"size": 4},
-        })
+        by_op_traces.append(
+            {
+                "type": "box",
+                "y": data_array[:, oi, :].flatten().tolist(),
+                "name": op_labels[oi],
+                "boxpoints": "all",
+                "jitter": 0.3,
+                "pointpos": -1.8,
+                "marker": {"size": 4},
+            }
+        )
 
     by_operator_chart = {
         "traces": by_op_traces,
@@ -1636,15 +1750,17 @@ def _generate_grr_plots(data_array, unique_parts, unique_operators,
     colors = ["#3498db", "#e74c3c", "#2ecc71", "#9b59b6", "#e67e22", "#1abc9c"]
     interaction_traces = []
     for oi in range(o):
-        interaction_traces.append({
-            "type": "scatter",
-            "mode": "lines+markers",
-            "x": part_labels,
-            "y": cell_means[:, oi].tolist(),
-            "name": op_labels[oi],
-            "line": {"color": colors[oi % len(colors)]},
-            "marker": {"size": 8},
-        })
+        interaction_traces.append(
+            {
+                "type": "scatter",
+                "mode": "lines+markers",
+                "x": part_labels,
+                "y": cell_means[:, oi].tolist(),
+                "name": op_labels[oi],
+                "line": {"color": colors[oi % len(colors)]},
+                "marker": {"size": 8},
+            }
+        )
 
     interaction_chart = {
         "traces": interaction_traces,

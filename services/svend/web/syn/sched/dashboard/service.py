@@ -20,9 +20,10 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any
 
 from django.core.cache import cache
 from django.utils import timezone
@@ -30,9 +31,6 @@ from django.utils import timezone
 from .metrics import (
     DashboardMetrics,
     SchedulerMetricsCollector,
-    QueueMetrics,
-    WorkerMetrics,
-    WorkerState,
 )
 
 logger = logging.getLogger(__name__)
@@ -40,6 +38,7 @@ logger = logging.getLogger(__name__)
 
 class AlertSeverity:
     """Alert severity levels."""
+
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
@@ -49,6 +48,7 @@ class AlertSeverity:
 @dataclass
 class Alert:
     """Dashboard alert."""
+
     id: str
     severity: str
     title: str
@@ -59,7 +59,7 @@ class Alert:
     timestamp: datetime = field(default_factory=timezone.now)
     acknowledged: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "severity": self.severity,
@@ -80,6 +80,7 @@ class DashboardConfig:
 
     Standard: SCH-005 §3.1
     """
+
     # Caching
     cache_ttl_seconds: int = 30
     cache_key_prefix: str = "synara:dashboard"
@@ -89,8 +90,8 @@ class DashboardConfig:
     queue_depth_critical: int = 900
     dlq_warning: int = 50
     dlq_critical: int = 100
-    throttle_warning_levels: Set[str] = field(default_factory=lambda: {"MODERATE", "HEAVY"})
-    throttle_critical_levels: Set[str] = field(default_factory=lambda: {"CRITICAL"})
+    throttle_warning_levels: set[str] = field(default_factory=lambda: {"MODERATE", "HEAVY"})
+    throttle_critical_levels: set[str] = field(default_factory=lambda: {"CRITICAL"})
     worker_unhealthy_warning: int = 1
     circuit_open_warning: int = 1
 
@@ -99,9 +100,9 @@ class DashboardConfig:
     history_resolution_minutes: int = 5
 
     # Callbacks
-    on_alert: Optional[Callable[[Alert], None]] = None
+    on_alert: Callable[[Alert], None] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "cache_ttl_seconds": self.cache_ttl_seconds,
             "queue_depth_warning": self.queue_depth_warning,
@@ -147,9 +148,9 @@ class DashboardService:
 
     def __init__(
         self,
-        scheduler: Optional[Any] = None,
-        config: Optional[DashboardConfig] = None,
-        tenant_id: Optional[str] = None,
+        scheduler: Any | None = None,
+        config: DashboardConfig | None = None,
+        tenant_id: str | None = None,
     ):
         """
         Initialize dashboard service.
@@ -170,11 +171,11 @@ class DashboardService:
         self._lock = threading.RLock()
 
         # Alert state
-        self._active_alerts: Dict[str, Alert] = {}
-        self._alert_history: List[Alert] = []
+        self._active_alerts: dict[str, Alert] = {}
+        self._alert_history: list[Alert] = []
 
         # Metrics history
-        self._metrics_history: List[DashboardMetrics] = []
+        self._metrics_history: list[DashboardMetrics] = []
         self._max_history_size = int(
             self._config.history_retention_hours * 60 / self._config.history_resolution_minutes
         )
@@ -184,7 +185,7 @@ class DashboardService:
         self._scheduler = scheduler
         self._collector.set_scheduler(scheduler)
 
-    def set_tenant_id(self, tenant_id: Optional[str]) -> None:
+    def set_tenant_id(self, tenant_id: str | None) -> None:
         """
         Set or update the tenant ID for cache key isolation.
 
@@ -248,14 +249,14 @@ class DashboardService:
         with self._lock:
             self._metrics_history.append(metrics)
             if len(self._metrics_history) > self._max_history_size:
-                self._metrics_history = self._metrics_history[-self._max_history_size:]
+                self._metrics_history = self._metrics_history[-self._max_history_size :]
 
         # Evaluate alerts
         self._evaluate_alerts(metrics)
 
         return metrics
 
-    def get_overview(self) -> Dict[str, Any]:
+    def get_overview(self) -> dict[str, Any]:
         """
         Get dashboard overview for admin panel.
 
@@ -295,7 +296,7 @@ class DashboardService:
     # Section-Specific Views
     # =========================================================================
 
-    def get_queue_status(self) -> Dict[str, Any]:
+    def get_queue_status(self) -> dict[str, Any]:
         """Get queue status for admin panel."""
         metrics = self.get_metrics()
 
@@ -307,15 +308,17 @@ class DashboardService:
             elif q.depth >= self._config.queue_depth_warning:
                 status = "warning"
 
-            queues.append({
-                "name": q.queue_name,
-                "depth": q.depth,
-                "pending": q.pending,
-                "running": q.running,
-                "throughput": f"{q.throughput_per_minute:.1f}/min",
-                "oldest_age": self._format_duration(q.oldest_task_age_seconds),
-                "status": status,
-            })
+            queues.append(
+                {
+                    "name": q.queue_name,
+                    "depth": q.depth,
+                    "pending": q.pending,
+                    "running": q.running,
+                    "throughput": f"{q.throughput_per_minute:.1f}/min",
+                    "oldest_age": self._format_duration(q.oldest_task_age_seconds),
+                    "status": status,
+                }
+            )
 
         return {
             "timestamp": timezone.now().isoformat(),
@@ -323,21 +326,23 @@ class DashboardService:
             "total_depth": sum(q.depth for q in metrics.queues),
         }
 
-    def get_worker_status(self) -> Dict[str, Any]:
+    def get_worker_status(self) -> dict[str, Any]:
         """Get worker status for admin panel."""
         metrics = self.get_metrics()
 
         workers = []
         for w in metrics.workers:
-            workers.append({
-                "id": w.worker_id,
-                "state": w.state.value,
-                "resource_class": w.resource_class,
-                "current_task": w.current_task_name,
-                "completed": w.tasks_completed,
-                "failed": w.tasks_failed,
-                "uptime": self._format_duration(w.uptime_seconds),
-            })
+            workers.append(
+                {
+                    "id": w.worker_id,
+                    "state": w.state.value,
+                    "resource_class": w.resource_class,
+                    "current_task": w.current_task_name,
+                    "completed": w.tasks_completed,
+                    "failed": w.tasks_failed,
+                    "uptime": self._format_duration(w.uptime_seconds),
+                }
+            )
 
         # Group by state
         by_state = {}
@@ -356,7 +361,7 @@ class DashboardService:
             },
         }
 
-    def get_throttle_status(self) -> Dict[str, Any]:
+    def get_throttle_status(self) -> dict[str, Any]:
         """Get backpressure throttle status."""
         metrics = self.get_metrics()
         t = metrics.throttle
@@ -391,13 +396,10 @@ class DashboardService:
                 "denied": t.decisions_denied,
                 "deny_rate": f"{t.decisions_denied / max(1, t.decisions_total):.1%}",
             },
-            "time_at_level": {
-                level: self._format_duration(seconds)
-                for level, seconds in t.time_at_level.items()
-            },
+            "time_at_level": {level: self._format_duration(seconds) for level, seconds in t.time_at_level.items()},
         }
 
-    def get_schedule_status(self) -> Dict[str, Any]:
+    def get_schedule_status(self) -> dict[str, Any]:
         """Get schedule status for admin panel."""
         metrics = self.get_metrics()
         now = timezone.now()
@@ -416,17 +418,19 @@ class DashboardService:
                 delta = now - s.last_run_at
                 time_since_last = self._format_duration(delta.total_seconds())
 
-            schedules.append({
-                "id": s.schedule_id,
-                "name": s.name,
-                "task": s.task_name,
-                "enabled": s.is_enabled,
-                "expression": s.expression,
-                "last_run": time_since_last or "never",
-                "next_run": time_to_next or "not scheduled",
-                "run_count": s.run_count,
-                "last_status": s.last_status,
-            })
+            schedules.append(
+                {
+                    "id": s.schedule_id,
+                    "name": s.name,
+                    "task": s.task_name,
+                    "enabled": s.is_enabled,
+                    "expression": s.expression,
+                    "last_run": time_since_last or "never",
+                    "next_run": time_to_next or "not scheduled",
+                    "run_count": s.run_count,
+                    "last_status": s.last_status,
+                }
+            )
 
         return {
             "timestamp": timezone.now().isoformat(),
@@ -438,7 +442,7 @@ class DashboardService:
             },
         }
 
-    def get_circuit_status(self) -> Dict[str, Any]:
+    def get_circuit_status(self) -> dict[str, Any]:
         """Get circuit breaker status."""
         metrics = self.get_metrics()
 
@@ -450,15 +454,17 @@ class DashboardService:
             elif c.state == "half_open":
                 status = "warning"
 
-            circuits.append({
-                "service": c.service_name,
-                "state": c.state,
-                "status": status,
-                "failures": c.failure_count,
-                "successes": c.success_count,
-                "failure_rate": f"{c.failure_rate:.1%}",
-                "consecutive_failures": c.consecutive_failures,
-            })
+            circuits.append(
+                {
+                    "service": c.service_name,
+                    "state": c.state,
+                    "status": status,
+                    "failures": c.failure_count,
+                    "successes": c.success_count,
+                    "failure_rate": f"{c.failure_rate:.1%}",
+                    "consecutive_failures": c.consecutive_failures,
+                }
+            )
 
         return {
             "timestamp": timezone.now().isoformat(),
@@ -471,7 +477,7 @@ class DashboardService:
             },
         }
 
-    def get_dlq_status(self) -> Dict[str, Any]:
+    def get_dlq_status(self) -> dict[str, Any]:
         """Get Dead Letter Queue status."""
         metrics = self.get_metrics()
         d = metrics.dlq
@@ -498,22 +504,24 @@ class DashboardService:
             "by_error_type": d.entries_by_error_type,
         }
 
-    def get_task_types(self) -> Dict[str, Any]:
+    def get_task_types(self) -> dict[str, Any]:
         """Get task type statistics."""
         metrics = self.get_metrics()
 
         task_types = []
         for t in metrics.task_types:
-            task_types.append({
-                "name": t.task_name,
-                "total": t.total_executions,
-                "success": t.successful_executions,
-                "failed": t.failed_executions,
-                "success_rate": f"{t.success_rate:.1%}",
-                "avg_duration": f"{t.avg_duration_ms:.0f}ms",
-                "p95_duration": f"{t.p95_duration_ms:.0f}ms",
-                "last_run": t.last_execution.isoformat() if t.last_execution else None,
-            })
+            task_types.append(
+                {
+                    "name": t.task_name,
+                    "total": t.total_executions,
+                    "success": t.successful_executions,
+                    "failed": t.failed_executions,
+                    "success_rate": f"{t.success_rate:.1%}",
+                    "avg_duration": f"{t.avg_duration_ms:.0f}ms",
+                    "p95_duration": f"{t.p95_duration_ms:.0f}ms",
+                    "last_run": t.last_execution.isoformat() if t.last_execution else None,
+                }
+            )
 
         # Sort by total executions
         task_types.sort(key=lambda x: -x["total"])
@@ -530,7 +538,7 @@ class DashboardService:
 
     def _evaluate_alerts(self, metrics: DashboardMetrics) -> None:
         """Evaluate alert conditions."""
-        new_alerts: Dict[str, Alert] = {}
+        new_alerts: dict[str, Alert] = {}
 
         # Queue depth alerts
         total_depth = sum(q.depth for q in metrics.queues)
@@ -657,7 +665,7 @@ class DashboardService:
                 logger.info(f"[DASHBOARD] Alert cleared: {self._active_alerts[alert_id].title}")
                 del self._active_alerts[alert_id]
 
-    def get_active_alerts(self) -> List[Alert]:
+    def get_active_alerts(self) -> list[Alert]:
         """Get list of active alerts."""
         with self._lock:
             return list(self._active_alerts.values())
@@ -670,7 +678,7 @@ class DashboardService:
                 return True
             return False
 
-    def get_alert_history(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_alert_history(self, limit: int = 100) -> list[dict[str, Any]]:
         """Get alert history."""
         with self._lock:
             return [a.to_dict() for a in self._alert_history[-limit:]]
@@ -683,7 +691,7 @@ class DashboardService:
         self,
         metric: str = "queue_depth",
         hours: int = 24,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get historical metric data.
 
@@ -714,10 +722,12 @@ class DashboardService:
                 value = m.overall_success_rate
 
             if value is not None:
-                data_points.append({
-                    "timestamp": m.collected_at.isoformat(),
-                    "value": value,
-                })
+                data_points.append(
+                    {
+                        "timestamp": m.collected_at.isoformat(),
+                        "value": value,
+                    }
+                )
 
         return {
             "metric": metric,
@@ -754,26 +764,26 @@ class DashboardService:
                 lines.append(f'synara_queue_throughput{{queue="{q.queue_name}"}} {q.throughput_per_minute}')
 
             # Task summary
-            lines.append(f'synara_tasks_pending {metrics.total_pending_tasks}')
-            lines.append(f'synara_tasks_running {metrics.total_running_tasks}')
-            lines.append(f'synara_tasks_completed_today {metrics.total_completed_today}')
-            lines.append(f'synara_tasks_failed_today {metrics.total_failed_today}')
+            lines.append(f"synara_tasks_pending {metrics.total_pending_tasks}")
+            lines.append(f"synara_tasks_running {metrics.total_running_tasks}")
+            lines.append(f"synara_tasks_completed_today {metrics.total_completed_today}")
+            lines.append(f"synara_tasks_failed_today {metrics.total_failed_today}")
 
             # Throttle
-            lines.append(f'synara_throttle_level {metrics.throttle.level_value}')
-            lines.append(f'synara_throttle_emergency {1 if metrics.throttle.is_emergency else 0}')
+            lines.append(f"synara_throttle_level {metrics.throttle.level_value}")
+            lines.append(f"synara_throttle_emergency {1 if metrics.throttle.is_emergency else 0}")
 
             # DLQ
-            lines.append(f'synara_dlq_pending {metrics.dlq.pending_entries}')
-            lines.append(f'synara_dlq_growth_rate {metrics.dlq.growth_rate_per_hour}')
+            lines.append(f"synara_dlq_pending {metrics.dlq.pending_entries}")
+            lines.append(f"synara_dlq_growth_rate {metrics.dlq.growth_rate_per_hour}")
 
             # Workers
-            lines.append(f'synara_workers_healthy {metrics.workers_healthy}')
-            lines.append(f'synara_workers_unhealthy {metrics.workers_unhealthy}')
+            lines.append(f"synara_workers_healthy {metrics.workers_healthy}")
+            lines.append(f"synara_workers_unhealthy {metrics.workers_unhealthy}")
 
             # Circuits
-            lines.append(f'synara_circuits_open {metrics.circuits_open}')
-            lines.append(f'synara_circuits_total {metrics.circuits_total}')
+            lines.append(f"synara_circuits_open {metrics.circuits_open}")
+            lines.append(f"synara_circuits_total {metrics.circuits_total}")
 
             return "\n".join(lines)
 

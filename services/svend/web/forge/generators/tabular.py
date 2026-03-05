@@ -4,20 +4,19 @@ import csv
 import io
 import json
 import random
-from typing import Any
 
 from .fields import (
-    StringGenerator,
-    IntGenerator,
-    FloatGenerator,
     BoolGenerator,
+    CategoryGenerator,
     DateGenerator,
     DateTimeGenerator,
     EmailGenerator,
-    UUIDGenerator,
-    CategoryGenerator,
+    FloatGenerator,
+    IntGenerator,
     PhoneGenerator,
+    StringGenerator,
     URLGenerator,
+    UUIDGenerator,
 )
 
 
@@ -93,9 +92,7 @@ class TabularGenerator:
             if nullable:
                 self.nullable_fields.add(field_name)
 
-            self.generators[field_name] = create_field_generator(
-                field_type, constraints, field_name
-            )
+            self.generators[field_name] = create_field_generator(field_type, constraints, field_name)
 
     def generate_record(self) -> dict:
         """Generate a single record."""

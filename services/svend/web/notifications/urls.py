@@ -1,6 +1,7 @@
 """Notification URL routes — NTF-001 §6.1."""
 
 from django.urls import path
+
 from . import views
 
 urlpatterns = [

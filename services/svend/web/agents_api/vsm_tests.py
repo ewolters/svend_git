@@ -15,7 +15,6 @@ Tests the full VSM surface:
 """
 
 import json
-from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
@@ -29,9 +28,7 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _make_user(email, tier=Tier.PRO, **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(
-        username=username, email=email, password="testpass123!", **kwargs
-    )
+    user = User.objects.create_user(username=username, email=email, password="testpass123!", **kwargs)
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -73,14 +70,18 @@ class VSMCRUDTest(TestCase):
         self.assertIsNone(vsm["project_id"])
 
     def test_create_vsm_with_fields(self):
-        res = _post(self.client, "/api/vsm/create/", {
-            "name": "Paint Line VSM",
-            "product_family": "Automotive Parts",
-            "customer_name": "OEM Corp",
-            "customer_demand": "460 units/day",
-            "supplier_name": "Steel Co",
-            "supply_frequency": "Weekly",
-        })
+        res = _post(
+            self.client,
+            "/api/vsm/create/",
+            {
+                "name": "Paint Line VSM",
+                "product_family": "Automotive Parts",
+                "customer_name": "OEM Corp",
+                "customer_demand": "460 units/day",
+                "supplier_name": "Steel Co",
+                "supply_frequency": "Weekly",
+            },
+        )
         self.assertEqual(res.status_code, 200)
         vsm = res.json()["vsm"]
         self.assertEqual(vsm["name"], "Paint Line VSM")
@@ -116,9 +117,13 @@ class VSMCRUDTest(TestCase):
 
     def test_update_vsm_patch(self):
         vsm_id = _post(self.client, "/api/vsm/create/").json()["id"]
-        res = _patch(self.client, f"/api/vsm/{vsm_id}/update/", {
-            "product_family": "Electronics",
-        })
+        res = _patch(
+            self.client,
+            f"/api/vsm/{vsm_id}/update/",
+            {
+                "product_family": "Electronics",
+            },
+        )
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["vsm"]["product_family"], "Electronics")
 
@@ -132,13 +137,14 @@ class VSMCRUDTest(TestCase):
 
     def test_get_nonexistent_returns_404(self):
         import uuid
+
         res = self.client.get(f"/api/vsm/{uuid.uuid4()}/")
         self.assertEqual(res.status_code, 404)
 
     def test_list_filter_by_status(self):
         _post(self.client, "/api/vsm/create/", {"name": "Current"})
         # Create a future-state by cloning
-        vsm_id = _post(self.client, "/api/vsm/create/", {"name": "Base"}).json()["id"]
+        _post(self.client, "/api/vsm/create/", {"name": "Base"}).json()["id"]
         _post(self.client, "/api/vsm/create/future-state/")  # won't work, need to use actual endpoint
         # Instead, create and update status directly
         future_id = _post(self.client, "/api/vsm/create/", {"name": "Future"}).json()["id"]
@@ -166,22 +172,30 @@ class VSMProcessStepTest(TestCase):
     def setUp(self):
         self.user = _make_user("steps@test.com")
         self.client.force_login(self.user)
-        self.vsm_id = _post(self.client, "/api/vsm/create/", {
-            "name": "Assembly Line",
-        }).json()["id"]
+        self.vsm_id = _post(
+            self.client,
+            "/api/vsm/create/",
+            {
+                "name": "Assembly Line",
+            },
+        ).json()["id"]
 
     def test_add_process_step(self):
-        res = _post(self.client, f"/api/vsm/{self.vsm_id}/process-step/", {
-            "name": "Welding",
-            "x": 200,
-            "y": 300,
-            "cycle_time": 45,
-            "changeover_time": 600,
-            "uptime": 95,
-            "operators": 2,
-            "shifts": 2,
-            "batch_size": 10,
-        })
+        res = _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/process-step/",
+            {
+                "name": "Welding",
+                "x": 200,
+                "y": 300,
+                "cycle_time": 45,
+                "changeover_time": 600,
+                "uptime": 95,
+                "operators": 2,
+                "shifts": 2,
+                "batch_size": 10,
+            },
+        )
         self.assertEqual(res.status_code, 200)
         step = res.json()["step"]
         self.assertEqual(step["name"], "Welding")
@@ -190,12 +204,22 @@ class VSMProcessStepTest(TestCase):
 
     def test_metrics_update_on_step_add(self):
         """Adding a process step recalculates total_process_time."""
-        _post(self.client, f"/api/vsm/{self.vsm_id}/process-step/", {
-            "name": "Cut", "cycle_time": 30,
-        })
-        _post(self.client, f"/api/vsm/{self.vsm_id}/process-step/", {
-            "name": "Weld", "cycle_time": 45,
-        })
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/process-step/",
+            {
+                "name": "Cut",
+                "cycle_time": 30,
+            },
+        )
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/process-step/",
+            {
+                "name": "Weld",
+                "cycle_time": 45,
+            },
+        )
         res = self.client.get(f"/api/vsm/{self.vsm_id}/")
         vsm = res.json()["vsm"]
         # 30 + 45 = 75 seconds total process time
@@ -206,9 +230,14 @@ class VSMProcessStepTest(TestCase):
     def test_multiple_steps_accumulate(self):
         """Three steps should sum correctly."""
         for name, ct in [("A", 10), ("B", 20), ("C", 30)]:
-            _post(self.client, f"/api/vsm/{self.vsm_id}/process-step/", {
-                "name": name, "cycle_time": ct,
-            })
+            _post(
+                self.client,
+                f"/api/vsm/{self.vsm_id}/process-step/",
+                {
+                    "name": name,
+                    "cycle_time": ct,
+                },
+            )
         vsm = self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]
         self.assertAlmostEqual(vsm["total_process_time"], 60.0, places=1)
 
@@ -227,19 +256,28 @@ class VSMInventoryTest(TestCase):
         self.client.force_login(self.user)
         self.vsm_id = _post(self.client, "/api/vsm/create/").json()["id"]
         # Add a step first to have a reference
-        step_res = _post(self.client, f"/api/vsm/{self.vsm_id}/process-step/", {
-            "name": "Assembly", "cycle_time": 60,
-        })
+        step_res = _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/process-step/",
+            {
+                "name": "Assembly",
+                "cycle_time": 60,
+            },
+        )
         self.step_id = step_res.json()["step"]["id"]
 
     def test_add_inventory(self):
-        res = _post(self.client, f"/api/vsm/{self.vsm_id}/inventory/", {
-            "before_step_id": self.step_id,
-            "quantity": 500,
-            "days_of_supply": 2.5,
-            "x": 150,
-            "y": 350,
-        })
+        res = _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/inventory/",
+            {
+                "before_step_id": self.step_id,
+                "quantity": 500,
+                "days_of_supply": 2.5,
+                "x": 150,
+                "y": 350,
+            },
+        )
         self.assertEqual(res.status_code, 200)
         inv = res.json()["inventory"]
         self.assertEqual(inv["quantity"], 500)
@@ -251,11 +289,15 @@ class VSMInventoryTest(TestCase):
         vsm_before = self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]
         lead_before = vsm_before["total_lead_time"]
 
-        _post(self.client, f"/api/vsm/{self.vsm_id}/inventory/", {
-            "before_step_id": self.step_id,
-            "quantity": 1000,
-            "days_of_supply": 5.0,
-        })
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/inventory/",
+            {
+                "before_step_id": self.step_id,
+                "quantity": 1000,
+                "days_of_supply": 5.0,
+            },
+        )
         vsm_after = self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]
         lead_after = vsm_after["total_lead_time"]
 
@@ -265,11 +307,15 @@ class VSMInventoryTest(TestCase):
     def test_pce_calculation(self):
         """PCE = (process time in days / total lead time) * 100."""
         # Add significant inventory to make PCE meaningful
-        _post(self.client, f"/api/vsm/{self.vsm_id}/inventory/", {
-            "before_step_id": self.step_id,
-            "quantity": 500,
-            "days_of_supply": 10.0,
-        })
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/inventory/",
+            {
+                "before_step_id": self.step_id,
+                "quantity": 500,
+                "days_of_supply": 10.0,
+            },
+        )
         vsm = self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]
         # process_time = 60s = 60/86400 days ≈ 0.000694 days
         # total_lead_time = 10.0 + 0.000694 ≈ 10.000694 days
@@ -293,12 +339,16 @@ class VSMKaizenBurstTest(TestCase):
         self.vsm_id = _post(self.client, "/api/vsm/create/").json()["id"]
 
     def test_add_kaizen_burst(self):
-        res = _post(self.client, f"/api/vsm/{self.vsm_id}/kaizen/", {
-            "x": 300,
-            "y": 200,
-            "text": "Reduce changeover time",
-            "priority": "high",
-        })
+        res = _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/kaizen/",
+            {
+                "x": 300,
+                "y": 200,
+                "text": "Reduce changeover time",
+                "priority": "high",
+            },
+        )
         self.assertEqual(res.status_code, 200)
         burst = res.json()["burst"]
         self.assertEqual(burst["text"], "Reduce changeover time")
@@ -313,30 +363,45 @@ class VSMKaizenBurstTest(TestCase):
     def test_auto_kaizen_dedup(self):
         """Auto-kaizen via update should deduplicate by text."""
         # Add a process step for positioning
-        _post(self.client, f"/api/vsm/{self.vsm_id}/process-step/", {
-            "name": "Paint", "cycle_time": 30, "x": 200, "y": 300,
-        })
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/process-step/",
+            {
+                "name": "Paint",
+                "cycle_time": 30,
+                "x": 200,
+                "y": 300,
+            },
+        )
 
         # Add via auto_kaizen
-        _put(self.client, f"/api/vsm/{self.vsm_id}/update/", {
-            "auto_kaizen": {
-                "text": "Reduce paint drying time",
-                "near_step": "Paint",
-                "priority": "high",
-            }
-        })
+        _put(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/update/",
+            {
+                "auto_kaizen": {
+                    "text": "Reduce paint drying time",
+                    "near_step": "Paint",
+                    "priority": "high",
+                }
+            },
+        )
         vsm = self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]
         self.assertEqual(len(vsm["kaizen_bursts"]), 1)
         self.assertEqual(vsm["kaizen_bursts"][0]["text"], "Reduce paint drying time")
 
         # Add same text again — should NOT duplicate
-        _put(self.client, f"/api/vsm/{self.vsm_id}/update/", {
-            "auto_kaizen": {
-                "text": "Reduce paint drying time",
-                "near_step": "Paint",
-                "priority": "medium",
-            }
-        })
+        _put(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/update/",
+            {
+                "auto_kaizen": {
+                    "text": "Reduce paint drying time",
+                    "near_step": "Paint",
+                    "priority": "medium",
+                }
+            },
+        )
         vsm = self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]
         self.assertEqual(len(vsm["kaizen_bursts"]), 1)
 
@@ -353,21 +418,40 @@ class VSMBottleneckTest(TestCase):
     def setUp(self):
         self.user = _make_user("bottleneck@test.com")
         self.client.force_login(self.user)
-        self.vsm_id = _post(self.client, "/api/vsm/create/", {
-            "name": "Bottleneck Test",
-        }).json()["id"]
+        self.vsm_id = _post(
+            self.client,
+            "/api/vsm/create/",
+            {
+                "name": "Bottleneck Test",
+            },
+        ).json()["id"]
 
     def test_bottleneck_identified(self):
         """Step with highest cycle time is the bottleneck."""
-        _post(self.client, f"/api/vsm/{self.vsm_id}/process-step/", {
-            "name": "Fast", "cycle_time": 10,
-        })
-        _post(self.client, f"/api/vsm/{self.vsm_id}/process-step/", {
-            "name": "Slow", "cycle_time": 60,
-        })
-        _post(self.client, f"/api/vsm/{self.vsm_id}/process-step/", {
-            "name": "Medium", "cycle_time": 30,
-        })
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/process-step/",
+            {
+                "name": "Fast",
+                "cycle_time": 10,
+            },
+        )
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/process-step/",
+            {
+                "name": "Slow",
+                "cycle_time": 60,
+            },
+        )
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/process-step/",
+            {
+                "name": "Medium",
+                "cycle_time": 30,
+            },
+        )
 
         res = self.client.get(f"/api/vsm/{self.vsm_id}/")
         data = res.json()
@@ -387,12 +471,22 @@ class VSMBottleneckTest(TestCase):
         """Steps exceeding takt time get flagged."""
         # Set takt time to 40s
         _put(self.client, f"/api/vsm/{self.vsm_id}/update/", {"takt_time": 40})
-        _post(self.client, f"/api/vsm/{self.vsm_id}/process-step/", {
-            "name": "Under Takt", "cycle_time": 30,
-        })
-        _post(self.client, f"/api/vsm/{self.vsm_id}/process-step/", {
-            "name": "Over Takt", "cycle_time": 50,
-        })
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/process-step/",
+            {
+                "name": "Under Takt",
+                "cycle_time": 30,
+            },
+        )
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/process-step/",
+            {
+                "name": "Over Takt",
+                "cycle_time": 50,
+            },
+        )
 
         vsm = self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]
         steps = {s["name"]: s for s in vsm["process_steps"]}
@@ -413,17 +507,18 @@ class VSMBottleneckTest(TestCase):
         """Parallel machines in a work center reduce effective cycle time."""
         # Two machines in same work center, each 60s CT
         # Effective CT = 1 / (1/60 + 1/60) = 30s
-        _put(self.client, f"/api/vsm/{self.vsm_id}/update/", {
-            "process_steps": [
-                {"id": "m1", "name": "Machine 1", "cycle_time": 60,
-                 "x": 100, "y": 300, "work_center_id": "wc1"},
-                {"id": "m2", "name": "Machine 2", "cycle_time": 60,
-                 "x": 200, "y": 300, "work_center_id": "wc1"},
-                {"id": "finish", "name": "Finishing", "cycle_time": 45,
-                 "x": 300, "y": 300},
-            ],
-            "work_centers": [{"id": "wc1", "name": "Machining Center"}],
-        })
+        _put(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/update/",
+            {
+                "process_steps": [
+                    {"id": "m1", "name": "Machine 1", "cycle_time": 60, "x": 100, "y": 300, "work_center_id": "wc1"},
+                    {"id": "m2", "name": "Machine 2", "cycle_time": 60, "x": 200, "y": 300, "work_center_id": "wc1"},
+                    {"id": "finish", "name": "Finishing", "cycle_time": 45, "x": 300, "y": 300},
+                ],
+                "work_centers": [{"id": "wc1", "name": "Machining Center"}],
+            },
+        )
 
         vsm = self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]
         # Total process time: 30 (effective WC) + 45 (standalone) = 75
@@ -449,34 +544,73 @@ class VSMFutureStateTest(TestCase):
         # Create current-state VSM with a project
         self.drf_client = APIClient()
         self.drf_client.force_authenticate(self.user)
-        proj = self.drf_client.post("/api/core/projects/", {
-            "title": "CI Project",
-            "problem_statement": "Reduce lead time",
-            "domain": "manufacturing",
-            "methodology": "dmaic",
-        }, format="json").json()
+        proj = self.drf_client.post(
+            "/api/core/projects/",
+            {
+                "title": "CI Project",
+                "problem_statement": "Reduce lead time",
+                "domain": "manufacturing",
+                "methodology": "dmaic",
+            },
+            format="json",
+        ).json()
         self.project_id = proj["id"]
 
         # Create VSM linked to project with steps + inventory
-        self.vsm_id = _post(self.client, "/api/vsm/create/", {
-            "name": "Current State",
-            "project_id": self.project_id,
-        }).json()["id"]
+        self.vsm_id = _post(
+            self.client,
+            "/api/vsm/create/",
+            {
+                "name": "Current State",
+                "project_id": self.project_id,
+            },
+        ).json()["id"]
 
-        _post(self.client, f"/api/vsm/{self.vsm_id}/process-step/", {
-            "name": "Cut", "cycle_time": 30, "changeover_time": 300, "uptime": 90,
-            "operators": 1, "x": 100, "y": 300,
-        })
-        _post(self.client, f"/api/vsm/{self.vsm_id}/process-step/", {
-            "name": "Weld", "cycle_time": 60, "changeover_time": 600, "uptime": 85,
-            "operators": 2, "x": 300, "y": 300,
-        })
-        _post(self.client, f"/api/vsm/{self.vsm_id}/inventory/", {
-            "before_step_id": "weld_step", "quantity": 200, "days_of_supply": 3.0,
-        })
-        _post(self.client, f"/api/vsm/{self.vsm_id}/kaizen/", {
-            "text": "Reduce weld changeover", "priority": "high", "x": 300, "y": 250,
-        })
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/process-step/",
+            {
+                "name": "Cut",
+                "cycle_time": 30,
+                "changeover_time": 300,
+                "uptime": 90,
+                "operators": 1,
+                "x": 100,
+                "y": 300,
+            },
+        )
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/process-step/",
+            {
+                "name": "Weld",
+                "cycle_time": 60,
+                "changeover_time": 600,
+                "uptime": 85,
+                "operators": 2,
+                "x": 300,
+                "y": 300,
+            },
+        )
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/inventory/",
+            {
+                "before_step_id": "weld_step",
+                "quantity": 200,
+                "days_of_supply": 3.0,
+            },
+        )
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/kaizen/",
+            {
+                "text": "Reduce weld changeover",
+                "priority": "high",
+                "x": 300,
+                "y": 250,
+            },
+        )
 
     def test_create_future_state(self):
         """Future state clones current and pairs them."""
@@ -499,13 +633,17 @@ class VSMFutureStateTest(TestCase):
         future_id = future_res.json()["future_state"]["id"]
 
         # Improve future state: reduce weld cycle time and remove inventory
-        _put(self.client, f"/api/vsm/{future_id}/update/", {
-            "process_steps": [
-                {"id": "s1", "name": "Cut", "cycle_time": 30, "x": 100, "y": 300},
-                {"id": "s2", "name": "Weld", "cycle_time": 40, "x": 300, "y": 300},
-            ],
-            "inventory": [],  # Eliminated WIP
-        })
+        _put(
+            self.client,
+            f"/api/vsm/{future_id}/update/",
+            {
+                "process_steps": [
+                    {"id": "s1", "name": "Cut", "cycle_time": 30, "x": 100, "y": 300},
+                    {"id": "s2", "name": "Weld", "cycle_time": 40, "x": 300, "y": 300},
+                ],
+                "inventory": [],  # Eliminated WIP
+            },
+        )
 
         # Compare from current perspective
         res = self.client.get(f"/api/vsm/{self.vsm_id}/compare/")
@@ -517,8 +655,7 @@ class VSMFutureStateTest(TestCase):
         # Lead time should improve (less inventory + faster cycle)
         self.assertGreater(comp["lead_time"]["improvement"], 0)
         # Inventory reduced
-        self.assertGreater(comp["inventory_reduction"]["current_count"],
-                          comp["inventory_reduction"]["future_count"])
+        self.assertGreater(comp["inventory_reduction"]["current_count"], comp["inventory_reduction"]["future_count"])
 
     def test_compare_no_future_returns_null(self):
         """Comparison with no future state returns null comparison."""
@@ -542,26 +679,39 @@ class VSMProjectIntegrationTest(TestCase):
         self.client.force_login(self.user)
         self.drf_client = APIClient()
         self.drf_client.force_authenticate(self.user)
-        proj = self.drf_client.post("/api/core/projects/", {
-            "title": "VSM Project",
-            "problem_statement": "Improve flow",
-            "domain": "manufacturing",
-            "methodology": "dmaic",
-        }, format="json").json()
+        proj = self.drf_client.post(
+            "/api/core/projects/",
+            {
+                "title": "VSM Project",
+                "problem_statement": "Improve flow",
+                "domain": "manufacturing",
+                "methodology": "dmaic",
+            },
+            format="json",
+        ).json()
         self.project_id = proj["id"]
 
     def test_create_vsm_linked_to_project(self):
-        res = _post(self.client, "/api/vsm/create/", {
-            "name": "Linked VSM",
-            "project_id": self.project_id,
-        })
+        res = _post(
+            self.client,
+            "/api/vsm/create/",
+            {
+                "name": "Linked VSM",
+                "project_id": self.project_id,
+            },
+        )
         vsm = res.json()["vsm"]
         self.assertEqual(vsm["project_id"], self.project_id)
 
     def test_list_filter_by_project(self):
-        _post(self.client, "/api/vsm/create/", {
-            "name": "In Project", "project_id": self.project_id,
-        })
+        _post(
+            self.client,
+            "/api/vsm/create/",
+            {
+                "name": "In Project",
+                "project_id": self.project_id,
+            },
+        )
         _post(self.client, "/api/vsm/create/", {"name": "Standalone"})
 
         res = self.client.get(f"/api/vsm/?project_id={self.project_id}")
@@ -571,9 +721,14 @@ class VSMProjectIntegrationTest(TestCase):
 
     def test_project_hub_shows_vsm(self):
         """VSM linked to project appears in the project hub."""
-        _post(self.client, "/api/vsm/create/", {
-            "name": "Hub VSM", "project_id": self.project_id,
-        })
+        _post(
+            self.client,
+            "/api/vsm/create/",
+            {
+                "name": "Hub VSM",
+                "project_id": self.project_id,
+            },
+        )
         res = self.drf_client.get(f"/api/core/projects/{self.project_id}/hub/")
         self.assertEqual(res.status_code, 200)
         data = res.json()
@@ -585,9 +740,13 @@ class VSMProjectIntegrationTest(TestCase):
         """Can link and unlink VSM from project via update."""
         vsm_id = _post(self.client, "/api/vsm/create/", {"name": "Floater"}).json()["id"]
         # Link
-        _put(self.client, f"/api/vsm/{vsm_id}/update/", {
-            "project_id": self.project_id,
-        })
+        _put(
+            self.client,
+            f"/api/vsm/{vsm_id}/update/",
+            {
+                "project_id": self.project_id,
+            },
+        )
         vsm = self.client.get(f"/api/vsm/{vsm_id}/").json()["vsm"]
         self.assertEqual(vsm["project_id"], self.project_id)
         # Unlink
@@ -598,9 +757,15 @@ class VSMProjectIntegrationTest(TestCase):
     def test_create_vsm_invalid_project(self):
         """Linking to nonexistent project returns 404."""
         import uuid
-        res = _post(self.client, "/api/vsm/create/", {
-            "name": "Bad Link", "project_id": str(uuid.uuid4()),
-        })
+
+        res = _post(
+            self.client,
+            "/api/vsm/create/",
+            {
+                "name": "Bad Link",
+                "project_id": str(uuid.uuid4()),
+            },
+        )
         self.assertEqual(res.status_code, 404)
 
 
@@ -665,9 +830,14 @@ class VSMMetricSnapshotTest(TestCase):
 
     def test_snapshot_recorded_on_step_add(self):
         """Adding a step records a metric snapshot."""
-        _post(self.client, f"/api/vsm/{self.vsm_id}/process-step/", {
-            "name": "Step 1", "cycle_time": 30,
-        })
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/process-step/",
+            {
+                "name": "Step 1",
+                "cycle_time": 30,
+            },
+        )
         vsm = self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]
         self.assertGreaterEqual(len(vsm["metric_snapshots"]), 1)
         snap = vsm["metric_snapshots"][-1]
@@ -676,33 +846,41 @@ class VSMMetricSnapshotTest(TestCase):
 
     def test_snapshot_not_duplicated_if_unchanged(self):
         """Updating without metric change doesn't add a snapshot."""
-        _post(self.client, f"/api/vsm/{self.vsm_id}/process-step/", {
-            "name": "Step 1", "cycle_time": 30,
-        })
-        snap_count_1 = len(
-            self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]["metric_snapshots"]
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/process-step/",
+            {
+                "name": "Step 1",
+                "cycle_time": 30,
+            },
         )
+        snap_count_1 = len(self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]["metric_snapshots"])
         # Update only name — no metric change
         _put(self.client, f"/api/vsm/{self.vsm_id}/update/", {"name": "Renamed"})
-        snap_count_2 = len(
-            self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]["metric_snapshots"]
-        )
+        snap_count_2 = len(self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]["metric_snapshots"])
         self.assertEqual(snap_count_1, snap_count_2)
 
     def test_snapshot_added_on_metric_change(self):
         """Adding inventory changes lead time and should add a snapshot."""
-        _post(self.client, f"/api/vsm/{self.vsm_id}/process-step/", {
-            "name": "Step 1", "cycle_time": 30,
-        })
-        snap_count_1 = len(
-            self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]["metric_snapshots"]
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/process-step/",
+            {
+                "name": "Step 1",
+                "cycle_time": 30,
+            },
         )
-        _post(self.client, f"/api/vsm/{self.vsm_id}/inventory/", {
-            "before_step_id": "s1", "quantity": 100, "days_of_supply": 5.0,
-        })
-        snap_count_2 = len(
-            self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]["metric_snapshots"]
+        snap_count_1 = len(self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]["metric_snapshots"])
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/inventory/",
+            {
+                "before_step_id": "s1",
+                "quantity": 100,
+                "days_of_supply": 5.0,
+            },
         )
+        snap_count_2 = len(self.client.get(f"/api/vsm/{self.vsm_id}/").json()["vsm"]["metric_snapshots"])
         self.assertGreater(snap_count_2, snap_count_1)
 
 
@@ -756,28 +934,54 @@ class VSMGenerateProposalsTest(TestCase):
         self.drf_client.force_authenticate(self.user)
 
         # Create project
-        proj = self.drf_client.post("/api/core/projects/", {
-            "title": "Hoshin Project",
-            "problem_statement": "Reduce lead time",
-            "domain": "manufacturing",
-            "methodology": "dmaic",
-        }, format="json").json()
+        proj = self.drf_client.post(
+            "/api/core/projects/",
+            {
+                "title": "Hoshin Project",
+                "problem_statement": "Reduce lead time",
+                "domain": "manufacturing",
+                "methodology": "dmaic",
+            },
+            format="json",
+        ).json()
         self.project_id = proj["id"]
 
         # Create current-state VSM with steps
-        self.vsm_id = _post(self.client, "/api/vsm/create/", {
-            "name": "Current State",
-            "project_id": self.project_id,
-        }).json()["id"]
+        self.vsm_id = _post(
+            self.client,
+            "/api/vsm/create/",
+            {
+                "name": "Current State",
+                "project_id": self.project_id,
+            },
+        ).json()["id"]
 
-        _post(self.client, f"/api/vsm/{self.vsm_id}/process-step/", {
-            "name": "Assembly", "cycle_time": 60, "changeover_time": 600,
-            "uptime": 85, "operators": 3, "x": 200, "y": 300,
-        })
-        _post(self.client, f"/api/vsm/{self.vsm_id}/process-step/", {
-            "name": "Inspection", "cycle_time": 30, "changeover_time": 0,
-            "uptime": 100, "operators": 1, "x": 400, "y": 300,
-        })
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/process-step/",
+            {
+                "name": "Assembly",
+                "cycle_time": 60,
+                "changeover_time": 600,
+                "uptime": 85,
+                "operators": 3,
+                "x": 200,
+                "y": 300,
+            },
+        )
+        _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/process-step/",
+            {
+                "name": "Inspection",
+                "cycle_time": 30,
+                "changeover_time": 0,
+                "uptime": 100,
+                "operators": 1,
+                "x": 400,
+                "y": 300,
+            },
+        )
 
     def _create_future_with_improvements(self):
         """Create future state and improve it."""
@@ -785,40 +989,58 @@ class VSMGenerateProposalsTest(TestCase):
         future_id = future["id"]
 
         # Improve: reduce Assembly CT from 60→40, operators 3→2, add kaizen
-        _put(self.client, f"/api/vsm/{future_id}/update/", {
-            "process_steps": [
-                {"id": "s1", "name": "Assembly", "cycle_time": 40,
-                 "changeover_time": 300, "uptime": 95, "operators": 2,
-                 "x": 200, "y": 300},
-                {"id": "s2", "name": "Inspection", "cycle_time": 30,
-                 "changeover_time": 0, "uptime": 100, "operators": 1,
-                 "x": 400, "y": 300},
-            ],
-            "kaizen_bursts": [
-                {"id": "k1", "text": "SMED changeover reduction", "priority": "high",
-                 "x": 200, "y": 250},
-                {"id": "k2", "text": "Automate inspection", "priority": "medium",
-                 "x": 400, "y": 250},
-            ],
-        })
+        _put(
+            self.client,
+            f"/api/vsm/{future_id}/update/",
+            {
+                "process_steps": [
+                    {
+                        "id": "s1",
+                        "name": "Assembly",
+                        "cycle_time": 40,
+                        "changeover_time": 300,
+                        "uptime": 95,
+                        "operators": 2,
+                        "x": 200,
+                        "y": 300,
+                    },
+                    {
+                        "id": "s2",
+                        "name": "Inspection",
+                        "cycle_time": 30,
+                        "changeover_time": 0,
+                        "uptime": 100,
+                        "operators": 1,
+                        "x": 400,
+                        "y": 300,
+                    },
+                ],
+                "kaizen_bursts": [
+                    {"id": "k1", "text": "SMED changeover reduction", "priority": "high", "x": 200, "y": 250},
+                    {"id": "k2", "text": "Automate inspection", "priority": "medium", "x": 400, "y": 250},
+                ],
+            },
+        )
         return future_id
 
     def test_generate_proposals(self):
         """Proposals generated from current→future deltas."""
         self._create_future_with_improvements()
-        res = _post(self.client, f"/api/vsm/{self.vsm_id}/generate-proposals/", {
-            "annual_volume": 100000,
-            "cost_per_unit": 50.0,
-        })
+        res = _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/generate-proposals/",
+            {
+                "annual_volume": 100000,
+                "cost_per_unit": 50.0,
+            },
+        )
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertEqual(data["vsm_id"], self.vsm_id)
         self.assertGreater(data["count"], 0)
         proposals = data["proposals"]
         # At least one proposal should match Assembly improvement
-        assembly_prop = next(
-            (p for p in proposals if p["process_step"] == "Assembly"), None
-        )
+        assembly_prop = next((p for p in proposals if p["process_step"] == "Assembly"), None)
         self.assertIsNotNone(assembly_prop)
         self.assertTrue(assembly_prop["has_current_match"])
         self.assertGreater(assembly_prop["estimated_annual_savings"], 0)
@@ -827,10 +1049,14 @@ class VSMGenerateProposalsTest(TestCase):
     def test_proposals_include_confidence_intervals(self):
         """Monte Carlo produces confidence intervals."""
         self._create_future_with_improvements()
-        data = _post(self.client, f"/api/vsm/{self.vsm_id}/generate-proposals/", {
-            "annual_volume": 100000,
-            "cost_per_unit": 50.0,
-        }).json()
+        data = _post(
+            self.client,
+            f"/api/vsm/{self.vsm_id}/generate-proposals/",
+            {
+                "annual_volume": 100000,
+                "cost_per_unit": 50.0,
+            },
+        ).json()
         prop = next(p for p in data["proposals"] if p["has_current_match"])
         # Monte Carlo fields
         self.assertIn("median_savings", prop)
@@ -884,43 +1110,88 @@ class VSMFullLifecycleTest(TestCase):
     def test_full_lifecycle(self):
         """Current → add steps/inv → future → improve → compare → proposals."""
         # 1. Create project
-        proj = self.drf_client.post("/api/core/projects/", {
-            "title": "Lean Transformation",
-            "problem_statement": "Reduce lead time from 15 to 5 days",
-            "domain": "manufacturing",
-            "methodology": "dmaic",
-        }, format="json").json()
+        proj = self.drf_client.post(
+            "/api/core/projects/",
+            {
+                "title": "Lean Transformation",
+                "problem_statement": "Reduce lead time from 15 to 5 days",
+                "domain": "manufacturing",
+                "methodology": "dmaic",
+            },
+            format="json",
+        ).json()
 
         # 2. Create current-state VSM
-        vsm_id = _post(self.client, "/api/vsm/create/", {
-            "name": "Press Line Current",
-            "project_id": proj["id"],
-            "product_family": "Automotive Panels",
-            "customer_name": "OEM Corp",
-            "customer_demand": "460 units/day",
-        }).json()["id"]
+        vsm_id = _post(
+            self.client,
+            "/api/vsm/create/",
+            {
+                "name": "Press Line Current",
+                "project_id": proj["id"],
+                "product_family": "Automotive Panels",
+                "customer_name": "OEM Corp",
+                "customer_demand": "460 units/day",
+            },
+        ).json()["id"]
 
         # 3. Add process steps
-        _post(self.client, f"/api/vsm/{vsm_id}/process-step/", {
-            "name": "Stamping", "cycle_time": 1, "changeover_time": 3600,
-            "uptime": 80, "operators": 1, "x": 100, "y": 300,
-        })
-        _post(self.client, f"/api/vsm/{vsm_id}/process-step/", {
-            "name": "Welding", "cycle_time": 39, "changeover_time": 600,
-            "uptime": 90, "operators": 2, "x": 300, "y": 300,
-        })
-        _post(self.client, f"/api/vsm/{vsm_id}/process-step/", {
-            "name": "Assembly", "cycle_time": 62, "changeover_time": 0,
-            "uptime": 100, "operators": 3, "x": 500, "y": 300,
-        })
+        _post(
+            self.client,
+            f"/api/vsm/{vsm_id}/process-step/",
+            {
+                "name": "Stamping",
+                "cycle_time": 1,
+                "changeover_time": 3600,
+                "uptime": 80,
+                "operators": 1,
+                "x": 100,
+                "y": 300,
+            },
+        )
+        _post(
+            self.client,
+            f"/api/vsm/{vsm_id}/process-step/",
+            {
+                "name": "Welding",
+                "cycle_time": 39,
+                "changeover_time": 600,
+                "uptime": 90,
+                "operators": 2,
+                "x": 300,
+                "y": 300,
+            },
+        )
+        _post(
+            self.client,
+            f"/api/vsm/{vsm_id}/process-step/",
+            {
+                "name": "Assembly",
+                "cycle_time": 62,
+                "changeover_time": 0,
+                "uptime": 100,
+                "operators": 3,
+                "x": 500,
+                "y": 300,
+            },
+        )
 
         # 4. Add inventory buffers
-        _post(self.client, f"/api/vsm/{vsm_id}/inventory/", {
-            "quantity": 4600, "days_of_supply": 5.0,
-        })
-        _post(self.client, f"/api/vsm/{vsm_id}/inventory/", {
-            "quantity": 2400, "days_of_supply": 3.0,
-        })
+        _post(
+            self.client,
+            f"/api/vsm/{vsm_id}/inventory/",
+            {
+                "quantity": 4600,
+                "days_of_supply": 5.0,
+            },
+        )
+        _post(
+            self.client,
+            f"/api/vsm/{vsm_id}/inventory/",
+            {
+                "quantity": 2400,
+                "days_of_supply": 3.0,
+            },
+        )
 
         # 5. Verify current state metrics
         current = self.client.get(f"/api/vsm/{vsm_id}/").json()["vsm"]
@@ -928,35 +1199,55 @@ class VSMFullLifecycleTest(TestCase):
         self.assertGreater(current["total_lead_time"], 8.0)  # 5+3 days inventory + process
 
         # 6. Create future state
-        future_id = _post(
-            self.client, f"/api/vsm/{vsm_id}/future-state/"
-        ).json()["future_state"]["id"]
+        future_id = _post(self.client, f"/api/vsm/{vsm_id}/future-state/").json()["future_state"]["id"]
 
         # 7. Improve future: reduce changeover, cut inventory, add kaizen
-        _put(self.client, f"/api/vsm/{future_id}/update/", {
-            "process_steps": [
-                {"id": "s1", "name": "Stamping", "cycle_time": 1,
-                 "changeover_time": 600, "uptime": 95, "operators": 1,
-                 "x": 100, "y": 300},
-                {"id": "s2", "name": "Welding", "cycle_time": 39,
-                 "changeover_time": 300, "uptime": 95, "operators": 2,
-                 "x": 300, "y": 300},
-                {"id": "s3", "name": "Assembly", "cycle_time": 55,
-                 "changeover_time": 0, "uptime": 100, "operators": 2,
-                 "x": 500, "y": 300},
-            ],
-            "inventory": [
-                {"id": "i1", "quantity": 920, "days_of_supply": 1.0},
-            ],
-            "kaizen_bursts": [
-                {"id": "k1", "text": "SMED on stamping press",
-                 "priority": "high", "x": 100, "y": 250},
-                {"id": "k2", "text": "Reduce WIP with kanban",
-                 "priority": "high", "x": 200, "y": 250},
-                {"id": "k3", "text": "Cross-train assembly operators",
-                 "priority": "medium", "x": 500, "y": 250},
-            ],
-        })
+        _put(
+            self.client,
+            f"/api/vsm/{future_id}/update/",
+            {
+                "process_steps": [
+                    {
+                        "id": "s1",
+                        "name": "Stamping",
+                        "cycle_time": 1,
+                        "changeover_time": 600,
+                        "uptime": 95,
+                        "operators": 1,
+                        "x": 100,
+                        "y": 300,
+                    },
+                    {
+                        "id": "s2",
+                        "name": "Welding",
+                        "cycle_time": 39,
+                        "changeover_time": 300,
+                        "uptime": 95,
+                        "operators": 2,
+                        "x": 300,
+                        "y": 300,
+                    },
+                    {
+                        "id": "s3",
+                        "name": "Assembly",
+                        "cycle_time": 55,
+                        "changeover_time": 0,
+                        "uptime": 100,
+                        "operators": 2,
+                        "x": 500,
+                        "y": 300,
+                    },
+                ],
+                "inventory": [
+                    {"id": "i1", "quantity": 920, "days_of_supply": 1.0},
+                ],
+                "kaizen_bursts": [
+                    {"id": "k1", "text": "SMED on stamping press", "priority": "high", "x": 100, "y": 250},
+                    {"id": "k2", "text": "Reduce WIP with kanban", "priority": "high", "x": 200, "y": 250},
+                    {"id": "k3", "text": "Cross-train assembly operators", "priority": "medium", "x": 500, "y": 250},
+                ],
+            },
+        )
 
         # 8. Compare
         comp = self.client.get(f"/api/vsm/{vsm_id}/compare/").json()
@@ -964,9 +1255,13 @@ class VSMFullLifecycleTest(TestCase):
         self.assertGreater(comp["comparison"]["lead_time"]["improvement"], 0)
 
         # 9. Generate proposals
-        proposals = _post(self.client, f"/api/vsm/{vsm_id}/generate-proposals/", {
-            "annual_volume": 168000,
-            "cost_per_unit": 45.0,
-        }).json()
+        proposals = _post(
+            self.client,
+            f"/api/vsm/{vsm_id}/generate-proposals/",
+            {
+                "annual_volume": 168000,
+                "cost_per_unit": 45.0,
+            },
+        ).json()
         self.assertEqual(proposals["count"], 3)
         self.assertTrue(all("suggested_title" in p for p in proposals["proposals"]))

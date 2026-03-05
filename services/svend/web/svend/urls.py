@@ -6,27 +6,38 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.contrib.sitemaps import Sitemap
 from django.contrib.sitemaps.views import sitemap
-from django.urls import path, include
+from django.urls import include, path
 from django.views.generic import TemplateView
 
-from api.blog_views import blog_list, blog_detail
+from agents_api.whiteboard_views import guest_board_view
+from api.blog_views import blog_detail, blog_list
 from api.internal_views import dashboard_view
-from api.views import compliance_page, compliance_data
 from api.landing_views import (
-    landing_view, register_view, iso_qms_view, iso_audit_playbook_view,
-    svend_vs_minitab_view, svend_vs_jmp_view, education_view, partnerships_view,
-    ci_hub_view, mdi_playbook_view, hoshin_playbook_view,
-    kaizen_playbook_view, five_s_playbook_view, lsw_playbook_view,
-    vsm_playbook_view, roadmap_view,
+    ci_hub_view,
+    education_view,
+    five_s_playbook_view,
+    hoshin_playbook_view,
+    iso_audit_playbook_view,
+    iso_qms_view,
+    kaizen_playbook_view,
+    landing_view,
+    lsw_playbook_view,
+    mdi_playbook_view,
+    partnerships_view,
+    register_view,
+    roadmap_view,
+    svend_vs_jmp_view,
+    svend_vs_minitab_view,
+    vsm_playbook_view,
 )
 from api.models import BlogPost, WhitePaper
-from api.whitepaper_views import whitepaper_list, whitepaper_detail, whitepaper_pdf
-from agents_api.whiteboard_views import guest_board_view
-
+from api.views import compliance_data, compliance_page
+from api.whitepaper_views import whitepaper_detail, whitepaper_list, whitepaper_pdf
 
 # ---------------------------------------------------------------------------
 # Sitemaps
 # ---------------------------------------------------------------------------
+
 
 class StaticSitemap(Sitemap):
     changefreq = "weekly"
@@ -34,35 +45,44 @@ class StaticSitemap(Sitemap):
     protocol = "https"
 
     def items(self):
-        return ["/", "/blog/", "/privacy/", "/terms/", "/whitepapers/",
-                "/tools/", "/tools/cpk-calculator/", "/tools/sample-size-calculator/",
-                "/tools/oee-calculator/", "/tools/sigma-calculator/",
-                "/tools/takt-time-calculator/",
-                "/tools/kanban-card-generator/",
-                "/tools/control-chart-generator/",
-                "/tools/gage-rr-calculator/",
-                "/tools/pareto-chart-generator/",
-                "/tools/bayesian-cpk-calculator/",
-                "/tools/fmea-rpn-calculator/",
-                "/tools/fpy-rty-calculator/",
-                "/svend-vs-minitab/",
-                "/svend-vs-jmp/",
-                "/classical-vs-bayesian-spc/",
-                "/tools/iso-9001-audit-checklist/",
-                "/iso-9001-qms-software/",
-                "/iso-9001-internal-audit-playbook/",
-                "/tools/iso-document-creator/",
-                "/for-education/",
-                "/continuous-improvement-software/",
-                "/managing-for-daily-improvement/",
-                "/hoshin-kanri-strategy-deployment/",
-                "/kaizen-execution-guide/",
-                "/5s-operational-excellence/",
-                "/leadership-standard-work/",
-                "/value-stream-mapping-methodology/",
-                "/partnerships/",
-                "/compliance/",
-                "/roadmap/"]
+        return [
+            "/",
+            "/blog/",
+            "/privacy/",
+            "/terms/",
+            "/whitepapers/",
+            "/tools/",
+            "/tools/cpk-calculator/",
+            "/tools/sample-size-calculator/",
+            "/tools/oee-calculator/",
+            "/tools/sigma-calculator/",
+            "/tools/takt-time-calculator/",
+            "/tools/kanban-card-generator/",
+            "/tools/control-chart-generator/",
+            "/tools/gage-rr-calculator/",
+            "/tools/pareto-chart-generator/",
+            "/tools/bayesian-cpk-calculator/",
+            "/tools/fmea-rpn-calculator/",
+            "/tools/fpy-rty-calculator/",
+            "/svend-vs-minitab/",
+            "/svend-vs-jmp/",
+            "/classical-vs-bayesian-spc/",
+            "/tools/iso-9001-audit-checklist/",
+            "/iso-9001-qms-software/",
+            "/iso-9001-internal-audit-playbook/",
+            "/tools/iso-document-creator/",
+            "/for-education/",
+            "/continuous-improvement-software/",
+            "/managing-for-daily-improvement/",
+            "/hoshin-kanri-strategy-deployment/",
+            "/kaizen-execution-guide/",
+            "/5s-operational-excellence/",
+            "/leadership-standard-work/",
+            "/value-stream-mapping-methodology/",
+            "/partnerships/",
+            "/compliance/",
+            "/roadmap/",
+        ]
 
     def location(self, item):
         return item
@@ -120,7 +140,9 @@ urlpatterns = [
     path("app/triage/", TemplateView.as_view(template_name="triage.html"), name="triage"),
     path("app/forge/", TemplateView.as_view(template_name="forge.html"), name="forge_ui"),
     path("app/whiteboard/", TemplateView.as_view(template_name="whiteboard.html"), name="whiteboard"),
-    path("app/whiteboard/<str:room_code>/", TemplateView.as_view(template_name="whiteboard.html"), name="whiteboard_room"),
+    path(
+        "app/whiteboard/<str:room_code>/", TemplateView.as_view(template_name="whiteboard.html"), name="whiteboard_room"
+    ),
     path("app/whiteboard/guest/<str:token>/", guest_board_view, name="whiteboard_guest"),
     path("app/vsm/", TemplateView.as_view(template_name="vsm.html"), name="vsm"),
     path("app/vsm/<uuid:vsm_id>/", TemplateView.as_view(template_name="vsm.html"), name="vsm_edit"),
@@ -150,38 +172,84 @@ urlpatterns = [
     path("app/iso/", TemplateView.as_view(template_name="iso.html"), name="iso"),
     path("app/iso-docs/", TemplateView.as_view(template_name="iso_doc.html"), name="iso_doc"),
     path("app/iso-docs/<uuid:doc_id>/", TemplateView.as_view(template_name="iso_doc.html"), name="iso_doc_edit"),
-
     # Whitepapers (public, no auth — SEO + PDF download)
     path("whitepapers/", whitepaper_list, name="whitepapers"),
     path("whitepapers/<slug:slug>/", whitepaper_detail, name="whitepaper_detail"),
     path("whitepapers/<slug:slug>/pdf/", whitepaper_pdf, name="whitepaper_pdf"),
-
     # Free tools (public, no auth — SEO landing pages)
     path("tools/", TemplateView.as_view(template_name="tools/index.html"), name="tools_index"),
     path("tools/cpk-calculator/", TemplateView.as_view(template_name="tools/cpk_calculator.html"), name="tool_cpk"),
-    path("tools/sample-size-calculator/", TemplateView.as_view(template_name="tools/sample_size_calculator.html"), name="tool_sample_size"),
+    path(
+        "tools/sample-size-calculator/",
+        TemplateView.as_view(template_name="tools/sample_size_calculator.html"),
+        name="tool_sample_size",
+    ),
     path("tools/oee-calculator/", TemplateView.as_view(template_name="tools/oee_calculator.html"), name="tool_oee"),
-    path("tools/sigma-calculator/", TemplateView.as_view(template_name="tools/sigma_calculator.html"), name="tool_sigma"),
-    path("tools/takt-time-calculator/", TemplateView.as_view(template_name="tools/takt_time_calculator.html"), name="tool_takt_time"),
-    path("tools/kanban-card-generator/", TemplateView.as_view(template_name="tools/kanban_card_generator.html"), name="tool_kanban"),
-    path("tools/control-chart-generator/", TemplateView.as_view(template_name="tools/control_chart_generator.html"), name="tool_control_chart"),
-    path("tools/gage-rr-calculator/", TemplateView.as_view(template_name="tools/gage_rr_calculator.html"), name="tool_gage_rr"),
-    path("tools/pareto-chart-generator/", TemplateView.as_view(template_name="tools/pareto_chart_generator.html"), name="tool_pareto"),
-    path("tools/bayesian-cpk-calculator/", TemplateView.as_view(template_name="tools/bayesian_cpk_calculator.html"), name="tool_bayesian_cpk"),
-    path("tools/fmea-rpn-calculator/", TemplateView.as_view(template_name="tools/fmea_rpn_calculator.html"), name="tool_fmea_rpn"),
-    path("tools/fpy-rty-calculator/", TemplateView.as_view(template_name="tools/fpy_rty_calculator.html"), name="tool_fpy_rty"),
-    path("tools/iso-9001-audit-checklist/", TemplateView.as_view(template_name="tools/iso_9001_audit_checklist.html"), name="tool_audit_checklist"),
-    path("tools/iso-document-creator/", TemplateView.as_view(template_name="tools/iso_document_creator.html"), name="tool_iso_doc"),
-
+    path(
+        "tools/sigma-calculator/", TemplateView.as_view(template_name="tools/sigma_calculator.html"), name="tool_sigma"
+    ),
+    path(
+        "tools/takt-time-calculator/",
+        TemplateView.as_view(template_name="tools/takt_time_calculator.html"),
+        name="tool_takt_time",
+    ),
+    path(
+        "tools/kanban-card-generator/",
+        TemplateView.as_view(template_name="tools/kanban_card_generator.html"),
+        name="tool_kanban",
+    ),
+    path(
+        "tools/control-chart-generator/",
+        TemplateView.as_view(template_name="tools/control_chart_generator.html"),
+        name="tool_control_chart",
+    ),
+    path(
+        "tools/gage-rr-calculator/",
+        TemplateView.as_view(template_name="tools/gage_rr_calculator.html"),
+        name="tool_gage_rr",
+    ),
+    path(
+        "tools/pareto-chart-generator/",
+        TemplateView.as_view(template_name="tools/pareto_chart_generator.html"),
+        name="tool_pareto",
+    ),
+    path(
+        "tools/bayesian-cpk-calculator/",
+        TemplateView.as_view(template_name="tools/bayesian_cpk_calculator.html"),
+        name="tool_bayesian_cpk",
+    ),
+    path(
+        "tools/fmea-rpn-calculator/",
+        TemplateView.as_view(template_name="tools/fmea_rpn_calculator.html"),
+        name="tool_fmea_rpn",
+    ),
+    path(
+        "tools/fpy-rty-calculator/",
+        TemplateView.as_view(template_name="tools/fpy_rty_calculator.html"),
+        name="tool_fpy_rty",
+    ),
+    path(
+        "tools/iso-9001-audit-checklist/",
+        TemplateView.as_view(template_name="tools/iso_9001_audit_checklist.html"),
+        name="tool_audit_checklist",
+    ),
+    path(
+        "tools/iso-document-creator/",
+        TemplateView.as_view(template_name="tools/iso_document_creator.html"),
+        name="tool_iso_doc",
+    ),
     # Comparison pages (public, no auth — SEO)
     path("svend-vs-minitab/", svend_vs_minitab_view, name="svend_vs_minitab"),
     path("svend-vs-jmp/", svend_vs_jmp_view, name="svend_vs_jmp"),
-    path("classical-vs-bayesian-spc/", TemplateView.as_view(template_name="classical_vs_bayesian_spc.html"), name="classical_vs_bayesian_spc"),
+    path(
+        "classical-vs-bayesian-spc/",
+        TemplateView.as_view(template_name="classical_vs_bayesian_spc.html"),
+        name="classical_vs_bayesian_spc",
+    ),
     path("iso-9001-qms-software/", iso_qms_view, name="iso_9001_qms"),
     path("iso-9001-internal-audit-playbook/", iso_audit_playbook_view, name="iso_audit_playbook"),
     path("partnerships/", partnerships_view, name="partnerships"),
     path("for-education/", education_view, name="education_partnerships"),
-
     # Continuous Improvement landing pages (public, no auth — SEO)
     path("continuous-improvement-software/", ci_hub_view, name="ci_hub"),
     path("managing-for-daily-improvement/", mdi_playbook_view, name="mdi_playbook"),
@@ -190,22 +258,17 @@ urlpatterns = [
     path("5s-operational-excellence/", five_s_playbook_view, name="five_s_playbook"),
     path("leadership-standard-work/", lsw_playbook_view, name="lsw_playbook"),
     path("value-stream-mapping-methodology/", vsm_playbook_view, name="vsm_playbook"),
-
     # Public roadmap
     path("roadmap/", roadmap_view, name="roadmap"),
-
     # Compliance (public, no auth — trust signal for prospects)
     path("compliance/", compliance_page, name="compliance"),
     path("compliance/data/", compliance_data, name="compliance_data"),
-
     # Blog (public, no auth)
     path("blog/", blog_list, name="blog_list"),
     path("blog/<slug:slug>/", blog_detail, name="blog_detail"),
-
     # SEO
     path("robots.txt", TemplateView.as_view(template_name="robots.txt", content_type="text/plain")),
     path("sitemap.xml", sitemap, {"sitemaps": sitemaps}, name="django.contrib.sitemaps.views.sitemap"),
-
     path("internal/dashboard/", dashboard_view, name="internal-dashboard"),
     path("admin/", admin.site.urls),
     path("api/", include("api.urls")),
@@ -242,22 +305,37 @@ urlpatterns = [
     path("action/<str:token>/", include("agents_api.token_urls")),  # ActionToken (QMS-002, no auth)
     path("ntf/<str:token>/", include("notifications.token_urls")),  # NotificationToken (NTF-001 §5.2, no auth)
     path("", include("accounts.urls")),  # Billing endpoints
-
     # Password reset
-    path("accounts/password_reset/", auth_views.PasswordResetView.as_view(
-        template_name="registration/password_reset_form.html",
-        email_template_name="registration/password_reset_email.html",
-        subject_template_name="registration/password_reset_subject.txt",
-    ), name="password_reset"),
-    path("accounts/password_reset/done/", auth_views.PasswordResetDoneView.as_view(
-        template_name="registration/password_reset_done.html",
-    ), name="password_reset_done"),
-    path("accounts/reset/<uidb64>/<token>/", auth_views.PasswordResetConfirmView.as_view(
-        template_name="registration/password_reset_confirm.html",
-    ), name="password_reset_confirm"),
-    path("accounts/reset/done/", auth_views.PasswordResetCompleteView.as_view(
-        template_name="registration/password_reset_complete.html",
-    ), name="password_reset_complete"),
+    path(
+        "accounts/password_reset/",
+        auth_views.PasswordResetView.as_view(
+            template_name="registration/password_reset_form.html",
+            email_template_name="registration/password_reset_email.html",
+            subject_template_name="registration/password_reset_subject.txt",
+        ),
+        name="password_reset",
+    ),
+    path(
+        "accounts/password_reset/done/",
+        auth_views.PasswordResetDoneView.as_view(
+            template_name="registration/password_reset_done.html",
+        ),
+        name="password_reset_done",
+    ),
+    path(
+        "accounts/reset/<uidb64>/<token>/",
+        auth_views.PasswordResetConfirmView.as_view(
+            template_name="registration/password_reset_confirm.html",
+        ),
+        name="password_reset_confirm",
+    ),
+    path(
+        "accounts/reset/done/",
+        auth_views.PasswordResetCompleteView.as_view(
+            template_name="registration/password_reset_complete.html",
+        ),
+        name="password_reset_complete",
+    ),
 ]
 
 # Serve media files (models, uploads)

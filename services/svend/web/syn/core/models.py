@@ -19,30 +19,29 @@ SDK Mixins:
 - VersioningMixin: Adds semantic versioning
 """
 
-from syn.core.secrets import SecretStore
-
 # SDK Base Classes
 from syn.core.base_models import (
     SynaraEntity,
-    SynaraEntityManager,
     SynaraEntityAllManager,
+    SynaraEntityManager,
+    SynaraImmutableLog,
     SynaraRegistry,
     SynaraRegistryManager,
-    SynaraImmutableLog,
 )
 
 # SDK Mixins
 from syn.core.mixins import (
-    CorrelationMixin,
-    TenantMixin,
     AuditMixin,
-    SoftDeleteMixin,
-    SoftDeleteManager,
+    CorrelationMixin,
     EventEmitterMixin,
     LifecycleMixin,
     MetadataMixin,
+    SoftDeleteManager,
+    SoftDeleteMixin,
+    TenantMixin,
     VersioningMixin,
 )
+from syn.core.secrets import SecretStore
 
 __all__ = [
     # Secrets

@@ -2,13 +2,20 @@
 
 import numpy as np
 from scipy import stats
-from .common import _narrative, SVEND_COLORS, COLOR_GOOD, COLOR_BAD, COLOR_WARNING, COLOR_INFO, COLOR_REFERENCE, _rgba
+
+from .common import (
+    COLOR_BAD,
+    COLOR_GOOD,
+    COLOR_REFERENCE,
+    COLOR_WARNING,
+    SVEND_COLORS,
+    _narrative,
+    _rgba,
+)
 
 
 def run_bayesian_analysis(df, analysis_id, config):
     """Run Bayesian inference analyses - feeds Synara hypothesis testing."""
-    import numpy as np
-    from scipy import stats
 
     result = {"plots": [], "summary": "", "guide_observation": ""}
 
@@ -43,11 +50,11 @@ def run_bayesian_analysis(df, analysis_id, config):
         r2 = model.score(X_scaled, y)
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN REGRESSION<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN REGRESSION<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Target:<</COLOR>> {target}\n"
         summary += f"<<COLOR:highlight>>R²:<</COLOR>> {r2:.4f}\n\n"
-        summary += f"<<COLOR:text>>Coefficient Posteriors ({int(ci_level*100)}% Credible Intervals):<</COLOR>>\n\n"
+        summary += f"<<COLOR:text>>Coefficient Posteriors ({int(ci_level * 100)}% Credible Intervals):<</COLOR>>\n\n"
 
         for i, feat in enumerate(features):
             mean = coef_mean[i]
@@ -58,27 +65,36 @@ def run_bayesian_analysis(df, analysis_id, config):
             summary += f"  {feat:<20} β = {mean:>8.4f}  [{ci_low:>8.4f}, {ci_high:>8.4f}] {sig}\n"
 
         result["summary"] = summary
-        result["plots"].append({
-            "title": "Coefficient Posteriors",
-            "data": [{
-                "type": "scatter",
-                "x": coef_mean.tolist(),
-                "y": features,
-                "mode": "markers",
-                "marker": {"color": "#4a9f6e", "size": 10},
-                "error_x": {"type": "data", "array": (z * coef_std).tolist(), "color": "#4a9f6e"},
-                "name": f"β ± {int(ci_level*100)}% CI"
-            }],
-            "layout": {"height": max(300, len(features) * 30), "xaxis": {"zeroline": True}, "margin": {"l": 150}}
-        })
+        result["plots"].append(
+            {
+                "title": "Coefficient Posteriors",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": coef_mean.tolist(),
+                        "y": features,
+                        "mode": "markers",
+                        "marker": {"color": "#4a9f6e", "size": 10},
+                        "error_x": {"type": "data", "array": (z * coef_std).tolist(), "color": "#4a9f6e"},
+                        "name": f"β ± {int(ci_level * 100)}% CI",
+                    }
+                ],
+                "layout": {"height": max(300, len(features) * 30), "xaxis": {"zeroline": True}, "margin": {"l": 150}},
+            }
+        )
 
         result["synara_weights"] = {
             "analysis_type": "bayesian_regression",
             "target": target,
             "coefficients": [
-                {"feature": feat, "mean": float(coef_mean[i]), "ci_low": float(coef_mean[i] - z * coef_std[i]), "ci_high": float(coef_mean[i] + z * coef_std[i])}
+                {
+                    "feature": feat,
+                    "mean": float(coef_mean[i]),
+                    "ci_low": float(coef_mean[i] - z * coef_std[i]),
+                    "ci_high": float(coef_mean[i] + z * coef_std[i]),
+                }
                 for i, feat in enumerate(features)
-            ]
+            ],
         }
 
         result["education"] = {
@@ -119,7 +135,9 @@ def run_bayesian_analysis(df, analysis_id, config):
         x2 = df[var2].dropna().values
 
         # Effect size (Cohen's d)
-        pooled_std = np.sqrt(((len(x1)-1)*np.var(x1, ddof=1) + (len(x2)-1)*np.var(x2, ddof=1)) / (len(x1)+len(x2)-2))
+        pooled_std = np.sqrt(
+            ((len(x1) - 1) * np.var(x1, ddof=1) + (len(x2) - 1) * np.var(x2, ddof=1)) / (len(x1) + len(x2) - 2)
+        )
         cohens_d = (np.mean(x1) - np.mean(x2)) / pooled_std if pooled_std > 0 else 0
 
         # Bayes Factor via JZS prior (Rouder et al. 2009)
@@ -146,76 +164,92 @@ def run_bayesian_analysis(df, analysis_id, config):
             )
 
         from scipy.integrate import quad
+
         bf10, _ = quad(_jzs_integrand, 1e-10, np.inf)
         bf10 = max(bf10, 1e-10)  # Numerical floor
 
         # Posterior on effect size (approximate)
-        se_d = np.sqrt((len(x1)+len(x2))/(len(x1)*len(x2)) + cohens_d**2/(2*(len(x1)+len(x2))))
+        se_d = np.sqrt((len(x1) + len(x2)) / (len(x1) * len(x2)) + cohens_d**2 / (2 * (len(x1) + len(x2))))
         d_ci_low = cohens_d - z * se_d
         d_ci_high = cohens_d + z * se_d
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN T-TEST<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN T-TEST<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>{var1}<</COLOR>> (n={len(x1)}, μ={np.mean(x1):.3f})\n"
         summary += f"<<COLOR:highlight>>{var2}<</COLOR>> (n={len(x2)}, μ={np.mean(x2):.3f})\n\n"
 
-        summary += f"<<COLOR:accent>>── Effect Size ──<</COLOR>>\n"
+        summary += "<<COLOR:accent>>── Effect Size ──<</COLOR>>\n"
         summary += f"  Cohen's d: {cohens_d:.3f} [{d_ci_low:.3f}, {d_ci_high:.3f}]\n\n"
-        summary += f"<<COLOR:accent>>── Bayes Factor ──<</COLOR>>\n"
+        summary += "<<COLOR:accent>>── Bayes Factor ──<</COLOR>>\n"
         summary += f"  BF₁₀: {bf10:.2f}\n\n"
 
         if bf10 > 10:
-            summary += f"<<COLOR:success>>Strong evidence for difference (BF₁₀ > 10)<</COLOR>>\n"
+            summary += "<<COLOR:success>>Strong evidence for difference (BF₁₀ > 10)<</COLOR>>\n"
         elif bf10 > 3:
-            summary += f"<<COLOR:warning>>Moderate evidence for difference (BF₁₀ > 3)<</COLOR>>\n"
+            summary += "<<COLOR:warning>>Moderate evidence for difference (BF₁₀ > 3)<</COLOR>>\n"
         elif bf10 > 1:
-            summary += f"<<COLOR:text>>Weak evidence for difference (BF₁₀ < 3)<</COLOR>>\n"
+            summary += "<<COLOR:text>>Weak evidence for difference (BF₁₀ < 3)<</COLOR>>\n"
         else:
-            summary += f"<<COLOR:text>>Evidence favors no difference (BF₁₀ < 1)<</COLOR>>\n"
+            summary += "<<COLOR:text>>Evidence favors no difference (BF₁₀ < 1)<</COLOR>>\n"
 
         result["summary"] = summary
         result["statistics"] = {"cohens_d": cohens_d, "bf10": bf10, "d_ci_low": d_ci_low, "d_ci_high": d_ci_high}
 
         # Guide observation
         bf_label = "strong" if bf10 > 10 else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
-        result["guide_observation"] = f"Bayesian t-test: d={cohens_d:.3f}, BF₁₀={bf10:.2f} ({bf_label} evidence for difference)."
+        result["guide_observation"] = (
+            f"Bayesian t-test: d={cohens_d:.3f}, BF₁₀={bf10:.2f} ({bf_label} evidence for difference)."
+        )
 
         # Narrative
-        _bt_mag = "large" if abs(cohens_d) >= 0.8 else ("medium" if abs(cohens_d) >= 0.5 else ("small" if abs(cohens_d) >= 0.2 else "negligible"))
+        _bt_mag = (
+            "large"
+            if abs(cohens_d) >= 0.8
+            else ("medium" if abs(cohens_d) >= 0.5 else ("small" if abs(cohens_d) >= 0.2 else "negligible"))
+        )
         result["narrative"] = _narrative(
             f"Bayesian t-test — {bf_label} evidence, d = {cohens_d:.3f} ({_bt_mag})",
             f"Cohen's d = {cohens_d:.3f} (95% CI: {d_ci_low:.3f} to {d_ci_high:.3f}). "
             f"BF\u2081\u2080 = {bf10:.2f} — the data are {bf10:.1f}x more likely under the alternative than the null. "
-            + ("The CI excludes zero, supporting a real difference." if (d_ci_low > 0 or d_ci_high < 0) else "The CI includes zero — the evidence is inconclusive."),
+            + (
+                "The CI excludes zero, supporting a real difference."
+                if (d_ci_low > 0 or d_ci_high < 0)
+                else "The CI includes zero — the evidence is inconclusive."
+            ),
             next_steps="A BF > 10 is decisive. If BF is between 1-3, collect more data to strengthen the evidence.",
-            chart_guidance="The posterior shows the credible distribution of the effect size. The peak is the best estimate; width reflects uncertainty."
+            chart_guidance="The posterior shows the credible distribution of the effect size. The peak is the best estimate; width reflects uncertainty.",
         )
 
         # Posterior distribution plot
-        d_range = np.linspace(cohens_d - 3*se_d, cohens_d + 3*se_d, 100)
+        d_range = np.linspace(cohens_d - 3 * se_d, cohens_d + 3 * se_d, 100)
         posterior = stats.norm.pdf(d_range, cohens_d, se_d)
 
-        result["plots"].append({
-            "title": "Posterior Distribution of Effect Size",
-            "data": [{
-                "type": "scatter",
-                "x": d_range.tolist(),
-                "y": posterior.tolist(),
-                "fill": "tozeroy",
-                "fillcolor": "rgba(74, 159, 110, 0.3)",
-                "line": {"color": "#4a9f6e"},
-                "name": "Posterior"
-            }, {
-                "type": "scatter",
-                "x": [0, 0],
-                "y": [0, max(posterior)],
-                "mode": "lines",
-                "line": {"color": "#e85747", "dash": "dash"},
-                "name": "No effect"
-            }],
-            "layout": {"height": 300, "xaxis": {"title": "Cohen's d"}, "yaxis": {"title": "Density"}}
-        })
+        result["plots"].append(
+            {
+                "title": "Posterior Distribution of Effect Size",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": d_range.tolist(),
+                        "y": posterior.tolist(),
+                        "fill": "tozeroy",
+                        "fillcolor": "rgba(74, 159, 110, 0.3)",
+                        "line": {"color": "#4a9f6e"},
+                        "name": "Posterior",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [0, 0],
+                        "y": [0, max(posterior)],
+                        "mode": "lines",
+                        "line": {"color": "#e85747", "dash": "dash"},
+                        "name": "No effect",
+                    },
+                ],
+                "layout": {"height": 300, "xaxis": {"title": "Cohen's d"}, "yaxis": {"title": "Density"}},
+            }
+        )
 
         result["education"] = {
             "title": "Understanding the Bayesian t-Test",
@@ -277,11 +311,11 @@ def run_bayesian_analysis(df, analysis_id, config):
         samples2 = np.random.beta(a2, b2, 10000)
         prob_better = np.mean(samples1 > samples2)
 
-        rate1, rate2 = s1/n1, s2/n2
+        rate1, rate2 = s1 / n1, s2 / n2
         lift = (rate1 - rate2) / rate2 if rate2 > 0 else 0
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN A/B TEST<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN A/B TEST<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Group A ({g1}):<</COLOR>> {s1}/{n1} = {rate1:.1%}\n"
         summary += f"<<COLOR:highlight>>Group B ({g2}):<</COLOR>> {s2}/{n2} = {rate2:.1%}\n\n"
@@ -295,34 +329,39 @@ def run_bayesian_analysis(df, analysis_id, config):
         elif prob_better < 0.05:
             summary += f"<<COLOR:success>>Strong evidence {g2} is better<</COLOR>>\n"
         else:
-            summary += f"<<COLOR:text>>Inconclusive - need more data<</COLOR>>\n"
+            summary += "<<COLOR:text>>Inconclusive - need more data<</COLOR>>\n"
 
         result["summary"] = summary
         result["statistics"] = {"prob_better": prob_better, "rate_a": rate1, "rate_b": rate2, "lift": lift}
 
         # Posterior distributions
         x = np.linspace(0, 1, 200)
-        result["plots"].append({
-            "title": "Posterior Distributions",
-            "data": [{
-                "type": "scatter",
-                "x": x.tolist(),
-                "y": stats.beta.pdf(x, a1, b1).tolist(),
-                "fill": "tozeroy",
-                "fillcolor": "rgba(74, 159, 110, 0.3)",
-                "line": {"color": "#4a9f6e"},
-                "name": f"{g1}"
-            }, {
-                "type": "scatter",
-                "x": x.tolist(),
-                "y": stats.beta.pdf(x, a2, b2).tolist(),
-                "fill": "tozeroy",
-                "fillcolor": "rgba(232, 149, 71, 0.3)",
-                "line": {"color": "#e89547"},
-                "name": f"{g2}"
-            }],
-            "layout": {"height": 300, "xaxis": {"title": "Conversion Rate"}, "yaxis": {"title": "Density"}}
-        })
+        result["plots"].append(
+            {
+                "title": "Posterior Distributions",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": x.tolist(),
+                        "y": stats.beta.pdf(x, a1, b1).tolist(),
+                        "fill": "tozeroy",
+                        "fillcolor": "rgba(74, 159, 110, 0.3)",
+                        "line": {"color": "#4a9f6e"},
+                        "name": f"{g1}",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": x.tolist(),
+                        "y": stats.beta.pdf(x, a2, b2).tolist(),
+                        "fill": "tozeroy",
+                        "fillcolor": "rgba(232, 149, 71, 0.3)",
+                        "line": {"color": "#e89547"},
+                        "name": f"{g2}",
+                    },
+                ],
+                "layout": {"height": 300, "xaxis": {"title": "Conversion Rate"}, "yaxis": {"title": "Density"}},
+            }
+        )
 
         result["education"] = {
             "title": "Understanding the Bayesian A/B Test",
@@ -366,21 +405,17 @@ def run_bayesian_analysis(df, analysis_id, config):
         se_z = 1 / np.sqrt(n - 3) if n > 3 else 1
         z_low = z_r - z * se_z
         z_high = z_r + z * se_z
-        r_low = (np.exp(2*z_low) - 1) / (np.exp(2*z_low) + 1)
-        r_high = (np.exp(2*z_high) - 1) / (np.exp(2*z_high) + 1)
+        r_low = (np.exp(2 * z_low) - 1) / (np.exp(2 * z_low) + 1)
+        r_high = (np.exp(2 * z_high) - 1) / (np.exp(2 * z_high) + 1)
 
         # BF for correlation via Ly et al. (2016) integral under uniform prior
         from scipy.integrate import quad
-        from scipy.special import gammaln
 
         def _corr_bf_integrand(rho):
             """Integrand for correlation BF under uniform prior on rho."""
             if abs(rho) >= 1:
                 return 0.0
-            log_term = (
-                ((n - 2) / 2) * np.log(1 - rho**2)
-                - ((n - 1) / 2) * np.log(1 - r * rho)
-            )
+            log_term = ((n - 2) / 2) * np.log(1 - rho**2) - ((n - 1) / 2) * np.log(1 - r * rho)
             return np.exp(log_term)
 
         bf_integral, _ = quad(_corr_bf_integrand, -1 + 1e-10, 1 - 1e-10)
@@ -389,36 +424,38 @@ def run_bayesian_analysis(df, analysis_id, config):
         bf10 = bf_integral / 2.0 if bf_integral > 0 else 1e-10
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN CORRELATION<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN CORRELATION<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>{var1}<</COLOR>> vs <<COLOR:highlight>>{var2}<</COLOR>> (n={n})\n\n"
 
-        summary += f"<<COLOR:accent>>── Correlation ──<</COLOR>>\n"
+        summary += "<<COLOR:accent>>── Correlation ──<</COLOR>>\n"
         summary += f"  r = {r:.3f} [{r_low:.3f}, {r_high:.3f}]\n\n"
-        summary += f"<<COLOR:accent>>── Bayes Factor ──<</COLOR>>\n"
+        summary += "<<COLOR:accent>>── Bayes Factor ──<</COLOR>>\n"
         summary += f"  BF₁₀: {bf10:.2f}\n\n"
 
         strength = "strong" if abs(r) > 0.7 else "moderate" if abs(r) > 0.4 else "weak"
         direction = "positive" if r > 0 else "negative"
         str_color = "success" if abs(r) > 0.7 else "warning" if abs(r) > 0.4 else "dim"
-        summary += f"<<COLOR:accent>>── Interpretation ──<</COLOR>>\n"
+        summary += "<<COLOR:accent>>── Interpretation ──<</COLOR>>\n"
         summary += f"  <<COLOR:{str_color}>>{strength.capitalize()} {direction} correlation<</COLOR>>\n"
 
         if bf10 > 10:
-            summary += f"  <<COLOR:success>>Strong Bayesian evidence for association (BF₁₀ > 10)<</COLOR>>\n"
+            summary += "  <<COLOR:success>>Strong Bayesian evidence for association (BF₁₀ > 10)<</COLOR>>\n"
         elif bf10 > 3:
-            summary += f"  <<COLOR:warning>>Moderate Bayesian evidence for association (BF₁₀ > 3)<</COLOR>>\n"
+            summary += "  <<COLOR:warning>>Moderate Bayesian evidence for association (BF₁₀ > 3)<</COLOR>>\n"
         elif bf10 > 1:
-            summary += f"  <<COLOR:text>>Weak evidence for association<</COLOR>>\n"
+            summary += "  <<COLOR:text>>Weak evidence for association<</COLOR>>\n"
         else:
-            summary += f"  <<COLOR:text>>Evidence favors no association (BF₁₀ < 1)<</COLOR>>\n"
+            summary += "  <<COLOR:text>>Evidence favors no association (BF₁₀ < 1)<</COLOR>>\n"
 
         result["summary"] = summary
         result["statistics"] = {"r": r, "r_ci_low": r_low, "r_ci_high": r_high, "bf10": bf10}
 
         # Guide observation
         bf_label = "strong" if bf10 > 10 else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
-        result["guide_observation"] = f"Bayesian correlation: r={r:.3f} ({strength} {direction}), BF₁₀={bf10:.2f} ({bf_label} evidence)."
+        result["guide_observation"] = (
+            f"Bayesian correlation: r={r:.3f} ({strength} {direction}), BF₁₀={bf10:.2f} ({bf_label} evidence)."
+        )
 
         # Narrative
         _bc_r2 = r**2 * 100
@@ -427,20 +464,24 @@ def run_bayesian_analysis(df, analysis_id, config):
             f"Pearson r = {r:.3f} (95% CI: {r_low:.3f} to {r_high:.3f}), explaining ~{_bc_r2:.0f}% of shared variation. "
             f"BF\u2081\u2080 = {bf10:.2f} ({bf_label} evidence for association).",
             next_steps="Correlation does not imply causation. Use Causal Discovery to test directionality, or control for confounders with partial correlation.",
-            chart_guidance="A tight elliptical cloud indicates strong correlation. Outliers can inflate or deflate r."
+            chart_guidance="A tight elliptical cloud indicates strong correlation. Outliers can inflate or deflate r.",
         )
 
-        result["plots"].append({
-            "title": f"Scatter: {var1} vs {var2}",
-            "data": [{
-                "type": "scatter",
-                "x": x.values.tolist(),
-                "y": y.values.tolist(),
-                "mode": "markers",
-                "marker": {"color": "#4a9f6e", "size": 6, "opacity": 0.6}
-            }],
-            "layout": {"height": 300, "xaxis": {"title": var1}, "yaxis": {"title": var2}}
-        })
+        result["plots"].append(
+            {
+                "title": f"Scatter: {var1} vs {var2}",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": x.values.tolist(),
+                        "y": y.values.tolist(),
+                        "mode": "markers",
+                        "marker": {"color": "#4a9f6e", "size": 6, "opacity": 0.6},
+                    }
+                ],
+                "layout": {"height": 300, "xaxis": {"title": var1}, "yaxis": {"title": var2}},
+            }
+        )
 
         result["education"] = {
             "title": "Understanding Bayesian Correlation",
@@ -479,8 +520,8 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         # Effect size (eta-squared)
         grand_mean = df[response].mean()
-        ss_between = sum(len(g) * (np.mean(g) - grand_mean)**2 for g in group_data)
-        ss_within = sum(np.sum((np.array(g) - np.mean(g))**2) for g in group_data)
+        ss_between = sum(len(g) * (np.mean(g) - grand_mean) ** 2 for g in group_data)
+        ss_within = sum(np.sum((np.array(g) - np.mean(g)) ** 2) for g in group_data)
         ss_total = ss_between + ss_within
         eta_sq = ss_between / ss_total if ss_total > 0 else 0
 
@@ -496,59 +537,61 @@ def run_bayesian_analysis(df, analysis_id, config):
             bf10 = 1.0
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN ANOVA<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN ANOVA<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Response:<</COLOR>> {response}\n"
         summary += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor} ({len(group_names)} levels)\n\n"
 
-        summary += f"<<COLOR:accent>>── Group Statistics ──<</COLOR>>\n"
+        summary += "<<COLOR:accent>>── Group Statistics ──<</COLOR>>\n"
         for name in group_names:
             g = groups[name]
             summary += f"  {name}: n={len(g)}, μ={np.mean(g):.3f}, σ={np.std(g):.3f}\n"
 
-        summary += f"\n<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
+        summary += "\n<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
         summary += f"  F-statistic: {f_stat:.3f}\n"
         summary += f"  Effect size (η²): {eta_sq:.3f}\n"
         summary += f"  Bayes Factor (BF₁₀): {bf10:.2f}\n\n"
 
-        summary += f"<<COLOR:accent>>── Interpretation ──<</COLOR>>\n"
+        summary += "<<COLOR:accent>>── Interpretation ──<</COLOR>>\n"
         if bf10 > 10:
-            summary += f"  <<COLOR:success>>Strong evidence for group differences (BF₁₀ > 10)<</COLOR>>\n"
+            summary += "  <<COLOR:success>>Strong evidence for group differences (BF₁₀ > 10)<</COLOR>>\n"
         elif bf10 > 3:
-            summary += f"  <<COLOR:warning>>Moderate evidence for group differences (BF₁₀ > 3)<</COLOR>>\n"
+            summary += "  <<COLOR:warning>>Moderate evidence for group differences (BF₁₀ > 3)<</COLOR>>\n"
         elif bf10 > 1:
-            summary += f"  <<COLOR:text>>Weak evidence for group differences (BF₁₀ < 3)<</COLOR>>\n"
+            summary += "  <<COLOR:text>>Weak evidence for group differences (BF₁₀ < 3)<</COLOR>>\n"
         else:
-            summary += f"  <<COLOR:text>>Evidence favors no group differences (BF₁₀ < 1)<</COLOR>>\n"
+            summary += "  <<COLOR:text>>Evidence favors no group differences (BF₁₀ < 1)<</COLOR>>\n"
 
         result["summary"] = summary
         result["statistics"] = {"f_stat": f_stat, "eta_squared": eta_sq, "p_value": p_value, "bf10": bf10}
 
         # Guide observation
         bf_label = "strong" if bf10 > 10 else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
-        result["guide_observation"] = f"Bayesian ANOVA: {factor} on {response}, F={f_stat:.3f}, η²={eta_sq:.3f}, BF₁₀={bf10:.2f} ({bf_label} evidence)."
+        result["guide_observation"] = (
+            f"Bayesian ANOVA: {factor} on {response}, F={f_stat:.3f}, η²={eta_sq:.3f}, BF₁₀={bf10:.2f} ({bf_label} evidence)."
+        )
 
         # Narrative
         _ba_mag = "large" if eta_sq > 0.14 else ("medium" if eta_sq > 0.06 else "small")
         result["narrative"] = _narrative(
             f"Bayesian ANOVA — {bf_label} evidence, \u03b7\u00b2 = {eta_sq:.3f} ({_ba_mag})",
-            f"Factor <strong>{factor}</strong> explains {eta_sq*100:.1f}% of the variation in {response} across {len(group_names)} groups. "
+            f"Factor <strong>{factor}</strong> explains {eta_sq * 100:.1f}% of the variation in {response} across {len(group_names)} groups. "
             f"BF\u2081\u2080 = {bf10:.2f} ({bf_label} evidence for group differences).",
             next_steps="If BF > 3, run pairwise Bayesian t-tests to identify which groups differ.",
-            chart_guidance="Compare box positions — non-overlapping boxes suggest meaningful group differences."
+            chart_guidance="Compare box positions — non-overlapping boxes suggest meaningful group differences.",
         )
 
         # Box plot
-        result["plots"].append({
-            "title": f"{response} by {factor}",
-            "data": [{
-                "type": "box",
-                "y": groups[name],
-                "name": str(name),
-                "marker": {"color": "#4a9f6e"}
-            } for name in group_names],
-            "layout": {"height": 350}
-        })
+        result["plots"].append(
+            {
+                "title": f"{response} by {factor}",
+                "data": [
+                    {"type": "box", "y": groups[name], "name": str(name), "marker": {"color": "#4a9f6e"}}
+                    for name in group_names
+                ],
+                "layout": {"height": 350},
+            }
+        )
 
         result["education"] = {
             "title": "Understanding Bayesian ANOVA",
@@ -594,7 +637,7 @@ def run_bayesian_analysis(df, analysis_id, config):
             m = len(segment)
             if m < 2:
                 return 0.0
-            ss = np.sum((segment - np.mean(segment))**2)
+            ss = np.sum((segment - np.mean(segment)) ** 2)
             return m * np.log(max(ss / m, 1e-15)) + 2 * np.log(m)
 
         # Iteratively find change points by scanning within segments
@@ -636,47 +679,55 @@ def run_bayesian_analysis(df, analysis_id, config):
         changepoints.sort(key=lambda x: x[0])
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN CHANGE POINT DETECTION<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN CHANGE POINT DETECTION<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
         summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n}\n"
-        summary += f"<<COLOR:dim>>Method: BIC-approximated Bayes Factor scan<</COLOR>>\n\n"
+        summary += "<<COLOR:dim>>Method: BIC-approximated Bayes Factor scan<</COLOR>>\n\n"
 
         if len(changepoints) > 0:
-            summary += f"<<COLOR:accent>>── Change Points ──<</COLOR>>\n"
+            summary += "<<COLOR:accent>>── Change Points ──<</COLOR>>\n"
             summary += f"  <<COLOR:success>>Detected {len(changepoints)} change point(s)<</COLOR>>\n\n"
             for i, (cp, bf) in enumerate(changepoints):
                 before = data[:cp]
                 after = data[cp:]
                 shift = np.mean(after) - np.mean(before)
-                pooled_std = np.sqrt((np.var(before) + np.var(after)) / 2) if len(before) > 1 and len(after) > 1 else 1.0
+                pooled_std = (
+                    np.sqrt((np.var(before) + np.var(after)) / 2) if len(before) > 1 and len(after) > 1 else 1.0
+                )
                 effect_d = abs(shift) / pooled_std if pooled_std > 0 else 0.0
-                summary += f"  Point {i+1}: index {cp}\n"
+                summary += f"  Point {i + 1}: index {cp}\n"
                 summary += f"    BF₁₀ = {bf:.1f}"
                 summary += f"  |  before μ = {np.mean(before):.4f}, after μ = {np.mean(after):.4f}\n"
                 summary += f"    Shift = {shift:+.4f}  |  Effect size (d) = {effect_d:.2f}\n"
         else:
-            summary += f"<<COLOR:accent>>── Result ──<</COLOR>>\n"
-            summary += f"  <<COLOR:text>>No significant change points detected (BF₁₀ < 3)<</COLOR>>\n"
+            summary += "<<COLOR:accent>>── Result ──<</COLOR>>\n"
+            summary += "  <<COLOR:text>>No significant change points detected (BF₁₀ < 3)<</COLOR>>\n"
 
-        summary += f"\n<<COLOR:accent>>── Interpretation ──<</COLOR>>\n"
+        summary += "\n<<COLOR:accent>>── Interpretation ──<</COLOR>>\n"
         if len(changepoints) > 0:
             best_bf = max(bf for _, bf in changepoints)
             if best_bf > 10:
-                summary += f"  <<COLOR:success>>Strong evidence for at least one process shift<</COLOR>>\n"
+                summary += "  <<COLOR:success>>Strong evidence for at least one process shift<</COLOR>>\n"
             else:
-                summary += f"  <<COLOR:warning>>Moderate evidence for process shift(s)<</COLOR>>\n"
+                summary += "  <<COLOR:warning>>Moderate evidence for process shift(s)<</COLOR>>\n"
         else:
-            summary += f"  <<COLOR:text>>Process appears stable — no evidence of mean shifts<</COLOR>>\n"
+            summary += "  <<COLOR:text>>Process appears stable — no evidence of mean shifts<</COLOR>>\n"
 
         result["summary"] = summary
         cp_indices = [cp for cp, _ in changepoints]
         cp_bfs = [bf for _, bf in changepoints]
-        result["statistics"] = {"n_changepoints": len(changepoints), "changepoint_indices": cp_indices, "bayes_factors": cp_bfs}
+        result["statistics"] = {
+            "n_changepoints": len(changepoints),
+            "changepoint_indices": cp_indices,
+            "bayes_factors": cp_bfs,
+        }
 
         # Guide observation
         if changepoints:
-            result["guide_observation"] = f"Bayesian changepoint: {len(changepoints)} shift(s) detected in {var}. Best BF₁₀={max(cp_bfs):.1f}."
+            result["guide_observation"] = (
+                f"Bayesian changepoint: {len(changepoints)} shift(s) detected in {var}. Best BF₁₀={max(cp_bfs):.1f}."
+            )
         else:
             result["guide_observation"] = f"Bayesian changepoint: no significant shifts detected in {var} (n={n})."
 
@@ -692,41 +743,47 @@ def run_bayesian_analysis(df, analysis_id, config):
                 f"Strongest change at observation {_bcp_idx} (BF\u2081\u2080 = {_bcp_bf:.1f}): mean shifted by {_bcp_shift:+.4f}. "
                 + (f"Total of {len(changepoints)} change points in {n} observations." if len(changepoints) > 1 else ""),
                 next_steps="Investigate what happened at the change point(s). Align with process logs or external events.",
-                chart_guidance="Red dashed vertical lines mark detected shifts. Compare the mean level before and after each line."
+                chart_guidance="Red dashed vertical lines mark detected shifts. Compare the mean level before and after each line.",
             )
         else:
             result["narrative"] = _narrative(
-                f"Bayesian Changepoint — no shifts detected",
+                "Bayesian Changepoint — no shifts detected",
                 f"No significant mean shifts found in {n} observations of {var}. The process appears stable.",
-                next_steps="If you suspect a shift, try a smaller minimum segment size or add more data."
+                next_steps="If you suspect a shift, try a smaller minimum segment size or add more data.",
             )
 
         # Time series plot with change points
-        plot_data = [{
-            "type": "scatter",
-            "x": time_idx.tolist() if hasattr(time_idx, 'tolist') else list(time_idx),
-            "y": data.tolist(),
-            "mode": "lines+markers",
-            "marker": {"size": 4, "color": "#4a9f6e"},
-            "line": {"color": "#4a9f6e"},
-            "name": var
-        }]
+        plot_data = [
+            {
+                "type": "scatter",
+                "x": time_idx.tolist() if hasattr(time_idx, "tolist") else list(time_idx),
+                "y": data.tolist(),
+                "mode": "lines+markers",
+                "marker": {"size": 4, "color": "#4a9f6e"},
+                "line": {"color": "#4a9f6e"},
+                "name": var,
+            }
+        ]
 
         for cp in changepoints:
-            plot_data.append({
-                "type": "scatter",
-                "x": [time_idx[cp], time_idx[cp]],
-                "y": [min(data), max(data)],
-                "mode": "lines",
-                "line": {"color": "#e85747", "dash": "dash", "width": 2},
-                "name": f"Change @ {cp}"
-            })
+            plot_data.append(
+                {
+                    "type": "scatter",
+                    "x": [time_idx[cp], time_idx[cp]],
+                    "y": [min(data), max(data)],
+                    "mode": "lines",
+                    "line": {"color": "#e85747", "dash": "dash", "width": 2},
+                    "name": f"Change @ {cp}",
+                }
+            )
 
-        result["plots"].append({
-            "title": "Time Series with Change Points",
-            "data": plot_data,
-            "layout": {"height": 350, "xaxis": {"title": time_col or "Index"}, "yaxis": {"title": var}}
-        })
+        result["plots"].append(
+            {
+                "title": "Time Series with Change Points",
+                "data": plot_data,
+                "layout": {"height": 350, "xaxis": {"title": time_col or "Index"}, "yaxis": {"title": var}},
+            }
+        )
 
         result["education"] = {
             "title": "Understanding Bayesian Changepoint Detection",
@@ -778,52 +835,65 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         # Posterior mean and CI
         post_mean = a_post / (a_post + b_post)
-        ci_low, ci_high = stats.beta.ppf([(1-ci_level)/2, (1+ci_level)/2], a_post, b_post)
+        ci_low, ci_high = stats.beta.ppf([(1 - ci_level) / 2, (1 + ci_level) / 2], a_post, b_post)
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN PROPORTION ESTIMATION<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN PROPORTION ESTIMATION<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
-        summary += f"<<COLOR:highlight>>Observed:<</COLOR>> {successes}/{n} = {successes/n:.1%}\n"
+        summary += f"<<COLOR:highlight>>Observed:<</COLOR>> {successes}/{n} = {successes / n:.1%}\n"
         summary += f"<<COLOR:highlight>>Prior:<</COLOR>> Beta({a_prior}, {b_prior})\n\n"
         summary += f"<<COLOR:text>>Posterior Mean:<</COLOR>> {post_mean:.1%}\n"
-        summary += f"<<COLOR:text>>{int(ci_level*100)}% Credible Interval:<</COLOR>> [{ci_low:.1%}, {ci_high:.1%}]\n"
+        summary += f"<<COLOR:text>>{int(ci_level * 100)}% Credible Interval:<</COLOR>> [{ci_low:.1%}, {ci_high:.1%}]\n"
 
         result["summary"] = summary
-        result["statistics"] = {"proportion": post_mean, "ci_low": ci_low, "ci_high": ci_high, "n": n, "successes": successes}
-        result["guide_observation"] = f"Bayesian proportion: {successes}/{n} = {successes/n:.1%}. Posterior mean = {post_mean:.1%}, {int(ci_level*100)}% CI: [{ci_low:.1%}, {ci_high:.1%}]."
+        result["statistics"] = {
+            "proportion": post_mean,
+            "ci_low": ci_low,
+            "ci_high": ci_high,
+            "n": n,
+            "successes": successes,
+        }
+        result["guide_observation"] = (
+            f"Bayesian proportion: {successes}/{n} = {successes / n:.1%}. Posterior mean = {post_mean:.1%}, {int(ci_level * 100)}% CI: [{ci_low:.1%}, {ci_high:.1%}]."
+        )
 
         # Narrative
         _bp_obs = successes / n if n > 0 else 0
         result["narrative"] = _narrative(
             f"Bayesian Proportion — {post_mean:.1%} (CI: {ci_low:.1%} to {ci_high:.1%})",
             f"Observed {successes} of {n} ({_bp_obs:.1%}). With a {prior_type} prior, the posterior estimate is {post_mean:.1%}. "
-            f"The {int(ci_level*100)}% credible interval [{ci_low:.1%}, {ci_high:.1%}] represents the plausible range for the true proportion.",
+            f"The {int(ci_level * 100)}% credible interval [{ci_low:.1%}, {ci_high:.1%}] represents the plausible range for the true proportion.",
             next_steps="More data narrows the credible interval. Compare with a target rate to assess process performance.",
-            chart_guidance="The posterior curve shows the full distribution of belief about the true proportion. The orange bar marks the credible interval."
+            chart_guidance="The posterior curve shows the full distribution of belief about the true proportion. The orange bar marks the credible interval.",
         )
 
         # Posterior distribution
         x = np.linspace(0, 1, 200)
-        result["plots"].append({
-            "title": "Posterior Distribution",
-            "data": [{
-                "type": "scatter",
-                "x": x.tolist(),
-                "y": stats.beta.pdf(x, a_post, b_post).tolist(),
-                "fill": "tozeroy",
-                "fillcolor": "rgba(74, 159, 110, 0.3)",
-                "line": {"color": "#4a9f6e"},
-                "name": f"Beta({a_post:.0f}, {b_post:.0f})"
-            }, {
-                "type": "scatter",
-                "x": [ci_low, ci_high],
-                "y": [0, 0],
-                "mode": "lines",
-                "line": {"color": "#e89547", "width": 4},
-                "name": f"{int(ci_level*100)}% CI"
-            }],
-            "layout": {"height": 300, "xaxis": {"title": "Proportion"}, "yaxis": {"title": "Density"}}
-        })
+        result["plots"].append(
+            {
+                "title": "Posterior Distribution",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": x.tolist(),
+                        "y": stats.beta.pdf(x, a_post, b_post).tolist(),
+                        "fill": "tozeroy",
+                        "fillcolor": "rgba(74, 159, 110, 0.3)",
+                        "line": {"color": "#4a9f6e"},
+                        "name": f"Beta({a_post:.0f}, {b_post:.0f})",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [ci_low, ci_high],
+                        "y": [0, 0],
+                        "mode": "lines",
+                        "line": {"color": "#e89547", "width": 4},
+                        "name": f"{int(ci_level * 100)}% CI",
+                    },
+                ],
+                "layout": {"height": 300, "xaxis": {"title": "Proportion"}, "yaxis": {"title": "Density"}},
+            }
+        )
 
         result["education"] = {
             "title": "Understanding Bayesian Proportion Estimation",
@@ -866,7 +936,11 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         lsl = float(lsl) if lsl is not None and lsl != "" else None
         usl = float(usl) if usl is not None and usl != "" else None
-        target = float(config.get("target", (lsl + usl) / 2 if lsl is not None and usl is not None else (lsl if lsl is not None else usl)))
+        target = float(
+            config.get(
+                "target", (lsl + usl) / 2 if lsl is not None and usl is not None else (lsl if lsl is not None else usl)
+            )
+        )
 
         x = df[var].dropna().values.astype(float)
         n = len(x)
@@ -945,75 +1019,123 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         # Summary
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN CAPABILITY PREDICTION<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN CAPABILITY PREDICTION<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var} (n = {n})\n"
         if lsl is not None:
             summary += f"<<COLOR:highlight>>LSL:<</COLOR>> {lsl}\n"
         if usl is not None:
             summary += f"<<COLOR:highlight>>USL:<</COLOR>> {usl}\n"
-        summary += f"\n<<COLOR:accent>>── Posterior Capability ──<</COLOR>>\n"
+        summary += "\n<<COLOR:accent>>── Posterior Capability ──<</COLOR>>\n"
         summary += f"  Cpk (posterior mean): {cpk_mean:.3f}\n"
         summary += f"  Cpk (posterior median): {cpk_median:.3f}\n"
         summary += f"  95% Credible Interval: [{cpk_ci[0]:.3f}, {cpk_ci[1]:.3f}]\n"
         if lsl is not None and usl is not None:
             summary += f"  Cp (posterior mean): {cp_mean:.3f}\n"
 
-        summary += f"\n<<COLOR:accent>>── P(Cpk > target) ──<</COLOR>>\n"
+        summary += "\n<<COLOR:accent>>── P(Cpk > target) ──<</COLOR>>\n"
         for t in cpk_targets:
             p = prob_above[t]
             color = "good" if p > 0.9 else ("highlight" if p > 0.5 else "bad")
             summary += f"  <<COLOR:{color}>>P(Cpk > {t:.2f}) = {p:.1%}<</COLOR>>\n"
 
-        summary += f"\n<<COLOR:accent>>── Sample Size Forecast ──<</COLOR>>\n"
-        summary += f"  Additional samples → P(Cpk > 1.33):\n"
+        summary += "\n<<COLOR:accent>>── Sample Size Forecast ──<</COLOR>>\n"
+        summary += "  Additional samples → P(Cpk > 1.33):\n"
         for fn, fp in zip(_future_ns, _future_probs):
             summary += f"    n + {fn:<5} → {fp:.1%}\n"
 
         result["summary"] = summary
 
         # Posterior Cpk distribution plot
-        result["plots"].append({
-            "title": "Posterior Cpk Distribution",
-            "data": [{
-                "type": "histogram", "x": cpk_draws.tolist(),
-                "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1}},
-                "name": "Posterior Cpk", "nbinsx": 60,
-            }],
-            "layout": {"height": 320,
-                       "xaxis": {"title": "Cpk"}, "yaxis": {"title": "Frequency"},
-                       "shapes": [{"type": "line", "x0": 1.33, "x1": 1.33, "y0": 0, "y1": 1, "yref": "paper",
-                                   "line": {"color": "#e89547", "dash": "dash", "width": 2}},
-                                  {"type": "line", "x0": cpk_ci[0], "x1": cpk_ci[0], "y0": 0, "y1": 0.05, "yref": "paper",
-                                   "line": {"color": "#d94a4a", "width": 2}},
-                                  {"type": "line", "x0": cpk_ci[1], "x1": cpk_ci[1], "y0": 0, "y1": 0.05, "yref": "paper",
-                                   "line": {"color": "#d94a4a", "width": 2}}],
-                       "annotations": [{"x": 1.33, "y": 1, "yref": "paper", "text": "Target 1.33",
-                                       "showarrow": False, "font": {"color": "#e89547", "size": 10}}]}
-        })
+        result["plots"].append(
+            {
+                "title": "Posterior Cpk Distribution",
+                "data": [
+                    {
+                        "type": "histogram",
+                        "x": cpk_draws.tolist(),
+                        "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1}},
+                        "name": "Posterior Cpk",
+                        "nbinsx": 60,
+                    }
+                ],
+                "layout": {
+                    "height": 320,
+                    "xaxis": {"title": "Cpk"},
+                    "yaxis": {"title": "Frequency"},
+                    "shapes": [
+                        {
+                            "type": "line",
+                            "x0": 1.33,
+                            "x1": 1.33,
+                            "y0": 0,
+                            "y1": 1,
+                            "yref": "paper",
+                            "line": {"color": "#e89547", "dash": "dash", "width": 2},
+                        },
+                        {
+                            "type": "line",
+                            "x0": cpk_ci[0],
+                            "x1": cpk_ci[0],
+                            "y0": 0,
+                            "y1": 0.05,
+                            "yref": "paper",
+                            "line": {"color": "#d94a4a", "width": 2},
+                        },
+                        {
+                            "type": "line",
+                            "x0": cpk_ci[1],
+                            "x1": cpk_ci[1],
+                            "y0": 0,
+                            "y1": 0.05,
+                            "yref": "paper",
+                            "line": {"color": "#d94a4a", "width": 2},
+                        },
+                    ],
+                    "annotations": [
+                        {
+                            "x": 1.33,
+                            "y": 1,
+                            "yref": "paper",
+                            "text": "Target 1.33",
+                            "showarrow": False,
+                            "font": {"color": "#e89547", "size": 10},
+                        }
+                    ],
+                },
+            }
+        )
 
         # Sample size forecast plot
-        result["plots"].append({
-            "title": "Sample Size Forecast: P(Cpk > 1.33)",
-            "data": [{
-                "type": "scatter",
-                "x": [n + fn for fn in _future_ns],
-                "y": [p * 100 for p in _future_probs],
-                "mode": "lines+markers",
-                "line": {"color": "#4a9f6e", "width": 2},
-                "marker": {"size": 8},
-                "name": "P(Cpk > 1.33)",
-            }, {
-                "type": "scatter",
-                "x": [n + _future_ns[0], n + _future_ns[-1]],
-                "y": [95, 95],
-                "mode": "lines",
-                "line": {"color": "#e89547", "dash": "dash"},
-                "name": "95% confidence",
-            }],
-            "layout": {"height": 280,
-                       "xaxis": {"title": "Total Sample Size"}, "yaxis": {"title": "P(Cpk > 1.33) %", "range": [0, 105]}}
-        })
+        result["plots"].append(
+            {
+                "title": "Sample Size Forecast: P(Cpk > 1.33)",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": [n + fn for fn in _future_ns],
+                        "y": [p * 100 for p in _future_probs],
+                        "mode": "lines+markers",
+                        "line": {"color": "#4a9f6e", "width": 2},
+                        "marker": {"size": 8},
+                        "name": "P(Cpk > 1.33)",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [n + _future_ns[0], n + _future_ns[-1]],
+                        "y": [95, 95],
+                        "mode": "lines",
+                        "line": {"color": "#e89547", "dash": "dash"},
+                        "name": "95% confidence",
+                    },
+                ],
+                "layout": {
+                    "height": 280,
+                    "xaxis": {"title": "Total Sample Size"},
+                    "yaxis": {"title": "P(Cpk > 1.33) %", "range": [0, 105]},
+                },
+            }
+        )
 
         # Narrative
         _cap_label = "capable" if cpk_mean >= 1.33 else ("marginally capable" if cpk_mean >= 1.0 else "not capable")
@@ -1021,18 +1143,30 @@ def run_bayesian_analysis(df, analysis_id, config):
         result["narrative"] = _narrative(
             f"Process is {_cap_label} (Cpk = {cpk_mean:.3f}, 95% CI [{cpk_ci[0]:.3f}, {cpk_ci[1]:.3f}])",
             f"There is a <strong>{_confidence_133:.0%}</strong> probability that true Cpk exceeds 1.33. "
-            + (f"The 95% credible interval [{cpk_ci[0]:.3f}, {cpk_ci[1]:.3f}] {'entirely exceeds' if cpk_ci[0] > 1.33 else 'straddles'} the 1.33 target."
-               if lsl is not None and usl is not None else f"One-sided capability index = {cpk_mean:.3f}."),
-            next_steps=f"The sample size forecast shows how confidence improves with more data. "
-                       + (f"With {_future_ns[2]} more samples, P(Cpk > 1.33) reaches {_future_probs[2]:.0%}." if _future_probs[2] < 0.95 else "Current sample size provides strong confidence."),
-            chart_guidance="The histogram shows the posterior belief about Cpk. The dashed line at 1.33 is the typical capability target. Points to the right of this line represent 'capable' outcomes."
+            + (
+                f"The 95% credible interval [{cpk_ci[0]:.3f}, {cpk_ci[1]:.3f}] {'entirely exceeds' if cpk_ci[0] > 1.33 else 'straddles'} the 1.33 target."
+                if lsl is not None and usl is not None
+                else f"One-sided capability index = {cpk_mean:.3f}."
+            ),
+            next_steps="The sample size forecast shows how confidence improves with more data. "
+            + (
+                f"With {_future_ns[2]} more samples, P(Cpk > 1.33) reaches {_future_probs[2]:.0%}."
+                if _future_probs[2] < 0.95
+                else "Current sample size provides strong confidence."
+            ),
+            chart_guidance="The histogram shows the posterior belief about Cpk. The dashed line at 1.33 is the typical capability target. Points to the right of this line represent 'capable' outcomes.",
         )
 
-        result["guide_observation"] = f"Bayesian Cpk = {cpk_mean:.3f} (95% CI [{cpk_ci[0]:.3f}, {cpk_ci[1]:.3f}]). P(Cpk > 1.33) = {_confidence_133:.1%}."
+        result["guide_observation"] = (
+            f"Bayesian Cpk = {cpk_mean:.3f} (95% CI [{cpk_ci[0]:.3f}, {cpk_ci[1]:.3f}]). P(Cpk > 1.33) = {_confidence_133:.1%}."
+        )
         result["statistics"] = {
-            "cpk_mean": cpk_mean, "cpk_median": cpk_median,
-            "cpk_ci_low": cpk_ci[0], "cpk_ci_high": cpk_ci[1],
-            "cp_mean": cp_mean, "prob_above_133": _confidence_133,
+            "cpk_mean": cpk_mean,
+            "cpk_median": cpk_median,
+            "cpk_ci_low": cpk_ci[0],
+            "cpk_ci_high": cpk_ci[1],
+            "cp_mean": cp_mean,
+            "prob_above_133": _confidence_133,
             "n": n,
         }
 
@@ -1076,19 +1210,19 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         # Posterior on difference (Normal-Normal conjugate with flat prior)
         mean_diff = float(np.mean(x1) - np.mean(x2))
-        se_diff = float(np.sqrt(np.var(x1, ddof=1)/n1 + np.var(x2, ddof=1)/n2))
+        se_diff = float(np.sqrt(np.var(x1, ddof=1) / n1 + np.var(x2, ddof=1) / n2))
 
         if use_effect_size:
-            pooled_std = np.sqrt(((n1-1)*np.var(x1, ddof=1) + (n2-1)*np.var(x2, ddof=1)) / (n1+n2-2))
+            pooled_std = np.sqrt(((n1 - 1) * np.var(x1, ddof=1) + (n2 - 1) * np.var(x2, ddof=1)) / (n1 + n2 - 2))
             if pooled_std > 0:
                 effect = mean_diff / pooled_std
-                se_effect = np.sqrt((n1+n2)/(n1*n2) + effect**2/(2*(n1+n2)))
+                se_effect = np.sqrt((n1 + n2) / (n1 * n2) + effect**2 / (2 * (n1 + n2)))
             else:
                 effect, se_effect = 0.0, 1.0
-            label, unit = "Cohen's d", ""
+            label, _unit = "Cohen's d", ""
         else:
             effect, se_effect = mean_diff, se_diff
-            label, unit = "Difference", ""
+            label, _unit = "Difference", ""
 
         # Probabilities: P(effect in ROPE), P(effect < ROPE), P(effect > ROPE)
         p_rope = float(stats.norm.cdf(rope_high, effect, se_effect) - stats.norm.cdf(rope_low, effect, se_effect))
@@ -1119,7 +1253,7 @@ def run_bayesian_analysis(df, analysis_id, config):
             kruschke = "HDI overlaps ROPE boundary \u2192 undecided (collect more data)"
 
         summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN EQUIVALENCE TEST (ROPE)<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN EQUIVALENCE TEST (ROPE)<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>{var1}<</COLOR>> (n={n1}, \u03bc={np.mean(x1):.4f})\n"
         summary += f"<<COLOR:highlight>>{var2}<</COLOR>> (n={n2}, \u03bc={np.mean(x2):.4f})\n\n"
@@ -1127,63 +1261,109 @@ def run_bayesian_analysis(df, analysis_id, config):
         summary += f"<<COLOR:accent>>\u2500\u2500 Posterior on {label} \u2500\u2500<</COLOR>>\n"
         summary += f"  Estimate: {effect:.4f}\n"
         summary += f"  95% HDI:  [{hdi_low:.4f}, {hdi_high:.4f}]\n\n"
-        summary += f"<<COLOR:accent>>\u2500\u2500 ROPE Probabilities \u2500\u2500<</COLOR>>\n"
-        summary += f"  P(in ROPE):    {p_rope*100:.1f}%\n"
-        summary += f"  P(below ROPE): {p_below*100:.1f}%\n"
-        summary += f"  P(above ROPE): {p_above*100:.1f}%\n\n"
+        summary += "<<COLOR:accent>>\u2500\u2500 ROPE Probabilities \u2500\u2500<</COLOR>>\n"
+        summary += f"  P(in ROPE):    {p_rope * 100:.1f}%\n"
+        summary += f"  P(below ROPE): {p_below * 100:.1f}%\n"
+        summary += f"  P(above ROPE): {p_above * 100:.1f}%\n\n"
         summary += f"<<COLOR:{decision_color}>>{decision}<</COLOR>>\n"
         summary += f"  {kruschke}\n"
 
         result["summary"] = summary
         result["statistics"] = {
-            "effect": effect, "se": se_effect, "hdi_low": hdi_low, "hdi_high": hdi_high,
-            "p_rope": p_rope, "p_below": p_below, "p_above": p_above,
-            "decision": decision, "kruschke": kruschke,
+            "effect": effect,
+            "se": se_effect,
+            "hdi_low": hdi_low,
+            "hdi_high": hdi_high,
+            "p_rope": p_rope,
+            "p_below": p_below,
+            "p_above": p_above,
+            "decision": decision,
+            "kruschke": kruschke,
         }
-        result["guide_observation"] = f"Bayesian equivalence: {label}={effect:.3f}, P(in ROPE)={p_rope:.1%}. {decision}."
+        result["guide_observation"] = (
+            f"Bayesian equivalence: {label}={effect:.3f}, P(in ROPE)={p_rope:.1%}. {decision}."
+        )
 
-        _be_mag = "large" if abs(effect) >= 0.8 else ("medium" if abs(effect) >= 0.5 else ("small" if abs(effect) >= 0.2 else "negligible"))
+        _be_mag = (
+            "large"
+            if abs(effect) >= 0.8
+            else ("medium" if abs(effect) >= 0.5 else ("small" if abs(effect) >= 0.2 else "negligible"))
+        )
         result["narrative"] = _narrative(
             f"Bayesian Equivalence \u2014 {decision}, P(in ROPE) = {p_rope:.1%}",
             f"The posterior {label} = {effect:.4f} (95% HDI: {hdi_low:.4f} to {hdi_high:.4f}). "
-            f"<strong>{p_rope*100:.1f}%</strong> of the posterior falls inside the ROPE [{rope_low}, {rope_high}]. "
+            f"<strong>{p_rope * 100:.1f}%</strong> of the posterior falls inside the ROPE [{rope_low}, {rope_high}]. "
             f"{kruschke}.",
             next_steps="If undecided, collect more data \u2014 the HDI narrows with larger samples. "
-                       "Adjust ROPE bounds if your practical equivalence margin differs.",
+            "Adjust ROPE bounds if your practical equivalence margin differs.",
             chart_guidance="The shaded green region is the ROPE. The blue curve is the posterior. "
-                          "If the entire posterior sits inside the ROPE, the groups are practically equivalent."
+            "If the entire posterior sits inside the ROPE, the groups are practically equivalent.",
         )
 
         # Plot: posterior density with ROPE region
-        x_range = np.linspace(effect - 4*se_effect, effect + 4*se_effect, 200)
+        x_range = np.linspace(effect - 4 * se_effect, effect + 4 * se_effect, 200)
         y_dens = stats.norm.pdf(x_range, effect, se_effect)
         rope_mask = (x_range >= rope_low) & (x_range <= rope_high)
         y_rope = np.where(rope_mask, y_dens, 0)
 
-        result["plots"].append({
-            "title": "Posterior with ROPE Region",
-            "data": [
-                {"type": "scatter", "x": x_range.tolist(), "y": y_dens.tolist(),
-                 "fill": "tozeroy", "fillcolor": "rgba(74, 144, 217, 0.2)",
-                 "line": {"color": "#4a90d9", "width": 2}, "name": "Posterior"},
-                {"type": "scatter", "x": x_range[rope_mask].tolist(), "y": y_rope[rope_mask].tolist(),
-                 "fill": "tozeroy", "fillcolor": "rgba(74, 159, 110, 0.4)",
-                 "line": {"color": "#4a9f6e", "width": 0}, "name": f"ROPE ({p_rope:.1%})"},
-                {"type": "scatter", "x": [0, 0], "y": [0, float(max(y_dens))],
-                 "mode": "lines", "line": {"color": "#888", "dash": "dot", "width": 1}, "name": "Zero"},
-            ],
-            "layout": {
-                "height": 300,
-                "xaxis": {"title": label},
-                "yaxis": {"title": "Density"},
-                "shapes": [
-                    {"type": "line", "x0": rope_low, "x1": rope_low, "y0": 0, "y1": 1, "yref": "paper",
-                     "line": {"color": "#4a9f6e", "width": 1, "dash": "dash"}},
-                    {"type": "line", "x0": rope_high, "x1": rope_high, "y0": 0, "y1": 1, "yref": "paper",
-                     "line": {"color": "#4a9f6e", "width": 1, "dash": "dash"}},
+        result["plots"].append(
+            {
+                "title": "Posterior with ROPE Region",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": x_range.tolist(),
+                        "y": y_dens.tolist(),
+                        "fill": "tozeroy",
+                        "fillcolor": "rgba(74, 144, 217, 0.2)",
+                        "line": {"color": "#4a90d9", "width": 2},
+                        "name": "Posterior",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": x_range[rope_mask].tolist(),
+                        "y": y_rope[rope_mask].tolist(),
+                        "fill": "tozeroy",
+                        "fillcolor": "rgba(74, 159, 110, 0.4)",
+                        "line": {"color": "#4a9f6e", "width": 0},
+                        "name": f"ROPE ({p_rope:.1%})",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [0, 0],
+                        "y": [0, float(max(y_dens))],
+                        "mode": "lines",
+                        "line": {"color": "#888", "dash": "dot", "width": 1},
+                        "name": "Zero",
+                    },
                 ],
-            },
-        })
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": label},
+                    "yaxis": {"title": "Density"},
+                    "shapes": [
+                        {
+                            "type": "line",
+                            "x0": rope_low,
+                            "x1": rope_low,
+                            "y0": 0,
+                            "y1": 1,
+                            "yref": "paper",
+                            "line": {"color": "#4a9f6e", "width": 1, "dash": "dash"},
+                        },
+                        {
+                            "type": "line",
+                            "x0": rope_high,
+                            "x1": rope_high,
+                            "y0": 0,
+                            "y1": 1,
+                            "yref": "paper",
+                            "line": {"color": "#4a9f6e", "width": 1, "dash": "dash"},
+                        },
+                    ],
+                },
+            }
+        )
 
         result["education"] = {
             "title": "Understanding Bayesian Equivalence Testing",
@@ -1243,69 +1423,99 @@ def run_bayesian_analysis(df, analysis_id, config):
         bf_label = "strong" if bf10 > 10 else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
 
         summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN CHI-SQUARE (CONTINGENCY TABLE)<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN CHI-SQUARE (CONTINGENCY TABLE)<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>{row_var}<</COLOR>> ({nrow} levels) \u00d7 <<COLOR:highlight>>{col_var}<</COLOR>> ({ncol} levels)\n"
         summary += f"<<COLOR:text>>N:<</COLOR>> {N}\n\n"
-        summary += f"<<COLOR:accent>>\u2500\u2500 Bayes Factor \u2500\u2500<</COLOR>>\n"
+        summary += "<<COLOR:accent>>\u2500\u2500 Bayes Factor \u2500\u2500<</COLOR>>\n"
         summary += f"  BF\u2081\u2080: {bf10:.2f} ({bf_label} evidence for association)\n"
         summary += f"  Cram\u00e9r's V: {cramers_v:.3f}\n\n"
-        summary += f"<<COLOR:accent>>\u2500\u2500 Observed Counts \u2500\u2500<</COLOR>>\n"
+        summary += "<<COLOR:accent>>\u2500\u2500 Observed Counts \u2500\u2500<</COLOR>>\n"
         for i, row_label in enumerate(ct.index):
-            row_str = "  ".join(f"{int(observed[i,j]):>6}" for j in range(ncol))
+            row_str = "  ".join(f"{int(observed[i, j]):>6}" for j in range(ncol))
             summary += f"  {str(row_label):<15} {row_str}\n"
-        summary += f"\n<<COLOR:accent>>\u2500\u2500 Largest Residuals \u2500\u2500<</COLOR>>\n"
+        summary += "\n<<COLOR:accent>>\u2500\u2500 Largest Residuals \u2500\u2500<</COLOR>>\n"
         flat_idx = np.argsort(np.abs(std_resid).ravel())[::-1][:5]
         for idx in flat_idx:
             ri, ci_idx = divmod(idx, ncol)
             if abs(std_resid[ri, ci_idx]) >= 1:
-                summary += f"  {ct.index[ri]} \u00d7 {ct.columns[ci_idx]}: residual = {std_resid[ri,ci_idx]:+.2f}\n"
+                summary += f"  {ct.index[ri]} \u00d7 {ct.columns[ci_idx]}: residual = {std_resid[ri, ci_idx]:+.2f}\n"
 
         result["summary"] = summary
         result["statistics"] = {
-            "bf10": bf10, "chi2": float(chi2_stat), "p_value": float(p_value),
-            "cramers_v": cramers_v, "dof": dof,
+            "bf10": bf10,
+            "chi2": float(chi2_stat),
+            "p_value": float(p_value),
+            "cramers_v": cramers_v,
+            "dof": dof,
         }
-        result["guide_observation"] = f"Bayesian \u03c7\u00b2: BF\u2081\u2080={bf10:.2f} ({bf_label} evidence), Cram\u00e9r's V={cramers_v:.3f}."
+        result["guide_observation"] = (
+            f"Bayesian \u03c7\u00b2: BF\u2081\u2080={bf10:.2f} ({bf_label} evidence), Cram\u00e9r's V={cramers_v:.3f}."
+        )
 
-        _bc_mag = "large" if cramers_v >= 0.5 else ("medium" if cramers_v >= 0.3 else ("small" if cramers_v >= 0.1 else "negligible"))
+        _bc_mag = (
+            "large"
+            if cramers_v >= 0.5
+            else ("medium" if cramers_v >= 0.3 else ("small" if cramers_v >= 0.1 else "negligible"))
+        )
         result["narrative"] = _narrative(
             f"Bayesian \u03c7\u00b2 \u2014 {bf_label} evidence for association (V = {cramers_v:.3f}, {_bc_mag})",
             f"BF\u2081\u2080 = {bf10:.2f} \u2014 the data are {bf10:.1f}\u00d7 more likely under association than independence. "
             f"Cram\u00e9r's V = {cramers_v:.3f} ({_bc_mag} effect). "
-            + (f"The strongest departure from independence: <strong>{ct.index[flat_idx[0]//ncol]} \u00d7 {ct.columns[flat_idx[0]%ncol]}</strong> "
-               f"(residual = {std_resid.ravel()[flat_idx[0]]:+.2f})." if abs(std_resid.ravel()[flat_idx[0]]) >= 1 else ""),
+            + (
+                f"The strongest departure from independence: <strong>{ct.index[flat_idx[0] // ncol]} \u00d7 {ct.columns[flat_idx[0] % ncol]}</strong> "
+                f"(residual = {std_resid.ravel()[flat_idx[0]]:+.2f})."
+                if abs(std_resid.ravel()[flat_idx[0]]) >= 1
+                else ""
+            ),
             next_steps="If BF > 10, the association is well-supported. Examine the residual heatmap to identify which cells drive the association.",
-            chart_guidance="The heatmap shows standardized residuals. Blue = over-represented, red = under-represented relative to independence."
+            chart_guidance="The heatmap shows standardized residuals. Blue = over-represented, red = under-represented relative to independence.",
         )
 
         # Plot: standardized residual heatmap
-        result["plots"].append({
-            "title": "Standardized Residuals",
-            "data": [{
-                "type": "heatmap",
-                "z": std_resid.tolist(),
-                "x": [str(c) for c in ct.columns],
-                "y": [str(r) for r in ct.index],
-                "colorscale": [[0, "#4a90d9"], [0.5, "#f5f5f5"], [1, "#dc5050"]],
-                "zmid": 0, "colorbar": {"title": "Std Resid"},
-            }],
-            "layout": {"height": max(200, nrow * 40 + 100), "xaxis": {"title": str(col_var)}, "yaxis": {"title": str(row_var)}},
-        })
+        result["plots"].append(
+            {
+                "title": "Standardized Residuals",
+                "data": [
+                    {
+                        "type": "heatmap",
+                        "z": std_resid.tolist(),
+                        "x": [str(c) for c in ct.columns],
+                        "y": [str(r) for r in ct.index],
+                        "colorscale": [[0, "#4a90d9"], [0.5, "#f5f5f5"], [1, "#dc5050"]],
+                        "zmid": 0,
+                        "colorbar": {"title": "Std Resid"},
+                    }
+                ],
+                "layout": {
+                    "height": max(200, nrow * 40 + 100),
+                    "xaxis": {"title": str(col_var)},
+                    "yaxis": {"title": str(row_var)},
+                },
+            }
+        )
 
         # Plot: posterior cell probabilities
-        result["plots"].append({
-            "title": "Posterior Cell Probabilities (Dirichlet)",
-            "data": [{
-                "type": "heatmap",
-                "z": post_probs.tolist(),
-                "x": [str(c) for c in ct.columns],
-                "y": [str(r) for r in ct.index],
-                "colorscale": "Greens",
-                "colorbar": {"title": "P(cell)"},
-            }],
-            "layout": {"height": max(200, nrow * 40 + 100), "xaxis": {"title": str(col_var)}, "yaxis": {"title": str(row_var)}},
-        })
+        result["plots"].append(
+            {
+                "title": "Posterior Cell Probabilities (Dirichlet)",
+                "data": [
+                    {
+                        "type": "heatmap",
+                        "z": post_probs.tolist(),
+                        "x": [str(c) for c in ct.columns],
+                        "y": [str(r) for r in ct.index],
+                        "colorscale": "Greens",
+                        "colorbar": {"title": "P(cell)"},
+                    }
+                ],
+                "layout": {
+                    "height": max(200, nrow * 40 + 100),
+                    "xaxis": {"title": str(col_var)},
+                    "yaxis": {"title": str(row_var)},
+                },
+            }
+        )
 
         result["education"] = {
             "title": "Understanding Bayesian Contingency Analysis",
@@ -1349,25 +1559,33 @@ def run_bayesian_analysis(df, analysis_id, config):
         b1 = beta_prior + exposure1
 
         rate1_mean = float(a1 / b1)
-        rate1_ci = (float(stats.gamma.ppf((1 - ci_level)/2, a1, scale=1/b1)),
-                    float(stats.gamma.ppf((1 + ci_level)/2, a1, scale=1/b1)))
+        rate1_ci = (
+            float(stats.gamma.ppf((1 - ci_level) / 2, a1, scale=1 / b1)),
+            float(stats.gamma.ppf((1 + ci_level) / 2, a1, scale=1 / b1)),
+        )
 
         summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN POISSON RATE<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN POISSON RATE<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>{var1}<</COLOR>>: {int(total1)} events in {exposure1:.0f} units\n"
         summary += f"  Posterior rate: {rate1_mean:.4f} [{rate1_ci[0]:.4f}, {rate1_ci[1]:.4f}]\n"
 
         # Rate range for plotting
-        lo_plot = max(0, rate1_mean - 4*np.sqrt(a1)/b1)
-        hi_plot = rate1_mean + 4*np.sqrt(a1)/b1
+        lo_plot = max(0, rate1_mean - 4 * np.sqrt(a1) / b1)
+        hi_plot = rate1_mean + 4 * np.sqrt(a1) / b1
         x_range = np.linspace(lo_plot, hi_plot, 200)
-        y1_dens = stats.gamma.pdf(x_range, a1, scale=1/b1)
+        y1_dens = stats.gamma.pdf(x_range, a1, scale=1 / b1)
 
         plot_data = [
-            {"type": "scatter", "x": x_range.tolist(), "y": y1_dens.tolist(),
-             "fill": "tozeroy", "fillcolor": "rgba(74, 144, 217, 0.3)",
-             "line": {"color": "#4a90d9", "width": 2}, "name": var1},
+            {
+                "type": "scatter",
+                "x": x_range.tolist(),
+                "y": y1_dens.tolist(),
+                "fill": "tozeroy",
+                "fillcolor": "rgba(74, 144, 217, 0.3)",
+                "line": {"color": "#4a90d9", "width": 2},
+                "name": var1,
+            },
         ]
 
         two_sample = var2 and var2 in df.columns
@@ -1375,12 +1593,16 @@ def run_bayesian_analysis(df, analysis_id, config):
             x2 = df[var2].dropna().values.astype(float)
             n2 = len(x2)
             total2 = float(x2.sum())
-            exposure2 = float(df[exposure_col].dropna().sum()) if exposure_col and exposure_col in df.columns else float(n2)
+            exposure2 = (
+                float(df[exposure_col].dropna().sum()) if exposure_col and exposure_col in df.columns else float(n2)
+            )
             a2 = alpha_prior + total2
             b2 = beta_prior + exposure2
             rate2_mean = float(a2 / b2)
-            rate2_ci = (float(stats.gamma.ppf((1 - ci_level)/2, a2, scale=1/b2)),
-                        float(stats.gamma.ppf((1 + ci_level)/2, a2, scale=1/b2)))
+            rate2_ci = (
+                float(stats.gamma.ppf((1 - ci_level) / 2, a2, scale=1 / b2)),
+                float(stats.gamma.ppf((1 + ci_level) / 2, a2, scale=1 / b2)),
+            )
 
             summary += f"\n<<COLOR:highlight>>{var2}<</COLOR>>: {int(total2)} events in {exposure2:.0f} units\n"
             summary += f"  Posterior rate: {rate2_mean:.4f} [{rate2_ci[0]:.4f}, {rate2_ci[1]:.4f}]\n"
@@ -1388,23 +1610,31 @@ def run_bayesian_analysis(df, analysis_id, config):
             # P(rate1 > rate2) via Monte Carlo from posteriors
             mc_samples = 50000
             rng = np.random.default_rng(42)
-            s1 = stats.gamma.rvs(a1, scale=1/b1, size=mc_samples, random_state=rng)
-            s2 = stats.gamma.rvs(a2, scale=1/b2, size=mc_samples, random_state=rng)
+            s1 = stats.gamma.rvs(a1, scale=1 / b1, size=mc_samples, random_state=rng)
+            s2 = stats.gamma.rvs(a2, scale=1 / b2, size=mc_samples, random_state=rng)
             p_greater = float(np.mean(s1 > s2))
             rate_ratio_samples = s1 / (s2 + 1e-15)
             rr_mean = float(np.mean(rate_ratio_samples))
-            rr_ci = (float(np.percentile(rate_ratio_samples, (1 - ci_level)/2 * 100)),
-                     float(np.percentile(rate_ratio_samples, (1 + ci_level)/2 * 100)))
+            rr_ci = (
+                float(np.percentile(rate_ratio_samples, (1 - ci_level) / 2 * 100)),
+                float(np.percentile(rate_ratio_samples, (1 + ci_level) / 2 * 100)),
+            )
 
-            summary += f"\n<<COLOR:accent>>\u2500\u2500 Comparison \u2500\u2500<</COLOR>>\n"
+            summary += "\n<<COLOR:accent>>\u2500\u2500 Comparison \u2500\u2500<</COLOR>>\n"
             summary += f"  P({var1} rate > {var2} rate): {p_greater:.1%}\n"
             summary += f"  Rate ratio: {rr_mean:.3f} [{rr_ci[0]:.3f}, {rr_ci[1]:.3f}]\n"
 
-            y2_dens = stats.gamma.pdf(x_range, a2, scale=1/b2)
+            y2_dens = stats.gamma.pdf(x_range, a2, scale=1 / b2)
             plot_data.append(
-                {"type": "scatter", "x": x_range.tolist(), "y": y2_dens.tolist(),
-                 "fill": "tozeroy", "fillcolor": "rgba(220, 80, 80, 0.2)",
-                 "line": {"color": "#dc5050", "width": 2}, "name": var2}
+                {
+                    "type": "scatter",
+                    "x": x_range.tolist(),
+                    "y": y2_dens.tolist(),
+                    "fill": "tozeroy",
+                    "fillcolor": "rgba(220, 80, 80, 0.2)",
+                    "line": {"color": "#dc5050", "width": 2},
+                    "name": var2,
+                }
             )
 
         result["summary"] = summary
@@ -1414,7 +1644,9 @@ def run_bayesian_analysis(df, analysis_id, config):
         result["statistics"] = stat_dict
 
         if two_sample:
-            result["guide_observation"] = f"Bayesian Poisson: rate\u2081={rate1_mean:.4f}, rate\u2082={rate2_mean:.4f}. P(rate\u2081 > rate\u2082) = {p_greater:.1%}."
+            result["guide_observation"] = (
+                f"Bayesian Poisson: rate\u2081={rate1_mean:.4f}, rate\u2082={rate2_mean:.4f}. P(rate\u2081 > rate\u2082) = {p_greater:.1%}."
+            )
             higher = var1 if p_greater > 0.5 else var2
             prob_higher = max(p_greater, 1 - p_greater)
             result["narrative"] = _narrative(
@@ -1423,24 +1655,28 @@ def run_bayesian_analysis(df, analysis_id, config):
                 f"<strong>{var2}</strong> = {rate2_mean:.4f} (95% CI: {rate2_ci[0]:.4f}\u2013{rate2_ci[1]:.4f}). "
                 f"Rate ratio = {rr_mean:.3f} (95% CI: {rr_ci[0]:.3f}\u2013{rr_ci[1]:.3f}).",
                 next_steps="A rate ratio CI excluding 1.0 confirms the rates differ. "
-                           "Consider whether the exposure measure adequately accounts for opportunity.",
-                chart_guidance="Overlapping posteriors = uncertain which rate is higher. Separated posteriors = clear difference."
+                "Consider whether the exposure measure adequately accounts for opportunity.",
+                chart_guidance="Overlapping posteriors = uncertain which rate is higher. Separated posteriors = clear difference.",
             )
         else:
-            result["guide_observation"] = f"Bayesian Poisson: rate = {rate1_mean:.4f} (95% CI: {rate1_ci[0]:.4f}\u2013{rate1_ci[1]:.4f})."
+            result["guide_observation"] = (
+                f"Bayesian Poisson: rate = {rate1_mean:.4f} (95% CI: {rate1_ci[0]:.4f}\u2013{rate1_ci[1]:.4f})."
+            )
             result["narrative"] = _narrative(
                 f"Bayesian Poisson Rate = {rate1_mean:.4f}",
                 f"Posterior rate: {rate1_mean:.4f} (95% credible interval: {rate1_ci[0]:.4f} to {rate1_ci[1]:.4f}). "
                 f"Based on {int(total1)} events in {exposure1:.0f} exposure units.",
                 next_steps="Use this posterior to set Bayesian control limits on count charts or to plan inspection intervals.",
-                chart_guidance="The curve shows the posterior belief about the true rate. Width reflects uncertainty \u2014 more data narrows it."
+                chart_guidance="The curve shows the posterior belief about the true rate. Width reflects uncertainty \u2014 more data narrows it.",
             )
 
-        result["plots"].append({
-            "title": "Posterior Rate Distribution",
-            "data": plot_data,
-            "layout": {"height": 300, "xaxis": {"title": "Rate (\u03bb)"}, "yaxis": {"title": "Density"}},
-        })
+        result["plots"].append(
+            {
+                "title": "Posterior Rate Distribution",
+                "data": plot_data,
+                "layout": {"height": 300, "xaxis": {"title": "Rate (\u03bb)"}, "yaxis": {"title": "Density"}},
+            }
+        )
 
         result["education"] = {
             "title": "Understanding Bayesian Poisson Rate Estimation",
@@ -1470,7 +1706,6 @@ def run_bayesian_analysis(df, analysis_id, config):
         # Bayesian Logistic Regression (Laplace approximation)
         from sklearn.linear_model import LogisticRegression
         from sklearn.preprocessing import StandardScaler
-        import pandas as pd
 
         target = config.get("target")
         features = config.get("features", [])
@@ -1494,11 +1729,11 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         # L2 regularization acts as Gaussian prior on coefficients
         prior_width = float(config.get("prior_width", 1.0))
-        model = LogisticRegression(C=prior_width, max_iter=1000, solver='lbfgs')
+        model = LogisticRegression(C=prior_width, max_iter=1000, solver="lbfgs")
         model.fit(X_scaled, y)
 
         coef = model.coef_[0]
-        intercept = model.intercept_[0]
+        model.intercept_[0]
         y_pred_proba = model.predict_proba(X_scaled)[:, 1]
         accuracy = float(np.mean(model.predict(X_scaled) == y))
 
@@ -1518,15 +1753,19 @@ def run_bayesian_analysis(df, analysis_id, config):
         or_ci_high = np.exp(coef + z * coef_se)
 
         # P(coefficient > 0)
-        p_positive = np.array([float(1 - stats.norm.cdf(0, coef[i], coef_se[i])) if not np.isnan(coef_se[i]) else 0.5
-                               for i in range(len(features))])
+        p_positive = np.array(
+            [
+                float(1 - stats.norm.cdf(0, coef[i], coef_se[i])) if not np.isnan(coef_se[i]) else 0.5
+                for i in range(len(features))
+            ]
+        )
 
         summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN LOGISTIC REGRESSION<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN LOGISTIC REGRESSION<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:text>>Target:<</COLOR>> {target} ({classes[0]} vs {classes[1]})\n"
         summary += f"<<COLOR:text>>N:<</COLOR>> {n}    Accuracy: {accuracy:.1%}\n\n"
-        summary += f"<<COLOR:accent>>\u2500\u2500 Coefficient Posteriors (per std dev) \u2500\u2500<</COLOR>>\n"
+        summary += "<<COLOR:accent>>\u2500\u2500 Coefficient Posteriors (per std dev) \u2500\u2500<</COLOR>>\n"
         _bl_header = "P(\u03b2>0)"
         _bl_rule = "\u2500" * 60
         summary += f"  {'Feature':<20} {'OR':>8} {'95% CI':>20} {_bl_header:>8}\n"
@@ -1539,71 +1778,118 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         result["summary"] = summary
         result["statistics"] = {
-            "accuracy": accuracy, "n": n,
-            "coefficients": {feat: {"coef": float(coef[i]), "se": float(coef_se[i]),
-                                     "or": float(odds_ratios[i]), "p_positive": float(p_positive[i])}
-                             for i, feat in enumerate(features)},
+            "accuracy": accuracy,
+            "n": n,
+            "coefficients": {
+                feat: {
+                    "coef": float(coef[i]),
+                    "se": float(coef_se[i]),
+                    "or": float(odds_ratios[i]),
+                    "p_positive": float(p_positive[i]),
+                }
+                for i, feat in enumerate(features)
+            },
         }
 
         strongest_idx = int(np.argmax(np.abs(coef)))
         strongest = features[strongest_idx]
         strongest_or = odds_ratios[strongest_idx]
-        result["guide_observation"] = f"Bayesian logistic: accuracy={accuracy:.1%}. Strongest predictor: {strongest} (OR={strongest_or:.2f})."
+        result["guide_observation"] = (
+            f"Bayesian logistic: accuracy={accuracy:.1%}. Strongest predictor: {strongest} (OR={strongest_or:.2f})."
+        )
 
         result["narrative"] = _narrative(
             f"Bayesian Logistic \u2014 accuracy {accuracy:.1%}, strongest predictor: {strongest}",
             f"The model classifies {classes[0]} vs {classes[1]} with {accuracy:.1%} accuracy. "
             f"<strong>{strongest}</strong> has the largest effect (OR = {strongest_or:.2f}, "
             f"P(\u03b2 > 0) = {p_positive[strongest_idx]:.1%}). "
-            + (f"An OR of {strongest_or:.2f} means a 1-SD increase in {strongest} "
-               f"{'increases' if strongest_or > 1 else 'decreases'} the odds by {abs(strongest_or - 1)*100:.0f}%." if not np.isnan(strongest_or) else ""),
+            + (
+                f"An OR of {strongest_or:.2f} means a 1-SD increase in {strongest} "
+                f"{'increases' if strongest_or > 1 else 'decreases'} the odds by {abs(strongest_or - 1) * 100:.0f}%."
+                if not np.isnan(strongest_or)
+                else ""
+            ),
             next_steps="Odds ratios > 1 increase the probability of the target class. "
-                       "Features with P(\u03b2>0) near 50% have uncertain direction \u2014 more data needed.",
-            chart_guidance="The forest plot shows odds ratios with credible intervals. CIs crossing 1.0 = uncertain effect."
+            "Features with P(\u03b2>0) near 50% have uncertain direction \u2014 more data needed.",
+            chart_guidance="The forest plot shows odds ratios with credible intervals. CIs crossing 1.0 = uncertain effect.",
         )
 
         # Forest plot of odds ratios
         sorted_idx = np.argsort(np.abs(coef))[::-1]
-        result["plots"].append({
-            "title": "Odds Ratios (95% Credible Interval)",
-            "data": [{
-                "type": "scatter",
-                "y": [features[i] for i in sorted_idx],
-                "x": [float(odds_ratios[i]) for i in sorted_idx],
-                "error_x": {
-                    "type": "data", "symmetric": False,
-                    "array": [float(or_ci_high[i] - odds_ratios[i]) for i in sorted_idx],
-                    "arrayminus": [float(odds_ratios[i] - or_ci_low[i]) for i in sorted_idx],
+        result["plots"].append(
+            {
+                "title": "Odds Ratios (95% Credible Interval)",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "y": [features[i] for i in sorted_idx],
+                        "x": [float(odds_ratios[i]) for i in sorted_idx],
+                        "error_x": {
+                            "type": "data",
+                            "symmetric": False,
+                            "array": [float(or_ci_high[i] - odds_ratios[i]) for i in sorted_idx],
+                            "arrayminus": [float(odds_ratios[i] - or_ci_low[i]) for i in sorted_idx],
+                        },
+                        "mode": "markers",
+                        "marker": {"size": 10, "color": "#4a90d9"},
+                    }
+                ],
+                "layout": {
+                    "height": max(200, len(features) * 30 + 80),
+                    "xaxis": {"title": "Odds Ratio", "type": "log"},
+                    "yaxis": {"autorange": "reversed"},
+                    "shapes": [
+                        {
+                            "type": "line",
+                            "x0": 1,
+                            "x1": 1,
+                            "y0": 0,
+                            "y1": 1,
+                            "yref": "paper",
+                            "line": {"color": "#888", "dash": "dash"},
+                        }
+                    ],
                 },
-                "mode": "markers",
-                "marker": {"size": 10, "color": "#4a90d9"},
-            }],
-            "layout": {
-                "height": max(200, len(features) * 30 + 80),
-                "xaxis": {"title": "Odds Ratio", "type": "log"},
-                "yaxis": {"autorange": "reversed"},
-                "shapes": [{"type": "line", "x0": 1, "x1": 1, "y0": 0, "y1": 1,
-                            "yref": "paper", "line": {"color": "#888", "dash": "dash"}}],
-            },
-        })
+            }
+        )
 
         # P(beta > 0) bar chart
-        result["plots"].append({
-            "title": "P(\u03b2 > 0) per Feature",
-            "data": [{
-                "type": "bar",
-                "x": [features[i] for i in sorted_idx],
-                "y": [float(p_positive[i]) for i in sorted_idx],
-                "marker": {"color": ["#4a9f6e" if p_positive[i] > 0.975 or p_positive[i] < 0.025 else "#d4a24a" if p_positive[i] > 0.95 or p_positive[i] < 0.05 else "#999"
-                                      for i in sorted_idx]},
-            }],
-            "layout": {
-                "height": 250,
-                "yaxis": {"title": "P(\u03b2 > 0)", "range": [0, 1.05]},
-                "shapes": [{"type": "line", "x0": -0.5, "x1": len(features) - 0.5, "y0": 0.5, "y1": 0.5,
-                            "line": {"color": "#888", "dash": "dot"}}],
-            },
-        })
+        result["plots"].append(
+            {
+                "title": "P(\u03b2 > 0) per Feature",
+                "data": [
+                    {
+                        "type": "bar",
+                        "x": [features[i] for i in sorted_idx],
+                        "y": [float(p_positive[i]) for i in sorted_idx],
+                        "marker": {
+                            "color": [
+                                "#4a9f6e"
+                                if p_positive[i] > 0.975 or p_positive[i] < 0.025
+                                else "#d4a24a"
+                                if p_positive[i] > 0.95 or p_positive[i] < 0.05
+                                else "#999"
+                                for i in sorted_idx
+                            ]
+                        },
+                    }
+                ],
+                "layout": {
+                    "height": 250,
+                    "yaxis": {"title": "P(\u03b2 > 0)", "range": [0, 1.05]},
+                    "shapes": [
+                        {
+                            "type": "line",
+                            "x0": -0.5,
+                            "x1": len(features) - 0.5,
+                            "y0": 0.5,
+                            "y1": 0.5,
+                            "line": {"color": "#888", "dash": "dot"},
+                        }
+                    ],
+                },
+            }
+        )
 
         result["education"] = {
             "title": "Understanding Bayesian Logistic Regression",
@@ -1665,7 +1951,9 @@ def run_bayesian_analysis(df, analysis_id, config):
         for i in range(n):
             t_i = times[i]
             e_i = events[i]
-            log_lik += e_i * (np.log(beta_grid + 1e-15) + (beta_grid - 1) * np.log(t_i + 1e-15) - beta_grid * np.log(eta_grid + 1e-15))
+            log_lik += e_i * (
+                np.log(beta_grid + 1e-15) + (beta_grid - 1) * np.log(t_i + 1e-15) - beta_grid * np.log(eta_grid + 1e-15)
+            )
             log_lik -= (t_i / (eta_grid + 1e-15)) ** beta_grid
 
         # Flat prior: posterior proportional to likelihood
@@ -1681,10 +1969,14 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         beta_mean = float(np.sum(beta_range * beta_marginal))
         eta_mean = float(np.sum(eta_range * eta_marginal))
-        beta_ci = (float(beta_range[np.searchsorted(np.cumsum(beta_marginal), (1-ci_level)/2)]),
-                   float(beta_range[min(n_grid-1, np.searchsorted(np.cumsum(beta_marginal), (1+ci_level)/2))]))
-        eta_ci = (float(eta_range[np.searchsorted(np.cumsum(eta_marginal), (1-ci_level)/2)]),
-                  float(eta_range[min(n_grid-1, np.searchsorted(np.cumsum(eta_marginal), (1+ci_level)/2))]))
+        beta_ci = (
+            float(beta_range[np.searchsorted(np.cumsum(beta_marginal), (1 - ci_level) / 2)]),
+            float(beta_range[min(n_grid - 1, np.searchsorted(np.cumsum(beta_marginal), (1 + ci_level) / 2))]),
+        )
+        eta_ci = (
+            float(eta_range[np.searchsorted(np.cumsum(eta_marginal), (1 - ci_level) / 2)]),
+            float(eta_range[min(n_grid - 1, np.searchsorted(np.cumsum(eta_marginal), (1 + ci_level) / 2))]),
+        )
 
         # Posterior predictive reliability metrics via MC
         n_mc = 10000
@@ -1697,15 +1989,20 @@ def run_bayesian_analysis(df, analysis_id, config):
         # B10 life: t where R(t)=0.90
         b10_samples = eta_samples * ((-np.log(0.9)) ** (1.0 / beta_samples))
         b10_mean = float(np.mean(b10_samples))
-        b10_ci = (float(np.percentile(b10_samples, (1-ci_level)/2 * 100)),
-                  float(np.percentile(b10_samples, (1+ci_level)/2 * 100)))
+        b10_ci = (
+            float(np.percentile(b10_samples, (1 - ci_level) / 2 * 100)),
+            float(np.percentile(b10_samples, (1 + ci_level) / 2 * 100)),
+        )
 
         # MTTF
         from scipy.special import gamma as gamma_fn
+
         mttf_samples = eta_samples * gamma_fn(1 + 1.0 / beta_samples)
         mttf_mean = float(np.mean(mttf_samples))
-        mttf_ci = (float(np.percentile(mttf_samples, (1-ci_level)/2 * 100)),
-                   float(np.percentile(mttf_samples, (1+ci_level)/2 * 100)))
+        mttf_ci = (
+            float(np.percentile(mttf_samples, (1 - ci_level) / 2 * 100)),
+            float(np.percentile(mttf_samples, (1 + ci_level) / 2 * 100)),
+        )
 
         if beta_mean < 0.95:
             phase = "infant mortality (\u03b2 < 1)"
@@ -1715,27 +2012,35 @@ def run_bayesian_analysis(df, analysis_id, config):
             phase = "wear-out (\u03b2 > 1)"
 
         summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN WEIBULL SURVIVAL<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN WEIBULL SURVIVAL<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:text>>Observations:<</COLOR>> {n} ({int(events.sum())} events, {int(n - events.sum())} censored)\n\n"
-        summary += f"<<COLOR:accent>>\u2500\u2500 Shape (\u03b2) Posterior \u2500\u2500<</COLOR>>\n"
+        summary += "<<COLOR:accent>>\u2500\u2500 Shape (\u03b2) Posterior \u2500\u2500<</COLOR>>\n"
         summary += f"  Mean: {beta_mean:.3f}  [{beta_ci[0]:.3f}, {beta_ci[1]:.3f}]\n"
         summary += f"  Phase: {phase}\n\n"
-        summary += f"<<COLOR:accent>>\u2500\u2500 Scale (\u03b7) Posterior \u2500\u2500<</COLOR>>\n"
+        summary += "<<COLOR:accent>>\u2500\u2500 Scale (\u03b7) Posterior \u2500\u2500<</COLOR>>\n"
         summary += f"  Mean: {eta_mean:.2f}  [{eta_ci[0]:.2f}, {eta_ci[1]:.2f}]\n\n"
-        summary += f"<<COLOR:accent>>\u2500\u2500 Reliability Metrics \u2500\u2500<</COLOR>>\n"
+        summary += "<<COLOR:accent>>\u2500\u2500 Reliability Metrics \u2500\u2500<</COLOR>>\n"
         summary += f"  B10 Life: {b10_mean:.2f}  [{b10_ci[0]:.2f}, {b10_ci[1]:.2f}]\n"
         summary += f"  MTTF:    {mttf_mean:.2f}  [{mttf_ci[0]:.2f}, {mttf_ci[1]:.2f}]\n"
 
         result["summary"] = summary
         result["statistics"] = {
-            "beta_mean": beta_mean, "beta_ci": list(beta_ci),
-            "eta_mean": eta_mean, "eta_ci": list(eta_ci),
-            "b10_mean": b10_mean, "b10_ci": list(b10_ci),
-            "mttf_mean": mttf_mean, "mttf_ci": list(mttf_ci),
-            "phase": phase, "n": n, "n_events": int(events.sum()),
+            "beta_mean": beta_mean,
+            "beta_ci": list(beta_ci),
+            "eta_mean": eta_mean,
+            "eta_ci": list(eta_ci),
+            "b10_mean": b10_mean,
+            "b10_ci": list(b10_ci),
+            "mttf_mean": mttf_mean,
+            "mttf_ci": list(mttf_ci),
+            "phase": phase,
+            "n": n,
+            "n_events": int(events.sum()),
         }
-        result["guide_observation"] = f"Bayesian Weibull: \u03b2={beta_mean:.2f} ({phase}), \u03b7={eta_mean:.1f}, B10={b10_mean:.1f}, MTTF={mttf_mean:.1f}."
+        result["guide_observation"] = (
+            f"Bayesian Weibull: \u03b2={beta_mean:.2f} ({phase}), \u03b7={eta_mean:.1f}, B10={b10_mean:.1f}, MTTF={mttf_mean:.1f}."
+        )
 
         result["narrative"] = _narrative(
             f"Bayesian Weibull \u2014 {phase}, B10 = {b10_mean:.1f}",
@@ -1744,53 +2049,94 @@ def run_bayesian_analysis(df, analysis_id, config):
             f"B10 life = {b10_mean:.1f} (95% CI: {b10_ci[0]:.1f}\u2013{b10_ci[1]:.1f}), "
             f"MTTF = {mttf_mean:.1f} (95% CI: {mttf_ci[0]:.1f}\u2013{mttf_ci[1]:.1f}).",
             next_steps="The credible intervals on B10 and MTTF give honest uncertainty bounds \u2014 "
-                       "use these for warranty planning instead of point estimates.",
+            "use these for warranty planning instead of point estimates.",
             chart_guidance="The posterior survival curve shows the credible band around reliability. "
-                          "Width = epistemic uncertainty that shrinks with more data."
+            "Width = epistemic uncertainty that shrinks with more data.",
         )
 
         # Posterior survival curve with credible band
         t_plot = np.linspace(0, float(np.percentile(times, 99)) * 1.5, 100)
         surv_curves = []
         for j in range(min(n_mc, 2000)):
-            surv_curves.append(np.exp(-(t_plot / eta_samples[j]) ** beta_samples[j]))
+            surv_curves.append(np.exp(-((t_plot / eta_samples[j]) ** beta_samples[j])))
         surv_matrix = np.array(surv_curves)
         surv_mean = np.mean(surv_matrix, axis=0)
         surv_lo = np.percentile(surv_matrix, 2.5, axis=0)
         surv_hi = np.percentile(surv_matrix, 97.5, axis=0)
 
-        result["plots"].append({
-            "title": "Posterior Predictive Survival Curve",
-            "data": [
-                {"type": "scatter", "x": t_plot.tolist(), "y": surv_hi.tolist(),
-                 "line": {"width": 0}, "showlegend": False, "name": "Upper 95%"},
-                {"type": "scatter", "x": t_plot.tolist(), "y": surv_lo.tolist(),
-                 "fill": "tonexty", "fillcolor": "rgba(74, 159, 110, 0.2)",
-                 "line": {"width": 0}, "name": "95% Credible Band"},
-                {"type": "scatter", "x": t_plot.tolist(), "y": surv_mean.tolist(),
-                 "line": {"color": "#4a9f6e", "width": 2}, "name": "Posterior Mean"},
-            ],
-            "layout": {
-                "height": 300,
-                "xaxis": {"title": "Time"},
-                "yaxis": {"title": "Reliability R(t)", "range": [0, 1.05]},
-                "shapes": [{"type": "line", "x0": 0, "x1": float(t_plot[-1]), "y0": 0.9, "y1": 0.9,
-                            "line": {"color": "#d4a24a", "dash": "dot"}}],
-            },
-        })
+        result["plots"].append(
+            {
+                "title": "Posterior Predictive Survival Curve",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": t_plot.tolist(),
+                        "y": surv_hi.tolist(),
+                        "line": {"width": 0},
+                        "showlegend": False,
+                        "name": "Upper 95%",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": t_plot.tolist(),
+                        "y": surv_lo.tolist(),
+                        "fill": "tonexty",
+                        "fillcolor": "rgba(74, 159, 110, 0.2)",
+                        "line": {"width": 0},
+                        "name": "95% Credible Band",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": t_plot.tolist(),
+                        "y": surv_mean.tolist(),
+                        "line": {"color": "#4a9f6e", "width": 2},
+                        "name": "Posterior Mean",
+                    },
+                ],
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Time"},
+                    "yaxis": {"title": "Reliability R(t)", "range": [0, 1.05]},
+                    "shapes": [
+                        {
+                            "type": "line",
+                            "x0": 0,
+                            "x1": float(t_plot[-1]),
+                            "y0": 0.9,
+                            "y1": 0.9,
+                            "line": {"color": "#d4a24a", "dash": "dot"},
+                        }
+                    ],
+                },
+            }
+        )
 
         # Shape parameter posterior
-        result["plots"].append({
-            "title": "Shape Parameter (\u03b2) Posterior",
-            "data": [
-                {"type": "scatter", "x": beta_range.tolist(), "y": beta_marginal.tolist(),
-                 "fill": "tozeroy", "fillcolor": "rgba(74, 144, 217, 0.3)",
-                 "line": {"color": "#4a90d9", "width": 2}, "name": "\u03b2 Posterior"},
-                {"type": "scatter", "x": [1, 1], "y": [0, float(max(beta_marginal))],
-                 "mode": "lines", "line": {"color": "#888", "dash": "dash"}, "name": "\u03b2=1 (exponential)"},
-            ],
-            "layout": {"height": 250, "xaxis": {"title": "Shape \u03b2"}, "yaxis": {"title": "Density"}},
-        })
+        result["plots"].append(
+            {
+                "title": "Shape Parameter (\u03b2) Posterior",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": beta_range.tolist(),
+                        "y": beta_marginal.tolist(),
+                        "fill": "tozeroy",
+                        "fillcolor": "rgba(74, 144, 217, 0.3)",
+                        "line": {"color": "#4a90d9", "width": 2},
+                        "name": "\u03b2 Posterior",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [1, 1],
+                        "y": [0, float(max(beta_marginal))],
+                        "mode": "lines",
+                        "line": {"color": "#888", "dash": "dash"},
+                        "name": "\u03b2=1 (exponential)",
+                    },
+                ],
+                "layout": {"height": 250, "xaxis": {"title": "Shape \u03b2"}, "yaxis": {"title": "Density"}},
+            }
+        )
 
         result["education"] = {
             "title": "Understanding Bayesian Weibull Survival Analysis",
@@ -1845,19 +2191,21 @@ def run_bayesian_analysis(df, analysis_id, config):
             w = 1.0 / (se**2 + tau**2 + 1e-15)
             mu_hat = np.sum(w * y) / np.sum(w)
             var_total = se**2 + tau**2
-            log_marginal[i] = -0.5 * np.sum(np.log(2 * np.pi * var_total) + (y - mu_hat)**2 / var_total)
+            log_marginal[i] = -0.5 * np.sum(np.log(2 * np.pi * var_total) + (y - mu_hat) ** 2 / var_total)
 
         # Posterior on tau (flat prior)
         log_post_tau = log_marginal - log_marginal.max()
         post_tau = np.exp(log_post_tau)
-        post_tau /= (post_tau.sum() * (tau_range[1] - tau_range[0]))
+        post_tau /= post_tau.sum() * (tau_range[1] - tau_range[0])
 
         tau_pmf = post_tau * (tau_range[1] - tau_range[0])
         tau_pmf /= tau_pmf.sum()
         tau_mean = float(np.sum(tau_range * tau_pmf))
         tau_cdf = np.cumsum(tau_pmf)
-        tau_ci = (float(tau_range[np.searchsorted(tau_cdf, (1-ci_level)/2)]),
-                  float(tau_range[min(n_tau-1, np.searchsorted(tau_cdf, (1+ci_level)/2))]))
+        tau_ci = (
+            float(tau_range[np.searchsorted(tau_cdf, (1 - ci_level) / 2)]),
+            float(tau_range[min(n_tau - 1, np.searchsorted(tau_cdf, (1 + ci_level) / 2))]),
+        )
 
         # Posterior on mu (integrate over tau)
         n_mc = 10000
@@ -1865,19 +2213,21 @@ def run_bayesian_analysis(df, analysis_id, config):
         tau_samples = tau_range[rng.choice(n_tau, size=n_mc, p=tau_pmf)]
         mu_samples = np.zeros(n_mc)
         for j in range(n_mc):
-            w = 1.0 / (se**2 + tau_samples[j]**2 + 1e-15)
+            w = 1.0 / (se**2 + tau_samples[j] ** 2 + 1e-15)
             mu_hat = np.sum(w * y) / np.sum(w)
             mu_se = 1.0 / np.sqrt(np.sum(w))
             mu_samples[j] = rng.normal(mu_hat, mu_se)
 
         mu_mean = float(np.mean(mu_samples))
-        mu_ci = (float(np.percentile(mu_samples, (1-ci_level)/2 * 100)),
-                 float(np.percentile(mu_samples, (1+ci_level)/2 * 100)))
+        mu_ci = (
+            float(np.percentile(mu_samples, (1 - ci_level) / 2 * 100)),
+            float(np.percentile(mu_samples, (1 + ci_level) / 2 * 100)),
+        )
 
         # Study-specific shrunken estimates
         shrunk = []
         for j_study in range(k):
-            w_j = 1.0 / (se[j_study]**2 + tau_mean**2 + 1e-15)
+            w_j = 1.0 / (se[j_study] ** 2 + tau_mean**2 + 1e-15)
             w_pool = np.sum(1.0 / (se**2 + tau_mean**2 + 1e-15))
             shrink_factor = w_j / (w_j + 1.0 / (1.0 / w_pool + 1e-15))
             est = shrink_factor * y[j_study] + (1 - shrink_factor) * mu_mean
@@ -1887,72 +2237,127 @@ def run_bayesian_analysis(df, analysis_id, config):
         het_label = "high" if i2 > 75 else ("moderate" if i2 > 50 else ("low" if i2 > 25 else "negligible"))
 
         summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN META-ANALYSIS<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN META-ANALYSIS<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:text>>Studies:<</COLOR>> {k}\n\n"
-        summary += f"<<COLOR:accent>>\u2500\u2500 Pooled Effect (\u03bc) \u2500\u2500<</COLOR>>\n"
+        summary += "<<COLOR:accent>>\u2500\u2500 Pooled Effect (\u03bc) \u2500\u2500<</COLOR>>\n"
         summary += f"  Posterior mean: {mu_mean:.4f}\n"
         summary += f"  95% Credible Interval: [{mu_ci[0]:.4f}, {mu_ci[1]:.4f}]\n\n"
-        summary += f"<<COLOR:accent>>\u2500\u2500 Heterogeneity (\u03c4) \u2500\u2500<</COLOR>>\n"
+        summary += "<<COLOR:accent>>\u2500\u2500 Heterogeneity (\u03c4) \u2500\u2500<</COLOR>>\n"
         summary += f"  Posterior mean: {tau_mean:.4f}\n"
         summary += f"  95% CI: [{tau_ci[0]:.4f}, {tau_ci[1]:.4f}]\n"
         summary += f"  I\u00b2 analog: {i2:.1f}% ({het_label})\n\n"
-        summary += f"<<COLOR:accent>>\u2500\u2500 Study Estimates \u2500\u2500<</COLOR>>\n"
+        summary += "<<COLOR:accent>>\u2500\u2500 Study Estimates \u2500\u2500<</COLOR>>\n"
         for j_study in range(k):
-            summary += f"  Study {j_study+1}: {y[j_study]:.4f} \u00b1 {se[j_study]:.4f} \u2192 shrunk {shrunk[j_study]:.4f}\n"
+            summary += f"  Study {j_study + 1}: {y[j_study]:.4f} \u00b1 {se[j_study]:.4f} \u2192 shrunk {shrunk[j_study]:.4f}\n"
 
         result["summary"] = summary
         result["statistics"] = {
-            "mu_mean": mu_mean, "mu_ci": list(mu_ci),
-            "tau_mean": tau_mean, "tau_ci": list(tau_ci),
-            "i2": i2, "k": k, "shrunk_estimates": shrunk,
+            "mu_mean": mu_mean,
+            "mu_ci": list(mu_ci),
+            "tau_mean": tau_mean,
+            "tau_ci": list(tau_ci),
+            "i2": i2,
+            "k": k,
+            "shrunk_estimates": shrunk,
         }
-        result["guide_observation"] = f"Bayesian meta-analysis ({k} studies): pooled = {mu_mean:.4f} (95% CI: {mu_ci[0]:.4f}\u2013{mu_ci[1]:.4f}), \u03c4 = {tau_mean:.4f}, I\u00b2 = {i2:.0f}%."
+        result["guide_observation"] = (
+            f"Bayesian meta-analysis ({k} studies): pooled = {mu_mean:.4f} (95% CI: {mu_ci[0]:.4f}\u2013{mu_ci[1]:.4f}), \u03c4 = {tau_mean:.4f}, I\u00b2 = {i2:.0f}%."
+        )
 
         result["narrative"] = _narrative(
             f"Bayesian Meta-Analysis \u2014 pooled effect = {mu_mean:.4f}, I\u00b2 = {i2:.0f}% ({het_label})",
             f"Across {k} studies, the pooled effect is {mu_mean:.4f} (95% credible interval: {mu_ci[0]:.4f} to {mu_ci[1]:.4f}). "
             f"Between-study heterogeneity \u03c4 = {tau_mean:.4f} (I\u00b2 \u2248 {i2:.0f}%, {het_label}). "
-            + ("The CI excludes zero, supporting a real effect." if (mu_ci[0] > 0 or mu_ci[1] < 0) else "The CI includes zero \u2014 the overall effect is uncertain."),
+            + (
+                "The CI excludes zero, supporting a real effect."
+                if (mu_ci[0] > 0 or mu_ci[1] < 0)
+                else "The CI includes zero \u2014 the overall effect is uncertain."
+            ),
             next_steps="High I\u00b2 means the studies disagree. Investigate moderators (subgroup analysis) to explain the heterogeneity. "
-                       "The shrunken estimates show how each study's estimate is pulled toward the grand mean.",
+            "The shrunken estimates show how each study's estimate is pulled toward the grand mean.",
             chart_guidance="The forest plot shows each study's estimate (with CI) and the shrunken Bayesian estimate. "
-                          "The diamond at the bottom is the pooled posterior."
+            "The diamond at the bottom is the pooled posterior.",
         )
 
         # Forest plot
-        study_labels = [f"Study {i+1}" for i in range(k)]
-        result["plots"].append({
-            "title": "Bayesian Forest Plot",
-            "data": [
-                {"type": "scatter", "y": study_labels, "x": y.tolist(),
-                 "error_x": {"type": "data", "array": (z * se).tolist()},
-                 "mode": "markers", "marker": {"size": 8, "color": "#4a90d9"}, "name": "Observed"},
-                {"type": "scatter", "y": study_labels, "x": shrunk,
-                 "mode": "markers", "marker": {"size": 8, "symbol": "diamond", "color": "#d4a24a"}, "name": "Shrunken"},
-                {"type": "scatter", "y": ["Pooled"], "x": [mu_mean],
-                 "error_x": {"type": "data", "symmetric": False,
-                             "array": [mu_ci[1] - mu_mean], "arrayminus": [mu_mean - mu_ci[0]]},
-                 "mode": "markers", "marker": {"size": 14, "symbol": "diamond", "color": "#4a9f6e"}, "name": "Pooled"},
-            ],
-            "layout": {
-                "height": max(200, k * 35 + 100),
-                "xaxis": {"title": "Effect Size"},
-                "shapes": [{"type": "line", "x0": 0, "x1": 0, "y0": 0, "y1": 1,
-                            "yref": "paper", "line": {"color": "#888", "dash": "dash"}}],
-            },
-        })
+        study_labels = [f"Study {i + 1}" for i in range(k)]
+        result["plots"].append(
+            {
+                "title": "Bayesian Forest Plot",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "y": study_labels,
+                        "x": y.tolist(),
+                        "error_x": {"type": "data", "array": (z * se).tolist()},
+                        "mode": "markers",
+                        "marker": {"size": 8, "color": "#4a90d9"},
+                        "name": "Observed",
+                    },
+                    {
+                        "type": "scatter",
+                        "y": study_labels,
+                        "x": shrunk,
+                        "mode": "markers",
+                        "marker": {"size": 8, "symbol": "diamond", "color": "#d4a24a"},
+                        "name": "Shrunken",
+                    },
+                    {
+                        "type": "scatter",
+                        "y": ["Pooled"],
+                        "x": [mu_mean],
+                        "error_x": {
+                            "type": "data",
+                            "symmetric": False,
+                            "array": [mu_ci[1] - mu_mean],
+                            "arrayminus": [mu_mean - mu_ci[0]],
+                        },
+                        "mode": "markers",
+                        "marker": {"size": 14, "symbol": "diamond", "color": "#4a9f6e"},
+                        "name": "Pooled",
+                    },
+                ],
+                "layout": {
+                    "height": max(200, k * 35 + 100),
+                    "xaxis": {"title": "Effect Size"},
+                    "shapes": [
+                        {
+                            "type": "line",
+                            "x0": 0,
+                            "x1": 0,
+                            "y0": 0,
+                            "y1": 1,
+                            "yref": "paper",
+                            "line": {"color": "#888", "dash": "dash"},
+                        }
+                    ],
+                },
+            }
+        )
 
         # Posterior on tau
-        result["plots"].append({
-            "title": "Posterior on Heterogeneity (\u03c4)",
-            "data": [{
-                "type": "scatter", "x": tau_range.tolist(), "y": (post_tau * (tau_range[1] - tau_range[0])).tolist(),
-                "fill": "tozeroy", "fillcolor": "rgba(212, 162, 74, 0.3)",
-                "line": {"color": "#d4a24a", "width": 2}, "name": "\u03c4 Posterior",
-            }],
-            "layout": {"height": 250, "xaxis": {"title": "Between-study SD (\u03c4)"}, "yaxis": {"title": "Density"}},
-        })
+        result["plots"].append(
+            {
+                "title": "Posterior on Heterogeneity (\u03c4)",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": tau_range.tolist(),
+                        "y": (post_tau * (tau_range[1] - tau_range[0])).tolist(),
+                        "fill": "tozeroy",
+                        "fillcolor": "rgba(212, 162, 74, 0.3)",
+                        "line": {"color": "#d4a24a", "width": 2},
+                        "name": "\u03c4 Posterior",
+                    }
+                ],
+                "layout": {
+                    "height": 250,
+                    "xaxis": {"title": "Between-study SD (\u03c4)"},
+                    "yaxis": {"title": "Density"},
+                },
+            }
+        )
 
         result["education"] = {
             "title": "Understanding Bayesian Meta-Analysis",
@@ -1996,88 +2401,152 @@ def run_bayesian_analysis(df, analysis_id, config):
         post_pdf = stats.beta.pdf(r_vals, post_a, post_b)
 
         post_mean = float(post_a / (post_a + post_b))
-        post_ci = (float(stats.beta.ppf((1 - ci_level) / 2, post_a, post_b)),
-                   float(stats.beta.ppf((1 + ci_level) / 2, post_a, post_b)))
+        post_ci = (
+            float(stats.beta.ppf((1 - ci_level) / 2, post_a, post_b)),
+            float(stats.beta.ppf((1 + ci_level) / 2, post_a, post_b)),
+        )
         prob_exceed = float(1 - stats.beta.cdf(target_r, post_a, post_b))
 
         verdict = "PASS" if prob_exceed >= 0.5 else "FAIL"
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN RELIABILITY DEMONSTRATION<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN RELIABILITY DEMONSTRATION<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Units tested:<</COLOR>> {n_tested}\n"
         summary += f"<<COLOR:highlight>>Failures:<</COLOR>> {n_failures}\n"
         summary += f"<<COLOR:highlight>>Target reliability:<</COLOR>> {target_r}\n\n"
         summary += f"<<COLOR:highlight>>Posterior mean R:<</COLOR>> {post_mean:.4f}\n"
-        summary += f"<<COLOR:highlight>>{int(ci_level*100)}% Credible interval:<</COLOR>> [{post_ci[0]:.4f}, {post_ci[1]:.4f}]\n"
+        summary += f"<<COLOR:highlight>>{int(ci_level * 100)}% Credible interval:<</COLOR>> [{post_ci[0]:.4f}, {post_ci[1]:.4f}]\n"
         summary += f"<<COLOR:highlight>>P(R \u2265 {target_r}):<</COLOR>> {prob_exceed:.4f}\n\n"
 
         if prob_exceed >= 0.95:
-            summary += f"<<COLOR:good>>Strong evidence that reliability meets target.<</COLOR>>\n"
+            summary += "<<COLOR:good>>Strong evidence that reliability meets target.<</COLOR>>\n"
         elif prob_exceed >= 0.5:
-            summary += f"<<COLOR:warning>>Moderate evidence for reliability target \u2014 consider more testing.<</COLOR>>\n"
+            summary += (
+                "<<COLOR:warning>>Moderate evidence for reliability target \u2014 consider more testing.<</COLOR>>\n"
+            )
         else:
-            summary += f"<<COLOR:bad>>Insufficient evidence that reliability meets target.<</COLOR>>\n"
+            summary += "<<COLOR:bad>>Insufficient evidence that reliability meets target.<</COLOR>>\n"
 
         result["summary"] = summary
         result["statistics"] = {
-            "posterior_mean": post_mean, "credible_interval": list(post_ci),
-            "prob_exceed_target": prob_exceed, "prior_alpha": prior_a, "prior_beta": prior_b,
-            "posterior_alpha": float(post_a), "posterior_beta": float(post_b),
+            "posterior_mean": post_mean,
+            "credible_interval": list(post_ci),
+            "prob_exceed_target": prob_exceed,
+            "prior_alpha": prior_a,
+            "prior_beta": prior_b,
+            "posterior_alpha": float(post_a),
+            "posterior_beta": float(post_b),
         }
-        result["guide_observation"] = f"Bayesian demo: P(R\u2265{target_r})={prob_exceed:.3f}, posterior mean={post_mean:.4f}"
+        result["guide_observation"] = (
+            f"Bayesian demo: P(R\u2265{target_r})={prob_exceed:.3f}, posterior mean={post_mean:.4f}"
+        )
         result["narrative"] = _narrative(
             verdict,
             f"With {n_tested} units tested and {n_failures} failures, the posterior probability "
             f"that reliability meets {target_r} is {prob_exceed:.1%}. "
-            f"Posterior mean reliability = {post_mean:.4f} ({int(ci_level*100)}% CI: {post_ci[0]:.4f}\u2013{post_ci[1]:.4f}).",
-            ["Increase sample size to narrow credible interval",
-             "Use sequential updating as more units complete testing",
-             "Consider informative prior from similar products"],
+            f"Posterior mean reliability = {post_mean:.4f} ({int(ci_level * 100)}% CI: {post_ci[0]:.4f}\u2013{post_ci[1]:.4f}).",
+            [
+                "Increase sample size to narrow credible interval",
+                "Use sequential updating as more units complete testing",
+                "Consider informative prior from similar products",
+            ],
         )
 
         # Plot 1: Prior vs Posterior
-        result["plots"].append({
-            "title": "Prior vs Posterior on Reliability",
-            "data": [
-                {"type": "scatter", "x": r_vals.tolist(), "y": prior_pdf.tolist(),
-                 "line": {"color": COLOR_REFERENCE, "dash": "dash", "width": 2}, "name": "Prior"},
-                {"type": "scatter", "x": r_vals.tolist(), "y": post_pdf.tolist(),
-                 "fill": "tozeroy", "fillcolor": _rgba(SVEND_COLORS[0], 0.3),
-                 "line": {"color": SVEND_COLORS[0], "width": 2}, "name": "Posterior"},
-            ],
-            "layout": {
-                "height": 350,
-                "xaxis": {"title": "Reliability (R)"},
-                "yaxis": {"title": "Density"},
-                "shapes": [{"type": "line", "x0": target_r, "x1": target_r, "y0": 0, "y1": 1,
-                            "yref": "paper", "line": {"color": COLOR_BAD, "dash": "dot", "width": 2}}],
-                "annotations": [{"x": target_r, "y": 1, "yref": "paper", "text": f"Target={target_r}",
-                                 "showarrow": False, "yanchor": "bottom", "font": {"color": COLOR_BAD}}],
-            },
-        })
+        result["plots"].append(
+            {
+                "title": "Prior vs Posterior on Reliability",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": r_vals.tolist(),
+                        "y": prior_pdf.tolist(),
+                        "line": {"color": COLOR_REFERENCE, "dash": "dash", "width": 2},
+                        "name": "Prior",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": r_vals.tolist(),
+                        "y": post_pdf.tolist(),
+                        "fill": "tozeroy",
+                        "fillcolor": _rgba(SVEND_COLORS[0], 0.3),
+                        "line": {"color": SVEND_COLORS[0], "width": 2},
+                        "name": "Posterior",
+                    },
+                ],
+                "layout": {
+                    "height": 350,
+                    "xaxis": {"title": "Reliability (R)"},
+                    "yaxis": {"title": "Density"},
+                    "shapes": [
+                        {
+                            "type": "line",
+                            "x0": target_r,
+                            "x1": target_r,
+                            "y0": 0,
+                            "y1": 1,
+                            "yref": "paper",
+                            "line": {"color": COLOR_BAD, "dash": "dot", "width": 2},
+                        }
+                    ],
+                    "annotations": [
+                        {
+                            "x": target_r,
+                            "y": 1,
+                            "yref": "paper",
+                            "text": f"Target={target_r}",
+                            "showarrow": False,
+                            "yanchor": "bottom",
+                            "font": {"color": COLOR_BAD},
+                        }
+                    ],
+                },
+            }
+        )
 
         # Plot 2: Exceedance curve
         exceedance = np.array([1 - stats.beta.cdf(r, post_a, post_b) for r in r_vals])
-        result["plots"].append({
-            "title": "Exceedance Probability P(R > r)",
-            "data": [{
-                "type": "scatter", "x": r_vals.tolist(), "y": exceedance.tolist(),
-                "fill": "tozeroy", "fillcolor": _rgba(SVEND_COLORS[1], 0.2),
-                "line": {"color": SVEND_COLORS[1], "width": 2}, "name": "P(R > r)",
-            }],
-            "layout": {
-                "height": 300,
-                "xaxis": {"title": "Reliability Threshold (r)"},
-                "yaxis": {"title": "Probability"},
-                "shapes": [
-                    {"type": "line", "x0": target_r, "x1": target_r, "y0": 0, "y1": 1,
-                     "yref": "paper", "line": {"color": COLOR_BAD, "dash": "dot"}},
-                    {"type": "line", "x0": 0, "x1": 1, "y0": prob_exceed, "y1": prob_exceed,
-                     "line": {"color": COLOR_WARNING, "dash": "dash"}},
+        result["plots"].append(
+            {
+                "title": "Exceedance Probability P(R > r)",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": r_vals.tolist(),
+                        "y": exceedance.tolist(),
+                        "fill": "tozeroy",
+                        "fillcolor": _rgba(SVEND_COLORS[1], 0.2),
+                        "line": {"color": SVEND_COLORS[1], "width": 2},
+                        "name": "P(R > r)",
+                    }
                 ],
-            },
-        })
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Reliability Threshold (r)"},
+                    "yaxis": {"title": "Probability"},
+                    "shapes": [
+                        {
+                            "type": "line",
+                            "x0": target_r,
+                            "x1": target_r,
+                            "y0": 0,
+                            "y1": 1,
+                            "yref": "paper",
+                            "line": {"color": COLOR_BAD, "dash": "dot"},
+                        },
+                        {
+                            "type": "line",
+                            "x0": 0,
+                            "x1": 1,
+                            "y0": prob_exceed,
+                            "y1": prob_exceed,
+                            "line": {"color": COLOR_WARNING, "dash": "dash"},
+                        },
+                    ],
+                },
+            }
+        )
 
         # Plot 3: Sequential posterior update
         seq_means, seq_lo, seq_hi = [], [], []
@@ -2090,23 +2559,52 @@ def run_bayesian_analysis(df, analysis_id, config):
             seq_lo.append(float(stats.beta.ppf(0.025, a_i, b_i)))
             seq_hi.append(float(stats.beta.ppf(0.975, a_i, b_i)))
         units_x = list(range(1, n_tested + 1))
-        result["plots"].append({
-            "title": "Sequential Posterior Update",
-            "data": [
-                {"type": "scatter", "x": units_x, "y": seq_hi, "line": {"width": 0}, "showlegend": False, "name": "Upper"},
-                {"type": "scatter", "x": units_x, "y": seq_lo, "fill": "tonexty",
-                 "fillcolor": _rgba(SVEND_COLORS[0], 0.2), "line": {"width": 0}, "name": "95% CI"},
-                {"type": "scatter", "x": units_x, "y": seq_means,
-                 "line": {"color": SVEND_COLORS[0], "width": 2}, "name": "Posterior Mean"},
-            ],
-            "layout": {
-                "height": 300,
-                "xaxis": {"title": "Units Tested"},
-                "yaxis": {"title": "Reliability Estimate"},
-                "shapes": [{"type": "line", "x0": 1, "x1": n_tested, "y0": target_r, "y1": target_r,
-                            "line": {"color": COLOR_BAD, "dash": "dot"}}],
-            },
-        })
+        result["plots"].append(
+            {
+                "title": "Sequential Posterior Update",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": units_x,
+                        "y": seq_hi,
+                        "line": {"width": 0},
+                        "showlegend": False,
+                        "name": "Upper",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": units_x,
+                        "y": seq_lo,
+                        "fill": "tonexty",
+                        "fillcolor": _rgba(SVEND_COLORS[0], 0.2),
+                        "line": {"width": 0},
+                        "name": "95% CI",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": units_x,
+                        "y": seq_means,
+                        "line": {"color": SVEND_COLORS[0], "width": 2},
+                        "name": "Posterior Mean",
+                    },
+                ],
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Units Tested"},
+                    "yaxis": {"title": "Reliability Estimate"},
+                    "shapes": [
+                        {
+                            "type": "line",
+                            "x0": 1,
+                            "x1": n_tested,
+                            "y0": target_r,
+                            "y1": target_r,
+                            "line": {"color": COLOR_BAD, "dash": "dot"},
+                        }
+                    ],
+                },
+            }
+        )
 
         result["education"] = {
             "title": "Understanding Bayesian Reliability Demonstration",
@@ -2155,8 +2653,10 @@ def run_bayesian_analysis(df, analysis_id, config):
         post_a = prior_a + total_demand
         post_b = prior_b + n_periods
         rate_mean = float(post_a / post_b)
-        rate_ci = (float(stats.gamma.ppf((1 - ci_level) / 2, post_a, scale=1 / post_b)),
-                   float(stats.gamma.ppf((1 + ci_level) / 2, post_a, scale=1 / post_b)))
+        rate_ci = (
+            float(stats.gamma.ppf((1 - ci_level) / 2, post_a, scale=1 / post_b)),
+            float(stats.gamma.ppf((1 + ci_level) / 2, post_a, scale=1 / post_b)),
+        )
 
         expected_demand = rate_mean * planning_horizon
         nb_r = post_a
@@ -2183,12 +2683,12 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         verdict = "PASS" if p_stockout <= (1 - service_level) else "WARNING"
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN SPARE PARTS PLANNING<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN SPARE PARTS PLANNING<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Historical demand:<</COLOR>> {total_demand:.0f} over {n_periods:.0f} periods\n"
         summary += f"<<COLOR:highlight>>Planning horizon:<</COLOR>> {planning_horizon:.0f} periods\n"
         summary += f"<<COLOR:highlight>>Service level target:<</COLOR>> {service_level:.1%}\n\n"
-        summary += f"<<COLOR:highlight>>Posterior demand rate:<</COLOR>> {rate_mean:.2f}/period ({int(ci_level*100)}% CI: {rate_ci[0]:.2f}\u2013{rate_ci[1]:.2f})\n"
+        summary += f"<<COLOR:highlight>>Posterior demand rate:<</COLOR>> {rate_mean:.2f}/period ({int(ci_level * 100)}% CI: {rate_ci[0]:.2f}\u2013{rate_ci[1]:.2f})\n"
         summary += f"<<COLOR:highlight>>Expected demand (horizon):<</COLOR>> {expected_demand:.1f}\n"
         summary += f"<<COLOR:highlight>>Optimal stock level:<</COLOR>> <<COLOR:good>>{optimal_stock}<</COLOR>>\n"
         summary += f"<<COLOR:highlight>>P(stockout):<</COLOR>> {p_stockout:.4f}\n"
@@ -2196,75 +2696,147 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         result["summary"] = summary
         result["statistics"] = {
-            "rate_mean": rate_mean, "rate_ci": list(rate_ci),
-            "expected_demand": expected_demand, "optimal_stock": optimal_stock,
-            "p_stockout": p_stockout, "min_cost": min_cost, "min_cost_stock": min_cost_stock,
+            "rate_mean": rate_mean,
+            "rate_ci": list(rate_ci),
+            "expected_demand": expected_demand,
+            "optimal_stock": optimal_stock,
+            "p_stockout": p_stockout,
+            "min_cost": min_cost,
+            "min_cost_stock": min_cost_stock,
         }
-        result["guide_observation"] = f"Bayes spares: optimal stock={optimal_stock} for {service_level:.0%} SL, rate={rate_mean:.2f}/period"
+        result["guide_observation"] = (
+            f"Bayes spares: optimal stock={optimal_stock} for {service_level:.0%} SL, rate={rate_mean:.2f}/period"
+        )
         result["narrative"] = _narrative(
             verdict,
             f"Demand rate posterior: {rate_mean:.2f}/period (CI: {rate_ci[0]:.2f}\u2013{rate_ci[1]:.2f}). "
             f"For a {planning_horizon:.0f}-period horizon at {service_level:.0%} service level, "
             f"stock {optimal_stock} units. P(stockout) = {p_stockout:.4f}.",
-            ["Review holding vs stockout cost trade-off on the cost curve",
-             "Update posterior as new demand data arrives",
-             "Consider safety stock adjustment for demand seasonality"],
+            [
+                "Review holding vs stockout cost trade-off on the cost curve",
+                "Update posterior as new demand data arrives",
+                "Consider safety stock adjustment for demand seasonality",
+            ],
         )
 
         rate_vals = np.linspace(0, rate_ci[1] * 2, 300)
         prior_pdf_r = stats.gamma.pdf(rate_vals, prior_a, scale=1 / prior_b)
         post_pdf_r = stats.gamma.pdf(rate_vals, post_a, scale=1 / post_b)
-        result["plots"].append({
-            "title": "Prior vs Posterior on Demand Rate",
-            "data": [
-                {"type": "scatter", "x": rate_vals.tolist(), "y": prior_pdf_r.tolist(),
-                 "line": {"color": COLOR_REFERENCE, "dash": "dash", "width": 2}, "name": "Prior"},
-                {"type": "scatter", "x": rate_vals.tolist(), "y": post_pdf_r.tolist(),
-                 "fill": "tozeroy", "fillcolor": _rgba(SVEND_COLORS[0], 0.3),
-                 "line": {"color": SVEND_COLORS[0], "width": 2}, "name": "Posterior"},
-            ],
-            "layout": {"height": 300, "xaxis": {"title": "Demand Rate (\u03bb)"}, "yaxis": {"title": "Density"}},
-        })
+        result["plots"].append(
+            {
+                "title": "Prior vs Posterior on Demand Rate",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": rate_vals.tolist(),
+                        "y": prior_pdf_r.tolist(),
+                        "line": {"color": COLOR_REFERENCE, "dash": "dash", "width": 2},
+                        "name": "Prior",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": rate_vals.tolist(),
+                        "y": post_pdf_r.tolist(),
+                        "fill": "tozeroy",
+                        "fillcolor": _rgba(SVEND_COLORS[0], 0.3),
+                        "line": {"color": SVEND_COLORS[0], "width": 2},
+                        "name": "Posterior",
+                    },
+                ],
+                "layout": {"height": 300, "xaxis": {"title": "Demand Rate (\u03bb)"}, "yaxis": {"title": "Density"}},
+            }
+        )
 
         sl_plot_max = min(optimal_stock * 2 + 10, len(cdf_vals))
-        result["plots"].append({
-            "title": "Service Level vs Stock Level",
-            "data": [{
-                "type": "scatter", "x": stock_range[:sl_plot_max].tolist(),
-                "y": cdf_vals[:sl_plot_max].tolist(),
-                "line": {"color": SVEND_COLORS[1], "width": 2}, "name": "Service Level",
-            }],
-            "layout": {
-                "height": 300,
-                "xaxis": {"title": "Stock Level"},
-                "yaxis": {"title": "Service Level P(D \u2264 S)"},
-                "shapes": [
-                    {"type": "line", "x0": 0, "x1": sl_plot_max, "y0": service_level, "y1": service_level,
-                     "line": {"color": COLOR_BAD, "dash": "dot"}},
-                    {"type": "line", "x0": optimal_stock, "x1": optimal_stock, "y0": 0, "y1": 1,
-                     "yref": "paper", "line": {"color": COLOR_GOOD, "dash": "dash"}},
+        result["plots"].append(
+            {
+                "title": "Service Level vs Stock Level",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": stock_range[:sl_plot_max].tolist(),
+                        "y": cdf_vals[:sl_plot_max].tolist(),
+                        "line": {"color": SVEND_COLORS[1], "width": 2},
+                        "name": "Service Level",
+                    }
                 ],
-                "annotations": [{"x": optimal_stock, "y": service_level, "text": f"S*={optimal_stock}",
-                                 "showarrow": True, "arrowhead": 2, "font": {"color": COLOR_GOOD}}],
-            },
-        })
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Stock Level"},
+                    "yaxis": {"title": "Service Level P(D \u2264 S)"},
+                    "shapes": [
+                        {
+                            "type": "line",
+                            "x0": 0,
+                            "x1": sl_plot_max,
+                            "y0": service_level,
+                            "y1": service_level,
+                            "line": {"color": COLOR_BAD, "dash": "dot"},
+                        },
+                        {
+                            "type": "line",
+                            "x0": optimal_stock,
+                            "x1": optimal_stock,
+                            "y0": 0,
+                            "y1": 1,
+                            "yref": "paper",
+                            "line": {"color": COLOR_GOOD, "dash": "dash"},
+                        },
+                    ],
+                    "annotations": [
+                        {
+                            "x": optimal_stock,
+                            "y": service_level,
+                            "text": f"S*={optimal_stock}",
+                            "showarrow": True,
+                            "arrowhead": 2,
+                            "font": {"color": COLOR_GOOD},
+                        }
+                    ],
+                },
+            }
+        )
 
-        result["plots"].append({
-            "title": "Total Expected Cost vs Stock Level",
-            "data": [{
-                "type": "scatter", "x": stock_eval.tolist(), "y": costs,
-                "line": {"color": SVEND_COLORS[2], "width": 2}, "name": "Total Cost",
-            }],
-            "layout": {
-                "height": 300,
-                "xaxis": {"title": "Stock Level"},
-                "yaxis": {"title": "Expected Cost"},
-                "shapes": [{"type": "line", "x0": min_cost_stock, "x1": min_cost_stock, "y0": 0, "y1": 1,
-                            "yref": "paper", "line": {"color": COLOR_GOOD, "dash": "dash"}}],
-                "annotations": [{"x": min_cost_stock, "y": min_cost, "text": f"Optimal={min_cost_stock}",
-                                 "showarrow": True, "arrowhead": 2, "font": {"color": COLOR_GOOD}}],
-            },
-        })
+        result["plots"].append(
+            {
+                "title": "Total Expected Cost vs Stock Level",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": stock_eval.tolist(),
+                        "y": costs,
+                        "line": {"color": SVEND_COLORS[2], "width": 2},
+                        "name": "Total Cost",
+                    }
+                ],
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Stock Level"},
+                    "yaxis": {"title": "Expected Cost"},
+                    "shapes": [
+                        {
+                            "type": "line",
+                            "x0": min_cost_stock,
+                            "x1": min_cost_stock,
+                            "y0": 0,
+                            "y1": 1,
+                            "yref": "paper",
+                            "line": {"color": COLOR_GOOD, "dash": "dash"},
+                        }
+                    ],
+                    "annotations": [
+                        {
+                            "x": min_cost_stock,
+                            "y": min_cost,
+                            "text": f"Optimal={min_cost_stock}",
+                            "showarrow": True,
+                            "arrowhead": 2,
+                            "font": {"color": COLOR_GOOD},
+                        }
+                    ],
+                },
+            }
+        )
 
         result["what_if_data"] = {
             "type": "bayes_spares",
@@ -2305,12 +2877,15 @@ def run_bayesian_analysis(df, analysis_id, config):
     elif analysis_id == "bayes_system":
         # Bayesian System Reliability (MC propagation through topology)
         import json as _json
+
         components_raw = config.get("components", "[]")
         if isinstance(components_raw, str):
             try:
                 components = _json.loads(components_raw)
             except Exception:
-                result["summary"] = 'Error: Invalid components JSON. Use format: [{"name":"Motor","n":100,"failures":2}, ...]'
+                result["summary"] = (
+                    'Error: Invalid components JSON. Use format: [{"name":"Motor","n":100,"failures":2}, ...]'
+                )
                 return result
         else:
             components = components_raw
@@ -2326,7 +2901,7 @@ def run_bayesian_analysis(df, analysis_id, config):
         comp_names, comp_means, comp_cis, comp_draws, comp_post_params = [], [], [], [], []
 
         for c in components:
-            name = c.get("name", f"C{len(comp_names)+1}")
+            name = c.get("name", f"C{len(comp_names) + 1}")
             n_i = int(c.get("n", 100))
             k_i = int(c.get("failures", 0))
             pa = float(c.get("prior_a", 1))
@@ -2356,14 +2931,16 @@ def run_bayesian_analysis(df, analysis_id, config):
                     r_j = draws_matrix[i, j_c]
                     for s in range(j_c + 1, 0, -1):
                         dp[s] = dp[s] * (1 - r_j) + dp[s - 1] * r_j
-                    dp[0] *= (1 - r_j)
+                    dp[0] *= 1 - r_j
                 sys_draws[i] = float(np.sum(dp[k_val:]))
         else:
             sys_draws = np.prod(draws_matrix, axis=1)
 
         sys_mean = float(np.mean(sys_draws))
-        sys_ci = (float(np.percentile(sys_draws, (1 - ci_level) / 2 * 100)),
-                  float(np.percentile(sys_draws, (1 + ci_level) / 2 * 100)))
+        sys_ci = (
+            float(np.percentile(sys_draws, (1 - ci_level) / 2 * 100)),
+            float(np.percentile(sys_draws, (1 + ci_level) / 2 * 100)),
+        )
 
         importance = [float(np.corrcoef(draws_matrix[:, j], sys_draws)[0, 1]) for j in range(n_comp)]
         weakest = comp_names[int(np.argmin(comp_means))]
@@ -2387,19 +2964,23 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         result["summary"] = summary
         result["statistics"] = {
-            "system_reliability": sys_mean, "system_ci": list(sys_ci),
-            "topology": topology_label, "weakest": weakest,
+            "system_reliability": sys_mean,
+            "system_ci": list(sys_ci),
+            "topology": topology_label,
+            "weakest": weakest,
             "components": {n: {"mean": m, "ci": list(c)} for n, m, c in zip(comp_names, comp_means, comp_cis)},
         }
         result["guide_observation"] = f"Bayes system ({topology_label}): R_sys={sys_mean:.4f}, weakest={weakest}"
         result["narrative"] = _narrative(
             verdict,
             f"{topology_label} system with {n_comp} components: R_sys = {sys_mean:.4f} "
-            f"({int(ci_level*100)}% CI: {sys_ci[0]:.4f}\u2013{sys_ci[1]:.4f}). "
+            f"({int(ci_level * 100)}% CI: {sys_ci[0]:.4f}\u2013{sys_ci[1]:.4f}). "
             f"Weakest link: {weakest} (R = {min(comp_means):.4f}).",
-            ["Focus improvement on highest-importance / lowest-reliability component",
-             "Consider redundancy (parallel) for critical components",
-             "Update component priors with field data"],
+            [
+                "Focus improvement on highest-importance / lowest-reliability component",
+                "Consider redundancy (parallel) for critical components",
+                "Update component priors with field data",
+            ],
         )
 
         # Plot 1: Component posterior overlay
@@ -2407,51 +2988,86 @@ def run_bayesian_analysis(df, analysis_id, config):
         for j, name in enumerate(comp_names):
             hist_j, edges_j = np.histogram(comp_draws[j], bins=80, density=True)
             centers_j = (edges_j[:-1] + edges_j[1:]) / 2
-            comp_traces.append({
-                "type": "scatter", "x": centers_j.tolist(), "y": hist_j.tolist(),
-                "line": {"color": SVEND_COLORS[j % len(SVEND_COLORS)], "width": 2}, "name": name,
-            })
-        result["plots"].append({
-            "title": "Component Reliability Posteriors",
-            "data": comp_traces,
-            "layout": {"height": 350, "xaxis": {"title": "Reliability"}, "yaxis": {"title": "Density"}},
-        })
+            comp_traces.append(
+                {
+                    "type": "scatter",
+                    "x": centers_j.tolist(),
+                    "y": hist_j.tolist(),
+                    "line": {"color": SVEND_COLORS[j % len(SVEND_COLORS)], "width": 2},
+                    "name": name,
+                }
+            )
+        result["plots"].append(
+            {
+                "title": "Component Reliability Posteriors",
+                "data": comp_traces,
+                "layout": {"height": 350, "xaxis": {"title": "Reliability"}, "yaxis": {"title": "Density"}},
+            }
+        )
 
         # Plot 2: System reliability posterior
         hist_sys, edges_sys = np.histogram(sys_draws, bins=60, density=True)
         centers_sys = (edges_sys[:-1] + edges_sys[1:]) / 2
-        result["plots"].append({
-            "title": f"System Reliability Posterior ({topology_label})",
-            "data": [{
-                "type": "bar", "x": centers_sys.tolist(), "y": hist_sys.tolist(),
-                "marker": {"color": _rgba(SVEND_COLORS[0], 0.7)}, "name": "System R",
-            }],
-            "layout": {
-                "height": 300,
-                "xaxis": {"title": "System Reliability"},
-                "yaxis": {"title": "Density"},
-                "shapes": [{"type": "line", "x0": sys_mean, "x1": sys_mean, "y0": 0, "y1": 1,
-                            "yref": "paper", "line": {"color": COLOR_GOOD, "dash": "dash", "width": 2}}],
-            },
-        })
+        result["plots"].append(
+            {
+                "title": f"System Reliability Posterior ({topology_label})",
+                "data": [
+                    {
+                        "type": "bar",
+                        "x": centers_sys.tolist(),
+                        "y": hist_sys.tolist(),
+                        "marker": {"color": _rgba(SVEND_COLORS[0], 0.7)},
+                        "name": "System R",
+                    }
+                ],
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "System Reliability"},
+                    "yaxis": {"title": "Density"},
+                    "shapes": [
+                        {
+                            "type": "line",
+                            "x0": sys_mean,
+                            "x1": sys_mean,
+                            "y0": 0,
+                            "y1": 1,
+                            "yref": "paper",
+                            "line": {"color": COLOR_GOOD, "dash": "dash", "width": 2},
+                        }
+                    ],
+                },
+            }
+        )
 
         # Plot 3: Component importance bar
-        result["plots"].append({
-            "title": "Component Importance (Correlation with System R)",
-            "data": [{
-                "type": "bar", "x": comp_names, "y": importance,
-                "marker": {"color": [SVEND_COLORS[j % len(SVEND_COLORS)] for j in range(n_comp)]},
-            }],
-            "layout": {"height": 300, "xaxis": {"title": "Component"}, "yaxis": {"title": "Birnbaum Importance"}},
-        })
+        result["plots"].append(
+            {
+                "title": "Component Importance (Correlation with System R)",
+                "data": [
+                    {
+                        "type": "bar",
+                        "x": comp_names,
+                        "y": importance,
+                        "marker": {"color": [SVEND_COLORS[j % len(SVEND_COLORS)] for j in range(n_comp)]},
+                    }
+                ],
+                "layout": {"height": 300, "xaxis": {"title": "Component"}, "yaxis": {"title": "Birnbaum Importance"}},
+            }
+        )
 
         result["what_if_data"] = {
             "type": "bayes_system",
             "topology": topology,
             "k": k_val if topology == "k_of_n" else None,
-            "components": [{"name": comp_names[j], "mean": comp_means[j],
-                            "post_a": comp_post_params[j][0], "post_b": comp_post_params[j][1]}
-                           for j in range(n_comp)],
+            "components": [
+                {
+                    "name": comp_names[j],
+                    "mean": comp_means[j],
+                    "post_a": comp_post_params[j][0],
+                    "post_b": comp_post_params[j][1],
+                }
+                for j in range(n_comp)
+            ],
             "system_mean": sys_mean,
             "system_ci": list(sys_ci),
         }
@@ -2502,8 +3118,10 @@ def run_bayesian_analysis(df, analysis_id, config):
         post_a = prior_a + n_warranty
         post_b = prior_b + total_time
         rate_mean = float(post_a / post_b)
-        rate_ci = (float(stats.gamma.ppf((1 - ci_level) / 2, post_a, scale=1 / post_b)),
-                   float(stats.gamma.ppf((1 + ci_level) / 2, post_a, scale=1 / post_b)))
+        rate_ci = (
+            float(stats.gamma.ppf((1 - ci_level) / 2, post_a, scale=1 / post_b)),
+            float(stats.gamma.ppf((1 + ci_level) / 2, post_a, scale=1 / post_b)),
+        )
         claims_per_period = rate_mean * fleet_size
 
         n_mc = 5000
@@ -2526,7 +3144,7 @@ def run_bayesian_analysis(df, analysis_id, config):
         verdict = "WARNING" if rate_mean > 0.01 else "PASS"
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN WARRANTY FORECAST<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN WARRANTY FORECAST<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Warranty period:<</COLOR>> {warranty_period}\n"
         summary += f"<<COLOR:highlight>>Fleet size:<</COLOR>> {fleet_size:,}\n"
@@ -2537,63 +3155,111 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         result["summary"] = summary
         result["statistics"] = {
-            "rate_mean": rate_mean, "rate_ci": list(rate_ci),
+            "rate_mean": rate_mean,
+            "rate_ci": list(rate_ci),
             "claims_per_period": claims_per_period,
-            "total_forecast": total_forecast, "total_ci": list(total_ci),
+            "total_forecast": total_forecast,
+            "total_ci": list(total_ci),
         }
-        result["guide_observation"] = f"Bayes warranty: rate={rate_mean:.4f}, {forecast_periods}-period forecast={total_forecast:.0f}"
+        result["guide_observation"] = (
+            f"Bayes warranty: rate={rate_mean:.4f}, {forecast_periods}-period forecast={total_forecast:.0f}"
+        )
         result["narrative"] = _narrative(
             verdict,
             f"Failure rate posterior: {rate_mean:.4f}/unit-time (CI: {rate_ci[0]:.4f}\u2013{rate_ci[1]:.4f}). "
             f"For fleet of {fleet_size:,}, expect ~{claims_per_period:.0f} claims/period. "
             f"{forecast_periods}-period total: {total_forecast:.0f} (CI: {total_ci[0]:.0f}\u2013{total_ci[1]:.0f}).",
-            ["Set warranty reserves based on upper credible bound",
-             "Update forecast monthly as new claims data arrives",
-             "Investigate root causes if rate exceeds prior expectations"],
+            [
+                "Set warranty reserves based on upper credible bound",
+                "Update forecast monthly as new claims data arrives",
+                "Investigate root causes if rate exceeds prior expectations",
+            ],
         )
 
         # Plot 1: Prior vs Posterior on failure rate
         rv = np.linspace(0, rate_ci[1] * 2.5, 300)
-        result["plots"].append({
-            "title": "Prior vs Posterior on Failure Rate",
-            "data": [
-                {"type": "scatter", "x": rv.tolist(), "y": stats.gamma.pdf(rv, prior_a, scale=1 / prior_b).tolist(),
-                 "line": {"color": COLOR_REFERENCE, "dash": "dash", "width": 2}, "name": "Prior"},
-                {"type": "scatter", "x": rv.tolist(), "y": stats.gamma.pdf(rv, post_a, scale=1 / post_b).tolist(),
-                 "fill": "tozeroy", "fillcolor": _rgba(SVEND_COLORS[0], 0.3),
-                 "line": {"color": SVEND_COLORS[0], "width": 2}, "name": "Posterior"},
-            ],
-            "layout": {"height": 300, "xaxis": {"title": "Failure Rate (\u03bb)"}, "yaxis": {"title": "Density"}},
-        })
+        result["plots"].append(
+            {
+                "title": "Prior vs Posterior on Failure Rate",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": rv.tolist(),
+                        "y": stats.gamma.pdf(rv, prior_a, scale=1 / prior_b).tolist(),
+                        "line": {"color": COLOR_REFERENCE, "dash": "dash", "width": 2},
+                        "name": "Prior",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": rv.tolist(),
+                        "y": stats.gamma.pdf(rv, post_a, scale=1 / post_b).tolist(),
+                        "fill": "tozeroy",
+                        "fillcolor": _rgba(SVEND_COLORS[0], 0.3),
+                        "line": {"color": SVEND_COLORS[0], "width": 2},
+                        "name": "Posterior",
+                    },
+                ],
+                "layout": {"height": 300, "xaxis": {"title": "Failure Rate (\u03bb)"}, "yaxis": {"title": "Density"}},
+            }
+        )
 
         # Plot 2: Cumulative returns forecast
         periods = list(range(1, forecast_periods + 1))
-        result["plots"].append({
-            "title": "Cumulative Warranty Claims Forecast",
-            "data": [
-                {"type": "scatter", "x": periods, "y": cum_hi.tolist(),
-                 "line": {"width": 0}, "showlegend": False, "name": "Upper"},
-                {"type": "scatter", "x": periods, "y": cum_lo.tolist(),
-                 "fill": "tonexty", "fillcolor": _rgba(SVEND_COLORS[1], 0.2),
-                 "line": {"width": 0}, "name": f"{int(ci_level*100)}% CI"},
-                {"type": "scatter", "x": periods, "y": cum_mean.tolist(),
-                 "line": {"color": SVEND_COLORS[1], "width": 2}, "name": "Expected"},
-            ],
-            "layout": {"height": 300, "xaxis": {"title": "Period"}, "yaxis": {"title": "Cumulative Claims"}},
-        })
+        result["plots"].append(
+            {
+                "title": "Cumulative Warranty Claims Forecast",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": periods,
+                        "y": cum_hi.tolist(),
+                        "line": {"width": 0},
+                        "showlegend": False,
+                        "name": "Upper",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": periods,
+                        "y": cum_lo.tolist(),
+                        "fill": "tonexty",
+                        "fillcolor": _rgba(SVEND_COLORS[1], 0.2),
+                        "line": {"width": 0},
+                        "name": f"{int(ci_level * 100)}% CI",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": periods,
+                        "y": cum_mean.tolist(),
+                        "line": {"color": SVEND_COLORS[1], "width": 2},
+                        "name": "Expected",
+                    },
+                ],
+                "layout": {"height": 300, "xaxis": {"title": "Period"}, "yaxis": {"title": "Cumulative Claims"}},
+            }
+        )
 
         # Plot 3: Monthly forecast bars
-        result["plots"].append({
-            "title": "Monthly Claims Forecast",
-            "data": [{
-                "type": "bar", "x": periods, "y": monthly_mean.tolist(),
-                "error_y": {"type": "data", "symmetric": False,
+        result["plots"].append(
+            {
+                "title": "Monthly Claims Forecast",
+                "data": [
+                    {
+                        "type": "bar",
+                        "x": periods,
+                        "y": monthly_mean.tolist(),
+                        "error_y": {
+                            "type": "data",
+                            "symmetric": False,
                             "array": (monthly_hi - monthly_mean).tolist(),
-                            "arrayminus": (monthly_mean - monthly_lo).tolist()},
-                "marker": {"color": _rgba(SVEND_COLORS[2], 0.7)}, "name": "Claims",
-            }],
-            "layout": {"height": 300, "xaxis": {"title": "Period"}, "yaxis": {"title": "Claims"}},
-        })
+                            "arrayminus": (monthly_mean - monthly_lo).tolist(),
+                        },
+                        "marker": {"color": _rgba(SVEND_COLORS[2], 0.7)},
+                        "name": "Claims",
+                    }
+                ],
+                "layout": {"height": 300, "xaxis": {"title": "Period"}, "yaxis": {"title": "Claims"}},
+            }
+        )
 
         result["what_if_data"] = {
             "type": "bayes_warranty",
@@ -2671,8 +3337,10 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         beta_post_mean = float(np.sum(beta_range * beta_marg))
         theta_post_mean = float(np.sum(theta_range * theta_marg))
-        beta_post_ci = (float(beta_range[np.searchsorted(np.cumsum(beta_marg), (1 - ci_level) / 2)]),
-                        float(beta_range[min(n_grid - 1, np.searchsorted(np.cumsum(beta_marg), (1 + ci_level) / 2))]))
+        beta_post_ci = (
+            float(beta_range[np.searchsorted(np.cumsum(beta_marg), (1 - ci_level) / 2)]),
+            float(beta_range[min(n_grid - 1, np.searchsorted(np.cumsum(beta_marg), (1 + ci_level) / 2))]),
+        )
         p_deteriorating = float(np.sum(beta_marg[beta_range > 1]))
 
         n_mc = 5000
@@ -2700,7 +3368,7 @@ def run_bayesian_analysis(df, analysis_id, config):
         verdict = "FAIL" if p_deteriorating > 0.8 else ("PASS" if p_deteriorating < 0.2 else "WARNING")
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN REPAIRABLE SYSTEM (NHPP)<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN REPAIRABLE SYSTEM (NHPP)<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Events:<</COLOR>> {n_events}\n"
         summary += f"<<COLOR:highlight>>Observation window:<</COLOR>> [0, {T:.1f}]\n\n"
@@ -2713,60 +3381,140 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         result["summary"] = summary
         result["statistics"] = {
-            "beta_mean": beta_post_mean, "beta_ci": list(beta_post_ci),
-            "theta_mean": theta_post_mean, "p_deteriorating": p_deteriorating,
-            "trend": trend_label, "next_period_mean": next_mean, "next_period_ci": list(next_ci),
+            "beta_mean": beta_post_mean,
+            "beta_ci": list(beta_post_ci),
+            "theta_mean": theta_post_mean,
+            "p_deteriorating": p_deteriorating,
+            "trend": trend_label,
+            "next_period_mean": next_mean,
+            "next_period_ci": list(next_ci),
         }
-        result["guide_observation"] = f"Bayes repairable: \u03b2={beta_post_mean:.3f}, P(deteriorating)={p_deteriorating:.3f}, trend={trend_label}"
+        result["guide_observation"] = (
+            f"Bayes repairable: \u03b2={beta_post_mean:.3f}, P(deteriorating)={p_deteriorating:.3f}, trend={trend_label}"
+        )
         result["narrative"] = _narrative(
             verdict,
             f"Power Law Process: \u03b2 = {beta_post_mean:.3f} (CI: {beta_post_ci[0]:.3f}\u2013{beta_post_ci[1]:.3f}). "
             f"P(\u03b2 > 1) = {p_deteriorating:.3f} \u2192 system is {trend_label}. "
             f"Expected {next_mean:.1f} failures in next {dt:.1f} time units.",
-            ["If deteriorating, schedule preventive overhaul",
-             "If improving, maintenance actions may be working \u2014 continue monitoring",
-             "Segment by system if data spans multiple units"],
+            [
+                "If deteriorating, schedule preventive overhaul",
+                "If improving, maintenance actions may be working \u2014 continue monitoring",
+                "Segment by system if data spans multiple units",
+            ],
         )
 
         # Plot 1: MCF with credible band
-        result["plots"].append({
-            "title": "Mean Cumulative Function (MCF) with Credible Band",
-            "data": [
-                {"type": "scatter", "x": t_eval.tolist(), "y": mcf_hi.tolist(),
-                 "line": {"width": 0}, "showlegend": False, "name": "Upper"},
-                {"type": "scatter", "x": t_eval.tolist(), "y": mcf_lo.tolist(),
-                 "fill": "tonexty", "fillcolor": _rgba(SVEND_COLORS[0], 0.2),
-                 "line": {"width": 0}, "name": f"{int(ci_level*100)}% CI"},
-                {"type": "scatter", "x": t_eval.tolist(), "y": mcf_mean.tolist(),
-                 "line": {"color": SVEND_COLORS[0], "width": 2}, "name": "Posterior Mean"},
-                {"type": "scatter", "x": times_raw.tolist(), "y": obs_mcf.tolist(),
-                 "mode": "markers", "marker": {"color": COLOR_BAD, "size": 5}, "name": "Observed"},
-            ],
-            "layout": {
-                "height": 350, "xaxis": {"title": "Time"}, "yaxis": {"title": "Cumulative Failures"},
-                "shapes": [{"type": "line", "x0": T, "x1": T, "y0": 0, "y1": 1,
-                            "yref": "paper", "line": {"color": "#888", "dash": "dot"}}],
-                "annotations": [{"x": T, "y": 1, "yref": "paper", "text": "End of observation",
-                                 "showarrow": False, "yanchor": "bottom"}],
-            },
-        })
+        result["plots"].append(
+            {
+                "title": "Mean Cumulative Function (MCF) with Credible Band",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": t_eval.tolist(),
+                        "y": mcf_hi.tolist(),
+                        "line": {"width": 0},
+                        "showlegend": False,
+                        "name": "Upper",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": t_eval.tolist(),
+                        "y": mcf_lo.tolist(),
+                        "fill": "tonexty",
+                        "fillcolor": _rgba(SVEND_COLORS[0], 0.2),
+                        "line": {"width": 0},
+                        "name": f"{int(ci_level * 100)}% CI",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": t_eval.tolist(),
+                        "y": mcf_mean.tolist(),
+                        "line": {"color": SVEND_COLORS[0], "width": 2},
+                        "name": "Posterior Mean",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": times_raw.tolist(),
+                        "y": obs_mcf.tolist(),
+                        "mode": "markers",
+                        "marker": {"color": COLOR_BAD, "size": 5},
+                        "name": "Observed",
+                    },
+                ],
+                "layout": {
+                    "height": 350,
+                    "xaxis": {"title": "Time"},
+                    "yaxis": {"title": "Cumulative Failures"},
+                    "shapes": [
+                        {
+                            "type": "line",
+                            "x0": T,
+                            "x1": T,
+                            "y0": 0,
+                            "y1": 1,
+                            "yref": "paper",
+                            "line": {"color": "#888", "dash": "dot"},
+                        }
+                    ],
+                    "annotations": [
+                        {
+                            "x": T,
+                            "y": 1,
+                            "yref": "paper",
+                            "text": "End of observation",
+                            "showarrow": False,
+                            "yanchor": "bottom",
+                        }
+                    ],
+                },
+            }
+        )
 
         # Plot 2: beta posterior with reference at 1
-        result["plots"].append({
-            "title": "Posterior on Shape Parameter \u03b2",
-            "data": [{
-                "type": "scatter", "x": beta_range.tolist(), "y": beta_marg.tolist(),
-                "fill": "tozeroy", "fillcolor": _rgba(SVEND_COLORS[1], 0.3),
-                "line": {"color": SVEND_COLORS[1], "width": 2}, "name": "\u03b2 Posterior",
-            }],
-            "layout": {
-                "height": 300, "xaxis": {"title": "\u03b2 (Shape)"}, "yaxis": {"title": "Density"},
-                "shapes": [{"type": "line", "x0": 1, "x1": 1, "y0": 0, "y1": 1,
-                            "yref": "paper", "line": {"color": COLOR_BAD, "dash": "dot", "width": 2}}],
-                "annotations": [{"x": 1, "y": 1, "yref": "paper", "text": "\u03b2=1 (HPP)",
-                                 "showarrow": False, "yanchor": "bottom", "font": {"color": COLOR_BAD}}],
-            },
-        })
+        result["plots"].append(
+            {
+                "title": "Posterior on Shape Parameter \u03b2",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": beta_range.tolist(),
+                        "y": beta_marg.tolist(),
+                        "fill": "tozeroy",
+                        "fillcolor": _rgba(SVEND_COLORS[1], 0.3),
+                        "line": {"color": SVEND_COLORS[1], "width": 2},
+                        "name": "\u03b2 Posterior",
+                    }
+                ],
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "\u03b2 (Shape)"},
+                    "yaxis": {"title": "Density"},
+                    "shapes": [
+                        {
+                            "type": "line",
+                            "x0": 1,
+                            "x1": 1,
+                            "y0": 0,
+                            "y1": 1,
+                            "yref": "paper",
+                            "line": {"color": COLOR_BAD, "dash": "dot", "width": 2},
+                        }
+                    ],
+                    "annotations": [
+                        {
+                            "x": 1,
+                            "y": 1,
+                            "yref": "paper",
+                            "text": "\u03b2=1 (HPP)",
+                            "showarrow": False,
+                            "yanchor": "bottom",
+                            "font": {"color": COLOR_BAD},
+                        }
+                    ],
+                },
+            }
+        )
 
         # Plot 3: Expected failures forecast
         n_fp = 5
@@ -2779,17 +3527,31 @@ def run_bayesian_analysis(df, analysis_id, config):
             forecast_lo_bars.append(float(np.percentile(f_samp, 2.5)))
             forecast_hi_bars.append(float(np.percentile(f_samp, 97.5)))
             period_labels.append(f"P{p}")
-        result["plots"].append({
-            "title": "Expected Failures in Future Periods",
-            "data": [{
-                "type": "bar", "x": period_labels, "y": forecast_bars,
-                "error_y": {"type": "data", "symmetric": False,
+        result["plots"].append(
+            {
+                "title": "Expected Failures in Future Periods",
+                "data": [
+                    {
+                        "type": "bar",
+                        "x": period_labels,
+                        "y": forecast_bars,
+                        "error_y": {
+                            "type": "data",
+                            "symmetric": False,
                             "array": [h - m for h, m in zip(forecast_hi_bars, forecast_bars)],
-                            "arrayminus": [m - l for m, l in zip(forecast_bars, forecast_lo_bars)]},
-                "marker": {"color": _rgba(SVEND_COLORS[2], 0.7)}, "name": "Expected Failures",
-            }],
-            "layout": {"height": 300, "xaxis": {"title": "Forecast Period"}, "yaxis": {"title": "Expected Failures"}},
-        })
+                            "arrayminus": [m - lo for m, lo in zip(forecast_bars, forecast_lo_bars)],
+                        },
+                        "marker": {"color": _rgba(SVEND_COLORS[2], 0.7)},
+                        "name": "Expected Failures",
+                    }
+                ],
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Forecast Period"},
+                    "yaxis": {"title": "Expected Failures"},
+                },
+            }
+        )
 
         result["education"] = {
             "title": "Understanding Bayesian Repairable Systems (NHPP)",
@@ -2876,11 +3638,13 @@ def run_bayesian_analysis(df, analysis_id, config):
         intercepts = np.array(intercepts)
         n_units = len(slopes)
         if n_units < 1:
-            result["summary"] = "Error: Could not estimate degradation rates. Ensure each unit has at least 2 time-measurement pairs."
+            result["summary"] = (
+                "Error: Could not estimate degradation rates. Ensure each unit has at least 2 time-measurement pairs."
+            )
             return result
 
         slope_mean = float(np.mean(slopes))
-        slope_var = float(np.var(slopes, ddof=1)) if n_units > 1 else float(slope_mean ** 2 * 0.1)
+        slope_var = float(np.var(slopes, ddof=1)) if n_units > 1 else float(slope_mean**2 * 0.1)
         slope_std = float(np.sqrt(slope_var))
 
         all_times = df_clean[time_col].values.astype(float)
@@ -2893,8 +3657,9 @@ def run_bayesian_analysis(df, analysis_id, config):
         rng = np.random.default_rng(42)
         if n_units > 2:
             df_t = n_units - 1
-            slope_samples = stats.t.rvs(df_t, loc=slope_mean, scale=slope_std / np.sqrt(n_units),
-                                        size=n_mc, random_state=42)
+            slope_samples = stats.t.rvs(
+                df_t, loc=slope_mean, scale=slope_std / np.sqrt(n_units), size=n_mc, random_state=42
+            )
         else:
             slope_samples = rng.normal(slope_mean, slope_std if slope_std > 0 else abs(slope_mean) * 0.1, size=n_mc)
 
@@ -2910,8 +3675,10 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         if len(valid_rul) > 0:
             rul_mean = float(np.mean(valid_rul))
-            rul_ci = (float(np.percentile(valid_rul, (1 - ci_level) / 2 * 100)),
-                      float(np.percentile(valid_rul, (1 + ci_level) / 2 * 100)))
+            rul_ci = (
+                float(np.percentile(valid_rul, (1 - ci_level) / 2 * 100)),
+                float(np.percentile(valid_rul, (1 + ci_level) / 2 * 100)),
+            )
         else:
             rul_mean, rul_ci = float("inf"), (0.0, float("inf"))
 
@@ -2920,7 +3687,7 @@ def run_bayesian_analysis(df, analysis_id, config):
         verdict = "WARNING" if p_fail_horizon > 0.5 else "PASS"
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN REMAINING USEFUL LIFE<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN REMAINING USEFUL LIFE<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Units analyzed:<</COLOR>> {n_units}\n"
         summary += f"<<COLOR:highlight>>Threshold:<</COLOR>> {threshold}\n"
@@ -2932,19 +3699,26 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         result["summary"] = summary
         result["statistics"] = {
-            "slope_mean": slope_mean, "slope_std": slope_std,
-            "rul_mean": rul_mean, "rul_ci": list(rul_ci),
-            "p_fail_horizon": p_fail_horizon, "n_units": n_units,
+            "slope_mean": slope_mean,
+            "slope_std": slope_std,
+            "rul_mean": rul_mean,
+            "rul_ci": list(rul_ci),
+            "p_fail_horizon": p_fail_horizon,
+            "n_units": n_units,
         }
-        result["guide_observation"] = f"Bayes RUL: mean={rul_mean:.1f}, P(fail before {horizon:.0f})={p_fail_horizon:.3f}"
+        result["guide_observation"] = (
+            f"Bayes RUL: mean={rul_mean:.1f}, P(fail before {horizon:.0f})={p_fail_horizon:.3f}"
+        )
         result["narrative"] = _narrative(
             verdict,
             f"Degradation rate: {slope_mean:.4f} \u00b1 {slope_std:.4f}/time ({n_units} units). "
-            f"RUL estimate: {rul_mean:.1f} ({int(ci_level*100)}% CI: {rul_ci[0]:.1f}\u2013{rul_ci[1]:.1f}). "
+            f"RUL estimate: {rul_mean:.1f} ({int(ci_level * 100)}% CI: {rul_ci[0]:.1f}\u2013{rul_ci[1]:.1f}). "
             f"P(fail before {horizon:.0f}) = {p_fail_horizon:.1%}.",
-            ["Schedule maintenance before lower credible bound",
-             "Increase monitoring frequency as degradation approaches threshold",
-             "Use unit-specific tracking for fleet heterogeneity"],
+            [
+                "Schedule maintenance before lower credible bound",
+                "Increase monitoring frequency as degradation approaches threshold",
+                "Use unit-specific tracking for fleet heterogeneity",
+            ],
         )
 
         # Plot 1: Degradation paths with threshold
@@ -2953,55 +3727,112 @@ def run_bayesian_analysis(df, analysis_id, config):
             mask = df_clean[unit_col] == u
             t_u = df_clean.loc[mask, time_col].values.astype(float)
             y_u = df_clean.loc[mask, meas_col].values.astype(float)
-            deg_traces.append({
-                "type": "scatter", "x": t_u.tolist(), "y": y_u.tolist(),
-                "mode": "lines+markers", "line": {"color": SVEND_COLORS[u_idx % len(SVEND_COLORS)], "width": 1.5},
-                "marker": {"size": 3}, "name": str(u), "showlegend": n_units <= 10,
-            })
-        result["plots"].append({
-            "title": "Degradation Paths",
-            "data": deg_traces,
-            "layout": {
-                "height": 350, "xaxis": {"title": time_col}, "yaxis": {"title": meas_col},
-                "shapes": [{"type": "line", "x0": 0, "x1": t_current * 1.5, "y0": threshold, "y1": threshold,
-                            "line": {"color": COLOR_BAD, "dash": "dot", "width": 2}}],
-                "annotations": [{"x": t_current * 1.5, "y": threshold, "text": f"Threshold={threshold}",
-                                 "showarrow": False, "xanchor": "right", "font": {"color": COLOR_BAD}}],
-            },
-        })
+            deg_traces.append(
+                {
+                    "type": "scatter",
+                    "x": t_u.tolist(),
+                    "y": y_u.tolist(),
+                    "mode": "lines+markers",
+                    "line": {"color": SVEND_COLORS[u_idx % len(SVEND_COLORS)], "width": 1.5},
+                    "marker": {"size": 3},
+                    "name": str(u),
+                    "showlegend": n_units <= 10,
+                }
+            )
+        result["plots"].append(
+            {
+                "title": "Degradation Paths",
+                "data": deg_traces,
+                "layout": {
+                    "height": 350,
+                    "xaxis": {"title": time_col},
+                    "yaxis": {"title": meas_col},
+                    "shapes": [
+                        {
+                            "type": "line",
+                            "x0": 0,
+                            "x1": t_current * 1.5,
+                            "y0": threshold,
+                            "y1": threshold,
+                            "line": {"color": COLOR_BAD, "dash": "dot", "width": 2},
+                        }
+                    ],
+                    "annotations": [
+                        {
+                            "x": t_current * 1.5,
+                            "y": threshold,
+                            "text": f"Threshold={threshold}",
+                            "showarrow": False,
+                            "xanchor": "right",
+                            "font": {"color": COLOR_BAD},
+                        }
+                    ],
+                },
+            }
+        )
 
         # Plot 2: Posterior on degradation rate
-        rate_x = np.linspace(slope_mean - 4 * slope_std, slope_mean + 4 * slope_std, 200) if slope_std > 0 else np.linspace(slope_mean * 0.5, slope_mean * 1.5, 200)
+        rate_x = (
+            np.linspace(slope_mean - 4 * slope_std, slope_mean + 4 * slope_std, 200)
+            if slope_std > 0
+            else np.linspace(slope_mean * 0.5, slope_mean * 1.5, 200)
+        )
         if n_units > 2:
             rate_pdf = stats.t.pdf(rate_x, n_units - 1, loc=slope_mean, scale=slope_std / np.sqrt(n_units))
         else:
             rate_pdf = stats.norm.pdf(rate_x, slope_mean, slope_std if slope_std > 0 else abs(slope_mean) * 0.1)
-        result["plots"].append({
-            "title": "Posterior on Degradation Rate",
-            "data": [{
-                "type": "scatter", "x": rate_x.tolist(), "y": rate_pdf.tolist(),
-                "fill": "tozeroy", "fillcolor": _rgba(SVEND_COLORS[1], 0.3),
-                "line": {"color": SVEND_COLORS[1], "width": 2}, "name": "Rate Posterior",
-            }],
-            "layout": {"height": 300, "xaxis": {"title": "Degradation Rate"}, "yaxis": {"title": "Density"}},
-        })
+        result["plots"].append(
+            {
+                "title": "Posterior on Degradation Rate",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": rate_x.tolist(),
+                        "y": rate_pdf.tolist(),
+                        "fill": "tozeroy",
+                        "fillcolor": _rgba(SVEND_COLORS[1], 0.3),
+                        "line": {"color": SVEND_COLORS[1], "width": 2},
+                        "name": "Rate Posterior",
+                    }
+                ],
+                "layout": {"height": 300, "xaxis": {"title": "Degradation Rate"}, "yaxis": {"title": "Density"}},
+            }
+        )
 
         # Plot 3: RUL posterior predictive histogram
         if len(valid_rul) > 10:
             hist_rul, edges_rul = np.histogram(valid_rul, bins=60, density=True)
             centers_rul = (edges_rul[:-1] + edges_rul[1:]) / 2
-            result["plots"].append({
-                "title": "RUL Posterior Predictive",
-                "data": [{
-                    "type": "bar", "x": centers_rul.tolist(), "y": hist_rul.tolist(),
-                    "marker": {"color": _rgba(SVEND_COLORS[2], 0.7)}, "name": "RUL",
-                }],
-                "layout": {
-                    "height": 300, "xaxis": {"title": "Remaining Useful Life"}, "yaxis": {"title": "Density"},
-                    "shapes": [{"type": "line", "x0": rul_mean, "x1": rul_mean, "y0": 0, "y1": 1,
-                                "yref": "paper", "line": {"color": COLOR_WARNING, "dash": "dash", "width": 2}}],
-                },
-            })
+            result["plots"].append(
+                {
+                    "title": "RUL Posterior Predictive",
+                    "data": [
+                        {
+                            "type": "bar",
+                            "x": centers_rul.tolist(),
+                            "y": hist_rul.tolist(),
+                            "marker": {"color": _rgba(SVEND_COLORS[2], 0.7)},
+                            "name": "RUL",
+                        }
+                    ],
+                    "layout": {
+                        "height": 300,
+                        "xaxis": {"title": "Remaining Useful Life"},
+                        "yaxis": {"title": "Density"},
+                        "shapes": [
+                            {
+                                "type": "line",
+                                "x0": rul_mean,
+                                "x1": rul_mean,
+                                "y0": 0,
+                                "y1": 1,
+                                "yref": "paper",
+                                "line": {"color": COLOR_WARNING, "dash": "dash", "width": 2},
+                            }
+                        ],
+                    },
+                }
+            )
 
         result["education"] = {
             "title": "Understanding Bayesian Remaining Useful Life (RUL)",
@@ -3051,10 +3882,10 @@ def run_bayesian_analysis(df, analysis_id, config):
             return result
 
         if model_type == "arrhenius":
-            x_stress = 1.0 / (stresses + 1e-15)
+            1.0 / (stresses + 1e-15)
             x_use = 1.0 / use_stress if use_stress > 0 else 1.0
         else:
-            x_stress = np.log(stresses + 1e-15)
+            np.log(stresses + 1e-15)
             x_use = np.log(use_stress) if use_stress > 0 else 0.0
 
         log_lives, stress_x, weights = [], [], []
@@ -3078,10 +3909,10 @@ def run_bayesian_analysis(df, analysis_id, config):
         log_lives = np.array(log_lives)
         stress_x = np.array(stress_x)
         b, a, r_value, _, std_err = stats.linregress(stress_x, log_lives)
-        r2 = r_value ** 2
+        r2 = r_value**2
         n_pts = len(log_lives)
         residuals = log_lives - (a + b * stress_x)
-        s2 = float(np.sum(residuals ** 2) / max(1, n_pts - 2))
+        s2 = float(np.sum(residuals**2) / max(1, n_pts - 2))
 
         log_life_use = a + b * x_use
         life_use = float(np.exp(log_life_use))
@@ -3096,7 +3927,7 @@ def run_bayesian_analysis(df, analysis_id, config):
         else:
             sigma2_samples = np.full(n_mc, s2)
 
-        a_samples = rng.normal(a, np.sqrt(sigma2_samples * (1 / n_pts + x_mean_s ** 2 / max(Sxx, 1e-15))))
+        a_samples = rng.normal(a, np.sqrt(sigma2_samples * (1 / n_pts + x_mean_s**2 / max(Sxx, 1e-15))))
         b_samples = rng.normal(b, np.sqrt(sigma2_samples / max(Sxx, 1e-15)))
 
         life_use_samples = np.exp(a_samples + b_samples * x_use)
@@ -3104,8 +3935,10 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         if len(life_use_samples) > 0:
             life_mean = float(np.mean(life_use_samples))
-            life_ci = (float(np.percentile(life_use_samples, (1 - ci_level) / 2 * 100)),
-                       float(np.percentile(life_use_samples, (1 + ci_level) / 2 * 100)))
+            life_ci = (
+                float(np.percentile(life_use_samples, (1 - ci_level) / 2 * 100)),
+                float(np.percentile(life_use_samples, (1 + ci_level) / 2 * 100)),
+            )
             b10_use = float(np.percentile(life_use_samples, 10))
         else:
             life_mean = life_use
@@ -3116,7 +3949,7 @@ def run_bayesian_analysis(df, analysis_id, config):
         verdict = "PASS"
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN ACCELERATED LIFE TESTING<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN ACCELERATED LIFE TESTING<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Model:<</COLOR>> {model_type}\n"
         summary += f"<<COLOR:highlight>>Stress levels:<</COLOR>> {len(unique_stresses)}\n"
@@ -3128,28 +3961,39 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         result["summary"] = summary
         result["statistics"] = {
-            "model": model_type, "r2": r2, "intercept": float(a), "slope": float(b),
-            "life_at_use": life_mean, "life_ci": list(life_ci), "b10_use": b10_use,
+            "model": model_type,
+            "r2": r2,
+            "intercept": float(a),
+            "slope": float(b),
+            "life_at_use": life_mean,
+            "life_ci": list(life_ci),
+            "b10_use": b10_use,
             "acceleration_factor": af,
         }
-        result["guide_observation"] = f"Bayes ALT ({model_type}): life at use={life_mean:.1f}, B10={b10_use:.1f}, AF={af:.1f}\u00d7"
+        result["guide_observation"] = (
+            f"Bayes ALT ({model_type}): life at use={life_mean:.1f}, B10={b10_use:.1f}, AF={af:.1f}\u00d7"
+        )
         result["narrative"] = _narrative(
             verdict,
             f"{model_type.title()} model (R\u00b2 = {r2:.3f}). At use stress = {use_stress}, "
-            f"characteristic life = {life_mean:.1f} ({int(ci_level*100)}% CI: {life_ci[0]:.1f}\u2013{life_ci[1]:.1f}). "
+            f"characteristic life = {life_mean:.1f} ({int(ci_level * 100)}% CI: {life_ci[0]:.1f}\u2013{life_ci[1]:.1f}). "
             f"B10 = {b10_use:.1f}. Acceleration factor = {af:.1f}\u00d7.",
-            ["Verify model adequacy with residual plots",
-             "Consider adding intermediate stress levels for better fit",
-             "Validate extrapolation with limited use-condition testing"],
+            [
+                "Verify model adequacy with residual plots",
+                "Consider adding intermediate stress levels for better fit",
+                "Validate extrapolation with limited use-condition testing",
+            ],
         )
 
         # Plot 1: Life vs Stress with credible band
         x_plot = np.linspace(min(min(stress_x), x_use) * 0.9, max(max(stress_x), x_use) * 1.1, 100)
         log_life_fit = a + b * x_plot
-        log_life_hi = np.percentile(a_samples[:, None] + b_samples[:, None] * x_plot[None, :],
-                                    (1 + ci_level) / 2 * 100, axis=0)
-        log_life_lo = np.percentile(a_samples[:, None] + b_samples[:, None] * x_plot[None, :],
-                                    (1 - ci_level) / 2 * 100, axis=0)
+        log_life_hi = np.percentile(
+            a_samples[:, None] + b_samples[:, None] * x_plot[None, :], (1 + ci_level) / 2 * 100, axis=0
+        )
+        log_life_lo = np.percentile(
+            a_samples[:, None] + b_samples[:, None] * x_plot[None, :], (1 - ci_level) / 2 * 100, axis=0
+        )
 
         if model_type == "arrhenius":
             x_labels = (1.0 / x_plot).tolist()
@@ -3158,30 +4002,72 @@ def run_bayesian_analysis(df, analysis_id, config):
             x_labels = np.exp(x_plot).tolist()
             obs_x = np.exp(np.array(stress_x)).tolist()
 
-        result["plots"].append({
-            "title": "Life vs Stress (Log Scale)",
-            "data": [
-                {"type": "scatter", "x": x_labels, "y": np.exp(log_life_hi).tolist(),
-                 "line": {"width": 0}, "showlegend": False, "name": "Upper"},
-                {"type": "scatter", "x": x_labels, "y": np.exp(log_life_lo).tolist(),
-                 "fill": "tonexty", "fillcolor": _rgba(SVEND_COLORS[0], 0.2),
-                 "line": {"width": 0}, "name": f"{int(ci_level*100)}% CI"},
-                {"type": "scatter", "x": x_labels, "y": np.exp(log_life_fit).tolist(),
-                 "line": {"color": SVEND_COLORS[0], "width": 2}, "name": "Regression"},
-                {"type": "scatter", "x": obs_x, "y": np.exp(log_lives).tolist(),
-                 "mode": "markers", "marker": {"color": COLOR_BAD, "size": 8}, "name": "Observed"},
-            ],
-            "layout": {
-                "height": 350,
-                "xaxis": {"title": "Stress", "type": "log"},
-                "yaxis": {"title": "Characteristic Life", "type": "log"},
-                "shapes": [{"type": "line", "x0": use_stress, "x1": use_stress, "y0": 0, "y1": 1,
-                            "yref": "paper", "line": {"color": COLOR_GOOD, "dash": "dash"}}],
-                "annotations": [{"x": np.log10(max(use_stress, 0.01)), "y": 1, "yref": "paper",
-                                 "text": f"Use={use_stress}", "showarrow": False, "yanchor": "bottom",
-                                 "font": {"color": COLOR_GOOD}}],
-            },
-        })
+        result["plots"].append(
+            {
+                "title": "Life vs Stress (Log Scale)",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": x_labels,
+                        "y": np.exp(log_life_hi).tolist(),
+                        "line": {"width": 0},
+                        "showlegend": False,
+                        "name": "Upper",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": x_labels,
+                        "y": np.exp(log_life_lo).tolist(),
+                        "fill": "tonexty",
+                        "fillcolor": _rgba(SVEND_COLORS[0], 0.2),
+                        "line": {"width": 0},
+                        "name": f"{int(ci_level * 100)}% CI",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": x_labels,
+                        "y": np.exp(log_life_fit).tolist(),
+                        "line": {"color": SVEND_COLORS[0], "width": 2},
+                        "name": "Regression",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": obs_x,
+                        "y": np.exp(log_lives).tolist(),
+                        "mode": "markers",
+                        "marker": {"color": COLOR_BAD, "size": 8},
+                        "name": "Observed",
+                    },
+                ],
+                "layout": {
+                    "height": 350,
+                    "xaxis": {"title": "Stress", "type": "log"},
+                    "yaxis": {"title": "Characteristic Life", "type": "log"},
+                    "shapes": [
+                        {
+                            "type": "line",
+                            "x0": use_stress,
+                            "x1": use_stress,
+                            "y0": 0,
+                            "y1": 1,
+                            "yref": "paper",
+                            "line": {"color": COLOR_GOOD, "dash": "dash"},
+                        }
+                    ],
+                    "annotations": [
+                        {
+                            "x": np.log10(max(use_stress, 0.01)),
+                            "y": 1,
+                            "yref": "paper",
+                            "text": f"Use={use_stress}",
+                            "showarrow": False,
+                            "yanchor": "bottom",
+                            "font": {"color": COLOR_GOOD},
+                        }
+                    ],
+                },
+            }
+        )
 
         # Plot 2: Posterior survival at use condition
         try:
@@ -3189,39 +4075,76 @@ def run_bayesian_analysis(df, analysis_id, config):
         except Exception:
             shape_overall = 1.5
         t_surv = np.linspace(0, life_ci[1] * 1.5, 200)
-        surv_mean = np.exp(-(t_surv / life_mean) ** shape_overall)
-        surv_lo = np.exp(-(t_surv / life_ci[0]) ** shape_overall) if life_ci[0] > 0 else np.ones_like(t_surv)
-        surv_hi = np.exp(-(t_surv / life_ci[1]) ** shape_overall)
-        result["plots"].append({
-            "title": "Posterior Survival at Use Condition",
-            "data": [
-                {"type": "scatter", "x": t_surv.tolist(), "y": surv_hi.tolist(),
-                 "line": {"width": 0}, "showlegend": False, "name": "Upper"},
-                {"type": "scatter", "x": t_surv.tolist(), "y": surv_lo.tolist(),
-                 "fill": "tonexty", "fillcolor": _rgba(SVEND_COLORS[1], 0.2),
-                 "line": {"width": 0}, "name": f"{int(ci_level*100)}% CI"},
-                {"type": "scatter", "x": t_surv.tolist(), "y": surv_mean.tolist(),
-                 "line": {"color": SVEND_COLORS[1], "width": 2}, "name": "S(t) at Use"},
-            ],
-            "layout": {"height": 300, "xaxis": {"title": "Time"}, "yaxis": {"title": "Survival Probability"}},
-        })
+        surv_mean = np.exp(-((t_surv / life_mean) ** shape_overall))
+        surv_lo = np.exp(-((t_surv / life_ci[0]) ** shape_overall)) if life_ci[0] > 0 else np.ones_like(t_surv)
+        surv_hi = np.exp(-((t_surv / life_ci[1]) ** shape_overall))
+        result["plots"].append(
+            {
+                "title": "Posterior Survival at Use Condition",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": t_surv.tolist(),
+                        "y": surv_hi.tolist(),
+                        "line": {"width": 0},
+                        "showlegend": False,
+                        "name": "Upper",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": t_surv.tolist(),
+                        "y": surv_lo.tolist(),
+                        "fill": "tonexty",
+                        "fillcolor": _rgba(SVEND_COLORS[1], 0.2),
+                        "line": {"width": 0},
+                        "name": f"{int(ci_level * 100)}% CI",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": t_surv.tolist(),
+                        "y": surv_mean.tolist(),
+                        "line": {"color": SVEND_COLORS[1], "width": 2},
+                        "name": "S(t) at Use",
+                    },
+                ],
+                "layout": {"height": 300, "xaxis": {"title": "Time"}, "yaxis": {"title": "Survival Probability"}},
+            }
+        )
 
         # Plot 3: B10 posterior histogram
         b10_samples = life_use_samples * ((-np.log(0.9)) ** (1.0 / shape_overall))
         hist_b10, edges_b10 = np.histogram(b10_samples[:5000], bins=60, density=True)
         centers_b10 = (edges_b10[:-1] + edges_b10[1:]) / 2
-        result["plots"].append({
-            "title": "B10 Life Posterior at Use Condition",
-            "data": [{
-                "type": "bar", "x": centers_b10.tolist(), "y": hist_b10.tolist(),
-                "marker": {"color": _rgba(SVEND_COLORS[2], 0.7)}, "name": "B10",
-            }],
-            "layout": {
-                "height": 300, "xaxis": {"title": "B10 Life"}, "yaxis": {"title": "Density"},
-                "shapes": [{"type": "line", "x0": b10_use, "x1": b10_use, "y0": 0, "y1": 1,
-                            "yref": "paper", "line": {"color": COLOR_GOOD, "dash": "dash", "width": 2}}],
-            },
-        })
+        result["plots"].append(
+            {
+                "title": "B10 Life Posterior at Use Condition",
+                "data": [
+                    {
+                        "type": "bar",
+                        "x": centers_b10.tolist(),
+                        "y": hist_b10.tolist(),
+                        "marker": {"color": _rgba(SVEND_COLORS[2], 0.7)},
+                        "name": "B10",
+                    }
+                ],
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "B10 Life"},
+                    "yaxis": {"title": "Density"},
+                    "shapes": [
+                        {
+                            "type": "line",
+                            "x0": b10_use,
+                            "x1": b10_use,
+                            "y0": 0,
+                            "y1": 1,
+                            "yref": "paper",
+                            "line": {"color": COLOR_GOOD, "dash": "dash", "width": 2},
+                        }
+                    ],
+                },
+            }
+        )
 
         result["education"] = {
             "title": "Understanding Bayesian Accelerated Life Testing (ALT)",
@@ -3295,8 +4218,12 @@ def run_bayesian_analysis(df, analysis_id, config):
         for j, m in enumerate(modes):
             t_m = times_cr[events_cr == m]
             if len(t_m) < 2:
-                mode_weibull[m] = {"shape": 1.0, "scale": float(np.median(times_cr)),
-                                   "shape_ci": (0.5, 2.0), "scale_ci": (1.0, float(np.max(times_cr)))}
+                mode_weibull[m] = {
+                    "shape": 1.0,
+                    "scale": float(np.median(times_cr)),
+                    "shape_ci": (0.5, 2.0),
+                    "scale_ci": (1.0, float(np.max(times_cr))),
+                }
                 continue
             try:
                 shape_mle, _, scale_mle = stats.weibull_min.fit(t_m, floc=0)
@@ -3321,10 +4248,14 @@ def run_bayesian_analysis(df, analysis_id, config):
 
             b_mean = float(np.sum(b_range * b_marg))
             e_mean = float(np.sum(e_range * e_marg))
-            b_ci_m = (float(b_range[np.searchsorted(np.cumsum(b_marg), (1 - ci_level) / 2)]),
-                      float(b_range[min(n_grid - 1, np.searchsorted(np.cumsum(b_marg), (1 + ci_level) / 2))]))
-            e_ci_m = (float(e_range[np.searchsorted(np.cumsum(e_marg), (1 - ci_level) / 2)]),
-                      float(e_range[min(n_grid - 1, np.searchsorted(np.cumsum(e_marg), (1 + ci_level) / 2))]))
+            b_ci_m = (
+                float(b_range[np.searchsorted(np.cumsum(b_marg), (1 - ci_level) / 2)]),
+                float(b_range[min(n_grid - 1, np.searchsorted(np.cumsum(b_marg), (1 + ci_level) / 2))]),
+            )
+            e_ci_m = (
+                float(e_range[np.searchsorted(np.cumsum(e_marg), (1 - ci_level) / 2)]),
+                float(e_range[min(n_grid - 1, np.searchsorted(np.cumsum(e_marg), (1 + ci_level) / 2))]),
+            )
             mode_weibull[m] = {"shape": b_mean, "scale": e_mean, "shape_ci": b_ci_m, "scale_ci": e_ci_m}
 
         # CIF via MC
@@ -3351,9 +4282,11 @@ def run_bayesian_analysis(df, analysis_id, config):
         verdict = "PASS"
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN COMPETING RISKS<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN COMPETING RISKS<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
-        summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n_cr} ({n_failed} failed, {n_cr - n_failed} censored)\n"
+        summary += (
+            f"<<COLOR:highlight>>Observations:<</COLOR>> {n_cr} ({n_failed} failed, {n_cr - n_failed} censored)\n"
+        )
         summary += f"<<COLOR:highlight>>Failure modes:<</COLOR>> {n_modes}\n\n"
         for j, m in enumerate(modes):
             w = mode_weibull[m]
@@ -3364,7 +4297,8 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         result["summary"] = summary
         result["statistics"] = {
-            "n_modes": n_modes, "dominant_mode": int(dominant_mode),
+            "n_modes": n_modes,
+            "dominant_mode": int(dominant_mode),
             "mode_probabilities": {str(m): float(mode_probs[j]) for j, m in enumerate(modes)},
             "mode_weibull": {str(m): mode_weibull[m] for m in modes},
         }
@@ -3373,10 +4307,17 @@ def run_bayesian_analysis(df, analysis_id, config):
             verdict,
             f"{n_modes} competing failure modes identified. "
             f"Dominant: Mode {dominant_mode} (P = {mode_probs[modes.index(dominant_mode)]:.3f}). "
-            + "; ".join([f"Mode {m}: \u03b2={mode_weibull[m]['shape']:.2f}, \u03b7={mode_weibull[m]['scale']:.1f}" for m in modes]),
-            ["Focus corrective action on dominant failure mode",
-             "Monitor mode proportions over time for shifts",
-             "Use CIF (not 1-KM) for mode-specific risk estimates"],
+            + "; ".join(
+                [
+                    f"Mode {m}: \u03b2={mode_weibull[m]['shape']:.2f}, \u03b7={mode_weibull[m]['scale']:.1f}"
+                    for m in modes
+                ]
+            ),
+            [
+                "Focus corrective action on dominant failure mode",
+                "Monitor mode proportions over time for shifts",
+                "Use CIF (not 1-KM) for mode-specific risk estimates",
+            ],
         )
 
         # Plot 1: CIF curves with credible bands
@@ -3386,33 +4327,64 @@ def run_bayesian_analysis(df, analysis_id, config):
             cif_lo = np.percentile(cif_samples[m], (1 - ci_level) / 2 * 100, axis=0)
             cif_hi = np.percentile(cif_samples[m], (1 + ci_level) / 2 * 100, axis=0)
             color = SVEND_COLORS[j % len(SVEND_COLORS)]
-            cif_traces.extend([
-                {"type": "scatter", "x": t_eval.tolist(), "y": cif_hi.tolist(),
-                 "line": {"width": 0}, "showlegend": False, "name": f"M{m} Upper"},
-                {"type": "scatter", "x": t_eval.tolist(), "y": cif_lo.tolist(),
-                 "fill": "tonexty", "fillcolor": _rgba(color, 0.15),
-                 "line": {"width": 0}, "showlegend": False, "name": f"M{m} CI"},
-                {"type": "scatter", "x": t_eval.tolist(), "y": cif_mean.tolist(),
-                 "line": {"color": color, "width": 2}, "name": f"Mode {m}"},
-            ])
-        result["plots"].append({
-            "title": "Cumulative Incidence Functions (CIF) with Credible Bands",
-            "data": cif_traces,
-            "layout": {"height": 400, "xaxis": {"title": "Time"}, "yaxis": {"title": "Cumulative Incidence"}},
-        })
+            cif_traces.extend(
+                [
+                    {
+                        "type": "scatter",
+                        "x": t_eval.tolist(),
+                        "y": cif_hi.tolist(),
+                        "line": {"width": 0},
+                        "showlegend": False,
+                        "name": f"M{m} Upper",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": t_eval.tolist(),
+                        "y": cif_lo.tolist(),
+                        "fill": "tonexty",
+                        "fillcolor": _rgba(color, 0.15),
+                        "line": {"width": 0},
+                        "showlegend": False,
+                        "name": f"M{m} CI",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": t_eval.tolist(),
+                        "y": cif_mean.tolist(),
+                        "line": {"color": color, "width": 2},
+                        "name": f"Mode {m}",
+                    },
+                ]
+            )
+        result["plots"].append(
+            {
+                "title": "Cumulative Incidence Functions (CIF) with Credible Bands",
+                "data": cif_traces,
+                "layout": {"height": 400, "xaxis": {"title": "Time"}, "yaxis": {"title": "Cumulative Incidence"}},
+            }
+        )
 
         # Plot 2: Mode probability bar with CI
-        result["plots"].append({
-            "title": "Failure Mode Probabilities",
-            "data": [{
-                "type": "bar", "x": mode_names, "y": mode_probs.tolist(),
-                "error_y": {"type": "data", "symmetric": False,
+        result["plots"].append(
+            {
+                "title": "Failure Mode Probabilities",
+                "data": [
+                    {
+                        "type": "bar",
+                        "x": mode_names,
+                        "y": mode_probs.tolist(),
+                        "error_y": {
+                            "type": "data",
+                            "symmetric": False,
                             "array": [ci[1] - p for p, ci in zip(mode_probs, mode_ci)],
-                            "arrayminus": [p - ci[0] for p, ci in zip(mode_probs, mode_ci)]},
-                "marker": {"color": [SVEND_COLORS[j % len(SVEND_COLORS)] for j in range(n_modes)]},
-            }],
-            "layout": {"height": 300, "xaxis": {"title": "Failure Mode"}, "yaxis": {"title": "Probability"}},
-        })
+                            "arrayminus": [p - ci[0] for p, ci in zip(mode_probs, mode_ci)],
+                        },
+                        "marker": {"color": [SVEND_COLORS[j % len(SVEND_COLORS)] for j in range(n_modes)]},
+                    }
+                ],
+                "layout": {"height": 300, "xaxis": {"title": "Failure Mode"}, "yaxis": {"title": "Probability"}},
+            }
+        )
 
         # Plot 3: Mode-specific Weibull shape posteriors
         shape_traces = []
@@ -3422,20 +4394,39 @@ def run_bayesian_analysis(df, analysis_id, config):
             b_std_m = (b_hi - b_lo) / (2 * 1.96)
             b_x = np.linspace(b_lo * 0.5, b_hi * 1.5, 100)
             b_pdf = stats.norm.pdf(b_x, w["shape"], max(b_std_m, 0.01))
-            shape_traces.append({
-                "type": "scatter", "x": b_x.tolist(), "y": b_pdf.tolist(),
-                "fill": "tozeroy", "fillcolor": _rgba(SVEND_COLORS[j % len(SVEND_COLORS)], 0.15),
-                "line": {"color": SVEND_COLORS[j % len(SVEND_COLORS)], "width": 2}, "name": f"Mode {m}",
-            })
-        result["plots"].append({
-            "title": "Mode-Specific Weibull Shape (\u03b2) Posteriors",
-            "data": shape_traces,
-            "layout": {
-                "height": 300, "xaxis": {"title": "Shape (\u03b2)"}, "yaxis": {"title": "Density"},
-                "shapes": [{"type": "line", "x0": 1, "x1": 1, "y0": 0, "y1": 1,
-                            "yref": "paper", "line": {"color": "#888", "dash": "dot"}}],
-            },
-        })
+            shape_traces.append(
+                {
+                    "type": "scatter",
+                    "x": b_x.tolist(),
+                    "y": b_pdf.tolist(),
+                    "fill": "tozeroy",
+                    "fillcolor": _rgba(SVEND_COLORS[j % len(SVEND_COLORS)], 0.15),
+                    "line": {"color": SVEND_COLORS[j % len(SVEND_COLORS)], "width": 2},
+                    "name": f"Mode {m}",
+                }
+            )
+        result["plots"].append(
+            {
+                "title": "Mode-Specific Weibull Shape (\u03b2) Posteriors",
+                "data": shape_traces,
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Shape (\u03b2)"},
+                    "yaxis": {"title": "Density"},
+                    "shapes": [
+                        {
+                            "type": "line",
+                            "x0": 1,
+                            "x1": 1,
+                            "y0": 0,
+                            "y1": 1,
+                            "yref": "paper",
+                            "line": {"color": "#888", "dash": "dot"},
+                        }
+                    ],
+                },
+            }
+        )
 
         result["education"] = {
             "title": "Understanding Bayesian Competing Risks",

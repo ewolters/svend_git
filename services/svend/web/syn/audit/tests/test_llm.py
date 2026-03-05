@@ -15,8 +15,8 @@ from django.test import SimpleTestCase
 
 from agents_api.llm_manager import (
     CLAUDE_MODELS,
-    LLMManager,
     TIER_MODEL_MAP,
+    LLMManager,
 )
 
 
@@ -96,7 +96,8 @@ class TierModelMapTest(SimpleTestCase):
     def test_all_model_keys_valid(self):
         for tier, model_key in TIER_MODEL_MAP.items():
             self.assertIn(
-                model_key, CLAUDE_MODELS,
+                model_key,
+                CLAUDE_MODELS,
                 f"Model key '{model_key}' for tier '{tier}' not in CLAUDE_MODELS",
             )
 
@@ -125,7 +126,7 @@ class LLMRateLimitTest(SimpleTestCase):
         mock_user.subscription_tier = "FREE"
 
         with patch("agents_api.llm_manager.LLMManager.get_anthropic", return_value=None):
-            result = LLMManager.chat(mock_user, [{"role": "user", "content": "test"}])
+            LLMManager.chat(mock_user, [{"role": "user", "content": "test"}])
             # When API not available, returns None — which is valid error handling
             # Rate limit structure is only in success/rate-limited responses
 
@@ -136,7 +137,7 @@ class LLMErrorHandlingTest(SimpleTestCase):
     def test_returns_none_when_no_api_key(self):
         LLMManager.reset()
         with patch.dict("os.environ", {}, clear=True):
-            client = LLMManager.get_anthropic()
+            LLMManager.get_anthropic()
             # Either None or a client (if env has key set elsewhere)
 
     def test_status_method_returns_dict(self):

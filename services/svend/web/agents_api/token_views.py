@@ -3,7 +3,6 @@
 Standard: QMS-002 §2.3, SEC-001
 """
 
-import json
 import logging
 
 from django.http import JsonResponse
@@ -28,7 +27,8 @@ def action_token_view(request, token):
 
     if not tok.is_valid:
         return JsonResponse(
-            {"error": "Token expired or already used"}, status=410,
+            {"error": "Token expired or already used"},
+            status=410,
         )
 
     if request.method == "GET":

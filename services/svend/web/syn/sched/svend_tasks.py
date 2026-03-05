@@ -14,7 +14,7 @@ Phase 5 Migration:
 import logging
 
 from syn.sched.core import TaskRegistry
-from syn.sched.types import QueueType, TaskPriority, RetryStrategy
+from syn.sched.types import QueueType, TaskPriority
 
 logger = logging.getLogger(__name__)
 
@@ -25,13 +25,13 @@ def register_svend_tasks():
     # ---- api/tasks.py handlers ----
 
     from api.tasks import (
-        publish_scheduled_posts,
-        send_onboarding_email,
-        process_onboarding_drip,
-        process_automations,
-        evaluate_experiments,
         claude_growth_review,
         crm_send_one_email,
+        evaluate_experiments,
+        process_automations,
+        process_onboarding_drip,
+        publish_scheduled_posts,
+        send_onboarding_email,
     )
 
     TaskRegistry.register(
@@ -114,6 +114,7 @@ def register_svend_tasks():
 
     def compliance_daily_handler(task):
         from syn.audit.compliance import run_daily_checks
+
         results = run_daily_checks()
         return {
             "checks_run": len(results),
@@ -122,25 +123,29 @@ def register_svend_tasks():
 
     def compliance_monthly_report_handler(task):
         from syn.audit.compliance import generate_monthly_report
+
         report = generate_monthly_report()
         return {"report_id": str(report.id), "pass_rate": report.pass_rate}
 
     def audit_cleanup_violations_handler(task):
         """Clean up resolved violations older than 90 days + expired health pings."""
         from datetime import timedelta
+
         from django.utils import timezone
-        from syn.audit.models import IntegrityViolation, HealthPing
+
+        from syn.audit.models import HealthPing, IntegrityViolation
+
         cutoff = timezone.now() - timedelta(days=90)
-        deleted_violations, _ = IntegrityViolation.objects.filter(
-            is_resolved=True, resolved_at__lt=cutoff
-        ).delete()
+        deleted_violations, _ = IntegrityViolation.objects.filter(is_resolved=True, resolved_at__lt=cutoff).delete()
         deleted_pings, _ = HealthPing.objects.filter(timestamp__lt=cutoff).delete()
         return {"deleted_violations": deleted_violations, "deleted_pings": deleted_pings}
 
     def health_ping_handler(task):
         """Ping /api/health/ and record result. Fires andon on 3+ consecutive failures."""
         import time
+
         import requests
+
         from syn.audit.models import HealthPing
 
         url = "http://127.0.0.1:8000/api/health/"
@@ -218,10 +223,10 @@ def register_svend_tasks():
     # ---- notifications/tasks.py handlers ----
 
     from notifications.tasks import (
-        send_notification_email_task,
-        send_daily_digest,
-        send_weekly_digest,
         cleanup_expired_tokens,
+        send_daily_digest,
+        send_notification_email_task,
+        send_weekly_digest,
     )
 
     TaskRegistry.register(
@@ -266,6 +271,7 @@ def register_svend_tasks():
 def _fire_availability_andon(recent_pings):
     """Send notification to staff on consecutive health ping failures (SLA-001 §12)."""
     from django.contrib.auth import get_user_model
+
     from notifications.helpers import notify
 
     User = get_user_model()

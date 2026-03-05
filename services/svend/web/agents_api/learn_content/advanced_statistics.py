@@ -2,7 +2,6 @@
 
 from ._datasets import SHARED_DATASET  # noqa: F401
 
-
 MULTIVARIATE_ANALYSIS = {
     "id": "multivariate-analysis",
     "title": "Multivariate Analysis (PCA & Factor Analysis)",
@@ -15,7 +14,7 @@ MULTIVARIATE_ANALYSIS = {
             "Look at the first 2 components — which variables load together?",
             "Rotate the factor loadings — does the interpretation change?",
             "Toggle variables on and off — see how each one contributes to the components",
-            "Decide: how many dimensions capture the essential information?"
+            "Decide: how many dimensions capture the essential information?",
         ],
     },
     "content": """
@@ -72,13 +71,20 @@ Loadings are estimates, not ground truth. **Bootstrap PCA** — resample your da
         "type": "pca_explorer",
         "config": {
             "dataset": "clinical",
-            "features": ["baseline_score", "week4_score", "week8_score", "week12_score",
-                         "age", "adherence_pct", "adverse_events"],
+            "features": [
+                "baseline_score",
+                "week4_score",
+                "week8_score",
+                "week12_score",
+                "age",
+                "adherence_pct",
+                "adverse_events",
+            ],
             "show_scree_plot": True,
             "show_biplot": True,
             "show_loadings_table": True,
             "show_cumulative_variance": True,
-        }
+        },
     },
     "key_takeaways": [
         "PCA finds directions of maximum variance — the first few components often capture most of the information",
@@ -91,14 +97,14 @@ Loadings are estimates, not ground truth. **Bootstrap PCA** — resample your da
         {
             "question": "PCA on 10 variables gives eigenvalues: 4.2, 2.1, 1.1, 0.8, 0.6, 0.5, 0.3, 0.2, 0.1, 0.1. How many components would you keep?",
             "answer": "Three components (eigenvalues 4.2, 2.1, 1.1), by Kaiser's rule (eigenvalue > 1). These three explain (4.2+2.1+1.1)/10 = 74% of total variance. If you need 80%+, you might include the 4th (0.8), but the scree plot shows a clear elbow after 3.",
-            "hint": "Apply Kaiser's rule (eigenvalue > 1) and check cumulative variance."
+            "hint": "Apply Kaiser's rule (eigenvalue > 1) and check cumulative variance.",
         },
         {
             "question": "Two variables have loadings of [0.9, 0.1] and [0.85, 0.15] on PC1 and PC2 respectively. What does this suggest?",
             "answer": "Both variables are strongly associated with PC1 and nearly unrelated to PC2. They likely measure the same underlying construct and are highly correlated with each other. If you're doing feature selection, you could probably drop one without losing much information.",
-            "hint": "High loadings on the same component mean the variables co-vary — they move together."
-        }
-    ]
+            "hint": "High loadings on the same component mean the variables co-vary — they move together.",
+        },
+    ],
 }
 
 
@@ -114,7 +120,7 @@ CATEGORICAL_DATA = {
             "Compare observed to expected — where's the biggest gap?",
             "Watch the chi-square statistic and p-value update",
             "Adjust the cell counts — feel when the association becomes statistically significant",
-            "Try a 3×2 table — does adding categories change the conclusion?"
+            "Try a 3×2 table — does adding categories change the conclusion?",
         ],
     },
     "content": """
@@ -181,7 +187,7 @@ A mosaic plot visualizes contingency tables. Each rectangle's width is proportio
             "show_chi_square": True,
             "show_cramers_v": True,
             "show_mosaic_plot": True,
-        }
+        },
     },
     "key_takeaways": [
         "Chi-square tests whether two categorical variables are independent (no association)",
@@ -194,14 +200,14 @@ A mosaic plot visualizes contingency tables. Each rectangle's width is proportio
         {
             "question": "A 2×2 table has chi-square = 12.4 with p = 0.0004, but Cramér's V = 0.08. How do you interpret this?",
             "answer": "Statistically significant but practically trivial. The large sample size (n = 12.4/0.08² ≈ 1,937) gives the test enough power to detect a tiny effect. The association is real but too small to matter for decision-making. With very large samples, almost any non-zero association becomes 'significant' — always check effect size alongside p-value.",
-            "hint": "A small Cramér's V with a very small p-value typically means a large sample is detecting a trivial effect."
+            "hint": "A small Cramér's V with a very small p-value typically means a large sample is detecting a trivial effect.",
         },
         {
             "question": "You want to test whether patient improvement (none/some/major) is related to treatment group (drug/placebo). Which test should you use?",
             "answer": "The Cochran-Armitage trend test, because the outcome variable (improvement) has a natural ordering. A standard chi-square would treat 'none', 'some', and 'major' as unordered categories and lose the information that 'major' > 'some' > 'none'. The trend test is more powerful for detecting a dose-response or treatment-response gradient.",
-            "hint": "The outcome categories have a natural order — is there a test that exploits this?"
-        }
-    ]
+            "hint": "The outcome categories have a natural order — is there a test that exploits this?",
+        },
+    ],
 }
 
 
@@ -217,7 +223,7 @@ BAYESIAN_DEPTH = {
             "Add 50 data points — the posterior starts to dominate over the prior",
             "Add 200 data points — the prior is almost irrelevant now",
             "Switch to a weak (flat) prior — see how even 5 data points drive the posterior",
-            "Try a deliberately wrong prior — watch the data eventually overwhelm it"
+            "Try a deliberately wrong prior — watch the data eventually overwhelm it",
         ],
     },
     "content": """
@@ -284,7 +290,7 @@ The Bayesian interpretation is what most people *think* confidence intervals mea
             "max_n": 500,
             "show_credible_interval": True,
             "show_convergence": True,
-        }
+        },
     },
     "key_takeaways": [
         "Bayesian analysis gives you a full posterior distribution, not just a point estimate",
@@ -297,14 +303,14 @@ The Bayesian interpretation is what most people *think* confidence intervals mea
         {
             "question": "You have historical data showing a process mean of 25.00mm with SD=0.05. A new batch of 10 measurements has mean 25.08mm. Should you use an informative prior or a flat prior?",
             "answer": "Use an informative prior — Normal(25.00, 0.05). You have genuine historical knowledge that the process typically centers at 25.00mm. The informative prior will shrink the estimate somewhat toward 25.00, which is appropriate with only 10 measurements. The posterior mean will be somewhere between 25.00 (prior) and 25.08 (data), weighted by their relative precisions. If the new batch truly shifted, more data will eventually overwhelm the prior.",
-            "hint": "You have real historical data — that's exactly what informative priors are for."
+            "hint": "You have real historical data — that's exactly what informative priors are for.",
         },
         {
             "question": "A colleague says 'I used a flat prior so my analysis is objective.' Is this true?",
             "answer": "No — flat priors are not truly 'objective.' First, a flat prior on one scale is not flat on transformed scales (e.g., flat on σ is not flat on σ²). Second, a flat prior on an unbounded parameter is improper (doesn't integrate to 1) and can give improper posteriors in some models. Third, choosing a flat prior is itself a choice — you're saying 'a parameter of 1000 is just as likely as 1,' which may be absurd. Weakly informative priors that rule out impossible values are often more principled than flat priors.",
-            "hint": "Is saying 'every value is equally likely' truly objective? What happens on different scales?"
-        }
-    ]
+            "hint": "Is saying 'every value is equally likely' truly objective? What happens on different scales?",
+        },
+    ],
 }
 
 
@@ -320,7 +326,7 @@ MIXED_MODELS = {
             "Toggle 'random effects' — watch extreme site estimates shrink toward the grand mean",
             "Examine Site_D (lowest baseline) — its estimate gets pulled UP",
             "Examine Site_E (highest baseline) — its estimate gets pulled DOWN",
-            "This is shrinkage: small subgroups borrow strength from the overall estimate"
+            "This is shrinkage: small subgroups borrow strength from the overall estimate",
         ],
     },
     "content": """
@@ -395,7 +401,7 @@ A mixed model might tell you the treatment effect is "significant" (p=0.02). But
             "show_random_effects": True,
             "show_shrinkage_arrows": True,
             "show_variance_components": True,
-        }
+        },
     },
     "key_takeaways": [
         "Mixed models handle hierarchical data by including both fixed and random effects",
@@ -408,14 +414,14 @@ A mixed model might tell you the treatment effect is "significant" (p=0.02). But
         {
             "question": "Site A has 15 patients with a mean treatment effect of +12 points. The grand mean effect across all 5 sites is +5 points. What would a mixed model estimate for Site A's effect?",
             "answer": "Something between +5 and +12, likely closer to the grand mean (maybe +7 or +8). With only 15 patients, Site A's estimate is noisy — the mixed model 'shrinks' it toward the grand mean. If Site A had 500 patients, the shrinkage would be minimal and the estimate would stay close to +12. The exact amount depends on the ratio of within-site to between-site variance.",
-            "hint": "Shrinkage depends on subgroup sample size — small groups get pulled more toward the mean."
+            "hint": "Shrinkage depends on subgroup sample size — small groups get pulled more toward the mean.",
         },
         {
             "question": "You have 20 patients each measured at 5 time points. A colleague runs a standard t-test comparing time 1 to time 5. What's wrong?",
             "answer": "The t-test assumes independent observations, but measurements from the same patient are correlated (repeated measures). This means: (1) The effective sample size is less than 100 — more like 20, (2) Standard errors are underestimated, (3) P-values are too small (inflated Type I error). A mixed model with patient as a random effect (or a paired t-test for just two time points) correctly accounts for the within-patient correlation.",
-            "hint": "Are the 100 measurements truly independent? What happens to standard errors when observations are correlated?"
-        }
-    ]
+            "hint": "Are the 100 measurements truly independent? What happens to standard errors when observations are correlated?",
+        },
+    ],
 }
 
 
@@ -431,7 +437,7 @@ RESPONSE_SURFACE = {
             "Find the region where response is highest (the red zone on the contour map)",
             "Enable the 3D surface view — see the shape of the response surface",
             "Try the saddle point scenario — understand that not all surfaces have clean peaks",
-            "Compare the linear model (flat plane) to quadratic model (curved surface)"
+            "Compare the linear model (flat plane) to quadratic model (curved surface)",
         ],
         "description": "For full RSM with CCD designs, use the Experimenter tool at /app/experimenter/",
     },
@@ -503,7 +509,7 @@ Report the CI on the predicted response at your chosen operating conditions. A r
             "show_factor_sliders": True,
             "show_predicted_response": True,
             "show_stationary_point": True,
-        }
+        },
     },
     "key_takeaways": [
         "RSM models curved response surfaces to find optimal process settings",
@@ -516,14 +522,14 @@ Report the CI on the predicted response at your chosen operating conditions. A r
         {
             "question": "Your contour plot shows a saddle point. Temperature increases yield at low pressure but decreases it at high pressure. What does this mean for optimization?",
             "answer": "A saddle point means there is no single maximum — the 'best' settings depend on constraints. You need to decide: optimize for maximum yield at a fixed pressure? Or find the best trade-off? You might also expand the experimental region to see if there's a true maximum beyond the saddle. The interaction between temperature and pressure is strong, so you can't optimize one without considering the other.",
-            "hint": "A saddle point is a maximum in one direction and a minimum in another. What does that mean practically?"
+            "hint": "A saddle point is a maximum in one direction and a minimum in another. What does that mean practically?",
         },
         {
             "question": "Your CCD has 5 center point replicates with responses: 82, 85, 83, 84, 83. What do these tell you?",
             "answer": "Two things: (1) Pure error estimate — the variance of center points (SD ≈ 1.1) estimates the experimental noise without any model assumption. (2) Lack of fit test — if the model predicts the center response poorly, the model is inadequate (significant curvature not captured). The center point mean (83.4) compared to the model prediction at the center tells you whether the model is missing curvature.",
-            "hint": "Center point replicates serve two purposes: estimating pure error and testing for model adequacy."
-        }
-    ]
+            "hint": "Center point replicates serve two purposes: estimating pure error and testing for model adequacy.",
+        },
+    ],
 }
 
 
@@ -539,7 +545,7 @@ REGRESSION_DIAGNOSTICS = {
             "Toggle a high-leverage outlier on/off — watch the regression line shift",
             "Check VIF for multicollinearity — any variables competing?",
             "See Cook's distance — which points disproportionately influence the fit?",
-            "Remove the most influential point — does the conclusion change?"
+            "Remove the most influential point — does the conclusion change?",
         ],
         "dsw_type": "stats:regression",
         "dsw_config": {
@@ -633,7 +639,7 @@ Not all outliers are influential, and not all influential points are outliers:
             "show_vif_table": True,
             "show_cooks_distance": True,
             "interactive_point_toggle": True,
-        }
+        },
     },
     "key_takeaways": [
         "Always check diagnostic plots before trusting regression results",
@@ -647,12 +653,12 @@ Not all outliers are influential, and not all influential points are outliers:
         {
             "question": "Your residuals vs fitted plot shows a clear U-shape (curved pattern). What's wrong and how do you fix it?",
             "answer": "The model is missing a nonlinear relationship. The straight-line model underpredicts at the extremes and overpredicts in the middle. Solutions: (1) Add a quadratic term (x²) for the predictor causing the curvature, (2) Apply a transformation (log, sqrt) to the predictor or response, (3) Use a different model entirely (polynomial, GAM). Look at which predictor's partial residual plot shows the curvature to know which one to transform.",
-            "hint": "A curved pattern in residuals means the model is missing something — what kind of term captures curves?"
+            "hint": "A curved pattern in residuals means the model is missing something — what kind of term captures curves?",
         },
         {
             "question": "Removing one observation changes your regression coefficient from 2.3 (p=0.01) to 0.4 (p=0.65). What should you do?",
             "answer": "Your conclusion depends on a single observation — this is a serious problem. Steps: (1) Verify the observation is correct (not a data entry error), (2) Report both results (with and without the point) transparently, (3) Consider if this point represents a genuine subpopulation that behaves differently, (4) Collect more data to reduce the influence of any single point, (5) Use robust regression methods that are less sensitive to outliers. Never silently remove points to get the result you want.",
-            "hint": "If one point changes your conclusion, how reliable is the conclusion? What's the right thing to do?"
-        }
-    ]
+            "hint": "If one point changes your conclusion, how reliable is the conclusion? What's the right thing to do?",
+        },
+    ],
 }

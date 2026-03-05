@@ -23,9 +23,9 @@ from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
+from agents_api.models import AgentLog, DSWResult, TriageResult
+from chat.models import EventLog, SharedConversation, TraceLog, TrainingCandidate
 from forge.models import Job
-from agents_api.models import AgentLog, TriageResult, DSWResult
-from chat.models import TraceLog, TrainingCandidate, EventLog, SharedConversation
 
 
 class Command(BaseCommand):
@@ -97,23 +97,17 @@ class Command(BaseCommand):
             total_deleted += count
 
         # Training candidates — exported: 30 days, rejected: 7 days
-        count_exported = TrainingCandidate.objects.filter(
-            status="exported", created_at__lt=cutoff_30
-        ).count()
+        count_exported = TrainingCandidate.objects.filter(status="exported", created_at__lt=cutoff_30).count()
         cutoff_7 = now - timedelta(days=7)
-        count_rejected = TrainingCandidate.objects.filter(
-            status="rejected", created_at__lt=cutoff_7
-        ).count()
+        count_rejected = TrainingCandidate.objects.filter(status="rejected", created_at__lt=cutoff_7).count()
         tc_total = count_exported + count_rejected
         if tc_total:
             if not dry_run:
-                TrainingCandidate.objects.filter(
-                    status="exported", created_at__lt=cutoff_30
-                ).delete()
-                TrainingCandidate.objects.filter(
-                    status="rejected", created_at__lt=cutoff_7
-                ).delete()
-            self.stdout.write(f"Training candidates: {tc_total} (exported: {count_exported}, rejected: {count_rejected})")
+                TrainingCandidate.objects.filter(status="exported", created_at__lt=cutoff_30).delete()
+                TrainingCandidate.objects.filter(status="rejected", created_at__lt=cutoff_7).delete()
+            self.stdout.write(
+                f"Training candidates: {tc_total} (exported: {count_exported}, rejected: {count_rejected})"
+            )
             total_deleted += tc_total
 
         # ── 90-day retention ──────────────────────────────────────────
@@ -129,6 +123,7 @@ class Command(BaseCommand):
 
         # Request metrics (HTTP telemetry)
         from syn.log.models import RequestMetric
+
         count = RequestMetric.objects.filter(created_at__lt=cutoff_90).count()
         if count:
             if not dry_run:
@@ -137,14 +132,10 @@ class Command(BaseCommand):
             total_deleted += count
 
         # ── Expired shared conversations ──────────────────────────────
-        count = SharedConversation.objects.filter(
-            expires_at__isnull=False, expires_at__lt=now
-        ).count()
+        count = SharedConversation.objects.filter(expires_at__isnull=False, expires_at__lt=now).count()
         if count:
             if not dry_run:
-                SharedConversation.objects.filter(
-                    expires_at__isnull=False, expires_at__lt=now
-                ).delete()
+                SharedConversation.objects.filter(expires_at__isnull=False, expires_at__lt=now).delete()
             self.stdout.write(f"Expired shared conversations: {count}")
             total_deleted += count
 
@@ -154,6 +145,7 @@ class Command(BaseCommand):
         # Blog views (api.models.BlogView if it exists)
         try:
             from api.models import BlogView
+
             count = BlogView.objects.filter(created_at__lt=cutoff_180).count()
             if count:
                 if not dry_run:

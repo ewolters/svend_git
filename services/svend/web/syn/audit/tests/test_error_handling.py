@@ -7,9 +7,6 @@ bulkhead, and error envelope. Pure unit tests — no database required.
 Standard: ERR-001
 """
 
-import logging
-import threading
-import time
 import unittest
 from datetime import datetime, timedelta
 from unittest.mock import patch
@@ -44,12 +41,10 @@ from syn.err.types import (
     CircuitBreakerConfig,
     CircuitBreakerState,
     ErrorCategory,
-    ErrorContext,
     ErrorEnvelope,
     ErrorSeverity,
     RetryConfig,
     RetryStrategy,
-    SystemLayer,
 )
 
 

@@ -26,9 +26,7 @@ _PASSWORD = "testpass123!"
 
 def _make_user(email, tier=Tier.PRO, password=_PASSWORD, **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(
-        username=username, email=email, password=password, **kwargs
-    )
+    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -62,17 +60,23 @@ class QualityEconomicsScenarioTest(TestCase):
         rng = np.random.RandomState(42)
         data = {"measurement": rng.normal(100, 3, 50).tolist()}
 
-        res = self.client.post(DSW_URL, json.dumps({
-            "type": "quality_econ",
-            "analysis": "taguchi",
-            "data": data,
-            "config": {
-                "column": "measurement",
-                "target": 100.0,
-                "tolerance": 5.0,
-                "loss_per_unit": 50.0,
-            },
-        }), content_type="application/json")
+        res = self.client.post(
+            DSW_URL,
+            json.dumps(
+                {
+                    "type": "quality_econ",
+                    "analysis": "taguchi",
+                    "data": data,
+                    "config": {
+                        "column": "measurement",
+                        "target": 100.0,
+                        "tolerance": 5.0,
+                        "loss_per_unit": 50.0,
+                    },
+                }
+            ),
+            content_type="application/json",
+        )
 
         self.assertEqual(res.status_code, 200)
         result = res.json()
@@ -83,8 +87,11 @@ class QualityEconomicsScenarioTest(TestCase):
         from agents_api.quality_economics import ProcessDecision
 
         pd_obj = ProcessDecision(
-            c_miss=500.0, c_fa=100.0, c_inv=80.0,
-            c_over=120.0, c_adj=150.0,
+            c_miss=500.0,
+            c_fa=100.0,
+            c_inv=80.0,
+            c_over=120.0,
+            c_adj=150.0,
         )
         self.assertEqual(pd_obj.c_miss, 500.0)
         self.assertEqual(pd_obj.c_adj, 150.0)
@@ -94,8 +101,10 @@ class QualityEconomicsScenarioTest(TestCase):
         from agents_api.quality_economics import CostOfQuality
 
         coq = CostOfQuality(
-            prevention=1000, appraisal=2000,
-            internal_failure=3000, external_failure=5000,
+            prevention=1000,
+            appraisal=2000,
+            internal_failure=3000,
+            external_failure=5000,
         )
         self.assertEqual(coq.total, 11000)
         self.assertAlmostEqual(coq.prevention / coq.total, 1000 / 11000, places=4)
@@ -125,12 +134,18 @@ class CausalDiscoveryScenarioTest(TestCase):
 
         data = {"x": x.tolist(), "y": y.tolist(), "z": z.tolist()}
 
-        res = self.client.post(DSW_URL, json.dumps({
-            "type": "causal",
-            "analysis": "pc",
-            "data": data,
-            "config": {"alpha": 0.05, "max_cond_size": 2},
-        }), content_type="application/json")
+        res = self.client.post(
+            DSW_URL,
+            json.dumps(
+                {
+                    "type": "causal",
+                    "analysis": "pc",
+                    "data": data,
+                    "config": {"alpha": 0.05, "max_cond_size": 2},
+                }
+            ),
+            content_type="application/json",
+        )
 
         self.assertEqual(res.status_code, 200)
         result = res.json()
@@ -145,12 +160,18 @@ class CausalDiscoveryScenarioTest(TestCase):
 
         data = {"x": x.tolist(), "y": y.tolist()}
 
-        res = self.client.post(DSW_URL, json.dumps({
-            "type": "causal",
-            "analysis": "lingam",
-            "data": data,
-            "config": {"alpha": 0.05},
-        }), content_type="application/json")
+        res = self.client.post(
+            DSW_URL,
+            json.dumps(
+                {
+                    "type": "causal",
+                    "analysis": "lingam",
+                    "data": data,
+                    "config": {"alpha": 0.05},
+                }
+            ),
+            content_type="application/json",
+        )
 
         self.assertEqual(res.status_code, 200)
 
@@ -177,15 +198,21 @@ class DriftDetectionScenarioTest(TestCase):
 
         data = {"measurement": ref + cur}
 
-        res = self.client.post(DSW_URL, json.dumps({
-            "type": "drift",
-            "analysis": "drift_report",
-            "data": data,
-            "config": {
-                "column": "measurement",
-                "split_point": 100,
-            },
-        }), content_type="application/json")
+        res = self.client.post(
+            DSW_URL,
+            json.dumps(
+                {
+                    "type": "drift",
+                    "analysis": "drift_report",
+                    "data": data,
+                    "config": {
+                        "column": "measurement",
+                        "split_point": 100,
+                    },
+                }
+            ),
+            content_type="application/json",
+        )
 
         self.assertEqual(res.status_code, 200)
         result = res.json()
@@ -240,18 +267,26 @@ class AnytimeValidScenarioTest(TestCase):
         n = 100
         data = {
             "group": (["control"] * (n // 2) + ["treatment"] * (n // 2)),
-            "metric": np.concatenate([
-                rng.normal(100, 15, n // 2),
-                rng.normal(105, 15, n // 2),
-            ]).tolist(),
+            "metric": np.concatenate(
+                [
+                    rng.normal(100, 15, n // 2),
+                    rng.normal(105, 15, n // 2),
+                ]
+            ).tolist(),
         }
 
-        res = self.client.post(DSW_URL, json.dumps({
-            "type": "anytime",
-            "analysis": "ab_test",
-            "data": data,
-            "config": {"group_col": "group", "metric_col": "metric"},
-        }), content_type="application/json")
+        res = self.client.post(
+            DSW_URL,
+            json.dumps(
+                {
+                    "type": "anytime",
+                    "analysis": "ab_test",
+                    "data": data,
+                    "config": {"group_col": "group", "metric_col": "metric"},
+                }
+            ),
+            content_type="application/json",
+        )
 
         self.assertEqual(res.status_code, 200)
         result = res.json()
@@ -270,11 +305,13 @@ class BayesDOEScenarioTest(TestCase):
         """Build DOE design matrix from factorial data."""
         from agents_api.bayes_doe import build_doe_design_matrix
 
-        df = pd.DataFrame({
-            "temp": [150, 170, 150, 170, 150, 170, 150, 170],
-            "pressure": [50, 50, 100, 100, 50, 50, 100, 100],
-            "yield_val": [35, 45, 42, 55, 37, 47, 44, 57],
-        })
+        df = pd.DataFrame(
+            {
+                "temp": [150, 170, 150, 170, 150, 170, 150, 170],
+                "pressure": [50, 50, 100, 100, 50, 50, 100, 100],
+                "yield_val": [35, 45, 42, 55, 37, 47, 44, 57],
+            }
+        )
 
         # Returns (X, y, col_names, factor_names)
         result = build_doe_design_matrix(df, ["temp", "pressure"], "yield_val")
@@ -284,13 +321,15 @@ class BayesDOEScenarioTest(TestCase):
 
     def test_bayesian_linear_posterior(self):
         """Bayesian linear posterior from DOE data."""
-        from agents_api.bayes_doe import build_doe_design_matrix, bayesian_linear_posterior
+        from agents_api.bayes_doe import bayesian_linear_posterior, build_doe_design_matrix
 
-        df = pd.DataFrame({
-            "temp": [150, 170, 150, 170, 150, 170, 150, 170],
-            "pressure": [50, 50, 100, 100, 50, 50, 100, 100],
-            "yield_val": [35, 45, 42, 55, 37, 47, 44, 57],
-        })
+        df = pd.DataFrame(
+            {
+                "temp": [150, 170, 150, 170, 150, 170, 150, 170],
+                "pressure": [50, 50, 100, 100, 50, 50, 100, 100],
+                "yield_val": [35, 45, 42, 55, 37, 47, 44, 57],
+            }
+        )
 
         result = build_doe_design_matrix(df, ["temp", "pressure"], "yield_val")
         X, y = result[0], result[1]
@@ -301,16 +340,22 @@ class BayesDOEScenarioTest(TestCase):
         """Full Bayesian DOE analysis via run_bayesian_doe."""
         from agents_api.bayes_doe import run_bayesian_doe
 
-        df = pd.DataFrame({
-            "temp": [150, 170, 150, 170, 160, 160],
-            "pressure": [50, 50, 100, 100, 75, 75],
-            "yield_val": [35, 45, 42, 55, 40, 41],
-        })
+        df = pd.DataFrame(
+            {
+                "temp": [150, 170, 150, 170, 160, 160],
+                "pressure": [50, 50, 100, 100, 75, 75],
+                "yield_val": [35, 45, 42, 55, 40, 41],
+            }
+        )
 
-        result = run_bayesian_doe(df, "effects", {
-            "factors": ["temp", "pressure"],
-            "response": "yield_val",
-        })
+        result = run_bayesian_doe(
+            df,
+            "effects",
+            {
+                "factors": ["temp", "pressure"],
+                "response": "yield_val",
+            },
+        )
         self.assertIn("summary", result)
 
 

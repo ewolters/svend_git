@@ -19,8 +19,8 @@ from urllib import parse
 
 from django.db.models import QuerySet
 from rest_framework.pagination import CursorPagination
-from rest_framework.response import Response
 from rest_framework.request import Request
+from rest_framework.response import Response
 
 logger = logging.getLogger(__name__)
 
@@ -71,11 +71,7 @@ class SynaraCursorPagination(CursorPagination):
         """
         if self.page_size_query_param:
             try:
-                size = int(
-                    request.query_params.get(
-                        self.page_size_query_param, self.page_size
-                    )
-                )
+                size = int(request.query_params.get(self.page_size_query_param, self.page_size))
                 return max(MIN_PAGE_SIZE, min(size, MAX_PAGE_SIZE))
             except (KeyError, ValueError):
                 pass
@@ -155,9 +151,7 @@ class SynaraCursorPagination(CursorPagination):
             logger.debug(f"[PAGINATION] Non-critical count retrieval failed: {e}")
             return 0
 
-    def paginate_queryset(
-        self, queryset: QuerySet, request: Request, view=None
-    ):
+    def paginate_queryset(self, queryset: QuerySet, request: Request, view=None):
         """
         Paginate queryset with total count estimation.
         """
@@ -212,6 +206,7 @@ class SynaraListPagination(SynaraCursorPagination):
 # =============================================================================
 # Utility Functions
 # =============================================================================
+
 
 def encode_cursor(position: dict) -> str:
     """

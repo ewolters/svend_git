@@ -1,0 +1,13 @@
+# Dependabot configuration — SEC-001 §11.2, INIT-010 FEAT-081
+# Closes: REM-08 (dependency scanning), GAP-03, pre-audit 5.8
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/services/svend/web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "security"

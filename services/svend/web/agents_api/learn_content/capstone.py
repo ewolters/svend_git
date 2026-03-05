@@ -2,7 +2,6 @@
 
 from ._datasets import SHARED_DATASET  # noqa: F401
 
-
 CAPSTONE_OVERVIEW = {
     "id": "capstone-overview",
     "title": "Capstone Overview",
@@ -13,7 +12,7 @@ CAPSTONE_OVERVIEW = {
             "Select a dataset from the available options",
             "Write your research question and hypotheses",
             "Plan your analysis approach (before seeing data)",
-            "Define your primary outcome and stopping criteria"
+            "Define your primary outcome and stopping criteria",
         ],
     },
     "content": """
@@ -112,9 +111,9 @@ This mirrors real scientific peer review and helps you see diverse approaches.
         {
             "question": "You're evaluating a peer's capstone. Their methods say 'We explored several tests and chose the one that gave the clearest results.' What feedback do you give?",
             "answer": "This is p-hacking / HARKing. Choosing the test that 'gives the clearest results' means choosing the test that gives the lowest p-value, inflating false positive risk. The analysis approach should be specified before seeing results. Recommend: state the planned analysis upfront, justify the choice based on data type and question, report results regardless of outcome. If multiple tests were run, apply corrections.",
-            "hint": "Choosing the 'best' test after seeing results is a form of p-hacking"
+            "hint": "Choosing the 'best' test after seeing results is a form of p-hacking",
         },
-    ]
+    ],
 }
 
 
@@ -129,7 +128,7 @@ CAPSTONE_PROJECT = {
             "Document your data cleaning decisions",
             "Run your pre-specified primary analysis",
             "Conduct at least one sensitivity analysis",
-            "Draft the results section with effect sizes and CIs"
+            "Draft the results section with effect sizes and CIs",
         ],
         "dsw_type": "stats:descriptive",
         "dsw_config": {},
@@ -268,7 +267,7 @@ You will receive:
         {
             "question": "Your primary analysis shows p=0.08 (not significant at 0.05). In your sensitivity analysis, a slightly different exclusion criterion gives p=0.03. How do you report this?",
             "answer": "Report the primary analysis as the main result: the pre-specified analysis showed no significant effect (p=0.08). Report the sensitivity analysis transparently: 'A sensitivity analysis with [different criterion] yielded p=0.03.' Do NOT swap them or present the sensitivity as the main finding. The discrepancy should be discussed — it suggests the result is fragile and depends on analytical choices, which is itself informative.",
-            "hint": "The pre-specified primary analysis is the main result, period"
+            "hint": "The pre-specified primary analysis is the main result, period",
         },
     ],
     "tool_steps": [
@@ -289,8 +288,18 @@ You will receive:
                     {"name": "surface_finish", "type": "numeric", "mean": 0.8, "std": 0.15},
                 ],
                 "injections": [
-                    {"type": "mean_shift", "column": "diameter_mm", "condition": {"column": "day", "gte": 12, "column2": "machine", "equals2": "C"}, "shift": 0.020},
-                    {"type": "variance_increase", "column": "diameter_mm", "condition": {"column": "day", "gte": 12, "column2": "machine", "equals2": "C"}, "factor": 2.0},
+                    {
+                        "type": "mean_shift",
+                        "column": "diameter_mm",
+                        "condition": {"column": "day", "gte": 12, "column2": "machine", "equals2": "C"},
+                        "shift": 0.020,
+                    },
+                    {
+                        "type": "variance_increase",
+                        "column": "diameter_mm",
+                        "condition": {"column": "day", "gte": 12, "column2": "machine", "equals2": "C"},
+                        "factor": 2.0,
+                    },
                 ],
             },
             "editable_fields": ["n_rows"],
@@ -399,5 +408,3 @@ You will receive:
         "completion_requires": "all_steps",
     },
 }
-
-

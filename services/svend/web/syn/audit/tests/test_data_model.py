@@ -11,7 +11,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, models
 from django.test import SimpleTestCase, TestCase
 
-from syn.core.base_models import SynaraEntity, SynaraImmutableLog
+from syn.core.base_models import SynaraEntity
 
 
 class SysLogBigAutoTest(SimpleTestCase):
@@ -279,19 +279,35 @@ class ProjectModelFieldsTest(SimpleTestCase):
 
     REQUIRED_FIELDS = [
         # 5W2H problem definition
-        "problem_whats", "problem_wheres", "problem_whens",
-        "problem_magnitude", "problem_statement",
+        "problem_whats",
+        "problem_wheres",
+        "problem_whens",
+        "problem_magnitude",
+        "problem_statement",
         # SMART goals
-        "goal_statement", "goal_metric", "goal_baseline", "goal_target",
-        "goal_unit", "goal_deadline",
+        "goal_statement",
+        "goal_metric",
+        "goal_baseline",
+        "goal_target",
+        "goal_unit",
+        "goal_deadline",
         # Scope
-        "scope_in", "scope_out", "constraints", "assumptions",
+        "scope_in",
+        "scope_out",
+        "constraints",
+        "assumptions",
         # Team
-        "champion_name", "leader_name", "team_members",
+        "champion_name",
+        "leader_name",
+        "team_members",
         # Methodology and phases
-        "methodology", "current_phase", "phase_history", "milestones",
+        "methodology",
+        "current_phase",
+        "phase_history",
+        "milestones",
         # Resolution
-        "resolution_summary", "resolution_actions",
+        "resolution_summary",
+        "resolution_actions",
         # Changelog
         "changelog",
     ]
@@ -313,10 +329,16 @@ class HypothesisModelFieldsTest(SimpleTestCase):
     """DAT-001 §9.2: Hypothesis uses If/Then/Because structure with Bayesian probability tracking."""
 
     REQUIRED_FIELDS = [
-        "if_clause", "then_clause", "because_clause",
-        "prior_probability", "current_probability", "probability_history",
-        "confirmation_threshold", "rejection_threshold",
-        "status", "is_testable",
+        "if_clause",
+        "then_clause",
+        "because_clause",
+        "prior_probability",
+        "current_probability",
+        "probability_history",
+        "confirmation_threshold",
+        "rejection_threshold",
+        "status",
+        "is_testable",
     ]
 
     def test_all_required_fields_exist(self):

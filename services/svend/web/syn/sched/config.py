@@ -30,19 +30,16 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Set, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 # Type imports only - avoid circular imports and platform-specific issues
 if TYPE_CHECKING:
-    from syn.sched.backpressure.throttle import ThrottleLevel
     from syn.sched.backpressure.controller import BackpressureConfig
-    from syn.sched.temporal.controller import TemporalControllerConfig
     from syn.sched.dashboard.service import DashboardConfig
-    from syn.sched.execution.resource_class import WorkerConfig, ResourceClass
+    from syn.sched.temporal.controller import TemporalControllerConfig
 
 # These are safe to import at module level
-from syn.sched.types import RetryConfig, CircuitBreakerConfig, TenantQuota
-
+from syn.sched.types import CircuitBreakerConfig, RetryConfig, TenantQuota
 
 # =============================================================================
 # WORKER POOL CONFIGURATION (SCH-003)
@@ -58,7 +55,7 @@ class WorkerPoolConfig:
     """
 
     # Worker group settings per resource class (dict with string keys for portability)
-    worker_configs: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    worker_configs: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     # Auto-scaling
     auto_scale: bool = True
@@ -83,7 +80,7 @@ class WorkerPoolConfig:
                 "lightweight": {"min_workers": 1, "max_workers": 4, "memory_limit_mb": 128},
             }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "auto_scale": self.auto_scale,
             "scale_interval_seconds": self.scale_interval_seconds,
@@ -132,9 +129,7 @@ class SchedulerConfig:
     enable_schedule_processing: bool = True
 
     # Circuit breaker defaults
-    circuit_breaker_config: CircuitBreakerConfig = field(
-        default_factory=CircuitBreakerConfig
-    )
+    circuit_breaker_config: CircuitBreakerConfig = field(default_factory=CircuitBreakerConfig)
 
     # Default retry config
     default_retry_config: RetryConfig = field(default_factory=RetryConfig)
@@ -146,13 +141,13 @@ class SchedulerConfig:
     # to avoid importing platform-specific modules at config load time.
 
     # Backpressure (SCH-004) - use get_backpressure_config() for typed access
-    _backpressure: Optional[Dict[str, Any]] = None
+    _backpressure: dict[str, Any] | None = None
 
     # Temporal (SCH-006) - use get_temporal_config() for typed access
-    _temporal: Optional[Dict[str, Any]] = None
+    _temporal: dict[str, Any] | None = None
 
     # Dashboard (SCH-005) - use get_dashboard_config() for typed access
-    _dashboard: Optional[Dict[str, Any]] = None
+    _dashboard: dict[str, Any] | None = None
 
     # Worker Pool (SCH-003)
     worker_pool: WorkerPoolConfig = field(default_factory=WorkerPoolConfig)
@@ -174,9 +169,9 @@ class SchedulerConfig:
 
     # Shadow mode: run both Celery and CognitiveScheduler in parallel
     celery_shadow_mode: bool = False
-    celery_shadow_tasks: List[str] = field(default_factory=list)
+    celery_shadow_tasks: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize configuration to dictionary."""
         return {
             # Core settings
@@ -207,29 +202,32 @@ class SchedulerConfig:
             "celery_shadow_tasks": self.celery_shadow_tasks,
         }
 
-    def get_backpressure_config(self) -> "BackpressureConfig":
+    def get_backpressure_config(self) -> BackpressureConfig:
         """Get backpressure configuration (lazy import, cached)."""
         from syn.sched.backpressure.controller import BackpressureConfig
-        if not hasattr(self, '_backpressure_instance') or self._backpressure_instance is None:
+
+        if not hasattr(self, "_backpressure_instance") or self._backpressure_instance is None:
             self._backpressure_instance = BackpressureConfig(**(self._backpressure or {}))
         return self._backpressure_instance
 
-    def get_temporal_config(self) -> "TemporalControllerConfig":
+    def get_temporal_config(self) -> TemporalControllerConfig:
         """Get temporal controller configuration (lazy import, cached)."""
         from syn.sched.temporal.controller import TemporalControllerConfig
-        if not hasattr(self, '_temporal_instance') or self._temporal_instance is None:
+
+        if not hasattr(self, "_temporal_instance") or self._temporal_instance is None:
             self._temporal_instance = TemporalControllerConfig(**(self._temporal or {}))
         return self._temporal_instance
 
-    def get_dashboard_config(self) -> "DashboardConfig":
+    def get_dashboard_config(self) -> DashboardConfig:
         """Get dashboard configuration (lazy import, cached)."""
         from syn.sched.dashboard.service import DashboardConfig
-        if not hasattr(self, '_dashboard_instance') or self._dashboard_instance is None:
+
+        if not hasattr(self, "_dashboard_instance") or self._dashboard_instance is None:
             self._dashboard_instance = DashboardConfig(**(self._dashboard or {}))
         return self._dashboard_instance
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SchedulerConfig":
+    def from_dict(cls, data: dict[str, Any]) -> SchedulerConfig:
         """Create configuration from dictionary."""
         config = cls()
 
@@ -266,7 +264,7 @@ class SchedulerConfig:
         return config
 
     @classmethod
-    def from_environment(cls) -> "SchedulerConfig":
+    def from_environment(cls) -> SchedulerConfig:
         """Create configuration from environment variables."""
         config = cls()
 
@@ -275,28 +273,20 @@ class SchedulerConfig:
             config.max_queue_depth = int(os.environ["SYNARA_SCHED_MAX_QUEUE_DEPTH"])
 
         if "SYNARA_SCHED_MAX_CASCADE_DEPTH" in os.environ:
-            config.max_cascade_depth = int(
-                os.environ["SYNARA_SCHED_MAX_CASCADE_DEPTH"]
-            )
+            config.max_cascade_depth = int(os.environ["SYNARA_SCHED_MAX_CASCADE_DEPTH"])
 
         if "SYNARA_SCHED_CASCADE_BUDGET" in os.environ:
             config.cascade_budget = int(os.environ["SYNARA_SCHED_CASCADE_BUDGET"])
 
         # Feature flags
         if "SYNARA_SCHED_ENABLE_BACKPRESSURE" in os.environ:
-            config.enable_backpressure = (
-                os.environ["SYNARA_SCHED_ENABLE_BACKPRESSURE"].lower() == "true"
-            )
+            config.enable_backpressure = os.environ["SYNARA_SCHED_ENABLE_BACKPRESSURE"].lower() == "true"
 
         if "SYNARA_SCHED_ENABLE_TEMPORAL" in os.environ:
-            config.enable_temporal_reflexes = (
-                os.environ["SYNARA_SCHED_ENABLE_TEMPORAL"].lower() == "true"
-            )
+            config.enable_temporal_reflexes = os.environ["SYNARA_SCHED_ENABLE_TEMPORAL"].lower() == "true"
 
         if "SYNARA_SCHED_CELERY_SHADOW" in os.environ:
-            config.celery_shadow_mode = (
-                os.environ["SYNARA_SCHED_CELERY_SHADOW"].lower() == "true"
-            )
+            config.celery_shadow_mode = os.environ["SYNARA_SCHED_CELERY_SHADOW"].lower() == "true"
 
         return config
 

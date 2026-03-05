@@ -1,12 +1,10 @@
 """User file storage models."""
 
 import hashlib
-import os
 import uuid
 from pathlib import Path
 
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.db import models
 
 from core.encrypted_storage import EncryptedFileSystemStorage
@@ -115,6 +113,7 @@ class UserFile(models.Model):
     def generate_share_token(self) -> str:
         """Generate a unique share token."""
         import secrets
+
         self.share_token = secrets.token_urlsafe(24)
         self.save(update_fields=["share_token"])
         return self.share_token
@@ -220,7 +219,7 @@ class UserQuota(models.Model):
 
     def recalculate(self):
         """Recalculate usage from actual files."""
-        from django.db.models import Sum, Count
+        from django.db.models import Count, Sum
 
         stats = UserFile.objects.filter(user=self.user).aggregate(
             total_size=Sum("size_bytes"),
@@ -239,8 +238,8 @@ class UserQuota(models.Model):
         if created:
             # Set limits based on tier
             tier_limits = {
-                "free": (100 * 1024 * 1024, 100, 5 * 1024 * 1024),      # 100 MB, 100 files, 5 MB/file
-                "beta": (500 * 1024 * 1024, 500, 10 * 1024 * 1024),     # 500 MB, 500 files, 10 MB/file
+                "free": (100 * 1024 * 1024, 100, 5 * 1024 * 1024),  # 100 MB, 100 files, 5 MB/file
+                "beta": (500 * 1024 * 1024, 500, 10 * 1024 * 1024),  # 500 MB, 500 files, 10 MB/file
                 "pro": (5 * 1024 * 1024 * 1024, 5000, 100 * 1024 * 1024),  # 5 GB, 5000 files, 100 MB/file
             }
 

@@ -6,13 +6,16 @@ CR: Phase 4A — Training Matrix Harvey Ball Competency + Certification Status
 
 import json
 from datetime import timedelta
+
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from accounts.models import User
 from agents_api.models import (
-    TrainingRequirement, TrainingRecord, TrainingRecordChange,
-    ControlledDocument, DocumentRevision,
+    ControlledDocument,
+    TrainingRecord,
+    TrainingRecordChange,
+    TrainingRequirement,
 )
 
 SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
@@ -32,23 +35,28 @@ class CompetencyLevelModelTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = User.objects.create_user(
-            username="trn_model", email="trn_model@test.com", password="test1234",
+            username="trn_model",
+            email="trn_model@test.com",
+            password="test1234",
         )
         cls.req = TrainingRequirement.objects.create(
-            owner=cls.user, name="Forklift Operation",
+            owner=cls.user,
+            name="Forklift Operation",
         )
 
     def test_competency_level_field_exists(self):
         """TrainingRecord has competency_level IntegerField."""
         record = TrainingRecord.objects.create(
-            requirement=self.req, employee_name="Alice",
+            requirement=self.req,
+            employee_name="Alice",
         )
         self.assertTrue(hasattr(record, "competency_level"))
 
     def test_competency_level_default_zero(self):
         """Default competency_level is 0 (No Exposure)."""
         record = TrainingRecord.objects.create(
-            requirement=self.req, employee_name="Bob",
+            requirement=self.req,
+            employee_name="Bob",
         )
         self.assertEqual(record.competency_level, 0)
 
@@ -70,16 +78,21 @@ class CertificationStatusPropertyTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = User.objects.create_user(
-            username="trn_cert", email="trn_cert@test.com", password="test1234",
+            username="trn_cert",
+            email="trn_cert@test.com",
+            password="test1234",
         )
         cls.req = TrainingRequirement.objects.create(
-            owner=cls.user, name="GMP Training", frequency_months=12,
+            owner=cls.user,
+            name="GMP Training",
+            frequency_months=12,
         )
 
     def test_current_status(self):
         """Complete with expires_at > 30 days out → 'current'."""
         record = TrainingRecord.objects.create(
-            requirement=self.req, employee_name="Alice",
+            requirement=self.req,
+            employee_name="Alice",
             status="complete",
             completed_at=timezone.now(),
             expires_at=timezone.now() + timedelta(days=365),
@@ -89,7 +102,8 @@ class CertificationStatusPropertyTest(TestCase):
     def test_expiring_status(self):
         """Complete with expires_at within 30 days → 'expiring'."""
         record = TrainingRecord.objects.create(
-            requirement=self.req, employee_name="Bob",
+            requirement=self.req,
+            employee_name="Bob",
             status="complete",
             completed_at=timezone.now() - timedelta(days=335),
             expires_at=timezone.now() + timedelta(days=15),
@@ -99,13 +113,15 @@ class CertificationStatusPropertyTest(TestCase):
     def test_expired_status(self):
         """Status 'expired' → 'expired'. Also complete with past expires_at → 'expired'."""
         record1 = TrainingRecord.objects.create(
-            requirement=self.req, employee_name="Carol",
+            requirement=self.req,
+            employee_name="Carol",
             status="expired",
         )
         self.assertEqual(record1.certification_status, "expired")
 
         record2 = TrainingRecord.objects.create(
-            requirement=self.req, employee_name="Dave",
+            requirement=self.req,
+            employee_name="Dave",
             status="complete",
             completed_at=timezone.now() - timedelta(days=400),
             expires_at=timezone.now() - timedelta(days=35),
@@ -125,7 +141,8 @@ class CertificationStatusPropertyTest(TestCase):
     def test_current_no_expiry(self):
         """Complete with no expires_at (one-time training) → 'current'."""
         record = TrainingRecord.objects.create(
-            requirement=self.req, employee_name="Eve",
+            requirement=self.req,
+            employee_name="Eve",
             status="complete",
             completed_at=timezone.now(),
         )
@@ -138,16 +155,20 @@ class TrainingRecordSerializationTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = User.objects.create_user(
-            username="trn_serial", email="trn_serial@test.com", password="test1234",
+            username="trn_serial",
+            email="trn_serial@test.com",
+            password="test1234",
         )
         cls.req = TrainingRequirement.objects.create(
-            owner=cls.user, name="SPC Basics",
+            owner=cls.user,
+            name="SPC Basics",
         )
 
     def test_to_dict_includes_competency_level(self):
         """to_dict() output contains competency_level."""
         record = TrainingRecord.objects.create(
-            requirement=self.req, employee_name="Alice",
+            requirement=self.req,
+            employee_name="Alice",
             competency_level=3,
         )
         d = record.to_dict()
@@ -157,8 +178,10 @@ class TrainingRecordSerializationTest(TestCase):
     def test_to_dict_includes_certification_status(self):
         """to_dict() output contains certification_status."""
         record = TrainingRecord.objects.create(
-            requirement=self.req, employee_name="Bob",
-            status="complete", completed_at=timezone.now(),
+            requirement=self.req,
+            employee_name="Bob",
+            status="complete",
+            completed_at=timezone.now(),
         )
         d = record.to_dict()
         self.assertIn("certification_status", d)
@@ -173,7 +196,8 @@ class CompetencyLevelAPITest(TestCase):
     def setUpTestData(cls):
         cls.user = _make_team_user("trn_api", "trn_api@test.com")
         cls.req = TrainingRequirement.objects.create(
-            owner=cls.user, name="FMEA Training",
+            owner=cls.user,
+            name="FMEA Training",
         )
 
     def test_create_record_with_competency_level(self):
@@ -181,10 +205,12 @@ class CompetencyLevelAPITest(TestCase):
         self.client.force_login(self.user)
         resp = self.client.post(
             f"/api/iso/training/{self.req.id}/records/",
-            data=json.dumps({
-                "employee_name": "Alice",
-                "competency_level": 2,
-            }),
+            data=json.dumps(
+                {
+                    "employee_name": "Alice",
+                    "competency_level": 2,
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 201)
@@ -194,7 +220,9 @@ class CompetencyLevelAPITest(TestCase):
     def test_update_competency_level(self):
         """PUT /training/records/<id>/ updates competency_level."""
         record = TrainingRecord.objects.create(
-            requirement=self.req, employee_name="Bob", competency_level=1,
+            requirement=self.req,
+            employee_name="Bob",
+            competency_level=1,
         )
         self.client.force_login(self.user)
         resp = self.client.put(
@@ -209,7 +237,9 @@ class CompetencyLevelAPITest(TestCase):
     def test_update_competency_level_logged(self):
         """Competency level change creates TrainingRecordChange entry."""
         record = TrainingRecord.objects.create(
-            requirement=self.req, employee_name="Carol", competency_level=0,
+            requirement=self.req,
+            employee_name="Carol",
+            competency_level=0,
         )
         self.client.force_login(self.user)
         self.client.put(
@@ -218,7 +248,8 @@ class CompetencyLevelAPITest(TestCase):
             content_type="application/json",
         )
         change = TrainingRecordChange.objects.filter(
-            record=record, field_name="competency_level",
+            record=record,
+            field_name="competency_level",
         ).first()
         self.assertIsNotNone(change)
         # log_change uses str(old_val or ""), and 0 is falsy → stored as ""
@@ -230,10 +261,12 @@ class CompetencyLevelAPITest(TestCase):
         self.client.force_login(self.user)
         resp = self.client.post(
             f"/api/iso/training/{self.req.id}/records/",
-            data=json.dumps({
-                "employee_name": "Dave",
-                "competency_level": 99,
-            }),
+            data=json.dumps(
+                {
+                    "employee_name": "Dave",
+                    "competency_level": 99,
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 201)
@@ -248,16 +281,21 @@ class TrainingGridRenderingTest(TestCase):
     def setUpTestData(cls):
         cls.user = _make_team_user("trn_grid", "trn_grid@test.com")
         cls.req = TrainingRequirement.objects.create(
-            owner=cls.user, name="VSM Training",
+            owner=cls.user,
+            name="VSM Training",
         )
         TrainingRecord.objects.create(
-            requirement=cls.req, employee_name="Alice",
-            status="complete", completed_at=timezone.now(),
+            requirement=cls.req,
+            employee_name="Alice",
+            status="complete",
+            completed_at=timezone.now(),
             competency_level=3,
         )
         TrainingRecord.objects.create(
-            requirement=cls.req, employee_name="Bob",
-            status="not_started", competency_level=0,
+            requirement=cls.req,
+            employee_name="Bob",
+            status="not_started",
+            competency_level=0,
         )
 
     def test_grid_returns_competency_and_cert_data(self):
@@ -313,10 +351,12 @@ class DocumentLinkTest(TestCase):
         self.client.force_login(self.user)
         resp = self.client.post(
             "/api/iso/training/",
-            data=json.dumps({
-                "name": "Assembly Training",
-                "document_id": str(self.doc.id),
-            }),
+            data=json.dumps(
+                {
+                    "name": "Assembly Training",
+                    "document_id": str(self.doc.id),
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 201)
@@ -327,7 +367,9 @@ class DocumentLinkTest(TestCase):
     def test_update_requirement_clear_document(self):
         """PUT /training/<id>/ with document_id=null clears the link."""
         req = TrainingRequirement.objects.create(
-            owner=self.user, name="Linked Req", document=self.doc,
+            owner=self.user,
+            name="Linked Req",
+            document=self.doc,
             document_version="2.0",
         )
         self.client.force_login(self.user)
@@ -343,7 +385,9 @@ class DocumentLinkTest(TestCase):
     def test_to_dict_includes_document_info(self):
         """TrainingRequirement.to_dict() includes document fields."""
         req = TrainingRequirement.objects.create(
-            owner=self.user, name="Doc-linked", document=self.doc,
+            owner=self.user,
+            name="Doc-linked",
+            document=self.doc,
             document_version="2.0",
         )
         d = req.to_dict()
@@ -360,15 +404,20 @@ class ArtifactUploadTest(TestCase):
     def setUpTestData(cls):
         cls.user = _make_team_user("art_up", "art_up@test.com")
         cls.req = TrainingRequirement.objects.create(
-            owner=cls.user, name="Welding Cert",
+            owner=cls.user,
+            name="Welding Cert",
         )
         cls.record = TrainingRecord.objects.create(
-            requirement=cls.req, employee_name="Welder A",
+            requirement=cls.req,
+            employee_name="Welder A",
         )
         from files.models import UserFile
+
         cls.file = UserFile.objects.create(
-            user=cls.user, original_name="cert.pdf",
-            file_type="pdf", mime_type="application/pdf",
+            user=cls.user,
+            original_name="cert.pdf",
+            file_type="pdf",
+            mime_type="application/pdf",
         )
 
     def test_attach_artifact(self):
@@ -418,22 +467,29 @@ class RevisionRetrainingTest(TestCase):
             content="Step 1: Inspect surface finish",
         )
         cls.req_linked = TrainingRequirement.objects.create(
-            owner=cls.user, name="Inspection Training",
-            document=cls.doc, document_version="1.0",
+            owner=cls.user,
+            name="Inspection Training",
+            document=cls.doc,
+            document_version="1.0",
         )
         cls.req_unlinked = TrainingRequirement.objects.create(
-            owner=cls.user, name="Safety Orientation",
+            owner=cls.user,
+            name="Safety Orientation",
         )
 
     def test_revision_flags_linked_records(self):
         """Transitioning document approved→review flags linked complete records as expired."""
         record = TrainingRecord.objects.create(
-            requirement=self.req_linked, employee_name="Inspector",
-            status="complete", completed_at=timezone.now(),
+            requirement=self.req_linked,
+            employee_name="Inspector",
+            status="complete",
+            completed_at=timezone.now(),
         )
         unlinked_record = TrainingRecord.objects.create(
-            requirement=self.req_unlinked, employee_name="Inspector",
-            status="complete", completed_at=timezone.now(),
+            requirement=self.req_unlinked,
+            employee_name="Inspector",
+            status="complete",
+            completed_at=timezone.now(),
         )
         self.client.force_login(self.user)
         resp = self.client.put(
@@ -450,8 +506,10 @@ class RevisionRetrainingTest(TestCase):
     def test_revision_creates_audit_trail(self):
         """Retraining flag creates TrainingRecordChange entries."""
         record = TrainingRecord.objects.create(
-            requirement=self.req_linked, employee_name="Audited",
-            status="complete", completed_at=timezone.now(),
+            requirement=self.req_linked,
+            employee_name="Audited",
+            status="complete",
+            completed_at=timezone.now(),
         )
         self.client.force_login(self.user)
         self.client.put(
@@ -460,7 +518,8 @@ class RevisionRetrainingTest(TestCase):
             content_type="application/json",
         )
         change = TrainingRecordChange.objects.filter(
-            record=record, field_name="status",
+            record=record,
+            field_name="status",
         ).first()
         self.assertIsNotNone(change)
         self.assertEqual(change.old_value, "complete")

@@ -21,6 +21,7 @@ Workbenches serialize to JSON for agent context on load.
 
 import uuid
 from datetime import datetime
+
 from django.conf import settings
 from django.db import models
 
@@ -46,23 +47,13 @@ class Project(models.Model):
     )
 
     # The hypothesis being investigated
-    title = models.CharField(
-        max_length=255,
-        help_text="Short title for the project"
-    )
-    hypothesis = models.TextField(
-        help_text="The hypothesis being investigated"
-    )
-    description = models.TextField(
-        blank=True,
-        help_text="Additional context, background, or scope"
-    )
+    title = models.CharField(max_length=255, help_text="Short title for the project")
+    hypothesis = models.TextField(help_text="The hypothesis being investigated")
+    description = models.TextField(blank=True, help_text="Additional context, background, or scope")
 
     # Domain for context
     domain = models.CharField(
-        max_length=50,
-        blank=True,
-        help_text="Domain area (manufacturing, software, healthcare, etc.)"
+        max_length=50, blank=True, help_text="Domain area (manufacturing, software, healthcare, etc.)"
     )
 
     # Status tracking
@@ -73,10 +64,7 @@ class Project(models.Model):
     )
 
     # Conclusion when project is completed
-    conclusion = models.TextField(
-        blank=True,
-        help_text="Final conclusion about the hypothesis"
-    )
+    conclusion = models.TextField(blank=True, help_text="Final conclusion about the hypothesis")
     conclusion_status = models.CharField(
         max_length=20,
         blank=True,
@@ -86,7 +74,7 @@ class Project(models.Model):
             ("inconclusive", "Inconclusive"),
             ("modified", "Hypothesis Modified"),
         ],
-        help_text="Outcome of the investigation"
+        help_text="Outcome of the investigation",
     )
 
     # Timestamps
@@ -116,7 +104,7 @@ class Project(models.Model):
             "conclusion": self.conclusion,
             "conclusion_status": self.conclusion_status,
             "workbench_count": self.workbenches.count(),
-            "hypothesis_count": self.hypotheses.count() if hasattr(self, 'hypotheses') else 0,
+            "hypothesis_count": self.hypotheses.count() if hasattr(self, "hypotheses") else 0,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
@@ -144,23 +132,12 @@ class Hypothesis(models.Model):
     )
 
     # The hypothesis statement
-    statement = models.TextField(
-        help_text="The hypothesis being tested (e.g., 'High temperature causes defects')"
-    )
-    mechanism = models.TextField(
-        blank=True,
-        help_text="How this cause produces the effect"
-    )
+    statement = models.TextField(help_text="The hypothesis being tested (e.g., 'High temperature causes defects')")
+    mechanism = models.TextField(blank=True, help_text="How this cause produces the effect")
 
     # Probability tracking (Bayesian)
-    prior_probability = models.FloatField(
-        default=0.5,
-        help_text="Initial probability estimate (0-1)"
-    )
-    current_probability = models.FloatField(
-        default=0.5,
-        help_text="Current probability after evidence updates"
-    )
+    prior_probability = models.FloatField(default=0.5, help_text="Initial probability estimate (0-1)")
+    current_probability = models.FloatField(default=0.5, help_text="Current probability after evidence updates")
 
     # Status
     status = models.CharField(
@@ -170,10 +147,7 @@ class Hypothesis(models.Model):
     )
 
     # Conclusion notes
-    conclusion_notes = models.TextField(
-        blank=True,
-        help_text="Notes on why this hypothesis was supported/refuted"
-    )
+    conclusion_notes = models.TextField(blank=True, help_text="Notes on why this hypothesis was supported/refuted")
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -197,8 +171,8 @@ class Hypothesis(models.Model):
             "current_probability": self.current_probability,
             "status": self.status,
             "conclusion_notes": self.conclusion_notes,
-            "evidence_count": self.evidence.count() if hasattr(self, 'evidence') else 0,
-            "conversation_count": self.conversations.count() if hasattr(self, 'conversations') else 0,
+            "evidence_count": self.evidence.count() if hasattr(self, "evidence") else 0,
+            "conversation_count": self.conversations.count() if hasattr(self, "conversations") else 0,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
@@ -249,9 +223,7 @@ class Evidence(models.Model):
     )
 
     # Evidence details
-    summary = models.TextField(
-        help_text="Summary of the evidence"
-    )
+    summary = models.TextField(help_text="Summary of the evidence")
     evidence_type = models.CharField(
         max_length=20,
         choices=EvidenceType.choices,
@@ -262,29 +234,18 @@ class Evidence(models.Model):
         choices=Direction.choices,
         default=Direction.SUPPORTS,
     )
-    strength = models.FloatField(
-        default=0.5,
-        help_text="Strength of evidence (0-1)"
-    )
+    strength = models.FloatField(default=0.5, help_text="Strength of evidence (0-1)")
 
     # Source tracking
     source = models.CharField(
-        max_length=100,
-        blank=True,
-        help_text="Where this evidence came from (e.g., 'DSW regression', 'Simulator')"
+        max_length=100, blank=True, help_text="Where this evidence came from (e.g., 'DSW regression', 'Simulator')"
     )
     source_artifact_id = models.UUIDField(
-        null=True,
-        blank=True,
-        help_text="Link to source artifact if from a workbench"
+        null=True, blank=True, help_text="Link to source artifact if from a workbench"
     )
 
     # Raw data/details (JSON)
-    details = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Detailed data (statistics, parameters, etc.)"
-    )
+    details = models.JSONField(default=dict, blank=True, help_text="Detailed data (statistics, parameters, etc.)")
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -327,24 +288,15 @@ class Conversation(models.Model):
     )
 
     # Conversation metadata
-    title = models.CharField(
-        max_length=255,
-        default="New Conversation",
-        help_text="Title for this conversation thread"
-    )
+    title = models.CharField(max_length=255, default="New Conversation", help_text="Title for this conversation thread")
 
     # Messages stored as JSON array
     # [{role: "user"|"assistant", content: "...", timestamp: "..."}]
-    messages = models.JSONField(
-        default=list,
-        help_text="Conversation messages"
-    )
+    messages = models.JSONField(default=list, help_text="Conversation messages")
 
     # Context pulled into this conversation
     context = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Context snapshot (hypothesis state, evidence summary, etc.)"
+        default=dict, blank=True, help_text="Context snapshot (hypothesis state, evidence summary, etc.)"
     )
 
     # Timestamps
@@ -372,11 +324,13 @@ class Conversation(models.Model):
 
     def add_message(self, role: str, content: str):
         """Add a message to the conversation."""
-        self.messages.append({
-            "role": role,
-            "content": content,
-            "timestamp": datetime.now().isoformat(),
-        })
+        self.messages.append(
+            {
+                "role": role,
+                "content": content,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
         self.save(update_fields=["messages", "updated_at"])
 
     def build_context(self) -> dict:
@@ -429,18 +383,12 @@ class Workbench(models.Model):
         related_name="workbenches",
         null=True,
         blank=True,
-        help_text="Project this workbench belongs to (optional)"
+        help_text="Project this workbench belongs to (optional)",
     )
 
     # Basic info
-    title = models.CharField(
-        max_length=255,
-        help_text="The inquiry or question being investigated"
-    )
-    description = models.TextField(
-        blank=True,
-        help_text="Additional context about the inquiry"
-    )
+    title = models.CharField(max_length=255, help_text="The inquiry or question being investigated")
+    description = models.TextField(blank=True, help_text="Additional context about the inquiry")
     template = models.CharField(
         max_length=20,
         choices=Template.choices,
@@ -457,53 +405,28 @@ class Workbench(models.Model):
     # For Kaizen: current day, event dates
     # For 8D: current discipline
     template_state = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Template-specific state (phases, days, disciplines)"
+        default=dict, blank=True, help_text="Template-specific state (phases, days, disciplines)"
     )
 
     # Artifact connections: [{from_id, to_id, label}]
     # Stored here rather than on artifacts for easier bulk operations
-    connections = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Connections between artifacts"
-    )
+    connections = models.JSONField(default=list, blank=True, help_text="Connections between artifacts")
 
     # Canvas layout: {artifact_id: {x, y, width, height, collapsed}}
     # Allows restoring exact visual state
-    layout = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Canvas layout positions for artifacts"
-    )
+    layout = models.JSONField(default=dict, blank=True, help_text="Canvas layout positions for artifacts")
 
     # Datasets associated with this workbench
     # [{name, file_path, rows, cols, variables: [{name, dtype, role}]}]
-    datasets = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Datasets loaded in this workbench"
-    )
+    datasets = models.JSONField(default=list, blank=True, help_text="Datasets loaded in this workbench")
 
     # AI Guide observations
     # [{timestamp, observation, suggestion, acknowledged}]
-    guide_observations = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="AI Guide observations and suggestions"
-    )
+    guide_observations = models.JSONField(default=list, blank=True, help_text="AI Guide observations and suggestions")
 
     # Conclusion / structured response (when complete)
-    conclusion = models.TextField(
-        blank=True,
-        help_text="The structured response / conclusion reached"
-    )
-    conclusion_confidence = models.CharField(
-        max_length=20,
-        blank=True,
-        help_text="Confidence in the conclusion"
-    )
+    conclusion = models.TextField(blank=True, help_text="The structured response / conclusion reached")
+    conclusion_confidence = models.CharField(max_length=20, blank=True, help_text="Confidence in the conclusion")
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -577,18 +500,16 @@ class Workbench(models.Model):
         if self.template == self.Template.DMAIC:
             self.template_state = {
                 "current_phase": "define",
-                "phase_history": [{
-                    "phase": "define",
-                    "entered_at": datetime.now().isoformat(),
-                    "notes": "Started DMAIC project"
-                }],
+                "phase_history": [
+                    {"phase": "define", "entered_at": datetime.now().isoformat(), "notes": "Started DMAIC project"}
+                ],
                 "phase_artifacts": {
                     "define": [],
                     "measure": [],
                     "analyze": [],
                     "improve": [],
                     "control": [],
-                }
+                },
             }
         elif self.template == self.Template.KAIZEN:
             self.template_state = {
@@ -600,7 +521,7 @@ class Workbench(models.Model):
                     "future_state": [],
                     "action_items": [],
                     "results": [],
-                }
+                },
             }
         elif self.template == self.Template.EIGHT_D:
             self.template_state = {
@@ -614,7 +535,7 @@ class Workbench(models.Model):
                     "d6": {"title": "Implementation", "artifacts": [], "complete": False},
                     "d7": {"title": "Prevention", "artifacts": [], "complete": False},
                     "d8": {"title": "Congratulate Team", "artifacts": [], "complete": False},
-                }
+                },
             }
         elif self.template == self.Template.A3:
             self.template_state = {
@@ -643,11 +564,13 @@ class Workbench(models.Model):
             if current_idx < len(phases) - 1:
                 next_phase = phases[current_idx + 1]
                 self.template_state["current_phase"] = next_phase
-                self.template_state["phase_history"].append({
-                    "phase": next_phase,
-                    "entered_at": datetime.now().isoformat(),
-                    "notes": notes,
-                })
+                self.template_state["phase_history"].append(
+                    {
+                        "phase": next_phase,
+                        "entered_at": datetime.now().isoformat(),
+                        "notes": notes,
+                    }
+                )
                 self.save(update_fields=["template_state", "updated_at"])
         except ValueError:
             pass
@@ -658,12 +581,7 @@ class Workbench(models.Model):
 
     def add_artifact(self, artifact_type: str, content: dict, **kwargs) -> "Artifact":
         """Add an artifact to this workbench."""
-        artifact = Artifact.objects.create(
-            workbench=self,
-            artifact_type=artifact_type,
-            content=content,
-            **kwargs
-        )
+        artifact = Artifact.objects.create(workbench=self, artifact_type=artifact_type, content=content, **kwargs)
 
         # Auto-assign to template section if applicable
         self._assign_to_template(artifact)
@@ -680,21 +598,25 @@ class Workbench(models.Model):
 
     def connect_artifacts(self, from_id: str, to_id: str, label: str = ""):
         """Connect two artifacts."""
-        self.connections.append({
-            "from": from_id,
-            "to": to_id,
-            "label": label,
-        })
+        self.connections.append(
+            {
+                "from": from_id,
+                "to": to_id,
+                "label": label,
+            }
+        )
         self.save(update_fields=["connections", "updated_at"])
 
     def add_guide_observation(self, observation: str, suggestion: str = ""):
         """Add an AI Guide observation."""
-        self.guide_observations.append({
-            "timestamp": datetime.now().isoformat(),
-            "observation": observation,
-            "suggestion": suggestion,
-            "acknowledged": False,
-        })
+        self.guide_observations.append(
+            {
+                "timestamp": datetime.now().isoformat(),
+                "observation": observation,
+                "suggestion": suggestion,
+                "acknowledged": False,
+            }
+        )
         self.save(update_fields=["guide_observations", "updated_at"])
 
 
@@ -769,48 +691,25 @@ class Artifact(models.Model):
         choices=ArtifactType.choices,
     )
     title = models.CharField(max_length=255, blank=True)
-    content = models.JSONField(
-        default=dict,
-        help_text="Type-specific content (data, results, text, etc.)"
-    )
+    content = models.JSONField(default=dict, help_text="Type-specific content (data, results, text, etc.)")
 
     # Source tracking
     source = models.CharField(
-        max_length=50,
-        blank=True,
-        help_text="What created this: user, analyst, researcher, coder, etc."
+        max_length=50, blank=True, help_text="What created this: user, analyst, researcher, coder, etc."
     )
     source_artifact_id = models.UUIDField(
-        null=True,
-        blank=True,
-        help_text="If derived from another artifact, link to source"
+        null=True, blank=True, help_text="If derived from another artifact, link to source"
     )
 
     # For hypothesis artifacts
-    probability = models.FloatField(
-        null=True,
-        blank=True,
-        help_text="Probability estimate (for hypotheses)"
-    )
+    probability = models.FloatField(null=True, blank=True, help_text="Probability estimate (for hypotheses)")
 
     # For evidence artifacts
-    supports_hypotheses = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Hypothesis IDs this evidence supports"
-    )
-    weakens_hypotheses = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Hypothesis IDs this evidence weakens"
-    )
+    supports_hypotheses = models.JSONField(default=list, blank=True, help_text="Hypothesis IDs this evidence supports")
+    weakens_hypotheses = models.JSONField(default=list, blank=True, help_text="Hypothesis IDs this evidence weakens")
 
     # For model artifacts
-    model_path = models.CharField(
-        max_length=500,
-        blank=True,
-        help_text="Path to saved model file"
-    )
+    model_path = models.CharField(max_length=500, blank=True, help_text="Path to saved model file")
 
     # Tags for filtering/grouping
     tags = models.JSONField(
@@ -934,7 +833,7 @@ class KnowledgeGraph(models.Model):
         related_name="knowledge_graph",
         null=True,
         blank=True,
-        help_text="Project this graph belongs to"
+        help_text="Project this graph belongs to",
     )
     workbench = models.ForeignKey(
         Workbench,
@@ -942,7 +841,7 @@ class KnowledgeGraph(models.Model):
         related_name="knowledge_graphs",
         null=True,
         blank=True,
-        help_text="Workbench that created/modified this (for tracking)"
+        help_text="Workbench that created/modified this (for tracking)",
     )
 
     title = models.CharField(max_length=255, default="Knowledge Graph")
@@ -950,26 +849,16 @@ class KnowledgeGraph(models.Model):
 
     # Graph state serialized
     # nodes: [{id, type, label, artifact_id?, metadata}]
-    nodes = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Graph nodes (hypotheses, causes, effects)"
-    )
+    nodes = models.JSONField(default=list, blank=True, help_text="Graph nodes (hypotheses, causes, effects)")
 
     # edges: [{id, from_node, to_node, weight, mechanism, evidence_ids, metadata}]
     # Weight = P(to | from), strength of causal relationship
-    edges = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Causal edges with weights"
-    )
+    edges = models.JSONField(default=list, blank=True, help_text="Causal edges with weights")
 
     # Expansion signals: when evidence doesn't fit any node
     # [{id, evidence, likelihoods, status, resolution}]
     expansion_signals = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Signals indicating incomplete causal surface"
+        default=list, blank=True, help_text="Signals indicating incomplete causal surface"
     )
 
     # Timestamps
@@ -987,13 +876,7 @@ class KnowledgeGraph(models.Model):
     # Node operations
     # =========================================================================
 
-    def add_node(
-        self,
-        node_type: str,
-        label: str,
-        artifact_id: str = None,
-        metadata: dict = None
-    ) -> dict:
+    def add_node(self, node_type: str, label: str, artifact_id: str = None, metadata: dict = None) -> dict:
         """Add a node to the graph."""
         node = {
             "id": str(uuid.uuid4())[:8],
@@ -1014,10 +897,7 @@ class KnowledgeGraph(models.Model):
     def remove_node(self, node_id: str):
         """Remove a node and all connected edges."""
         self.nodes = [n for n in self.nodes if n["id"] != node_id]
-        self.edges = [
-            e for e in self.edges
-            if e["from_node"] != node_id and e["to_node"] != node_id
-        ]
+        self.edges = [e for e in self.edges if e["from_node"] != node_id and e["to_node"] != node_id]
         self.save(update_fields=["nodes", "edges", "updated_at"])
 
     # =========================================================================
@@ -1031,7 +911,7 @@ class KnowledgeGraph(models.Model):
         weight: float = 0.5,
         mechanism: str = "",
         evidence_ids: list = None,
-        metadata: dict = None
+        metadata: dict = None,
     ) -> dict:
         """
         Add a causal edge between nodes.
@@ -1065,12 +945,7 @@ class KnowledgeGraph(models.Model):
         """Get all edges pointing to a node (causes of this effect)."""
         return [e for e in self.edges if e["to_node"] == node_id]
 
-    def update_edge_weight(
-        self,
-        edge_id: str,
-        new_weight: float,
-        evidence_id: str = None
-    ):
+    def update_edge_weight(self, edge_id: str, new_weight: float, evidence_id: str = None):
         """Update edge weight based on new evidence."""
         for edge in self.edges:
             if edge["id"] == edge_id:
@@ -1156,14 +1031,7 @@ class KnowledgeGraph(models.Model):
         self._find_chains(from_node, to_node, [], chains)
         return chains
 
-    def _find_chains(
-        self,
-        current: str,
-        target: str,
-        path: list,
-        chains: list,
-        visited: set = None
-    ):
+    def _find_chains(self, current: str, target: str, path: list, chains: list, visited: set = None):
         """Recursive helper for finding chains."""
         if visited is None:
             visited = set()
@@ -1187,13 +1055,7 @@ class KnowledgeGraph(models.Model):
         self._get_upstream(node_id, depth, causes, set())
         return causes
 
-    def _get_upstream(
-        self,
-        node_id: str,
-        depth: int,
-        causes: list,
-        visited: set
-    ):
+    def _get_upstream(self, node_id: str, depth: int, causes: list, visited: set):
         """Recursive helper for upstream traversal."""
         if depth <= 0 or node_id in visited:
             return
@@ -1202,11 +1064,13 @@ class KnowledgeGraph(models.Model):
         for edge in self.get_edges_to(node_id):
             from_node = self.get_node(edge["from_node"])
             if from_node:
-                causes.append({
-                    "node": from_node,
-                    "edge": edge,
-                    "depth": depth,
-                })
+                causes.append(
+                    {
+                        "node": from_node,
+                        "edge": edge,
+                        "depth": depth,
+                    }
+                )
                 self._get_upstream(edge["from_node"], depth - 1, causes, visited)
 
     # =========================================================================
@@ -1310,37 +1174,28 @@ class EpistemicLog(models.Model):
         max_length=30,
         choices=EventType.choices,
     )
-    event_data = models.JSONField(
-        default=dict,
-        help_text="Event-specific data (before/after states, deltas, etc.)"
-    )
+    event_data = models.JSONField(default=dict, help_text="Event-specific data (before/after states, deltas, etc.)")
 
     # Context at time of event
-    context = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Snapshot of relevant context when event occurred"
-    )
+    context = models.JSONField(default=dict, blank=True, help_text="Snapshot of relevant context when event occurred")
 
     # Outcome tracking (for learning)
     has_led_to_insight = models.BooleanField(
         null=True,
         blank=True,
         db_column="led_to_insight",
-        help_text="Did this event lead to insight? (marked retrospectively)"
+        help_text="Did this event lead to insight? (marked retrospectively)",
     )
     has_led_to_dead_end = models.BooleanField(
         null=True,
         blank=True,
         db_column="led_to_dead_end",
-        help_text="Did this event lead to dead end? (marked retrospectively)"
+        help_text="Did this event lead to dead end? (marked retrospectively)",
     )
 
     # Source
     source = models.CharField(
-        max_length=50,
-        default="system",
-        help_text="What triggered this event: user, guide, analyst, system, etc."
+        max_length=50, default="system", help_text="What triggered this event: user, guide, analyst, system, etc."
     )
 
     # Timestamp
@@ -1368,7 +1223,7 @@ class EpistemicLog(models.Model):
         workbench=None,
         knowledge_graph=None,
         context: dict = None,
-        source: str = "system"
+        source: str = "system",
     ) -> "EpistemicLog":
         """Convenience method to create a log entry."""
         return cls.objects.create(
@@ -1405,13 +1260,7 @@ class EpistemicLog(models.Model):
 
     @classmethod
     def log_belief_update(
-        cls,
-        user,
-        knowledge_graph,
-        edge_id: str,
-        old_weight: float,
-        new_weight: float,
-        evidence_id: str = None
+        cls, user, knowledge_graph, edge_id: str, old_weight: float, new_weight: float, evidence_id: str = None
     ):
         """Log belief update on an edge."""
         return cls.log(

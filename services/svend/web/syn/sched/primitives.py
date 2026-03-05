@@ -33,10 +33,9 @@ Priority:
 """
 
 import logging
-import uuid
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -98,9 +97,9 @@ BACKOFF_MAX_MS = 60000
 
 def enqueue_task(
     *,
-    params: Dict[str, Any],
-    context: Dict[str, Any],
-) -> Dict[str, Any]:
+    params: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any]:
     """
     Enqueue a task for execution.
 
@@ -176,9 +175,9 @@ def enqueue_task(
 
 def cancel_task(
     *,
-    params: Dict[str, Any],
-    context: Dict[str, Any],
-) -> Dict[str, Any]:
+    params: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any]:
     """
     Cancel a pending task.
 
@@ -244,9 +243,9 @@ def cancel_task(
 
 def get_task_status(
     *,
-    params: Dict[str, Any],
-    context: Dict[str, Any],
-) -> Dict[str, Any]:
+    params: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any]:
     """
     Get task status.
 
@@ -284,9 +283,9 @@ def get_task_status(
 
 def retry_task(
     *,
-    params: Dict[str, Any],
-    context: Dict[str, Any],
-) -> Dict[str, Any]:
+    params: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any]:
     """
     Retry a failed task with exponential backoff.
 
@@ -327,7 +326,7 @@ def retry_task(
         # Calculate backoff
         attempt = task.retry_count + 1
         if delay_ms is None:
-            delay_ms = min(BACKOFF_BASE_MS * (2 ** attempt), BACKOFF_MAX_MS)
+            delay_ms = min(BACKOFF_BASE_MS * (2**attempt), BACKOFF_MAX_MS)
 
         next_attempt_at = datetime.utcnow() + timedelta(milliseconds=delay_ms)
 
@@ -365,9 +364,9 @@ def retry_task(
 
 def get_queue_depth(
     *,
-    params: Dict[str, Any],
-    context: Dict[str, Any],
-) -> Dict[str, Any]:
+    params: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any]:
     """
     Get queue depth and metrics.
 
@@ -437,9 +436,9 @@ def get_queue_depth(
 
 def get_circuit_status(
     *,
-    params: Dict[str, Any],
-    context: Dict[str, Any],
-) -> Dict[str, Any]:
+    params: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any]:
     """
     Get circuit breaker status.
 
@@ -478,9 +477,9 @@ def get_circuit_status(
 
 def reset_circuit(
     *,
-    params: Dict[str, Any],
-    context: Dict[str, Any],
-) -> Dict[str, Any]:
+    params: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any]:
     """
     Reset circuit breaker to closed state.
 
@@ -550,9 +549,9 @@ def reset_circuit(
 
 def calculate_priority(
     *,
-    params: Dict[str, Any],
-    context: Dict[str, Any],
-) -> Dict[str, Any]:
+    params: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any]:
     """
     Calculate task priority score.
 
@@ -622,6 +621,6 @@ def get_primitive(name: str):
     return SCHED_PRIMITIVES.get(name)
 
 
-def list_primitives() -> List[str]:
+def list_primitives() -> list[str]:
     """List all scheduler primitive names."""
     return list(SCHED_PRIMITIVES.keys())

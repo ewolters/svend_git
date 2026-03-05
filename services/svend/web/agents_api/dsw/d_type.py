@@ -9,10 +9,21 @@ bounded [0, 1] in bits. Noise floor estimated via bootstrap permutation.
 """
 
 import logging
+
 import numpy as np
 import pandas as pd
 
-from .common import SVEND_COLORS, COLOR_GOOD, COLOR_BAD, COLOR_WARNING, COLOR_INFO, COLOR_NEUTRAL, COLOR_REFERENCE, COLOR_GOLD, _rgba
+from .common import (
+    COLOR_BAD,
+    COLOR_GOLD,
+    COLOR_GOOD,
+    COLOR_INFO,
+    COLOR_NEUTRAL,
+    COLOR_REFERENCE,
+    COLOR_WARNING,
+    SVEND_COLORS,
+    _rgba,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +31,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Shared mathematical core
 # ---------------------------------------------------------------------------
+
 
 def _kde_density(x, grid, bandwidth=None):
     """Gaussian KDE with ISJ bandwidth via KDEpy FFTKDE (fast).
@@ -34,6 +46,7 @@ def _kde_density(x, grid, bandwidth=None):
 
     try:
         from KDEpy import FFTKDE
+
         bw = bandwidth or "ISJ"
         # FFTKDE evaluates on its own grid; we interpolate to ours
         _grid, density = FFTKDE(bw=bw, kernel="gaussian").fit(x).evaluate(len(grid))
@@ -41,6 +54,7 @@ def _kde_density(x, grid, bandwidth=None):
         density = np.interp(grid, _grid, density)
     except Exception:
         from scipy.stats import gaussian_kde
+
         bw = bandwidth or "silverman"
         try:
             kde = gaussian_kde(x, bw_method=float(bw) if isinstance(bw, (int, float)) else bw)
@@ -79,7 +93,7 @@ def _jsd(p, q, grid):
     js_dist = jensenshannon(p_pmf, q_pmf, base=2)
     if not np.isfinite(js_dist):
         return 0.0
-    return float(js_dist ** 2)  # divergence = distance²
+    return float(js_dist**2)  # divergence = distance²
 
 
 def _jsd_tail(p, q, grid, lsl=None, usl=None):
@@ -91,9 +105,9 @@ def _jsd_tail(p, q, grid, lsl=None, usl=None):
     """
     tail_mask = np.zeros_like(grid, dtype=bool)
     if lsl is not None:
-        tail_mask |= (grid < lsl)
+        tail_mask |= grid < lsl
     if usl is not None:
-        tail_mask |= (grid > usl)
+        tail_mask |= grid > usl
 
     if not tail_mask.any():
         return 0.0
@@ -168,7 +182,7 @@ def _noise_floor(pooled, n_per_group, grid, B=200, quantile=0.95, rng=None):
     for _ in range(B):
         idx = rng.permutation(n)
         a = pooled[idx[:half]]
-        b = pooled[idx[half:half * 2]]
+        b = pooled[idx[half : half * 2]]
         pa = _kde_density(a, grid)
         pb = _kde_density(b, grid)
         jsds.append(_jsd(pa, pb, grid))
@@ -188,6 +202,7 @@ def _build_grid(data, n_points=512):
 # ---------------------------------------------------------------------------
 # D-Chart: Factor Divergence Over Time
 # ---------------------------------------------------------------------------
+
 
 def run_d_chart(df, config):
     """D-Chart — track per-factor JSD vs pooled distribution over rolling time windows.
@@ -272,7 +287,7 @@ def run_d_chart(df, config):
             tc = w_df[time_col]
             if pd.api.types.is_datetime64_any_dtype(tc):
                 midpoint = tc.iloc[len(tc) // 2]
-                label = str(midpoint.date()) if hasattr(midpoint, 'date') else str(midpoint)
+                label = str(midpoint.date()) if hasattr(midpoint, "date") else str(midpoint)
             elif pd.api.types.is_numeric_dtype(tc):
                 midpoint = tc.iloc[len(tc) // 2]
                 label = str(midpoint)
@@ -280,7 +295,7 @@ def run_d_chart(df, config):
                 try:
                     ts = pd.to_datetime(tc)
                     midpoint = ts.iloc[len(ts) // 2]
-                    label = str(midpoint.date()) if hasattr(midpoint, 'date') else str(midpoint)
+                    label = str(midpoint.date()) if hasattr(midpoint, "date") else str(midpoint)
                 except Exception:
                     label = f"{start}-{end}"
                     midpoint = start + window_size // 2
@@ -300,14 +315,16 @@ def run_d_chart(df, config):
             else:
                 factor_jsds[fval] = 0.0
 
-        windows.append({
-            "start": start,
-            "end": end,
-            "label": label,
-            "midpoint": midpoint,
-            "factor_jsds": factor_jsds,
-            "max_jsd": max(factor_jsds.values()) if factor_jsds else 0.0,
-        })
+        windows.append(
+            {
+                "start": start,
+                "end": end,
+                "label": label,
+                "midpoint": midpoint,
+                "factor_jsds": factor_jsds,
+                "max_jsd": max(factor_jsds.values()) if factor_jsds else 0.0,
+            }
+        )
 
     # Cumulative information score with exponential recency weighting
     lam = 0.05  # decay rate
@@ -330,83 +347,97 @@ def run_d_chart(df, config):
 
     for i, fval in enumerate(unique_factors):
         y_vals = [w["factor_jsds"].get(fval, 0) for w in windows]
-        traces.append({
-            "type": "scatter",
-            "x": x_labels,
-            "y": y_vals,
-            "mode": "lines+markers",
-            "name": str(fval),
-            "line": {"color": SVEND_COLORS[i % len(SVEND_COLORS)], "width": 2},
-            "marker": {"size": 5},
-        })
+        traces.append(
+            {
+                "type": "scatter",
+                "x": x_labels,
+                "y": y_vals,
+                "mode": "lines+markers",
+                "name": str(fval),
+                "line": {"color": SVEND_COLORS[i % len(SVEND_COLORS)], "width": 2},
+                "marker": {"size": 5},
+            }
+        )
 
     # Noise floor line
-    traces.append({
-        "type": "scatter",
-        "x": x_labels,
-        "y": [noise] * len(x_labels),
-        "mode": "lines",
-        "name": f"Noise Floor ({noise:.4f})",
-        "line": {"color": COLOR_NEUTRAL, "dash": "dash", "width": 1.5},
-    })
+    traces.append(
+        {
+            "type": "scatter",
+            "x": x_labels,
+            "y": [noise] * len(x_labels),
+            "mode": "lines",
+            "name": f"Noise Floor ({noise:.4f})",
+            "line": {"color": COLOR_NEUTRAL, "dash": "dash", "width": 1.5},
+        }
+    )
 
-    result["plots"].append({
-        "title": f"D-Chart: {factor} Divergence Over Time ({variable})",
-        "data": traces,
-        "layout": {
-            "height": 400,
-            "xaxis": {"title": time_col or "Window"},
-            "yaxis": {"title": "JSD (bits)", "rangemode": "tozero"},
-            "legend": {"orientation": "h", "y": -0.2},
-        },
-    })
+    result["plots"].append(
+        {
+            "title": f"D-Chart: {factor} Divergence Over Time ({variable})",
+            "data": traces,
+            "layout": {
+                "height": 400,
+                "xaxis": {"title": time_col or "Window"},
+                "yaxis": {"title": "JSD (bits)", "rangemode": "tozero"},
+                "legend": {"orientation": "h", "y": -0.2},
+            },
+        }
+    )
 
     # Information score bar chart
     sorted_factors = sorted(info_scores.items(), key=lambda x: x[1], reverse=True)
     bar_colors = [SVEND_COLORS[unique_factors.index(f) % len(SVEND_COLORS)] for f, _ in sorted_factors]
-    result["plots"].append({
-        "title": f"Cumulative Information Score by {factor}",
-        "data": [{
-            "type": "bar",
-            "x": [f for f, _ in sorted_factors],
-            "y": [round(s, 4) for _, s in sorted_factors],
-            "marker": {"color": bar_colors},
-        }],
-        "layout": {
-            "height": 400,
-            "xaxis": {"title": factor},
-            "yaxis": {"title": "Weighted Excess JSD", "rangemode": "tozero"},
-        },
-    })
+    result["plots"].append(
+        {
+            "title": f"Cumulative Information Score by {factor}",
+            "data": [
+                {
+                    "type": "bar",
+                    "x": [f for f, _ in sorted_factors],
+                    "y": [round(s, 4) for _, s in sorted_factors],
+                    "marker": {"color": bar_colors},
+                }
+            ],
+            "layout": {
+                "height": 400,
+                "xaxis": {"title": factor},
+                "yaxis": {"title": "Weighted Excess JSD", "rangemode": "tozero"},
+            },
+        }
+    )
 
     # ── Heatmap: factor × time window ──
     z_data = []
     for fval in unique_factors:
         row = [round(float(w["factor_jsds"].get(fval, 0)), 4) for w in windows]
         z_data.append(row)
-    result["plots"].append({
-        "title": f"Divergence Heatmap: {factor} × Time",
-        "data": [{
-            "type": "heatmap",
-            "z": z_data,
-            "x": x_labels,
-            "y": list(unique_factors),
-            "colorscale": [[0, _rgba(COLOR_GOOD, 0.1)], [0.5, COLOR_REFERENCE], [1, COLOR_BAD]],
-            "colorbar": {"title": "JSD", "len": 0.8},
-            "hovertemplate": "%{y} @ %{x}<br>JSD = %{z:.4f}<extra></extra>",
-        }],
-        "layout": {
-            "height": 400,
-            "xaxis": {"title": time_col or "Window"},
-            "yaxis": {"title": factor},
-        },
-    })
+    result["plots"].append(
+        {
+            "title": f"Divergence Heatmap: {factor} × Time",
+            "data": [
+                {
+                    "type": "heatmap",
+                    "z": z_data,
+                    "x": x_labels,
+                    "y": list(unique_factors),
+                    "colorscale": [[0, _rgba(COLOR_GOOD, 0.1)], [0.5, COLOR_REFERENCE], [1, COLOR_BAD]],
+                    "colorbar": {"title": "JSD", "len": 0.8},
+                    "hovertemplate": "%{y} @ %{x}<br>JSD = %{z:.4f}<extra></extra>",
+                }
+            ],
+            "layout": {
+                "height": 400,
+                "xaxis": {"title": time_col or "Window"},
+                "yaxis": {"title": factor},
+            },
+        }
+    )
 
     # ── KDE overlay: most divergent factor's baseline vs peak window ──
     max_factor_name = sorted_factors[0][0] if sorted_factors else unique_factors[0]
     # Find the window with peak divergence for this factor
     peak_w = max(windows, key=lambda w: w["factor_jsds"].get(max_factor_name, 0))
-    peak_df = df.iloc[peak_w["start"]:peak_w["end"]]
+    peak_df = df.iloc[peak_w["start"] : peak_w["end"]]
     peak_vals = peak_df[variable].astype(float).values
     peak_mask = peak_df[factor].astype(str) == max_factor_name
     peak_factor_vals = peak_vals[peak_mask.values]
@@ -414,33 +445,45 @@ def run_d_chart(df, config):
     kde_traces = []
     # Baseline density for this factor
     if factor_baselines[max_factor_name] is not None:
-        kde_traces.append({
-            "type": "scatter", "x": grid.tolist(), "y": factor_baselines[max_factor_name].tolist(),
-            "mode": "lines", "fill": "tozeroy",
-            "fillcolor": _rgba(COLOR_GOOD, 0.15),
-            "line": {"color": COLOR_GOOD, "width": 2},
-            "name": f"{max_factor_name} (baseline)",
-        })
+        kde_traces.append(
+            {
+                "type": "scatter",
+                "x": grid.tolist(),
+                "y": factor_baselines[max_factor_name].tolist(),
+                "mode": "lines",
+                "fill": "tozeroy",
+                "fillcolor": _rgba(COLOR_GOOD, 0.15),
+                "line": {"color": COLOR_GOOD, "width": 2},
+                "name": f"{max_factor_name} (baseline)",
+            }
+        )
     # Current (peak window) density for this factor
     if len(peak_factor_vals) >= 5:
         d1 = _kde_density(peak_factor_vals, grid)
-        kde_traces.append({
-            "type": "scatter", "x": grid.tolist(), "y": d1.tolist(),
-            "mode": "lines", "fill": "tozeroy",
-            "fillcolor": _rgba(COLOR_BAD, 0.15),
-            "line": {"color": COLOR_BAD, "width": 2},
-            "name": f"{max_factor_name} (peak window {peak_w['label']})",
-        })
-    result["plots"].append({
-        "title": f"Distribution Shift: {max_factor_name} — Baseline vs Peak",
-        "data": kde_traces,
-        "layout": {
-            "height": 400,
-            "xaxis": {"title": variable},
-            "yaxis": {"title": "Density"},
-            "legend": {"orientation": "h", "y": -0.2},
-        },
-    })
+        kde_traces.append(
+            {
+                "type": "scatter",
+                "x": grid.tolist(),
+                "y": d1.tolist(),
+                "mode": "lines",
+                "fill": "tozeroy",
+                "fillcolor": _rgba(COLOR_BAD, 0.15),
+                "line": {"color": COLOR_BAD, "width": 2},
+                "name": f"{max_factor_name} (peak window {peak_w['label']})",
+            }
+        )
+    result["plots"].append(
+        {
+            "title": f"Distribution Shift: {max_factor_name} — Baseline vs Peak",
+            "data": kde_traces,
+            "layout": {
+                "height": 400,
+                "xaxis": {"title": variable},
+                "yaxis": {"title": "Density"},
+                "legend": {"orientation": "h", "y": -0.2},
+            },
+        }
+    )
 
     # ── Phase detection: when did divergence start? ──
     # Compare each factor's JSD to its own early baseline (first third of windows).
@@ -471,31 +514,33 @@ def run_d_chart(df, config):
     any_above_noise = any(w["max_jsd"] > noise for w in windows)
 
     summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-    summary += f"<<COLOR:title>>D-CHART: FACTOR DIVERGENCE ANALYSIS<</COLOR>>\n"
+    summary += "<<COLOR:title>>D-CHART: FACTOR DIVERGENCE ANALYSIS<</COLOR>>\n"
     summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
     summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {variable}\n"
     summary += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor} ({len(unique_factors)} levels)\n"
     summary += f"<<COLOR:highlight>>Windows:<</COLOR>> {len(windows)} (size={window_size}, step={step_size})\n"
     summary += f"<<COLOR:highlight>>Noise Floor:<</COLOR>> {noise:.4f} bits (95th percentile of null)\n\n"
 
-    summary += f"<<COLOR:accent>>── Information Scores (recency-weighted excess JSD) ──<</COLOR>>\n"
+    summary += "<<COLOR:accent>>── Information Scores (recency-weighted excess JSD) ──<</COLOR>>\n"
     for fval, score in sorted_factors:
         flag = " <<COLOR:warning>>▲<</COLOR>>" if score > noise * 2 else ""
         summary += f"  {fval}: {score:.4f}{flag}\n"
 
     if onset_info:
-        summary += f"\n<<COLOR:accent>>── Onset Detection ──<</COLOR>>\n"
+        summary += "\n<<COLOR:accent>>── Onset Detection ──<</COLOR>>\n"
         for fval, info in onset_info.items():
             summary += f"  {fval}: divergence sustained from window {info['label']}\n"
 
-    summary += f"\n<<COLOR:accent>>── Assessment ──<</COLOR>>\n"
+    summary += "\n<<COLOR:accent>>── Assessment ──<</COLOR>>\n"
     if any_above_noise and max_score > noise * 2:
         summary += f"<<COLOR:danger>>Factor '{max_factor}' shows systematic divergence from the pooled distribution.<</COLOR>>\n"
-        summary += f"<<COLOR:warning>>This factor is contributing non-random variation to the process.<</COLOR>>\n"
+        summary += "<<COLOR:warning>>This factor is contributing non-random variation to the process.<</COLOR>>\n"
     elif any_above_noise:
-        summary += f"<<COLOR:warning>>Some windows show divergence above noise floor, but the cumulative pattern is moderate.<</COLOR>>\n"
+        summary += "<<COLOR:warning>>Some windows show divergence above noise floor, but the cumulative pattern is moderate.<</COLOR>>\n"
     else:
-        summary += f"<<COLOR:good>>All factor levels behave consistently — no systematic divergence detected.<</COLOR>>\n"
+        summary += (
+            "<<COLOR:good>>All factor levels behave consistently — no systematic divergence detected.<</COLOR>>\n"
+        )
 
     result["summary"] = summary
 
@@ -507,8 +552,11 @@ def run_d_chart(df, config):
         f"D-Chart: {factor} on {variable}, {len(windows)} windows. "
         f"Top divergent factor: {max_factor} (info score={max_score:.4f}). "
         f"Noise floor: {noise:.4f}. "
-        + ("Systematic divergence detected." if any_above_noise and max_score > noise * 2
-           else "No systematic divergence.")
+        + (
+            "Systematic divergence detected."
+            if any_above_noise and max_score > noise * 2
+            else "No systematic divergence."
+        )
         + onset_str
     )
 
@@ -526,7 +574,7 @@ def run_d_chart(df, config):
         f"D-Chart: {factor} divergence on {variable}",
         _d_chart_body(sorted_factors, noise, any_above_noise, variable, factor),
         _d_chart_nextsteps(sorted_factors, noise, any_above_noise, factor),
-        "The top chart tracks JSD per factor over time windows. Points above the dashed noise floor indicate non-random divergence. The bar chart ranks factors by cumulative recency-weighted excess divergence."
+        "The top chart tracks JSD per factor over time windows. Points above the dashed noise floor indicate non-random divergence. The bar chart ranks factors by cumulative recency-weighted excess divergence.",
     )
 
     result["education"] = {
@@ -556,7 +604,7 @@ def run_d_chart(df, config):
             "intermittent factor effect — investigate timing. <strong>Sustained above noise</strong>: "
             "Systematic divergence — this factor genuinely changes the process output.</dd>"
             "</dl>"
-        )
+        ),
     }
 
     return result
@@ -565,6 +613,7 @@ def run_d_chart(df, config):
 # ---------------------------------------------------------------------------
 # D-Cpk: Factor-Attributed Capability Divergence
 # ---------------------------------------------------------------------------
+
 
 def run_d_cpk(df, config):
     """D-Cpk — factor-attributed capability divergence.
@@ -638,10 +687,17 @@ def run_d_cpk(df, config):
         n_f = len(fdata)
 
         if n_f < 5:
-            factor_results.append({
-                "factor": fval, "n": n_f, "jsd": 0.0, "pws": 0.0,
-                "direction": 0, "cpk": 0.0, "cpk_without": 0.0,
-            })
+            factor_results.append(
+                {
+                    "factor": fval,
+                    "n": n_f,
+                    "jsd": 0.0,
+                    "pws": 0.0,
+                    "direction": 0,
+                    "cpk": 0.0,
+                    "cpk_without": 0.0,
+                }
+            )
             continue
 
         f_density = _kde_density(fdata, grid)
@@ -672,6 +728,7 @@ def run_d_cpk(df, config):
 
         # PPM defect rate (computed here so we can sort by it)
         from scipy import stats as sp_stats
+
         mu_f = fdata.mean()
         sigma_f = fdata.std(ddof=1)
         ppm = 0.0
@@ -683,21 +740,23 @@ def run_d_cpk(df, config):
                 defect_rate += 1 - sp_stats.norm.cdf(usl, mu_f, sigma_f)
             ppm = round(defect_rate * 1_000_000, 1)
 
-        factor_results.append({
-            "factor": fval,
-            "n": n_f,
-            "jsd": float(jsd_full),
-            "jsd_tail": float(jsd_tails),
-            "defect_eff": float(defect_eff),
-            "loc_pct": float(loc_pct),
-            "scale_pct": float(scale_pct),
-            "pws": f_pws,
-            "cpk": f_cpk,
-            "direction": direction,
-            "cpk_without": cpk_without,
-            "delta_cpk": cpk_without - pooled_cpk,
-            "ppm": ppm,
-        })
+        factor_results.append(
+            {
+                "factor": fval,
+                "n": n_f,
+                "jsd": float(jsd_full),
+                "jsd_tail": float(jsd_tails),
+                "defect_eff": float(defect_eff),
+                "loc_pct": float(loc_pct),
+                "scale_pct": float(scale_pct),
+                "pws": f_pws,
+                "cpk": f_cpk,
+                "direction": direction,
+                "cpk_without": cpk_without,
+                "delta_cpk": cpk_without - pooled_cpk,
+                "ppm": ppm,
+            }
+        )
 
     # Sort: highest defect rate first (PPM descending) — this is what practitioners
     # care about. Ties broken by JSD.
@@ -717,31 +776,38 @@ def run_d_cpk(df, config):
         else:
             cpk_bar_colors.append(COLOR_GOOD)
 
-    result["plots"].append({
-        "title": f"D-Cpk: {factor} Capability Comparison ({variable})",
-        "data": [{
-            "type": "bar",
-            "x": [fr["factor"] for fr in fr_by_cpk],
-            "y": [round(fr["cpk"], 3) for fr in fr_by_cpk],
-            "marker": {"color": cpk_bar_colors},
-            "text": [f"Cpk={fr['cpk']:.3f}<br>JSD={fr['jsd']:.4f}<br>PPM={fr.get('ppm', 'N/A')}" for fr in fr_by_cpk],
-            "hoverinfo": "text+x",
-            "textposition": "outside",
-            "name": "Factor Cpk",
-        }, {
-            "type": "scatter",
-            "x": [fr_by_cpk[0]["factor"], fr_by_cpk[-1]["factor"]],
-            "y": [pooled_cpk, pooled_cpk],
-            "mode": "lines",
-            "name": f"Pooled Cpk ({pooled_cpk:.3f})",
-            "line": {"color": COLOR_REFERENCE, "dash": "dash", "width": 2},
-        }],
-        "layout": {
-            "height": 400,
-            "xaxis": {"title": factor},
-            "yaxis": {"title": "Cpk", "rangemode": "tozero"},
-        },
-    })
+    result["plots"].append(
+        {
+            "title": f"D-Cpk: {factor} Capability Comparison ({variable})",
+            "data": [
+                {
+                    "type": "bar",
+                    "x": [fr["factor"] for fr in fr_by_cpk],
+                    "y": [round(fr["cpk"], 3) for fr in fr_by_cpk],
+                    "marker": {"color": cpk_bar_colors},
+                    "text": [
+                        f"Cpk={fr['cpk']:.3f}<br>JSD={fr['jsd']:.4f}<br>PPM={fr.get('ppm', 'N/A')}" for fr in fr_by_cpk
+                    ],
+                    "hoverinfo": "text+x",
+                    "textposition": "outside",
+                    "name": "Factor Cpk",
+                },
+                {
+                    "type": "scatter",
+                    "x": [fr_by_cpk[0]["factor"], fr_by_cpk[-1]["factor"]],
+                    "y": [pooled_cpk, pooled_cpk],
+                    "mode": "lines",
+                    "name": f"Pooled Cpk ({pooled_cpk:.3f})",
+                    "line": {"color": COLOR_REFERENCE, "dash": "dash", "width": 2},
+                },
+            ],
+            "layout": {
+                "height": 400,
+                "xaxis": {"title": factor},
+                "yaxis": {"title": "Cpk", "rangemode": "tozero"},
+            },
+        }
+    )
 
     # ── Distribution overlay with spec limits ──
     dist_traces = []
@@ -752,124 +818,160 @@ def run_d_cpk(df, config):
         fdata = values[mask]
         fd = _kde_density(fdata, grid)
         c = SVEND_COLORS[i % len(SVEND_COLORS)]
-        dist_traces.append({
-            "type": "scatter", "x": grid.tolist(), "y": fd.tolist(),
-            "mode": "lines", "fill": "tozeroy",
-            "fillcolor": _rgba(c, 0.12),
-            "line": {"color": c, "width": 2},
-            "name": f"{fr['factor']} (Cpk={fr['cpk']:.2f})",
-        })
+        dist_traces.append(
+            {
+                "type": "scatter",
+                "x": grid.tolist(),
+                "y": fd.tolist(),
+                "mode": "lines",
+                "fill": "tozeroy",
+                "fillcolor": _rgba(c, 0.12),
+                "line": {"color": c, "width": 2},
+                "name": f"{fr['factor']} (Cpk={fr['cpk']:.2f})",
+            }
+        )
     # Spec limit lines
     y_max = max((max(t["y"]) for t in dist_traces if t.get("y")), default=0.5)
     if lsl is not None:
-        dist_traces.append({
-            "type": "scatter", "x": [lsl, lsl], "y": [0, y_max * 1.1],
-            "mode": "lines", "line": {"color": COLOR_BAD, "width": 2, "dash": "dash"},
-            "name": f"LSL ({lsl})", "showlegend": True,
-        })
+        dist_traces.append(
+            {
+                "type": "scatter",
+                "x": [lsl, lsl],
+                "y": [0, y_max * 1.1],
+                "mode": "lines",
+                "line": {"color": COLOR_BAD, "width": 2, "dash": "dash"},
+                "name": f"LSL ({lsl})",
+                "showlegend": True,
+            }
+        )
     if usl is not None:
-        dist_traces.append({
-            "type": "scatter", "x": [usl, usl], "y": [0, y_max * 1.1],
-            "mode": "lines", "line": {"color": COLOR_BAD, "width": 2, "dash": "dash"},
-            "name": f"USL ({usl})", "showlegend": True,
-        })
-    result["plots"].append({
-        "title": f"Distribution Overlay by {factor} with Spec Limits",
-        "data": dist_traces,
-        "layout": {
-            "height": 400,
-            "xaxis": {"title": variable},
-            "yaxis": {"title": "Density"},
-            "legend": {"orientation": "h", "y": -0.2},
-        },
-    })
+        dist_traces.append(
+            {
+                "type": "scatter",
+                "x": [usl, usl],
+                "y": [0, y_max * 1.1],
+                "mode": "lines",
+                "line": {"color": COLOR_BAD, "width": 2, "dash": "dash"},
+                "name": f"USL ({usl})",
+                "showlegend": True,
+            }
+        )
+    result["plots"].append(
+        {
+            "title": f"Distribution Overlay by {factor} with Spec Limits",
+            "data": dist_traces,
+            "layout": {
+                "height": 400,
+                "xaxis": {"title": variable},
+                "yaxis": {"title": "Density"},
+                "legend": {"orientation": "h", "y": -0.2},
+            },
+        }
+    )
 
     # Counterfactual Cpk chart
-    result["plots"].append({
-        "title": f"Counterfactual: Cpk Without Each {factor} Level",
-        "data": [{
-            "type": "bar",
-            "x": [fr["factor"] for fr in factor_results],
-            "y": [round(fr["cpk_without"], 3) for fr in factor_results],
-            "marker": {"color": [
-                COLOR_BAD if fr["delta_cpk"] > 0.05 else COLOR_INFO
-                for fr in factor_results
-            ]},
-            "name": "Cpk without factor",
-        }, {
-            "type": "scatter",
-            "x": [factor_results[0]["factor"], factor_results[-1]["factor"]],
-            "y": [pooled_cpk, pooled_cpk],
-            "mode": "lines",
-            "name": f"Pooled Cpk ({pooled_cpk:.3f})",
-            "line": {"color": COLOR_REFERENCE, "dash": "dash", "width": 2},
-        }],
-        "layout": {
-            "height": 400,
-            "xaxis": {"title": factor},
-            "yaxis": {"title": "Cpk", "rangemode": "tozero"},
-        },
-    })
+    result["plots"].append(
+        {
+            "title": f"Counterfactual: Cpk Without Each {factor} Level",
+            "data": [
+                {
+                    "type": "bar",
+                    "x": [fr["factor"] for fr in factor_results],
+                    "y": [round(fr["cpk_without"], 3) for fr in factor_results],
+                    "marker": {"color": [COLOR_BAD if fr["delta_cpk"] > 0.05 else COLOR_INFO for fr in factor_results]},
+                    "name": "Cpk without factor",
+                },
+                {
+                    "type": "scatter",
+                    "x": [factor_results[0]["factor"], factor_results[-1]["factor"]],
+                    "y": [pooled_cpk, pooled_cpk],
+                    "mode": "lines",
+                    "name": f"Pooled Cpk ({pooled_cpk:.3f})",
+                    "line": {"color": COLOR_REFERENCE, "dash": "dash", "width": 2},
+                },
+            ],
+            "layout": {
+                "height": 400,
+                "xaxis": {"title": factor},
+                "yaxis": {"title": "Cpk", "rangemode": "tozero"},
+            },
+        }
+    )
 
     # ── PPM / Yield impact (pre-computed in factor loop) ──
     ppm_factors = [fr for fr in factor_results if fr["n"] >= 5 and fr["ppm"] > 0]
     if ppm_factors:
         # Sort PPM chart by PPM descending (worst first, matches factor_results order)
         ppm_sorted = sorted(ppm_factors, key=lambda x: -x["ppm"])
-        result["plots"].append({
-            "title": f"Estimated Defect Rate (PPM) by {factor}",
-            "data": [{
-                "type": "bar",
-                "x": [fr["factor"] for fr in ppm_sorted],
-                "y": [fr["ppm"] for fr in ppm_sorted],
-                "marker": {"color": [
-                    COLOR_BAD if fr["jsd"] > noise else _rgba(COLOR_NEUTRAL, 0.6)
-                    for fr in ppm_sorted
-                ]},
-                "text": [f"{fr['ppm']:,.0f}" for fr in ppm_sorted],
-                "textposition": "outside",
-            }],
-            "layout": {
-                "height": 400,
-                "xaxis": {"title": factor},
-                "yaxis": {"title": "PPM (parts per million)", "rangemode": "tozero"},
-            },
-        })
+        result["plots"].append(
+            {
+                "title": f"Estimated Defect Rate (PPM) by {factor}",
+                "data": [
+                    {
+                        "type": "bar",
+                        "x": [fr["factor"] for fr in ppm_sorted],
+                        "y": [fr["ppm"] for fr in ppm_sorted],
+                        "marker": {
+                            "color": [
+                                COLOR_BAD if fr["jsd"] > noise else _rgba(COLOR_NEUTRAL, 0.6) for fr in ppm_sorted
+                            ]
+                        },
+                        "text": [f"{fr['ppm']:,.0f}" for fr in ppm_sorted],
+                        "textposition": "outside",
+                    }
+                ],
+                "layout": {
+                    "height": 400,
+                    "xaxis": {"title": factor},
+                    "yaxis": {"title": "PPM (parts per million)", "rangemode": "tozero"},
+                },
+            }
+        )
 
     # ── Divergence Profile: bridges D-Chart (total JSD) and D-Cpk (defect impact) ──
     # Stacked bar: total JSD split into tail (defect-producing) vs body (within-spec)
     profile_factors = [fr for fr in factor_results if fr["n"] >= 5 and fr["jsd"] > 0]
     if profile_factors:
         p_sorted = sorted(profile_factors, key=lambda x: -x["jsd"])
-        result["plots"].append({
-            "title": f"Divergence Profile: Total vs Defect-Producing ({factor})",
-            "data": [{
-                "type": "bar",
-                "x": [fr["factor"] for fr in p_sorted],
-                "y": [round(fr["jsd_tail"], 6) for fr in p_sorted],
-                "name": "Tail JSD (defect-producing)",
-                "marker": {"color": COLOR_BAD},
-            }, {
-                "type": "bar",
-                "x": [fr["factor"] for fr in p_sorted],
-                "y": [round(fr["jsd"] - fr["jsd_tail"], 6) for fr in p_sorted],
-                "name": "Body JSD (within-spec)",
-                "marker": {"color": COLOR_INFO},
-            }],
-            "layout": {
-                "height": 400,
-                "barmode": "stack",
-                "xaxis": {"title": factor},
-                "yaxis": {"title": "JSD (bits)", "rangemode": "tozero"},
-                "legend": {"orientation": "h", "y": -0.2},
-                "annotations": [{
-                    "x": fr["factor"], "y": fr["jsd"] + 0.002,
-                    "text": f"{fr['defect_eff']:.0%}",
-                    "showarrow": False,
-                    "font": {"size": 10, "color": COLOR_BAD},
-                } for fr in p_sorted if fr["defect_eff"] > 0.01],
-            },
-        })
+        result["plots"].append(
+            {
+                "title": f"Divergence Profile: Total vs Defect-Producing ({factor})",
+                "data": [
+                    {
+                        "type": "bar",
+                        "x": [fr["factor"] for fr in p_sorted],
+                        "y": [round(fr["jsd_tail"], 6) for fr in p_sorted],
+                        "name": "Tail JSD (defect-producing)",
+                        "marker": {"color": COLOR_BAD},
+                    },
+                    {
+                        "type": "bar",
+                        "x": [fr["factor"] for fr in p_sorted],
+                        "y": [round(fr["jsd"] - fr["jsd_tail"], 6) for fr in p_sorted],
+                        "name": "Body JSD (within-spec)",
+                        "marker": {"color": COLOR_INFO},
+                    },
+                ],
+                "layout": {
+                    "height": 400,
+                    "barmode": "stack",
+                    "xaxis": {"title": factor},
+                    "yaxis": {"title": "JSD (bits)", "rangemode": "tozero"},
+                    "legend": {"orientation": "h", "y": -0.2},
+                    "annotations": [
+                        {
+                            "x": fr["factor"],
+                            "y": fr["jsd"] + 0.002,
+                            "text": f"{fr['defect_eff']:.0%}",
+                            "showarrow": False,
+                            "font": {"size": 10, "color": COLOR_BAD},
+                        }
+                        for fr in p_sorted
+                        if fr["defect_eff"] > 0.01
+                    ],
+                },
+            }
+        )
 
     # Summary — factor_results is sorted by PPM descending (worst defect producer first)
     significant = [fr for fr in factor_results if fr["jsd"] > noise]
@@ -877,7 +979,7 @@ def run_d_cpk(df, config):
     worst = degraders[0] if degraders else (factor_results[0] if factor_results else None)
 
     summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-    summary += f"<<COLOR:title>>D-Cpk: FACTOR-ATTRIBUTED CAPABILITY DIVERGENCE<</COLOR>>\n"
+    summary += "<<COLOR:title>>D-Cpk: FACTOR-ATTRIBUTED CAPABILITY DIVERGENCE<</COLOR>>\n"
     summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
     summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {variable}\n"
     summary += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor} ({len(unique_factors)} levels)\n"
@@ -888,7 +990,7 @@ def run_d_cpk(df, config):
     summary += f"<<COLOR:highlight>>Pooled Cpk:<</COLOR>> {pooled_cpk:.3f}\n"
     summary += f"<<COLOR:highlight>>Noise Floor:<</COLOR>> {noise:.4f} bits\n\n"
 
-    summary += f"<<COLOR:accent>>── Factor Attribution (sorted by defect rate) ──<</COLOR>>\n"
+    summary += "<<COLOR:accent>>── Factor Attribution (sorted by defect rate) ──<</COLOR>>\n"
     for fr in factor_results:
         dir_sym = "▲" if fr["direction"] > 0 else "▼"
         sig = " <<COLOR:danger>>***<</COLOR>>" if fr["jsd"] > noise else ""
@@ -897,7 +999,7 @@ def run_d_cpk(df, config):
     # Divergence profile: bridges D-Chart (total JSD) and D-Cpk (defect impact)
     profile_frs = [fr for fr in factor_results if fr.get("jsd", 0) > 0 and fr["n"] >= 5]
     if profile_frs:
-        summary += f"\n<<COLOR:accent>>── Divergence Profile ──<</COLOR>>\n"
+        summary += "\n<<COLOR:accent>>── Divergence Profile ──<</COLOR>>\n"
         for fr in profile_frs:
             loc_label = "location" if fr["loc_pct"] > fr["scale_pct"] else "scale"
             loc_dom = max(fr["loc_pct"], fr["scale_pct"])
@@ -908,7 +1010,7 @@ def run_d_cpk(df, config):
                 f"Driver: {loc_label} ({loc_dom:.0%})\n"
             )
 
-    summary += f"\n<<COLOR:accent>>── Assessment ──<</COLOR>>\n"
+    summary += "\n<<COLOR:accent>>── Assessment ──<</COLOR>>\n"
     if degraders:
         pooled_ppm = sum(fr["ppm"] * fr["n"] for fr in factor_results) / sum(fr["n"] for fr in factor_results)
         summary += f"<<COLOR:danger>>Factor '{worst['factor']}' is the largest defect contributor at {worst['ppm']:,.0f} PPM (pooled avg: {pooled_ppm:,.0f} PPM).<</COLOR>>\n"
@@ -921,16 +1023,16 @@ def run_d_cpk(df, config):
                 f"<<COLOR:highlight>>Note: D-Chart ranks {jsd_top['factor']} highest (largest distributional change) "
                 f"while D-Cpk ranks {ppm_top['factor']} highest (most defects). "
                 f"{ppm_top['factor']}'s divergence is {ppm_top['defect_eff']:.0%} defect-efficient "
-                f"({int(ppm_top['scale_pct']*100)}% scale) vs {jsd_top['factor']}'s "
-                f"{jsd_top['defect_eff']:.0%} ({int(jsd_top['loc_pct']*100)}% location).<</COLOR>>\n"
+                f"({int(ppm_top['scale_pct'] * 100)}% scale) vs {jsd_top['factor']}'s "
+                f"{jsd_top['defect_eff']:.0%} ({int(jsd_top['loc_pct'] * 100)}% location).<</COLOR>>\n"
             )
         if len(degraders) > 1:
             others = ", ".join(f"{fr['factor']} ({fr['ppm']:,.0f} PPM)" for fr in degraders[1:])
             summary += f"<<COLOR:highlight>>Also degrading: {others}<</COLOR>>\n"
     elif significant:
-        summary += f"<<COLOR:warning>>Significant divergence detected but factors are performing BETTER than pooled.<</COLOR>>\n"
+        summary += "<<COLOR:warning>>Significant divergence detected but factors are performing BETTER than pooled.<</COLOR>>\n"
     else:
-        summary += f"<<COLOR:good>>No significant factor-attributed capability divergence. All levels perform consistently.<</COLOR>>\n"
+        summary += "<<COLOR:good>>No significant factor-attributed capability divergence. All levels perform consistently.<</COLOR>>\n"
 
     result["summary"] = summary
 
@@ -974,7 +1076,7 @@ def run_d_cpk(df, config):
         "The Cpk comparison chart shows each factor's capability vs pooled. "
         "The divergence profile (stacked bar) decomposes total JSD into defect-producing "
         "(tail, red) vs within-spec (body, blue). Percentages above bars show defect efficiency — "
-        "the fraction of divergence that translates to defects."
+        "the fraction of divergence that translates to defects.",
     )
 
     result["education"] = {
@@ -1006,7 +1108,7 @@ def run_d_cpk(df, config):
             "defects. <strong>Factor above noise with low defect efficiency</strong>: The factor "
             "changes the distribution but not the defect rate — may be acceptable.</dd>"
             "</dl>"
-        )
+        ),
     }
 
     return result
@@ -1015,6 +1117,7 @@ def run_d_cpk(df, config):
 # ---------------------------------------------------------------------------
 # Capability helpers
 # ---------------------------------------------------------------------------
+
 
 def _p_within_spec(density, grid, lsl, usl):
     """Probability of being within spec limits given a density over grid."""
@@ -1055,7 +1158,7 @@ def _bernoulli_jsd(p1, p2):
     dist1 = np.array([p1, 1 - p1])
     dist2 = np.array([p2, 1 - p2])
     js_dist = jensenshannon(dist1, dist2, base=2)
-    return float(js_dist ** 2)
+    return float(js_dist**2)
 
 
 def _cpk_noise_floor(values, n_factors, grid, lsl, usl, B=200):
@@ -1088,6 +1191,7 @@ def _cpk_noise_floor(values, n_factors, grid, lsl, usl, B=200):
 # ---------------------------------------------------------------------------
 # Narrative helpers
 # ---------------------------------------------------------------------------
+
 
 def _d_narrative(title, body, next_steps, chart_guidance):
     """Build HTML narrative string matching DSW standard format."""
@@ -1170,6 +1274,7 @@ def _d_cpk_nextsteps(factor_results, noise, factor):
 # D-NonNorm: KDE-based Non-Normal Capability
 # ---------------------------------------------------------------------------
 
+
 def run_d_nonnorm(df, config):
     """Non-normal capability analysis using KDE density estimation.
 
@@ -1178,6 +1283,7 @@ def run_d_nonnorm(df, config):
     penalty.
     """
     from scipy.stats import norm as sp_norm
+
     from .common import _fit_best_distribution
 
     result = {"plots": [], "summary": "", "guide_observation": ""}
@@ -1278,15 +1384,22 @@ def run_d_nonnorm(df, config):
 
     # --- Plot 1: KDE density with spec limits and tail shading ---
     kde_trace = {
-        "type": "scatter", "x": grid.tolist(), "y": kde_density.tolist(),
-        "mode": "lines", "name": "KDE Density",
+        "type": "scatter",
+        "x": grid.tolist(),
+        "y": kde_density.tolist(),
+        "mode": "lines",
+        "name": "KDE Density",
         "line": {"color": SVEND_COLORS[0], "width": 2.5},
-        "fill": "tozeroy", "fillcolor": _rgba(SVEND_COLORS[0], 0.15),
+        "fill": "tozeroy",
+        "fillcolor": _rgba(SVEND_COLORS[0], 0.15),
     }
     normal_pdf = sp_norm.pdf(grid, mu, sigma)
     normal_trace = {
-        "type": "scatter", "x": grid.tolist(), "y": normal_pdf.tolist(),
-        "mode": "lines", "name": "Normal Assumption",
+        "type": "scatter",
+        "x": grid.tolist(),
+        "y": normal_pdf.tolist(),
+        "mode": "lines",
+        "name": "Normal Assumption",
         "line": {"color": SVEND_COLORS[1], "width": 1.5, "dash": "dash"},
     }
     shapes_p1, annotations_p1 = [], []
@@ -1294,18 +1407,52 @@ def run_d_nonnorm(df, config):
         # Shade tail below LSL
         tail_mask = grid <= lsl
         if np.any(tail_mask):
-            tail_x = grid[tail_mask].tolist()
-            tail_y = kde_density[tail_mask].tolist()
+            grid[tail_mask].tolist()
+            kde_density[tail_mask].tolist()
             result["plots"].append(None)  # placeholder
-        shapes_p1.append({"type": "line", "x0": lsl, "x1": lsl, "y0": 0, "y1": 1, "yref": "paper",
-                          "line": {"color": COLOR_BAD, "dash": "dash", "width": 2}})
-        annotations_p1.append({"x": lsl, "y": 1.05, "yref": "paper", "text": f"LSL={lsl}", "showarrow": False,
-                               "font": {"color": COLOR_BAD, "size": 10}})
+        shapes_p1.append(
+            {
+                "type": "line",
+                "x0": lsl,
+                "x1": lsl,
+                "y0": 0,
+                "y1": 1,
+                "yref": "paper",
+                "line": {"color": COLOR_BAD, "dash": "dash", "width": 2},
+            }
+        )
+        annotations_p1.append(
+            {
+                "x": lsl,
+                "y": 1.05,
+                "yref": "paper",
+                "text": f"LSL={lsl}",
+                "showarrow": False,
+                "font": {"color": COLOR_BAD, "size": 10},
+            }
+        )
     if usl is not None:
-        shapes_p1.append({"type": "line", "x0": usl, "x1": usl, "y0": 0, "y1": 1, "yref": "paper",
-                          "line": {"color": COLOR_BAD, "dash": "dash", "width": 2}})
-        annotations_p1.append({"x": usl, "y": 1.05, "yref": "paper", "text": f"USL={usl}", "showarrow": False,
-                               "font": {"color": COLOR_BAD, "size": 10}})
+        shapes_p1.append(
+            {
+                "type": "line",
+                "x0": usl,
+                "x1": usl,
+                "y0": 0,
+                "y1": 1,
+                "yref": "paper",
+                "line": {"color": COLOR_BAD, "dash": "dash", "width": 2},
+            }
+        )
+        annotations_p1.append(
+            {
+                "x": usl,
+                "y": 1.05,
+                "yref": "paper",
+                "text": f"USL={usl}",
+                "showarrow": False,
+                "font": {"color": COLOR_BAD, "size": 10},
+            }
+        )
 
     plot1_traces = [kde_trace, normal_trace]
 
@@ -1313,74 +1460,144 @@ def run_d_nonnorm(df, config):
     if lsl is not None:
         tail_mask = grid <= lsl
         if np.any(tail_mask):
-            plot1_traces.append({
-                "type": "scatter", "x": grid[tail_mask].tolist(), "y": kde_density[tail_mask].tolist(),
-                "mode": "lines", "fill": "tozeroy", "fillcolor": _rgba(COLOR_BAD, 0.3),
-                "line": {"color": "rgba(0,0,0,0)"}, "name": f"Below LSL ({p_below_lsl*1e6:.0f} PPM)", "showlegend": True,
-            })
+            plot1_traces.append(
+                {
+                    "type": "scatter",
+                    "x": grid[tail_mask].tolist(),
+                    "y": kde_density[tail_mask].tolist(),
+                    "mode": "lines",
+                    "fill": "tozeroy",
+                    "fillcolor": _rgba(COLOR_BAD, 0.3),
+                    "line": {"color": "rgba(0,0,0,0)"},
+                    "name": f"Below LSL ({p_below_lsl * 1e6:.0f} PPM)",
+                    "showlegend": True,
+                }
+            )
     if usl is not None:
         tail_mask = grid >= usl
         if np.any(tail_mask):
-            plot1_traces.append({
-                "type": "scatter", "x": grid[tail_mask].tolist(), "y": kde_density[tail_mask].tolist(),
-                "mode": "lines", "fill": "tozeroy", "fillcolor": _rgba(COLOR_BAD, 0.3),
-                "line": {"color": "rgba(0,0,0,0)"}, "name": f"Above USL ({p_above_usl*1e6:.0f} PPM)", "showlegend": True,
-            })
+            plot1_traces.append(
+                {
+                    "type": "scatter",
+                    "x": grid[tail_mask].tolist(),
+                    "y": kde_density[tail_mask].tolist(),
+                    "mode": "lines",
+                    "fill": "tozeroy",
+                    "fillcolor": _rgba(COLOR_BAD, 0.3),
+                    "line": {"color": "rgba(0,0,0,0)"},
+                    "name": f"Above USL ({p_above_usl * 1e6:.0f} PPM)",
+                    "showlegend": True,
+                }
+            )
 
     # Remove the placeholder
     result["plots"] = []
-    result["plots"].append({
-        "title": "KDE Capability Density",
-        "data": plot1_traces,
-        "layout": {"height": 340, "shapes": shapes_p1, "annotations": annotations_p1,
-                    "xaxis": {"title": variable}, "yaxis": {"title": "Density"}, "showlegend": True},
-    })
+    result["plots"].append(
+        {
+            "title": "KDE Capability Density",
+            "data": plot1_traces,
+            "layout": {
+                "height": 340,
+                "shapes": shapes_p1,
+                "annotations": annotations_p1,
+                "xaxis": {"title": variable},
+                "yaxis": {"title": "Density"},
+                "showlegend": True,
+            },
+        }
+    )
 
     # --- Plot 2: Method comparison bar chart ---
     methods = ["KDE", "Normal", dist_name.title()]
     ppk_vals = [ppk_kde, cpk_normal, ppk_fit]
-    ppm_vals = [ppm_kde, ppm_normal, ppm_fit]
     bar_colors = [SVEND_COLORS[0], SVEND_COLORS[1], SVEND_COLORS[2]]
 
-    result["plots"].append({
-        "title": "Capability Method Comparison",
-        "data": [
-            {"type": "bar", "x": methods, "y": ppk_vals, "name": "Ppk Equivalent",
-             "marker": {"color": bar_colors}, "text": [f"{v:.3f}" for v in ppk_vals], "textposition": "outside"},
-        ],
-        "layout": {"height": 300, "yaxis": {"title": "Ppk"}, "showlegend": False,
-                    "shapes": [{"type": "line", "x0": -0.5, "x1": 2.5, "y0": 1.33, "y1": 1.33,
-                                "line": {"color": COLOR_GOLD, "dash": "dash", "width": 1.5}}],
-                    "annotations": [{"x": 2.5, "y": 1.33, "text": "Target 1.33", "showarrow": False,
-                                     "font": {"color": COLOR_GOLD, "size": 10}, "xanchor": "left"}]},
-    })
+    result["plots"].append(
+        {
+            "title": "Capability Method Comparison",
+            "data": [
+                {
+                    "type": "bar",
+                    "x": methods,
+                    "y": ppk_vals,
+                    "name": "Ppk Equivalent",
+                    "marker": {"color": bar_colors},
+                    "text": [f"{v:.3f}" for v in ppk_vals],
+                    "textposition": "outside",
+                },
+            ],
+            "layout": {
+                "height": 300,
+                "yaxis": {"title": "Ppk"},
+                "showlegend": False,
+                "shapes": [
+                    {
+                        "type": "line",
+                        "x0": -0.5,
+                        "x1": 2.5,
+                        "y0": 1.33,
+                        "y1": 1.33,
+                        "line": {"color": COLOR_GOLD, "dash": "dash", "width": 1.5},
+                    }
+                ],
+                "annotations": [
+                    {
+                        "x": 2.5,
+                        "y": 1.33,
+                        "text": "Target 1.33",
+                        "showarrow": False,
+                        "font": {"color": COLOR_GOLD, "size": 10},
+                        "xanchor": "left",
+                    }
+                ],
+            },
+        }
+    )
 
     # --- Plot 3: QQ plot vs normal ---
     sorted_data = np.sort(data)
     theoretical_q = sp_norm.ppf((np.arange(1, n + 1) - 0.5) / n)
-    result["plots"].append({
-        "title": "Normal Q-Q Plot",
-        "data": [
-            {"type": "scatter", "x": theoretical_q.tolist(), "y": sorted_data.tolist(),
-             "mode": "markers", "name": "Data", "marker": {"color": SVEND_COLORS[0], "size": 4, "opacity": 0.6}},
-            {"type": "scatter", "x": [theoretical_q[0], theoretical_q[-1]],
-             "y": [mu + sigma * theoretical_q[0], mu + sigma * theoretical_q[-1]],
-             "mode": "lines", "name": "Normal Reference", "line": {"color": COLOR_BAD, "dash": "dash", "width": 1.5}},
-        ],
-        "layout": {"height": 300, "xaxis": {"title": "Theoretical Quantiles"}, "yaxis": {"title": variable}, "showlegend": True},
-    })
+    result["plots"].append(
+        {
+            "title": "Normal Q-Q Plot",
+            "data": [
+                {
+                    "type": "scatter",
+                    "x": theoretical_q.tolist(),
+                    "y": sorted_data.tolist(),
+                    "mode": "markers",
+                    "name": "Data",
+                    "marker": {"color": SVEND_COLORS[0], "size": 4, "opacity": 0.6},
+                },
+                {
+                    "type": "scatter",
+                    "x": [theoretical_q[0], theoretical_q[-1]],
+                    "y": [mu + sigma * theoretical_q[0], mu + sigma * theoretical_q[-1]],
+                    "mode": "lines",
+                    "name": "Normal Reference",
+                    "line": {"color": COLOR_BAD, "dash": "dash", "width": 1.5},
+                },
+            ],
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": "Theoretical Quantiles"},
+                "yaxis": {"title": variable},
+                "showlegend": True,
+            },
+        }
+    )
 
     # --- Summary ---
-    summary = f"<<COLOR:title>>D-NONNORM — KDE-BASED CAPABILITY<</COLOR>>\n\n"
+    summary = "<<COLOR:title>>D-NONNORM — KDE-BASED CAPABILITY<</COLOR>>\n\n"
     summary += f"<<COLOR:header>>Data:<</COLOR>> {n} observations of '{variable}'\n"
     summary += f"  Mean: {mu:.4f}  |  Std Dev: {sigma:.4f}\n"
     if lsl is not None:
         summary += f"  LSL: {lsl}\n"
     if usl is not None:
         summary += f"  USL: {usl}\n"
-    summary += f"\n<<COLOR:header>>Capability Comparison:<</COLOR>>\n"
+    summary += "\n<<COLOR:header>>Capability Comparison:<</COLOR>>\n"
     summary += f"  {'Method':<18} {'Ppk':>8} {'PPM':>10}\n"
-    summary += f"  {'-'*38}\n"
+    summary += f"  {'-' * 38}\n"
     summary += f"  {'KDE (empirical)':<18} {ppk_kde:>8.3f} {ppm_kde:>10,.0f}\n"
     summary += f"  {'Normal assumption':<18} {cpk_normal:>8.3f} {ppm_normal:>10,.0f}\n"
     summary += f"  {dist_name.title() + ' fit':<18} {ppk_fit:>8.3f} {ppm_fit:>10,.0f}\n"
@@ -1390,7 +1607,7 @@ def run_d_nonnorm(df, config):
             summary += f"  |  Cp (Normal): {cp_normal:.3f}"
         summary += "\n"
 
-    summary += f"\n<<COLOR:header>>Normality Penalty:<</COLOR>> "
+    summary += "\n<<COLOR:header>>Normality Penalty:<</COLOR>> "
     if abs(penalty) < 0.01:
         summary += f"<<COLOR:success>>Negligible ({penalty:+.3f})<</COLOR>> — normal assumption is adequate.\n"
     elif penalty > 0:
@@ -1416,40 +1633,56 @@ def run_d_nonnorm(df, config):
         f"normality penalty={penalty:+.3f}, PPM(KDE)={ppm_kde:.0f}"
     )
     result["statistics"] = {
-        "ppk_kde": round(ppk_kde, 4), "ppk_normal": round(cpk_normal, 4),
-        "ppk_fit": round(ppk_fit, 4), "normality_penalty": round(penalty, 4),
-        "ppm_kde": round(ppm_kde, 1), "ppm_normal": round(ppm_normal, 1),
-        "best_fit": dist_name, "n": n,
+        "ppk_kde": round(ppk_kde, 4),
+        "ppk_normal": round(cpk_normal, 4),
+        "ppk_fit": round(ppk_fit, 4),
+        "normality_penalty": round(penalty, 4),
+        "ppm_kde": round(ppm_kde, 1),
+        "ppm_normal": round(ppm_normal, 1),
+        "best_fit": dist_name,
+        "n": n,
     }
 
     # --- narrative ---
     if ppk_kde >= 1.33:
         verdict = f"Capable — Ppk(KDE) = {ppk_kde:.3f}"
-        body = (f"Using kernel density estimation (no normality assumption), the process "
-                f"achieves Ppk = <strong>{ppk_kde:.3f}</strong>, comfortably above the 1.33 threshold. "
-                f"Estimated defect rate: {ppm_kde:.0f} PPM.")
+        body = (
+            f"Using kernel density estimation (no normality assumption), the process "
+            f"achieves Ppk = <strong>{ppk_kde:.3f}</strong>, comfortably above the 1.33 threshold. "
+            f"Estimated defect rate: {ppm_kde:.0f} PPM."
+        )
     elif ppk_kde >= 1.0:
         verdict = f"Marginally Capable — Ppk(KDE) = {ppk_kde:.3f}"
-        body = (f"KDE-based capability is <strong>{ppk_kde:.3f}</strong> — above 1.0 but below the "
-                f"1.33 target. Estimated defect rate: {ppm_kde:.0f} PPM.")
+        body = (
+            f"KDE-based capability is <strong>{ppk_kde:.3f}</strong> — above 1.0 but below the "
+            f"1.33 target. Estimated defect rate: {ppm_kde:.0f} PPM."
+        )
     else:
         verdict = f"Not Capable — Ppk(KDE) = {ppk_kde:.3f}"
-        body = (f"KDE-based capability is <strong>{ppk_kde:.3f}</strong>, below 1.0. "
-                f"Estimated defect rate: {ppm_kde:.0f} PPM — improvement needed.")
+        body = (
+            f"KDE-based capability is <strong>{ppk_kde:.3f}</strong>, below 1.0. "
+            f"Estimated defect rate: {ppm_kde:.0f} PPM — improvement needed."
+        )
     if abs(penalty) > 0.05:
         direction = "overstates" if penalty > 0 else "understates"
-        body += (f" The normality assumption {direction} capability by "
-                 f"<strong>{abs(penalty):.3f}</strong> (Normal Ppk = {cpk_normal:.3f}).")
+        body += (
+            f" The normality assumption {direction} capability by "
+            f"<strong>{abs(penalty):.3f}</strong> (Normal Ppk = {cpk_normal:.3f})."
+        )
     body += f" Best-fit distribution: {dist_name.title()}."
     result["narrative"] = _d_narrative(
         f"D-NonNorm: {verdict}",
         body,
-        ("Process is capable — monitor for drift." if ppk_kde >= 1.33
-         else "Investigate sources of variation to improve capability." if ppk_kde >= 1.0
-         else "Prioritise variation reduction; consider the D-Chart to identify contributing factors."),
+        (
+            "Process is capable — monitor for drift."
+            if ppk_kde >= 1.33
+            else "Investigate sources of variation to improve capability."
+            if ppk_kde >= 1.0
+            else "Prioritise variation reduction; consider the D-Chart to identify contributing factors."
+        ),
         "The top plot overlays KDE (actual shape) vs normal assumption. "
         "The middle plot shows the best-fit parametric distribution. "
-        "Shaded tail areas show where defects occur under each model."
+        "Shaded tail areas show where defects occur under each model.",
     )
 
     result["education"] = {
@@ -1475,7 +1708,7 @@ def run_d_nonnorm(df, config):
             "always use the KDE value. <strong>PPM comparison</strong>: Compare KDE vs Normal PPM "
             "to see the real-world defect rate difference.</dd>"
             "</dl>"
-        )
+        ),
     }
 
     return result
@@ -1484,6 +1717,7 @@ def run_d_nonnorm(df, config):
 # ---------------------------------------------------------------------------
 # D-Equiv: Batch Equivalence via JSD
 # ---------------------------------------------------------------------------
+
 
 def run_d_equiv(df, config):
     """Batch distributional equivalence testing via Jensen-Shannon Divergence.
@@ -1542,7 +1776,7 @@ def run_d_equiv(df, config):
     for _ in range(n_perm):
         perm = rng.permutation(all_vals)
         d1 = _kde_density(perm[:n_ref], grid)
-        d2 = _kde_density(perm[n_ref:2*n_ref] if len(perm) >= 2*n_ref else perm[n_ref:], grid)
+        d2 = _kde_density(perm[n_ref : 2 * n_ref] if len(perm) >= 2 * n_ref else perm[n_ref:], grid)
         perm_jsds.append(_jsd(d1, d2, grid))
     noise_95 = float(np.percentile(perm_jsds, 95))
 
@@ -1559,11 +1793,17 @@ def run_d_equiv(df, config):
         # Permutation p-value
         p_val = float(np.mean(np.array(perm_jsds) >= jsd_val))
         equiv = jsd_val < threshold
-        batch_results.append({
-            "batch": bname, "n": len(bdata), "jsd": round(jsd_val, 5),
-            "p_value": round(p_val, 4), "equivalent": equiv,
-            "mean": round(float(bdata.mean()), 4), "std": round(float(bdata.std(ddof=1)), 4),
-        })
+        batch_results.append(
+            {
+                "batch": bname,
+                "n": len(bdata),
+                "jsd": round(jsd_val, 5),
+                "p_value": round(p_val, 4),
+                "equivalent": equiv,
+                "mean": round(float(bdata.mean()), 4),
+                "std": round(float(bdata.std(ddof=1)), 4),
+            }
+        )
 
     batch_results.sort(key=lambda x: x["jsd"])
 
@@ -1587,75 +1827,123 @@ def run_d_equiv(df, config):
     bar_names = [br["batch"] for br in batch_results]
     bar_jsds = [br["jsd"] for br in batch_results]
     bar_colors = [COLOR_GOOD if br["equivalent"] else COLOR_BAD for br in batch_results]
-    result["plots"].append({
-        "title": f"Batch Divergence from Reference '{ref_batch}'",
-        "data": [
-            {"type": "bar", "x": bar_names, "y": bar_jsds, "name": "JSD",
-             "marker": {"color": bar_colors},
-             "text": [f"{v:.4f}" for v in bar_jsds], "textposition": "outside"},
-        ],
-        "layout": {"height": 300, "yaxis": {"title": "JSD (bits)"},
-                    "shapes": [{"type": "line", "x0": -0.5, "x1": len(bar_names) - 0.5,
-                                "y0": threshold, "y1": threshold,
-                                "line": {"color": COLOR_GOLD, "dash": "dash", "width": 2}}],
-                    "annotations": [{"x": len(bar_names) - 0.5, "y": threshold,
-                                     "text": f"Threshold={threshold}", "showarrow": False,
-                                     "font": {"color": COLOR_GOLD, "size": 10}, "xanchor": "left"}]},
-    })
+    result["plots"].append(
+        {
+            "title": f"Batch Divergence from Reference '{ref_batch}'",
+            "data": [
+                {
+                    "type": "bar",
+                    "x": bar_names,
+                    "y": bar_jsds,
+                    "name": "JSD",
+                    "marker": {"color": bar_colors},
+                    "text": [f"{v:.4f}" for v in bar_jsds],
+                    "textposition": "outside",
+                },
+            ],
+            "layout": {
+                "height": 300,
+                "yaxis": {"title": "JSD (bits)"},
+                "shapes": [
+                    {
+                        "type": "line",
+                        "x0": -0.5,
+                        "x1": len(bar_names) - 0.5,
+                        "y0": threshold,
+                        "y1": threshold,
+                        "line": {"color": COLOR_GOLD, "dash": "dash", "width": 2},
+                    }
+                ],
+                "annotations": [
+                    {
+                        "x": len(bar_names) - 0.5,
+                        "y": threshold,
+                        "text": f"Threshold={threshold}",
+                        "showarrow": False,
+                        "font": {"color": COLOR_GOLD, "size": 10},
+                        "xanchor": "left",
+                    }
+                ],
+            },
+        }
+    )
 
     # --- Plot 2: Density overlay ---
     density_traces = []
-    density_traces.append({
-        "type": "scatter", "x": grid.tolist(), "y": ref_density.tolist(),
-        "mode": "lines", "name": f"{ref_batch} (ref)",
-        "line": {"color": COLOR_REFERENCE, "width": 3},
-    })
+    density_traces.append(
+        {
+            "type": "scatter",
+            "x": grid.tolist(),
+            "y": ref_density.tolist(),
+            "mode": "lines",
+            "name": f"{ref_batch} (ref)",
+            "line": {"color": COLOR_REFERENCE, "width": 3},
+        }
+    )
     for i, br in enumerate(batch_results):
         bdata = work.loc[work[batch_col] == br["batch"], variable].values
         b_dens = _kde_density(bdata, grid)
         color = SVEND_COLORS[i % len(SVEND_COLORS)]
-        density_traces.append({
-            "type": "scatter", "x": grid.tolist(), "y": b_dens.tolist(),
-            "mode": "lines", "name": br["batch"],
-            "line": {"color": color, "width": 1.5, "dash": "dash" if not br["equivalent"] else "solid"},
-        })
-    result["plots"].append({
-        "title": "Batch Density Overlay",
-        "data": density_traces,
-        "layout": {"height": 340, "xaxis": {"title": variable}, "yaxis": {"title": "Density"}, "showlegend": True},
-    })
+        density_traces.append(
+            {
+                "type": "scatter",
+                "x": grid.tolist(),
+                "y": b_dens.tolist(),
+                "mode": "lines",
+                "name": br["batch"],
+                "line": {"color": color, "width": 1.5, "dash": "dash" if not br["equivalent"] else "solid"},
+            }
+        )
+    result["plots"].append(
+        {
+            "title": "Batch Density Overlay",
+            "data": density_traces,
+            "layout": {"height": 340, "xaxis": {"title": variable}, "yaxis": {"title": "Density"}, "showlegend": True},
+        }
+    )
 
     # --- Plot 3: Pairwise JSD heatmap ---
-    result["plots"].append({
-        "title": "Pairwise JSD Matrix",
-        "data": [{
-            "type": "heatmap", "z": jsd_matrix.tolist(),
-            "x": all_batch_names, "y": all_batch_names,
-            "colorscale": [[0, "#f0f8f0"], [0.5, COLOR_GOLD], [1, COLOR_BAD]],
-            "text": [[f"{jsd_matrix[i][j]:.4f}" for j in range(n_batches)] for i in range(n_batches)],
-            "texttemplate": "%{text}", "showscale": True,
-            "colorbar": {"title": "JSD"},
-        }],
-        "layout": {"height": 380, "xaxis": {"title": "Batch"}, "yaxis": {"title": "Batch", "autorange": "reversed"}},
-    })
+    result["plots"].append(
+        {
+            "title": "Pairwise JSD Matrix",
+            "data": [
+                {
+                    "type": "heatmap",
+                    "z": jsd_matrix.tolist(),
+                    "x": all_batch_names,
+                    "y": all_batch_names,
+                    "colorscale": [[0, "#f0f8f0"], [0.5, COLOR_GOLD], [1, COLOR_BAD]],
+                    "text": [[f"{jsd_matrix[i][j]:.4f}" for j in range(n_batches)] for i in range(n_batches)],
+                    "texttemplate": "%{text}",
+                    "showscale": True,
+                    "colorbar": {"title": "JSD"},
+                }
+            ],
+            "layout": {
+                "height": 380,
+                "xaxis": {"title": "Batch"},
+                "yaxis": {"title": "Batch", "autorange": "reversed"},
+            },
+        }
+    )
 
     # --- Summary ---
     n_equiv = sum(1 for br in batch_results if br["equivalent"])
     n_test = len(batch_results)
-    summary = f"<<COLOR:title>>D-EQUIV — BATCH EQUIVALENCE VIA JSD<</COLOR>>\n\n"
+    summary = "<<COLOR:title>>D-EQUIV — BATCH EQUIVALENCE VIA JSD<</COLOR>>\n\n"
     summary += f"<<COLOR:header>>Reference Batch:<</COLOR>> '{ref_batch}' (n={len(ref_data)})\n"
     summary += f"<<COLOR:header>>Equivalence Threshold:<</COLOR>> {threshold} JSD bits\n"
     summary += f"<<COLOR:header>>Permutation Noise Floor (95th):<</COLOR>> {noise_95:.5f}\n\n"
 
-    summary += f"<<COLOR:header>>Results:<</COLOR>>\n"
+    summary += "<<COLOR:header>>Results:<</COLOR>>\n"
     summary += f"  {'Batch':<15} {'n':>5} {'JSD':>8} {'p-val':>7} {'Decision':>12}\n"
-    summary += f"  {'-'*50}\n"
+    summary += f"  {'-' * 50}\n"
     for br in batch_results:
         dec = "Equivalent" if br["equivalent"] else "DIFFERENT"
         color = "success" if br["equivalent"] else "danger"
         summary += f"  {br['batch']:<15} {br['n']:>5} {br['jsd']:>8.4f} {br['p_value']:>7.3f} <<COLOR:{color}>>{dec}<</COLOR>>\n"
 
-    summary += f"\n<<COLOR:header>>Verdict:<</COLOR>> "
+    summary += "\n<<COLOR:header>>Verdict:<</COLOR>> "
     if n_equiv == n_test:
         summary += f"<<COLOR:success>>All {n_test} batches are equivalent to reference '{ref_batch}'.<</COLOR>>"
     elif n_equiv == 0:
@@ -1664,39 +1952,51 @@ def run_d_equiv(df, config):
         summary += f"<<COLOR:warning>>{n_equiv} of {n_test} batches equivalent to reference '{ref_batch}'.<</COLOR>>"
 
     result["summary"] = summary
-    result["guide_observation"] = f"D-Equiv: {n_equiv}/{n_test} batches equivalent to ref '{ref_batch}' (threshold={threshold})"
+    result["guide_observation"] = (
+        f"D-Equiv: {n_equiv}/{n_test} batches equivalent to ref '{ref_batch}' (threshold={threshold})"
+    )
     result["statistics"] = {
-        "reference_batch": ref_batch, "threshold": threshold,
-        "noise_floor_95": noise_95, "n_equivalent": n_equiv,
-        "n_tested": n_test, "batch_results": batch_results,
+        "reference_batch": ref_batch,
+        "threshold": threshold,
+        "noise_floor_95": noise_95,
+        "n_equivalent": n_equiv,
+        "n_tested": n_test,
+        "batch_results": batch_results,
     }
 
     # --- narrative ---
     if n_equiv == n_test:
         verdict = f"All Equivalent — {n_equiv}/{n_test} batches"
-        body = (f"All {n_test} batches are distributionally equivalent to reference "
-                f"batch '<strong>{ref_batch}</strong>' (JSD threshold = {threshold}). "
-                f"The process is consistent across batches.")
+        body = (
+            f"All {n_test} batches are distributionally equivalent to reference "
+            f"batch '<strong>{ref_batch}</strong>' (JSD threshold = {threshold}). "
+            f"The process is consistent across batches."
+        )
         nxt = "Continue monitoring — batch consistency is good."
     elif n_equiv == 0:
         verdict = f"None Equivalent — 0/{n_test} batches"
-        body = (f"No batches are equivalent to reference '<strong>{ref_batch}</strong>'. "
-                f"Every batch shows distributional divergence above the threshold ({threshold}). "
-                f"The process has significant batch-to-batch variation.")
+        body = (
+            f"No batches are equivalent to reference '<strong>{ref_batch}</strong>'. "
+            f"Every batch shows distributional divergence above the threshold ({threshold}). "
+            f"The process has significant batch-to-batch variation."
+        )
         nxt = "Investigate batch-level variation sources; consider D-Chart for factor attribution."
     else:
         non_equiv = [br["batch"] for br in batch_results if not br["equivalent"]]
         top_offenders = ", ".join(non_equiv[:3])
         verdict = f"Mixed — {n_equiv}/{n_test} equivalent"
-        body = (f"<strong>{n_equiv}</strong> of {n_test} batches match the reference "
-                f"'<strong>{ref_batch}</strong>'. Non-equivalent: {top_offenders}"
-                + (f" (+{len(non_equiv)-3} more)" if len(non_equiv) > 3 else "")
-                + ".")
+        body = (
+            f"<strong>{n_equiv}</strong> of {n_test} batches match the reference "
+            f"'<strong>{ref_batch}</strong>'. Non-equivalent: {top_offenders}"
+            + (f" (+{len(non_equiv) - 3} more)" if len(non_equiv) > 3 else "")
+            + "."
+        )
         nxt = f"Investigate the non-equivalent batches — what changed vs reference '{ref_batch}'?"
     result["narrative"] = _d_narrative(
         f"D-Equiv: {verdict}",
-        body, nxt,
-        "The bar chart shows each batch's JSD vs the reference. Bars below the threshold (dashed line) are equivalent. The heatmap shows pairwise JSD between all batches."
+        body,
+        nxt,
+        "The bar chart shows each batch's JSD vs the reference. Bars below the threshold (dashed line) are equivalent. The heatmap shows pairwise JSD between all batches.",
     )
 
     result["education"] = {
@@ -1719,7 +2019,7 @@ def run_d_equiv(df, config):
             "<dd>The pairwise JSD heatmap shows which batches are similar to each other (cool colors) "
             "vs different (hot colors). Clusters of similar batches may indicate shared process conditions.</dd>"
             "</dl>"
-        )
+        ),
     }
 
     return result
@@ -1728,6 +2028,7 @@ def run_d_equiv(df, config):
 # ---------------------------------------------------------------------------
 # D-Sig: Process Signature Comparison
 # ---------------------------------------------------------------------------
+
 
 def run_d_sig(df, config):
     """Process signature comparison via functional JSD.
@@ -1821,8 +2122,9 @@ def run_d_sig(df, config):
             if len(ref_window) >= 3 and len(g_window) >= 3:
                 # Use local value distribution comparison
                 all_vals = np.concatenate([ref_window, g_window])
-                local_grid = np.linspace(all_vals.min() - 0.1 * (np.ptp(all_vals) or 1),
-                                         all_vals.max() + 0.1 * (np.ptp(all_vals) or 1), 100)
+                local_grid = np.linspace(
+                    all_vals.min() - 0.1 * (np.ptp(all_vals) or 1), all_vals.max() + 0.1 * (np.ptp(all_vals) or 1), 100
+                )
                 ref_dens = _kde_density(ref_window, local_grid)
                 g_dens = _kde_density(g_window, local_grid)
                 pw_jsd[t_idx] = _jsd(ref_dens, g_dens, local_grid)
@@ -1842,37 +2144,62 @@ def run_d_sig(df, config):
 
     # --- Plot 1: Profile overlay ---
     profile_traces = []
-    profile_traces.append({
-        "type": "scatter", "x": common_time.tolist(), "y": ref_profile.tolist(),
-        "mode": "lines", "name": f"{ref_group} (ref)",
-        "line": {"color": COLOR_REFERENCE, "width": 3},
-    })
+    profile_traces.append(
+        {
+            "type": "scatter",
+            "x": common_time.tolist(),
+            "y": ref_profile.tolist(),
+            "mode": "lines",
+            "name": f"{ref_group} (ref)",
+            "line": {"color": COLOR_REFERENCE, "width": 3},
+        }
+    )
     for i, g in enumerate(sorted_groups):
-        profile_traces.append({
-            "type": "scatter", "x": common_time.tolist(), "y": interp_profiles[g].tolist(),
-            "mode": "lines", "name": g,
-            "line": {"color": SVEND_COLORS[i % len(SVEND_COLORS)], "width": 1.5},
-        })
-    result["plots"].append({
-        "title": "Process Signatures",
-        "data": profile_traces,
-        "layout": {"height": 340, "xaxis": {"title": time_col}, "yaxis": {"title": variable}, "showlegend": True},
-    })
+        profile_traces.append(
+            {
+                "type": "scatter",
+                "x": common_time.tolist(),
+                "y": interp_profiles[g].tolist(),
+                "mode": "lines",
+                "name": g,
+                "line": {"color": SVEND_COLORS[i % len(SVEND_COLORS)], "width": 1.5},
+            }
+        )
+    result["plots"].append(
+        {
+            "title": "Process Signatures",
+            "data": profile_traces,
+            "layout": {"height": 340, "xaxis": {"title": time_col}, "yaxis": {"title": variable}, "showlegend": True},
+        }
+    )
 
     # --- Plot 2: Pointwise JSD timeline ---
     jsd_traces = []
     for i, g in enumerate(sorted_groups):
-        jsd_traces.append({
-            "type": "scatter", "x": common_time.tolist(), "y": pointwise_jsd[g].tolist(),
-            "mode": "lines", "name": g, "fill": "tozeroy",
-            "line": {"color": SVEND_COLORS[i % len(SVEND_COLORS)], "width": 1.5},
-            "fillcolor": _rgba(SVEND_COLORS[i % len(SVEND_COLORS)], 0.1),
-        })
-    result["plots"].append({
-        "title": "Pointwise JSD vs Reference",
-        "data": jsd_traces,
-        "layout": {"height": 300, "xaxis": {"title": time_col}, "yaxis": {"title": "JSD (bits)"}, "showlegend": True},
-    })
+        jsd_traces.append(
+            {
+                "type": "scatter",
+                "x": common_time.tolist(),
+                "y": pointwise_jsd[g].tolist(),
+                "mode": "lines",
+                "name": g,
+                "fill": "tozeroy",
+                "line": {"color": SVEND_COLORS[i % len(SVEND_COLORS)], "width": 1.5},
+                "fillcolor": _rgba(SVEND_COLORS[i % len(SVEND_COLORS)], 0.1),
+            }
+        )
+    result["plots"].append(
+        {
+            "title": "Pointwise JSD vs Reference",
+            "data": jsd_traces,
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": time_col},
+                "yaxis": {"title": "JSD (bits)"},
+                "showlegend": True,
+            },
+        }
+    )
 
     # --- Plot 3: Divergence summary bar chart ---
     bar_names = [g for g in sorted_groups]
@@ -1880,31 +2207,47 @@ def run_d_sig(df, config):
     bar_maxes = [group_divergences[g]["max_jsd"] for g in sorted_groups]
     bar_colors_mean = [SVEND_COLORS[i % len(SVEND_COLORS)] for i in range(len(sorted_groups))]
 
-    result["plots"].append({
-        "title": "Signature Divergence Summary",
-        "data": [
-            {"type": "bar", "x": bar_names, "y": bar_means, "name": "Mean JSD",
-             "marker": {"color": bar_colors_mean},
-             "text": [f"{v:.4f}" for v in bar_means], "textposition": "outside"},
-            {"type": "bar", "x": bar_names, "y": bar_maxes, "name": "Peak JSD",
-             "marker": {"color": [_rgba(c, 0.4) for c in bar_colors_mean]},
-             "text": [f"{v:.4f}" for v in bar_maxes], "textposition": "outside"},
-        ],
-        "layout": {"height": 300, "barmode": "group", "yaxis": {"title": "JSD (bits)"}, "showlegend": True},
-    })
+    result["plots"].append(
+        {
+            "title": "Signature Divergence Summary",
+            "data": [
+                {
+                    "type": "bar",
+                    "x": bar_names,
+                    "y": bar_means,
+                    "name": "Mean JSD",
+                    "marker": {"color": bar_colors_mean},
+                    "text": [f"{v:.4f}" for v in bar_means],
+                    "textposition": "outside",
+                },
+                {
+                    "type": "bar",
+                    "x": bar_names,
+                    "y": bar_maxes,
+                    "name": "Peak JSD",
+                    "marker": {"color": [_rgba(c, 0.4) for c in bar_colors_mean]},
+                    "text": [f"{v:.4f}" for v in bar_maxes],
+                    "textposition": "outside",
+                },
+            ],
+            "layout": {"height": 300, "barmode": "group", "yaxis": {"title": "JSD (bits)"}, "showlegend": True},
+        }
+    )
 
     # --- Summary ---
-    summary = f"<<COLOR:title>>D-SIG — PROCESS SIGNATURE COMPARISON<</COLOR>>\n\n"
+    summary = "<<COLOR:title>>D-SIG — PROCESS SIGNATURE COMPARISON<</COLOR>>\n\n"
     summary += f"<<COLOR:header>>Reference:<</COLOR>> '{ref_group}' (n={len(group_profiles[ref_group]['values'])})\n"
     summary += f"<<COLOR:header>>Variable:<</COLOR>> {variable} over {time_col}\n"
     summary += f"<<COLOR:header>>Window size:<</COLOR>> ±{window_half} points\n\n"
 
-    summary += f"<<COLOR:header>>Divergence Rankings:<</COLOR>>\n"
+    summary += "<<COLOR:header>>Divergence Rankings:<</COLOR>>\n"
     summary += f"  {'Group':<15} {'Mean JSD':>10} {'Peak JSD':>10} {'Peak At':>10} {'RMSE':>10}\n"
-    summary += f"  {'-'*58}\n"
+    summary += f"  {'-' * 58}\n"
     for g in sorted_groups:
         d = group_divergences[g]
-        summary += f"  {g:<15} {d['mean_jsd']:>10.4f} {d['max_jsd']:>10.4f} {d['peak_time']:>10.1f} {d['rmse']:>10.3f}\n"
+        summary += (
+            f"  {g:<15} {d['mean_jsd']:>10.4f} {d['max_jsd']:>10.4f} {d['peak_time']:>10.1f} {d['rmse']:>10.3f}\n"
+        )
 
     most_div = sorted_groups[0] if sorted_groups else None
     if most_div:
@@ -1915,10 +2258,13 @@ def run_d_sig(df, config):
     result["summary"] = summary
     result["guide_observation"] = (
         f"D-Sig: Most divergent group '{most_div}' (mean JSD={group_divergences[most_div]['mean_jsd']:.4f}) "
-        f"vs ref '{ref_group}'" if most_div else "D-Sig: No divergent groups found"
+        f"vs ref '{ref_group}'"
+        if most_div
+        else "D-Sig: No divergent groups found"
     )
     result["statistics"] = {
-        "reference": ref_group, "n_groups": len(group_profiles),
+        "reference": ref_group,
+        "n_groups": len(group_profiles),
         "group_divergences": {g: group_divergences[g] for g in sorted_groups},
     }
 
@@ -1926,11 +2272,13 @@ def run_d_sig(df, config):
     if most_div:
         d = group_divergences[most_div]
         verdict = f"Most divergent: {most_div} (mean JSD = {d['mean_jsd']:.4f})"
-        body = (f"Group '<strong>{most_div}</strong>' shows the highest signature divergence "
-                f"from reference '<strong>{ref_group}</strong>', with mean JSD = {d['mean_jsd']:.4f} "
-                f"and peak divergence at {time_col} = {d['peak_time']:.1f} "
-                f"(JSD = {d['max_jsd']:.4f}).")
-        if d['mean_jsd'] > 0.01:
+        body = (
+            f"Group '<strong>{most_div}</strong>' shows the highest signature divergence "
+            f"from reference '<strong>{ref_group}</strong>', with mean JSD = {d['mean_jsd']:.4f} "
+            f"and peak divergence at {time_col} = {d['peak_time']:.1f} "
+            f"(JSD = {d['max_jsd']:.4f})."
+        )
+        if d["mean_jsd"] > 0.01:
             body += " This is a meaningful divergence — the process profile differs substantially."
             nxt = f"Investigate what differs about '{most_div}' at the peak divergence time point."
         else:
@@ -1942,10 +2290,11 @@ def run_d_sig(df, config):
         nxt = "Profiles are consistent — no action needed."
     result["narrative"] = _d_narrative(
         f"D-Sig: {verdict}",
-        body, nxt,
+        body,
+        nxt,
         "The profile overlay shows each group's time-series signature. "
         "The JSD-over-time chart shows where signatures diverge — peaks indicate "
-        "time points where a group's behavior differs most from the reference."
+        "time points where a group's behavior differs most from the reference.",
     )
 
     result["education"] = {
@@ -1970,7 +2319,7 @@ def run_d_sig(df, config):
             "happens at that point. <strong>Sustained elevation</strong>: The entire profile "
             "differs — a fundamentally different process mode.</dd>"
             "</dl>"
-        )
+        ),
     }
 
     return result
@@ -1980,14 +2329,14 @@ def run_d_sig(df, config):
 # D-Multi: Multivariate Capability via PCA + T²
 # ---------------------------------------------------------------------------
 
+
 def run_d_multi(df, config):
     """Multivariate capability analysis via PCA and Hotelling's T².
 
     Reduces correlated quality characteristics to principal components,
     computes KDE-based capability on each, and uses T² for joint OOC detection.
     """
-    from scipy.stats import f as f_dist, chi2 as chi2_dist
-    from scipy.stats import norm as sp_norm
+    from scipy.stats import f as f_dist
 
     result = {"plots": [], "summary": "", "guide_observation": ""}
 
@@ -2020,6 +2369,7 @@ def run_d_multi(df, config):
     # PCA
     try:
         from sklearn.decomposition import PCA
+
         pca = PCA()
         scores = pca.fit_transform(Z)
         explained = pca.explained_variance_ratio_
@@ -2042,7 +2392,7 @@ def run_d_multi(df, config):
     k = min(k, p)
 
     scores_k = scores[:, :k]
-    explained_k = explained[:k]
+    explained[:k]
 
     # Hotelling's T² using all p variables
     cov_inv = np.linalg.pinv(np.cov(Z, rowvar=False))
@@ -2083,8 +2433,14 @@ def run_d_multi(df, config):
             if v_std > 0:
                 cpk_lo = (v_mean - v_lsl) / (3 * v_std)
                 cpk_hi = (v_usl - v_mean) / (3 * v_std)
-                var_cpk.append({"variable": v, "cpk": round(min(cpk_lo, cpk_hi), 3),
-                                "lsl": round(v_lsl, 4), "usl": round(v_usl, 4)})
+                var_cpk.append(
+                    {
+                        "variable": v,
+                        "cpk": round(min(cpk_lo, cpk_hi), 3),
+                        "lsl": round(v_lsl, 4),
+                        "usl": round(v_usl, 4),
+                    }
+                )
             else:
                 var_cpk.append({"variable": v, "cpk": 999.0, "lsl": round(v_lsl, 4), "usl": round(v_usl, 4)})
 
@@ -2103,15 +2459,30 @@ def run_d_multi(df, config):
     ey = ellipse_r * np.sqrt(ev2) * np.sin(theta)
 
     biplot_traces = [
-        {"type": "scatter", "x": pc1[~ooc_mask].tolist(), "y": pc2[~ooc_mask].tolist(),
-         "mode": "markers", "name": "In Control",
-         "marker": {"color": SVEND_COLORS[0], "size": 4, "opacity": 0.5}},
-        {"type": "scatter", "x": pc1[ooc_mask].tolist(), "y": pc2[ooc_mask].tolist(),
-         "mode": "markers", "name": f"OOC ({n_ooc})",
-         "marker": {"color": COLOR_BAD, "size": 6, "symbol": "x"}},
-        {"type": "scatter", "x": ex.tolist(), "y": ey.tolist(),
-         "mode": "lines", "name": "T² UCL",
-         "line": {"color": COLOR_BAD, "dash": "dash", "width": 1.5}},
+        {
+            "type": "scatter",
+            "x": pc1[~ooc_mask].tolist(),
+            "y": pc2[~ooc_mask].tolist(),
+            "mode": "markers",
+            "name": "In Control",
+            "marker": {"color": SVEND_COLORS[0], "size": 4, "opacity": 0.5},
+        },
+        {
+            "type": "scatter",
+            "x": pc1[ooc_mask].tolist(),
+            "y": pc2[ooc_mask].tolist(),
+            "mode": "markers",
+            "name": f"OOC ({n_ooc})",
+            "marker": {"color": COLOR_BAD, "size": 6, "symbol": "x"},
+        },
+        {
+            "type": "scatter",
+            "x": ex.tolist(),
+            "y": ey.tolist(),
+            "mode": "lines",
+            "name": "T² UCL",
+            "line": {"color": COLOR_BAD, "dash": "dash", "width": 1.5},
+        },
     ]
     # Loading arrows
     arrow_annotations = []
@@ -2119,88 +2490,171 @@ def run_d_multi(df, config):
     for i_v, v in enumerate(variables):
         lx = loadings[0, i_v] * scale_factor
         ly = loadings[1, i_v] * scale_factor
-        arrow_annotations.append({
-            "x": lx, "y": ly, "ax": 0, "ay": 0,
-            "xref": "x", "yref": "y", "axref": "x", "ayref": "y",
-            "showarrow": True, "arrowhead": 2, "arrowsize": 1.5,
-            "arrowcolor": COLOR_INFO, "text": v,
-            "font": {"color": COLOR_INFO, "size": 9},
-        })
+        arrow_annotations.append(
+            {
+                "x": lx,
+                "y": ly,
+                "ax": 0,
+                "ay": 0,
+                "xref": "x",
+                "yref": "y",
+                "axref": "x",
+                "ayref": "y",
+                "showarrow": True,
+                "arrowhead": 2,
+                "arrowsize": 1.5,
+                "arrowcolor": COLOR_INFO,
+                "text": v,
+                "font": {"color": COLOR_INFO, "size": 9},
+            }
+        )
 
-    result["plots"].append({
-        "title": f"PCA Biplot (PC1: {explained[0]*100:.1f}%, PC2: {explained[1]*100:.1f}%)",
-        "data": biplot_traces,
-        "layout": {"height": 380, "xaxis": {"title": f"PC1 ({explained[0]*100:.1f}%)"},
-                    "yaxis": {"title": f"PC2 ({explained[1]*100:.1f}%)", "scaleanchor": "x"},
-                    "showlegend": True, "annotations": arrow_annotations},
-    })
+    result["plots"].append(
+        {
+            "title": f"PCA Biplot (PC1: {explained[0] * 100:.1f}%, PC2: {explained[1] * 100:.1f}%)",
+            "data": biplot_traces,
+            "layout": {
+                "height": 380,
+                "xaxis": {"title": f"PC1 ({explained[0] * 100:.1f}%)"},
+                "yaxis": {"title": f"PC2 ({explained[1] * 100:.1f}%)", "scaleanchor": "x"},
+                "showlegend": True,
+                "annotations": arrow_annotations,
+            },
+        }
+    )
 
     # --- Plot 2: T² chart ---
     obs_idx = list(range(1, n + 1))
-    result["plots"].append({
-        "title": "Hotelling's T² Chart",
-        "data": [
-            {"type": "scatter", "x": obs_idx, "y": T2.tolist(),
-             "mode": "lines+markers", "name": "T²",
-             "marker": {"color": [COLOR_BAD if ooc else SVEND_COLORS[0] for ooc in ooc_mask],
-                         "size": 4},
-             "line": {"color": SVEND_COLORS[0], "width": 1}},
-        ],
-        "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": "T²"},
-                    "shapes": [{"type": "line", "x0": 1, "x1": n, "y0": T2_ucl, "y1": T2_ucl,
-                                "line": {"color": COLOR_BAD, "dash": "dash", "width": 2}}],
-                    "annotations": [{"x": n, "y": T2_ucl, "text": f"UCL={T2_ucl:.1f}",
-                                     "showarrow": False, "font": {"color": COLOR_BAD, "size": 10}, "xanchor": "left"}]},
-    })
+    result["plots"].append(
+        {
+            "title": "Hotelling's T² Chart",
+            "data": [
+                {
+                    "type": "scatter",
+                    "x": obs_idx,
+                    "y": T2.tolist(),
+                    "mode": "lines+markers",
+                    "name": "T²",
+                    "marker": {"color": [COLOR_BAD if ooc else SVEND_COLORS[0] for ooc in ooc_mask], "size": 4},
+                    "line": {"color": SVEND_COLORS[0], "width": 1},
+                },
+            ],
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": "Observation"},
+                "yaxis": {"title": "T²"},
+                "shapes": [
+                    {
+                        "type": "line",
+                        "x0": 1,
+                        "x1": n,
+                        "y0": T2_ucl,
+                        "y1": T2_ucl,
+                        "line": {"color": COLOR_BAD, "dash": "dash", "width": 2},
+                    }
+                ],
+                "annotations": [
+                    {
+                        "x": n,
+                        "y": T2_ucl,
+                        "text": f"UCL={T2_ucl:.1f}",
+                        "showarrow": False,
+                        "font": {"color": COLOR_BAD, "size": 10},
+                        "xanchor": "left",
+                    }
+                ],
+            },
+        }
+    )
 
     # --- Plot 3: Component capability bars ---
-    pc_labels = [f"PC{j+1}" for j in range(k)]
-    result["plots"].append({
-        "title": "Per-Component Capability",
-        "data": [
-            {"type": "bar", "x": pc_labels, "y": component_cpk, "name": "Cpk",
-             "marker": {"color": [COLOR_GOOD if c >= 1.33 else (COLOR_WARNING if c >= 1.0 else COLOR_BAD) for c in component_cpk]},
-             "text": [f"{c:.2f}" for c in component_cpk], "textposition": "outside"},
-        ],
-        "layout": {"height": 280, "yaxis": {"title": "Cpk"},
-                    "shapes": [{"type": "line", "x0": -0.5, "x1": k - 0.5, "y0": 1.33, "y1": 1.33,
-                                "line": {"color": COLOR_GOLD, "dash": "dash", "width": 1.5}}],
-                    "annotations": [{"x": k - 0.5, "y": 1.33, "text": "1.33", "showarrow": False,
-                                     "font": {"color": COLOR_GOLD}, "xanchor": "left"}]},
-    })
+    pc_labels = [f"PC{j + 1}" for j in range(k)]
+    result["plots"].append(
+        {
+            "title": "Per-Component Capability",
+            "data": [
+                {
+                    "type": "bar",
+                    "x": pc_labels,
+                    "y": component_cpk,
+                    "name": "Cpk",
+                    "marker": {
+                        "color": [
+                            COLOR_GOOD if c >= 1.33 else (COLOR_WARNING if c >= 1.0 else COLOR_BAD)
+                            for c in component_cpk
+                        ]
+                    },
+                    "text": [f"{c:.2f}" for c in component_cpk],
+                    "textposition": "outside",
+                },
+            ],
+            "layout": {
+                "height": 280,
+                "yaxis": {"title": "Cpk"},
+                "shapes": [
+                    {
+                        "type": "line",
+                        "x0": -0.5,
+                        "x1": k - 0.5,
+                        "y0": 1.33,
+                        "y1": 1.33,
+                        "line": {"color": COLOR_GOLD, "dash": "dash", "width": 1.5},
+                    }
+                ],
+                "annotations": [
+                    {
+                        "x": k - 0.5,
+                        "y": 1.33,
+                        "text": "1.33",
+                        "showarrow": False,
+                        "font": {"color": COLOR_GOLD},
+                        "xanchor": "left",
+                    }
+                ],
+            },
+        }
+    )
 
     # --- Plot 4: Correlation heatmap ---
     corr = np.corrcoef(data_matrix, rowvar=False)
-    result["plots"].append({
-        "title": "Variable Correlation Matrix",
-        "data": [{
-            "type": "heatmap", "z": corr.tolist(),
-            "x": variables, "y": variables,
-            "colorscale": [[0, "#d06060"], [0.5, "#ffffff"], [1, "#4a9f6e"]],
-            "zmin": -1, "zmax": 1,
-            "text": [[f"{corr[i][j]:.2f}" for j in range(p)] for i in range(p)],
-            "texttemplate": "%{text}", "showscale": True,
-            "colorbar": {"title": "r"},
-        }],
-        "layout": {"height": 360, "yaxis": {"autorange": "reversed"}},
-    })
+    result["plots"].append(
+        {
+            "title": "Variable Correlation Matrix",
+            "data": [
+                {
+                    "type": "heatmap",
+                    "z": corr.tolist(),
+                    "x": variables,
+                    "y": variables,
+                    "colorscale": [[0, "#d06060"], [0.5, "#ffffff"], [1, "#4a9f6e"]],
+                    "zmin": -1,
+                    "zmax": 1,
+                    "text": [[f"{corr[i][j]:.2f}" for j in range(p)] for i in range(p)],
+                    "texttemplate": "%{text}",
+                    "showscale": True,
+                    "colorbar": {"title": "r"},
+                }
+            ],
+            "layout": {"height": 360, "yaxis": {"autorange": "reversed"}},
+        }
+    )
 
     # --- Summary ---
-    summary = f"<<COLOR:title>>D-MULTI — MULTIVARIATE CAPABILITY<</COLOR>>\n\n"
+    summary = "<<COLOR:title>>D-MULTI — MULTIVARIATE CAPABILITY<</COLOR>>\n\n"
     summary += f"<<COLOR:header>>Data:<</COLOR>> {n} observations, {p} variables\n"
     summary += f"<<COLOR:header>>Variables:<</COLOR>> {', '.join(variables)}\n\n"
 
-    summary += f"<<COLOR:header>>PCA Decomposition:<</COLOR>>\n"
+    summary += "<<COLOR:header>>PCA Decomposition:<</COLOR>>\n"
     summary += f"  Components retained: {k} of {p} (≥95% variance)\n"
     for j in range(k):
-        summary += f"  PC{j+1}: {explained[j]*100:.1f}% variance, Cpk = {component_cpk[j]:.3f}\n"
-    summary += f"  Cumulative: {cumvar[k-1]*100:.1f}%\n"
+        summary += f"  PC{j + 1}: {explained[j] * 100:.1f}% variance, Cpk = {component_cpk[j]:.3f}\n"
+    summary += f"  Cumulative: {cumvar[k - 1] * 100:.1f}%\n"
 
-    summary += f"\n<<COLOR:header>>Joint Capability:<</COLOR>>\n"
+    summary += "\n<<COLOR:header>>Joint Capability:<</COLOR>>\n"
     summary += f"  MCpk (min component Cpk): {mcpk:.3f}\n"
-    summary += f"  T² Capability: {t2_capability*100:.1f}% within UCL\n"
+    summary += f"  T² Capability: {t2_capability * 100:.1f}% within UCL\n"
     summary += f"  T² UCL: {T2_ucl:.2f} (0.27% false alarm rate)\n"
-    summary += f"  OOC observations: {n_ooc} of {n} ({n_ooc/n*100:.1f}%)\n"
+    summary += f"  OOC observations: {n_ooc} of {n} ({n_ooc / n * 100:.1f}%)\n"
 
     if var_cpk:
         summary += f"\n<<COLOR:header>>Per-Variable Capability (±{tolerance_pct}% tolerance):<</COLOR>>\n"
@@ -2208,54 +2662,66 @@ def run_d_multi(df, config):
             summary += f"  {vc['variable']}: Cpk = {vc['cpk']:.3f}\n"
 
     if mcpk >= 1.33 and n_ooc == 0:
-        summary += f"\n<<COLOR:success>>Multivariate process is capable and in control.<</COLOR>>"
+        summary += "\n<<COLOR:success>>Multivariate process is capable and in control.<</COLOR>>"
     elif mcpk >= 1.0:
         summary += f"\n<<COLOR:warning>>Multivariate process is marginally capable (MCpk = {mcpk:.3f}).<</COLOR>>"
     else:
         summary += f"\n<<COLOR:danger>>Multivariate process is NOT capable (MCpk = {mcpk:.3f}).<</COLOR>>"
 
     if n_ooc > 0:
-        summary += f"\n<<COLOR:warning>>{n_ooc} observations exceed T² UCL — investigate multivariate outliers.<</COLOR>>"
+        summary += (
+            f"\n<<COLOR:warning>>{n_ooc} observations exceed T² UCL — investigate multivariate outliers.<</COLOR>>"
+        )
 
     result["summary"] = summary
     result["guide_observation"] = (
-        f"D-Multi: MCpk={mcpk:.3f}, T² OOC={n_ooc}/{n}, "
-        f"{k} PCs retain {cumvar[k-1]*100:.1f}% variance"
+        f"D-Multi: MCpk={mcpk:.3f}, T² OOC={n_ooc}/{n}, {k} PCs retain {cumvar[k - 1] * 100:.1f}% variance"
     )
     result["statistics"] = {
-        "n": n, "p": p, "k_components": k,
+        "n": n,
+        "p": p,
+        "k_components": k,
         "explained_variance": [round(float(e), 4) for e in explained[:k]],
-        "component_cpk": component_cpk, "mcpk": round(mcpk, 4),
-        "t2_ucl": round(T2_ucl, 2), "n_ooc": n_ooc,
+        "component_cpk": component_cpk,
+        "mcpk": round(mcpk, 4),
+        "t2_ucl": round(T2_ucl, 2),
+        "n_ooc": n_ooc,
         "t2_capability": round(t2_capability, 4),
     }
 
     # --- narrative ---
     if mcpk >= 1.33 and n_ooc == 0:
         verdict = f"Capable & In Control — MCpk = {mcpk:.3f}"
-        body = (f"The multivariate process is capable (<strong>MCpk = {mcpk:.3f}</strong>) "
-                f"with no T² outliers. {k} principal components retain "
-                f"{cumvar[k-1]*100:.1f}% of the variance across {p} variables.")
+        body = (
+            f"The multivariate process is capable (<strong>MCpk = {mcpk:.3f}</strong>) "
+            f"with no T² outliers. {k} principal components retain "
+            f"{cumvar[k - 1] * 100:.1f}% of the variance across {p} variables."
+        )
         nxt = "Process is healthy — continue monitoring."
     elif mcpk >= 1.0:
         verdict = f"Marginally Capable — MCpk = {mcpk:.3f}"
-        body = (f"MCpk = <strong>{mcpk:.3f}</strong> — above 1.0 but below target. "
-                f"{n_ooc} T² outlier{'s' if n_ooc != 1 else ''} detected out of {n} observations. "
-                f"{k} PCs retain {cumvar[k-1]*100:.1f}% variance.")
+        body = (
+            f"MCpk = <strong>{mcpk:.3f}</strong> — above 1.0 but below target. "
+            f"{n_ooc} T² outlier{'s' if n_ooc != 1 else ''} detected out of {n} observations. "
+            f"{k} PCs retain {cumvar[k - 1] * 100:.1f}% variance."
+        )
         nxt = "Identify which variables contribute most to the weakest principal component."
     else:
         verdict = f"Not Capable — MCpk = {mcpk:.3f}"
-        body = (f"MCpk = <strong>{mcpk:.3f}</strong> — the process is not jointly capable "
-                f"across the {p} variables. {n_ooc} T² outlier{'s' if n_ooc != 1 else ''} detected.")
+        body = (
+            f"MCpk = <strong>{mcpk:.3f}</strong> — the process is not jointly capable "
+            f"across the {p} variables. {n_ooc} T² outlier{'s' if n_ooc != 1 else ''} detected."
+        )
         nxt = "Run individual capability studies to identify the weakest variables, then address jointly."
     if n_ooc > 0:
         body += f" <strong>{n_ooc}</strong> observations exceed the T² upper control limit — investigate these multivariate outliers."
     result["narrative"] = _d_narrative(
         f"D-Multi: {verdict}",
-        body, nxt,
+        body,
+        nxt,
         "The T² chart shows Hotelling's T² statistic per observation — points above "
         "the UCL are multivariate outliers. The component Cpk chart shows capability "
-        "on each principal component (the joint minimum is MCpk)."
+        "on each principal component (the joint minimum is MCpk).",
     )
 
     result["education"] = {
@@ -2281,7 +2747,7 @@ def run_d_multi(df, config):
             "trace back to the original variables. <strong>&lt; 1.0</strong>: Not jointly "
             "capable — one or more correlated variable combinations are out of spec.</dd>"
             "</dl>"
-        )
+        ),
     }
 
     return result
@@ -2290,6 +2756,7 @@ def run_d_multi(df, config):
 # ---------------------------------------------------------------------------
 # Dispatch entry point
 # ---------------------------------------------------------------------------
+
 
 def run_d_type(df, analysis_id, config):
     """Dispatcher for D-Type analyses."""
@@ -2306,4 +2773,8 @@ def run_d_type(df, analysis_id, config):
     elif analysis_id == "d_multi":
         return run_d_multi(df, config)
     else:
-        return {"plots": [], "summary": f"<<COLOR:danger>>Unknown D-Type analysis: {analysis_id}<</COLOR>>", "guide_observation": ""}
+        return {
+            "plots": [],
+            "summary": f"<<COLOR:danger>>Unknown D-Type analysis: {analysis_id}<</COLOR>>",
+            "guide_observation": "",
+        }

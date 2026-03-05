@@ -34,7 +34,7 @@ Usage:
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from syn.sched.backpressure.throttle import ThrottleLevel
@@ -61,15 +61,15 @@ class SchedulerError(Exception):
     def __init__(
         self,
         message: str,
-        code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        code: str | None = None,
+        details: dict[str, Any] | None = None,
     ):
         super().__init__(message)
         if code:
             self.code = code
         self.details = details or {}
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize exception for logging/API responses."""
         return {
             "error": self.code,
@@ -112,7 +112,7 @@ class QuotaExceededError(SubmissionError):
     def __init__(
         self,
         message: str = "Tenant quota exceeded",
-        tenant_id: Optional[int] = None,
+        tenant_id: int | None = None,
         current_count: int = 0,
         quota_limit: int = 0,
     ):
@@ -152,9 +152,9 @@ class ThrottledError(SubmissionError):
     def __init__(
         self,
         message: str = "Task throttled due to backpressure",
-        throttle_level: Optional["ThrottleLevel"] = None,
+        throttle_level: ThrottleLevel | None = None,
         retry_after_seconds: float = 0.0,
-        reasons: Optional[List[str]] = None,
+        reasons: list[str] | None = None,
     ):
         # Import here to avoid circular imports
         from syn.sched.backpressure.throttle import ThrottleLevel
@@ -193,7 +193,7 @@ class TaskValidationError(SubmissionError):
     def __init__(
         self,
         message: str = "Task validation failed",
-        field_errors: Optional[Dict[str, str]] = None,
+        field_errors: dict[str, str] | None = None,
     ):
         super().__init__(message, details={"field_errors": field_errors or {}})
         self.field_errors = field_errors or {}
@@ -215,7 +215,7 @@ class HandlerNotFoundError(SubmissionError):
     def __init__(
         self,
         task_name: str,
-        available_handlers: Optional[List[str]] = None,
+        available_handlers: list[str] | None = None,
     ):
         super().__init__(
             f"No handler registered for task: {task_name}",
@@ -262,9 +262,9 @@ class CircuitOpenError(ExecutionError):
     def __init__(
         self,
         message: str = "Circuit breaker is open",
-        service_name: Optional[str] = None,
+        service_name: str | None = None,
         failure_count: int = 0,
-        opened_at: Optional[str] = None,
+        opened_at: str | None = None,
     ):
         super().__init__(
             message,
@@ -304,7 +304,7 @@ class CascadeLimitError(ExecutionError):
         message: str = "Cascade depth limit exceeded",
         cascade_depth: int = 0,
         max_depth: int = 5,
-        correlation_id: Optional[str] = None,
+        correlation_id: str | None = None,
     ):
         super().__init__(
             message,
@@ -336,7 +336,7 @@ class TaskTimeoutError(ExecutionError):
     def __init__(
         self,
         message: str = "Task execution timed out",
-        task_id: Optional[str] = None,
+        task_id: str | None = None,
         timeout_seconds: float = 0.0,
         elapsed_seconds: float = 0.0,
     ):

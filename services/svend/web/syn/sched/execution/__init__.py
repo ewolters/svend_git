@@ -25,9 +25,9 @@ Features:
     - Health monitoring and heartbeats
 """
 
-from .resource_class import ResourceClass, WorkerConfig, WORKER_CONFIGS
+from .executor import ExecutionContext, ExecutionResult, ExecutionStatus, TaskExecutor
 from .queue import ExecutionQueue, QueuedTask, QueueMetrics
-from .executor import TaskExecutor, ExecutionResult, ExecutionContext, ExecutionStatus
+from .resource_class import WORKER_CONFIGS, ResourceClass, WorkerConfig
 from .worker_pool import WorkerPool, WorkerPoolMetrics, WorkerState
 
 __all__ = [

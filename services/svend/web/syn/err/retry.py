@@ -25,32 +25,24 @@ import logging
 import random
 import threading
 import time
+from collections.abc import Callable
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import (
-    Any,
-    Callable,
-    Dict,
-    Generic,
-    Optional,
-    Set,
-    Type,
     TypeVar,
-    Union,
 )
-from uuid import UUID, uuid4
 
-from .exceptions import DependencyError, SynaraError, TimeoutError
+from .exceptions import SynaraError, TimeoutError
 from .types import (
+    DEFAULT_CIRCUIT_BREAKER_CONFIG,
+    DEFAULT_RETRY_CONFIG,
     CircuitBreakerConfig,
     CircuitBreakerState,
     ErrorCategory,
     RecoveryMode,
     RetryConfig,
     RetryStrategy,
-    DEFAULT_CIRCUIT_BREAKER_CONFIG,
-    DEFAULT_RETRY_CONFIG,
 )
 
 logger = logging.getLogger(__name__)
@@ -83,7 +75,7 @@ class ExponentialBackoff:
         ...     print(f"Attempt {attempt}: wait {delay}ms")
     """
 
-    def __init__(self, config: Optional[RetryConfig] = None):
+    def __init__(self, config: RetryConfig | None = None):
         self.config = config or DEFAULT_RETRY_CONFIG
 
     def get_delay(self, attempt: int) -> int:
@@ -105,7 +97,7 @@ class ExponentialBackoff:
         elif self.config.strategy == RetryStrategy.LINEAR:
             delay = self.config.base_delay_ms * (attempt + 1)
         else:  # EXPONENTIAL (default)
-            delay = self.config.base_delay_ms * (2 ** attempt)
+            delay = self.config.base_delay_ms * (2**attempt)
 
         # Apply jitter
         if self.config.jitter_factor > 0:
@@ -157,9 +149,9 @@ class CircuitBreakerMetrics:
     rejected_calls: int = 0
     consecutive_failures: int = 0
     consecutive_successes: int = 0
-    last_failure_time: Optional[datetime] = None
-    last_success_time: Optional[datetime] = None
-    last_state_change: Optional[datetime] = None
+    last_failure_time: datetime | None = None
+    last_success_time: datetime | None = None
+    last_state_change: datetime | None = None
 
 
 class CircuitBreaker:
@@ -195,7 +187,7 @@ class CircuitBreaker:
     def __init__(
         self,
         name: str,
-        config: Optional[CircuitBreakerConfig] = None,
+        config: CircuitBreakerConfig | None = None,
     ):
         self.name = name
         self.config = config or DEFAULT_CIRCUIT_BREAKER_CONFIG
@@ -385,7 +377,7 @@ class CircuitBreakerOpenError(SynaraError):
         *,
         circuit_breaker_name: str,
         state: CircuitBreakerState,
-        metrics: Optional[CircuitBreakerMetrics] = None,
+        metrics: CircuitBreakerMetrics | None = None,
         **kwargs,
     ):
         self.circuit_breaker_name = circuit_breaker_name
@@ -393,10 +385,12 @@ class CircuitBreakerOpenError(SynaraError):
         self.circuit_metrics = metrics
 
         extra = kwargs.pop("extra", {})
-        extra.update({
-            "circuit_breaker_name": circuit_breaker_name,
-            "circuit_state": state.value,
-        })
+        extra.update(
+            {
+                "circuit_breaker_name": circuit_breaker_name,
+                "circuit_state": state.value,
+            }
+        )
         if metrics:
             extra["circuit_metrics"] = {
                 "total_calls": metrics.total_calls,
@@ -420,21 +414,21 @@ class CircuitBreakerRegistry:
     Thread-safe singleton pattern.
     """
 
-    _instance: Optional["CircuitBreakerRegistry"] = None
+    _instance: CircuitBreakerRegistry | None = None
     _lock = threading.Lock()
 
-    def __new__(cls) -> "CircuitBreakerRegistry":
+    def __new__(cls) -> CircuitBreakerRegistry:
         with cls._lock:
             if cls._instance is None:
                 cls._instance = super().__new__(cls)
-                cls._instance._breakers: Dict[str, CircuitBreaker] = {}
+                cls._instance._breakers: dict[str, CircuitBreaker] = {}
                 cls._instance._breaker_lock = threading.RLock()
             return cls._instance
 
     def get_or_create(
         self,
         name: str,
-        config: Optional[CircuitBreakerConfig] = None,
+        config: CircuitBreakerConfig | None = None,
     ) -> CircuitBreaker:
         """Get existing circuit breaker or create new one."""
         with self._breaker_lock:
@@ -442,12 +436,12 @@ class CircuitBreakerRegistry:
                 self._breakers[name] = CircuitBreaker(name, config)
             return self._breakers[name]
 
-    def get(self, name: str) -> Optional[CircuitBreaker]:
+    def get(self, name: str) -> CircuitBreaker | None:
         """Get circuit breaker by name."""
         with self._breaker_lock:
             return self._breakers.get(name)
 
-    def all(self) -> Dict[str, CircuitBreaker]:
+    def all(self) -> dict[str, CircuitBreaker]:
         """Get all registered circuit breakers."""
         with self._breaker_lock:
             return dict(self._breakers)
@@ -469,12 +463,12 @@ circuit_breaker_registry = CircuitBreakerRegistry()
 
 
 def retry(
-    config: Optional[RetryConfig] = None,
+    config: RetryConfig | None = None,
     *,
-    max_attempts: Optional[int] = None,
-    base_delay_ms: Optional[int] = None,
-    retryable_exceptions: Optional[Set[Type[Exception]]] = None,
-    on_retry: Optional[Callable[[int, Exception], None]] = None,
+    max_attempts: int | None = None,
+    base_delay_ms: int | None = None,
+    retryable_exceptions: set[type[Exception]] | None = None,
+    on_retry: Callable[[int, Exception], None] | None = None,
 ) -> Callable:
     """
     Decorator for automatic retry with exponential backoff.
@@ -506,7 +500,7 @@ def retry(
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs) -> T:
-            last_error: Optional[Exception] = None
+            last_error: Exception | None = None
 
             for attempt in range(config.max_attempts):
                 try:
@@ -517,9 +511,7 @@ def retry(
                     # Check if we should retry
                     should_retry = backoff.should_retry(attempt, e)
                     if retryable_exceptions:
-                        should_retry = should_retry or isinstance(
-                            e, tuple(retryable_exceptions)
-                        )
+                        should_retry = should_retry or isinstance(e, tuple(retryable_exceptions))
 
                     if not should_retry or attempt >= config.max_attempts - 1:
                         raise
@@ -528,8 +520,7 @@ def retry(
                     delay_ms = backoff.get_delay(attempt)
 
                     logger.warning(
-                        f"Retry attempt {attempt + 1}/{config.max_attempts} "
-                        f"after {delay_ms}ms: {e}",
+                        f"Retry attempt {attempt + 1}/{config.max_attempts} after {delay_ms}ms: {e}",
                         extra={
                             "attempt": attempt + 1,
                             "max_attempts": config.max_attempts,
@@ -550,7 +541,7 @@ def retry(
 
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs) -> T:
-            last_error: Optional[Exception] = None
+            last_error: Exception | None = None
 
             for attempt in range(config.max_attempts):
                 try:
@@ -560,9 +551,7 @@ def retry(
 
                     should_retry = backoff.should_retry(attempt, e)
                     if retryable_exceptions:
-                        should_retry = should_retry or isinstance(
-                            e, tuple(retryable_exceptions)
-                        )
+                        should_retry = should_retry or isinstance(e, tuple(retryable_exceptions))
 
                     if not should_retry or attempt >= config.max_attempts - 1:
                         raise
@@ -570,8 +559,7 @@ def retry(
                     delay_ms = backoff.get_delay(attempt)
 
                     logger.warning(
-                        f"Retry attempt {attempt + 1}/{config.max_attempts} "
-                        f"after {delay_ms}ms: {e}",
+                        f"Retry attempt {attempt + 1}/{config.max_attempts} after {delay_ms}ms: {e}",
                         extra={
                             "attempt": attempt + 1,
                             "max_attempts": config.max_attempts,
@@ -604,9 +592,9 @@ def retry(
 
 def with_circuit_breaker(
     name: str,
-    config: Optional[CircuitBreakerConfig] = None,
+    config: CircuitBreakerConfig | None = None,
     *,
-    fallback: Optional[Callable[..., T]] = None,
+    fallback: Callable[..., T] | None = None,
     recovery_mode: RecoveryMode = RecoveryMode.FAIL_FAST,
 ) -> Callable:
     """
@@ -716,7 +704,7 @@ class Bulkhead:
         self.max_concurrent = max_concurrent
         self.max_wait_ms = max_wait_ms
         self._semaphore = threading.Semaphore(max_concurrent)
-        self._async_semaphore: Optional[asyncio.Semaphore] = None
+        self._async_semaphore: asyncio.Semaphore | None = None
         self._active_calls = 0
         self._rejected_calls = 0
         self._lock = threading.Lock()
@@ -775,9 +763,11 @@ class BulkheadFullError(SynaraError):
         self.bulkhead_max_concurrent = max_concurrent
 
         extra = kwargs.pop("extra", {})
-        extra.update({
-            "bulkhead_name": bulkhead_name,
-            "max_concurrent": max_concurrent,
-        })
+        extra.update(
+            {
+                "bulkhead_name": bulkhead_name,
+                "max_concurrent": max_concurrent,
+            }
+        )
 
         super().__init__(message, extra=extra, **kwargs)

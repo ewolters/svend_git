@@ -1,6 +1,7 @@
 """Core API views for projects, hypotheses, evidence, and knowledge graph."""
 
 import logging
+
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -8,22 +9,37 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from accounts.permissions import rate_limited, require_ml, require_org_admin, require_team
 from accounts.constants import has_feature
+from accounts.permissions import rate_limited, require_ml, require_org_admin, require_team
+
 from .models import (
-    Tenant, Membership, OrgInvitation, KnowledgeGraph, Entity, Relationship,
-    Project, Dataset, ExperimentDesign, Hypothesis, Evidence, EvidenceLink,
+    Dataset,
+    Evidence,
+    EvidenceLink,
+    ExperimentDesign,
+    Hypothesis,
+    KnowledgeGraph,
+    Membership,
+    OrgInvitation,
+    Project,
     StudyAction,
+    Tenant,
 )
 from .serializers import (
-    TenantSerializer, MembershipSerializer,
-    KnowledgeGraphSerializer, KnowledgeGraphDetailSerializer,
-    EntitySerializer, RelationshipSerializer,
-    ProjectListSerializer, ProjectDetailSerializer,
-    DatasetSerializer, ExperimentDesignSerializer, ExperimentDesignDetailSerializer,
-    HypothesisSerializer, HypothesisDetailSerializer,
-    EvidenceSerializer, EvidenceLinkSerializer,
-    CreateEvidenceFromCodeSerializer, CreateEvidenceFromAnalysisSerializer,
+    CreateEvidenceFromAnalysisSerializer,
+    CreateEvidenceFromCodeSerializer,
+    DatasetSerializer,
+    EntitySerializer,
+    EvidenceLinkSerializer,
+    EvidenceSerializer,
+    ExperimentDesignDetailSerializer,
+    ExperimentDesignSerializer,
+    HypothesisDetailSerializer,
+    HypothesisSerializer,
+    KnowledgeGraphDetailSerializer,
+    ProjectDetailSerializer,
+    ProjectListSerializer,
+    RelationshipSerializer,
 )
 from .synara import synara
 
@@ -33,6 +49,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # Helper Functions
 # =============================================================================
+
 
 def get_user_graph(user):
     """Get or create the user's personal knowledge graph."""
@@ -51,9 +68,7 @@ def get_user_projects(user):
     q = Q(user=user)
 
     # Tenant projects (if user is member of any tenant)
-    tenant_ids = Membership.objects.filter(
-        user=user, is_active=True
-    ).values_list("tenant_id", flat=True)
+    tenant_ids = Membership.objects.filter(user=user, is_active=True).values_list("tenant_id", flat=True)
 
     if tenant_ids:
         q |= Q(tenant_id__in=tenant_ids)
@@ -64,6 +79,7 @@ def get_user_projects(user):
 # =============================================================================
 # Projects
 # =============================================================================
+
 
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
@@ -166,11 +182,13 @@ def project_recalculate(request, project_id):
     project = get_object_or_404(get_user_projects(request.user), id=project_id)
 
     results = synara.recalculate_project(project)
-    return Response({
-        "success": True,
-        "results": results,
-        "project": ProjectDetailSerializer(project).data,
-    })
+    return Response(
+        {
+            "success": True,
+            "results": results,
+            "project": ProjectDetailSerializer(project).data,
+        }
+    )
 
 
 @api_view(["GET"])
@@ -192,8 +210,14 @@ def project_hub(request, project_id):
 
     # Import models from agents_api
     from agents_api.models import (
-        Board, DSWResult, A3Report, ValueStreamMap,
-        NonconformanceRecord, RCASession, Report, FMEA,
+        FMEA,
+        A3Report,
+        Board,
+        DSWResult,
+        NonconformanceRecord,
+        RCASession,
+        Report,
+        ValueStreamMap,
     )
 
     # Base querysets (unsliced) for total counts
@@ -207,14 +231,14 @@ def project_hub(request, project_id):
     fmea_qs = FMEA.objects.filter(project=project)
 
     # Sliced for display
-    boards = boards_qs.order_by('-updated_at')[:20]
-    dsw_results = dsw_qs.order_by('-created_at')[:20]
-    a3_reports = a3_qs.order_by('-updated_at')[:10]
-    vsm_maps = vsm_qs.order_by('-updated_at')[:10]
-    ncrs = ncr_qs.order_by('-created_at')[:20]
-    rca_sessions = rca_qs.order_by('-updated_at')[:10]
-    reports = report_qs.order_by('-updated_at')[:10]
-    fmeas = fmea_qs.order_by('-updated_at')[:10]
+    boards = boards_qs.order_by("-updated_at")[:20]
+    dsw_results = dsw_qs.order_by("-created_at")[:20]
+    a3_reports = a3_qs.order_by("-updated_at")[:10]
+    vsm_maps = vsm_qs.order_by("-updated_at")[:10]
+    ncrs = ncr_qs.order_by("-created_at")[:20]
+    rca_sessions = rca_qs.order_by("-updated_at")[:10]
+    reports = report_qs.order_by("-updated_at")[:10]
+    fmeas = fmea_qs.order_by("-updated_at")[:10]
 
     # Evidence summary — count by source_tool prefix
     evidence_qs = Evidence.objects.filter(project=project)
@@ -223,116 +247,117 @@ def project_hub(request, project_id):
         tool = ev.split(":")[0] if ":" in ev else "other"
         evidence_summary["by_source"][tool] = evidence_summary["by_source"].get(tool, 0) + 1
 
-    return Response({
-        "project": ProjectDetailSerializer(project).data,
-        "tools": {
-            "whiteboards": [
-                {
-                    "id": str(b.id),
-                    "name": b.name,
-                    "room_code": b.room_code,
-                    "element_count": len(b.elements or []),
-                    "updated_at": b.updated_at.isoformat(),
-                }
-                for b in boards
-            ],
-            "dsw_analyses": [
-                {
-                    "id": r.id,
-                    "title": r.title or r.result_type,
-                    "type": r.result_type,
-                    "summary": r.get_summary(),
-                    "created_at": r.created_at.isoformat(),
-                }
-                for r in dsw_results
-            ],
-            "a3_reports": [
-                {
-                    "id": str(a.id),
-                    "title": a.title,
-                    "status": a.status,
-                    "updated_at": a.updated_at.isoformat(),
-                }
-                for a in a3_reports
-            ],
-            "vsm_maps": [
-                {
-                    "id": str(v.id),
-                    "name": v.name,
-                    "status": v.status,
-                    "process_count": len(v.process_steps or []),
-                    "lead_time": v.total_lead_time,
-                    "pce": v.pce,
-                    "updated_at": v.updated_at.isoformat(),
-                }
-                for v in vsm_maps
-            ],
-            "ncrs": [
-                {
-                    "id": str(n.id),
-                    "title": n.title,
-                    "severity": n.severity,
-                    "status": n.status,
-                    "created_at": n.created_at.isoformat(),
-                }
-                for n in ncrs
-            ],
-            "rca_sessions": [
-                {
-                    "id": str(r.id),
-                    "title": r.title or r.event[:50],
-                    "event": r.event[:100] if r.event else "",
-                    "root_cause": r.root_cause[:100] if r.root_cause else "",
-                    "chain_length": len(r.chain or []),
-                    "status": r.status,
-                    "updated_at": r.updated_at.isoformat(),
-                }
-                for r in rca_sessions
-            ],
-            "reports": [
-                {
-                    "id": str(r.id),
-                    "title": r.title,
-                    "report_type": r.report_type,
-                    "status": r.status,
-                    "updated_at": r.updated_at.isoformat(),
-                }
-                for r in reports
-            ],
-            "fmeas": [
-                {
-                    "id": str(f.id),
-                    "title": f.title,
-                    "row_count": f.rows.count(),
-                    "updated_at": f.updated_at.isoformat(),
-                }
-                for f in fmeas
-            ],
-        },
-        "counts": {
-            "hypotheses": project.hypotheses.count(),
-            "datasets": project.datasets.count(),
-            "experiments": project.experiment_designs.count(),
-            "whiteboards": boards_qs.count(),
-            "dsw_analyses": dsw_qs.count(),
-            "a3_reports": a3_qs.count(),
-            "vsm_maps": vsm_qs.count(),
-            "ncrs": ncr_qs.count(),
-            "rca_sessions": rca_qs.count(),
-            "reports": report_qs.count(),
-            "fmeas": fmea_qs.count(),
-        },
-        "evidence_summary": evidence_summary,
-        "changelog": project.changelog or [],
-        "study_actions": [
-            a.to_dict() for a in StudyAction.objects.filter(project=project)[:50]
-        ],
-    })
+    return Response(
+        {
+            "project": ProjectDetailSerializer(project).data,
+            "tools": {
+                "whiteboards": [
+                    {
+                        "id": str(b.id),
+                        "name": b.name,
+                        "room_code": b.room_code,
+                        "element_count": len(b.elements or []),
+                        "updated_at": b.updated_at.isoformat(),
+                    }
+                    for b in boards
+                ],
+                "dsw_analyses": [
+                    {
+                        "id": r.id,
+                        "title": r.title or r.result_type,
+                        "type": r.result_type,
+                        "summary": r.get_summary(),
+                        "created_at": r.created_at.isoformat(),
+                    }
+                    for r in dsw_results
+                ],
+                "a3_reports": [
+                    {
+                        "id": str(a.id),
+                        "title": a.title,
+                        "status": a.status,
+                        "updated_at": a.updated_at.isoformat(),
+                    }
+                    for a in a3_reports
+                ],
+                "vsm_maps": [
+                    {
+                        "id": str(v.id),
+                        "name": v.name,
+                        "status": v.status,
+                        "process_count": len(v.process_steps or []),
+                        "lead_time": v.total_lead_time,
+                        "pce": v.pce,
+                        "updated_at": v.updated_at.isoformat(),
+                    }
+                    for v in vsm_maps
+                ],
+                "ncrs": [
+                    {
+                        "id": str(n.id),
+                        "title": n.title,
+                        "severity": n.severity,
+                        "status": n.status,
+                        "created_at": n.created_at.isoformat(),
+                    }
+                    for n in ncrs
+                ],
+                "rca_sessions": [
+                    {
+                        "id": str(r.id),
+                        "title": r.title or r.event[:50],
+                        "event": r.event[:100] if r.event else "",
+                        "root_cause": r.root_cause[:100] if r.root_cause else "",
+                        "chain_length": len(r.chain or []),
+                        "status": r.status,
+                        "updated_at": r.updated_at.isoformat(),
+                    }
+                    for r in rca_sessions
+                ],
+                "reports": [
+                    {
+                        "id": str(r.id),
+                        "title": r.title,
+                        "report_type": r.report_type,
+                        "status": r.status,
+                        "updated_at": r.updated_at.isoformat(),
+                    }
+                    for r in reports
+                ],
+                "fmeas": [
+                    {
+                        "id": str(f.id),
+                        "title": f.title,
+                        "row_count": f.rows.count(),
+                        "updated_at": f.updated_at.isoformat(),
+                    }
+                    for f in fmeas
+                ],
+            },
+            "counts": {
+                "hypotheses": project.hypotheses.count(),
+                "datasets": project.datasets.count(),
+                "experiments": project.experiment_designs.count(),
+                "whiteboards": boards_qs.count(),
+                "dsw_analyses": dsw_qs.count(),
+                "a3_reports": a3_qs.count(),
+                "vsm_maps": vsm_qs.count(),
+                "ncrs": ncr_qs.count(),
+                "rca_sessions": rca_qs.count(),
+                "reports": report_qs.count(),
+                "fmeas": fmea_qs.count(),
+            },
+            "evidence_summary": evidence_summary,
+            "changelog": project.changelog or [],
+            "study_actions": [a.to_dict() for a in StudyAction.objects.filter(project=project)[:50]],
+        }
+    )
 
 
 # =============================================================================
 # Hypotheses
 # =============================================================================
+
 
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
@@ -391,16 +416,19 @@ def hypothesis_recalculate(request, project_id, hypothesis_id):
     hypothesis = get_object_or_404(project.hypotheses, id=hypothesis_id)
 
     new_prob = synara.recalculate_hypothesis(hypothesis)
-    return Response({
-        "success": True,
-        "probability": new_prob,
-        "hypothesis": HypothesisDetailSerializer(hypothesis).data,
-    })
+    return Response(
+        {
+            "success": True,
+            "probability": new_prob,
+            "hypothesis": HypothesisDetailSerializer(hypothesis).data,
+        }
+    )
 
 
 # =============================================================================
 # Evidence
 # =============================================================================
+
 
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
@@ -410,9 +438,7 @@ def evidence_list(request, project_id):
 
     if request.method == "GET":
         # Get all evidence linked to any hypothesis in this project
-        evidence = Evidence.objects.filter(
-            hypothesis_links__hypothesis__project=project
-        ).distinct()
+        evidence = Evidence.objects.filter(hypothesis_links__hypothesis__project=project).distinct()
         serializer = EvidenceSerializer(evidence, many=True)
         return Response(serializer.data)
 
@@ -501,22 +527,27 @@ def link_evidence(request, project_id, hypothesis_id):
     # Apply Bayesian update if requested
     if apply_now:
         result = synara.apply_evidence(link)
-        return Response({
-            "link": EvidenceLinkSerializer(link).data,
-            "update_result": {
-                "prior": result.prior_probability,
-                "posterior": result.posterior_probability,
-                "likelihood_ratio": result.likelihood_ratio,
-                "status_changed": result.status_changed,
-                "new_status": result.new_status,
-            },
-            "hypothesis": HypothesisSerializer(hypothesis).data,
-        })
+        return Response(
+            {
+                "link": EvidenceLinkSerializer(link).data,
+                "update_result": {
+                    "prior": result.prior_probability,
+                    "posterior": result.posterior_probability,
+                    "likelihood_ratio": result.likelihood_ratio,
+                    "status_changed": result.status_changed,
+                    "new_status": result.new_status,
+                },
+                "hypothesis": HypothesisSerializer(hypothesis).data,
+            }
+        )
 
-    return Response({
-        "link": EvidenceLinkSerializer(link).data,
-        "created": created,
-    }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+    return Response(
+        {
+            "link": EvidenceLinkSerializer(link).data,
+            "created": created,
+        },
+        status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+    )
 
 
 @api_view(["POST"])
@@ -542,17 +573,20 @@ def suggest_likelihood_ratio(request, project_id):
 
     suggested_lr, reasoning = synara.suggest_likelihood_ratio(evidence, hypothesis)
 
-    return Response({
-        "suggested_likelihood_ratio": suggested_lr,
-        "reasoning": reasoning,
-        "evidence_id": str(evidence.id),
-        "hypothesis_id": str(hypothesis.id),
-    })
+    return Response(
+        {
+            "suggested_likelihood_ratio": suggested_lr,
+            "reasoning": reasoning,
+            "evidence_id": str(evidence.id),
+            "hypothesis_id": str(hypothesis.id),
+        }
+    )
 
 
 # =============================================================================
 # Evidence from Coder
 # =============================================================================
+
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -603,24 +637,30 @@ def create_evidence_from_code(request):
 
                 # Apply Bayesian update
                 result = synara.apply_evidence(link)
-                links_created.append({
-                    "hypothesis_id": str(hyp_id),
-                    "likelihood_ratio": lr,
-                    "prior": result.prior_probability,
-                    "posterior": result.posterior_probability,
-                })
+                links_created.append(
+                    {
+                        "hypothesis_id": str(hyp_id),
+                        "likelihood_ratio": lr,
+                        "prior": result.prior_probability,
+                        "posterior": result.posterior_probability,
+                    }
+                )
             except Hypothesis.DoesNotExist:
                 logger.warning(f"Hypothesis {hyp_id} not found in project {project.id}")
 
-    return Response({
-        "evidence": EvidenceSerializer(evidence).data,
-        "links": links_created,
-    }, status=status.HTTP_201_CREATED)
+    return Response(
+        {
+            "evidence": EvidenceSerializer(evidence).data,
+            "links": links_created,
+        },
+        status=status.HTTP_201_CREATED,
+    )
 
 
 # =============================================================================
 # Evidence from DSW Analysis
 # =============================================================================
+
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -682,24 +722,30 @@ def create_evidence_from_analysis(request):
                 )
 
                 result = synara.apply_evidence(link)
-                links_created.append({
-                    "hypothesis_id": str(hyp_id),
-                    "likelihood_ratio": lr,
-                    "prior": result.prior_probability,
-                    "posterior": result.posterior_probability,
-                })
+                links_created.append(
+                    {
+                        "hypothesis_id": str(hyp_id),
+                        "likelihood_ratio": lr,
+                        "prior": result.prior_probability,
+                        "posterior": result.posterior_probability,
+                    }
+                )
             except Hypothesis.DoesNotExist:
                 pass
 
-    return Response({
-        "evidence": EvidenceSerializer(evidence).data,
-        "links": links_created,
-    }, status=status.HTTP_201_CREATED)
+    return Response(
+        {
+            "evidence": EvidenceSerializer(evidence).data,
+            "links": links_created,
+        },
+        status=status.HTTP_201_CREATED,
+    )
 
 
 # =============================================================================
 # Knowledge Graph
 # =============================================================================
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -786,25 +832,28 @@ def check_consistency(request):
     graph = get_user_graph(request.user)
     issues = synara.check_consistency(graph)
 
-    return Response({
-        "issues": [
-            {
-                "type": issue.issue_type,
-                "severity": issue.severity,
-                "description": issue.description,
-                "entities": issue.entities_involved,
-                "suggestions": issue.suggestions,
-            }
-            for issue in issues
-        ],
-        "total_issues": len(issues),
-        "has_errors": any(i.severity == "error" for i in issues),
-    })
+    return Response(
+        {
+            "issues": [
+                {
+                    "type": issue.issue_type,
+                    "severity": issue.severity,
+                    "description": issue.description,
+                    "entities": issue.entities_involved,
+                    "suggestions": issue.suggestions,
+                }
+                for issue in issues
+            ],
+            "total_issues": len(issues),
+            "has_errors": any(i.severity == "error" for i in issues),
+        }
+    )
 
 
 # =============================================================================
 # Datasets
 # =============================================================================
+
 
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
@@ -841,8 +890,9 @@ def dataset_list(request, project_id):
 
             # Parse file to get columns and row count
             try:
-                import pandas as pd
                 import io
+
+                import pandas as pd
 
                 if data_type == Dataset.DataType.CSV:
                     raw = file.read()
@@ -856,10 +906,7 @@ def dataset_list(request, project_id):
                     df = None
 
                 if df is not None:
-                    dataset.columns = [
-                        {"name": col, "type": str(df[col].dtype)}
-                        for col in df.columns
-                    ]
+                    dataset.columns = [{"name": col, "type": str(df[col].dtype)} for col in df.columns]
                     dataset.row_count = len(df)
                     dataset.save()
             except Exception as e:
@@ -929,10 +976,12 @@ def dataset_data(request, project_id, dataset_id):
             else:
                 return Response({"error": "Unsupported file type"}, status=400)
 
-            return Response({
-                "data": df.to_dict(orient="records"),
-                "columns": [{"name": col, "type": str(df[col].dtype)} for col in df.columns],
-            })
+            return Response(
+                {
+                    "data": df.to_dict(orient="records"),
+                    "columns": [{"name": col, "type": str(df[col].dtype)} for col in df.columns],
+                }
+            )
         except Exception as e:
             return Response({"error": str(e)}, status=500)
 
@@ -942,6 +991,7 @@ def dataset_data(request, project_id, dataset_id):
 # =============================================================================
 # Experiment Designs
 # =============================================================================
+
 
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
@@ -992,6 +1042,7 @@ def experiment_design_detail(request, project_id, design_id):
 # Design Execution Review
 # =============================================================================
 
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 @rate_limited
@@ -1027,6 +1078,7 @@ def review_design_execution(request, project_id, design_id):
         elif dataset.file:
             try:
                 import pandas as pd
+
                 if dataset.data_type == Dataset.DataType.CSV:
                     try:
                         df = pd.read_csv(dataset.file.path, encoding="utf-8")
@@ -1062,11 +1114,13 @@ def review_design_execution(request, project_id, design_id):
         dataset.experiment_design = design
         dataset.save()
 
-    return Response({
-        "success": True,
-        "review": review_result,
-        "design": ExperimentDesignDetailSerializer(design).data,
-    })
+    return Response(
+        {
+            "success": True,
+            "review": review_result,
+            "design": ExperimentDesignDetailSerializer(design).data,
+        }
+    )
 
 
 def _perform_execution_review(design, actual_data):
@@ -1080,8 +1134,9 @@ def _perform_execution_review(design, actual_data):
     - Randomization (10%): Was the randomized order followed?
     - Sample Quality (15%): Data quality (outliers, variance, completeness)
     """
-    import numpy as np
     from collections import Counter
+
+    import numpy as np
 
     design_spec = design.design_spec
     planned_runs = design_spec.get("runs", [])
@@ -1099,7 +1154,7 @@ def _perform_execution_review(design, actual_data):
 
     if n_actual < n_planned:
         missing = n_planned - n_actual
-        issues.append(f"Missing {missing} of {n_planned} planned runs ({missing/n_planned*100:.1f}%)")
+        issues.append(f"Missing {missing} of {n_planned} planned runs ({missing / n_planned * 100:.1f}%)")
         recommendations.append("Ensure all planned experimental runs are completed before analysis")
     elif n_actual > n_planned:
         extra = n_actual - n_planned
@@ -1159,8 +1214,8 @@ def _perform_execution_review(design, actual_data):
                 # For numeric factors, check if within tolerance
                 try:
                     val_float = float(val)
-                    min_level = min(float(l) for l in planned_levels)
-                    max_level = max(float(l) for l in planned_levels)
+                    min_level = min(float(lvl) for lvl in planned_levels)
+                    max_level = max(float(lvl) for lvl in planned_levels)
                     range_size = max_level - min_level if max_level != min_level else 1
 
                     # 10% tolerance outside range
@@ -1187,7 +1242,7 @@ def _perform_execution_review(design, actual_data):
     # Try to match run order
     if "run_order" in actual_data[0] if actual_data else False:
         actual_orders = [row.get("run_order") for row in actual_data]
-        planned_orders = [run.get("run_order") for run in planned_runs]
+        [run.get("run_order") for run in planned_runs]
 
         if actual_orders == sorted(actual_orders):
             # Runs were done in sequential order, not randomized
@@ -1225,7 +1280,7 @@ def _perform_execution_review(design, actual_data):
         # Check for outliers (IQR method)
         q1, q3 = np.percentile(response_values, [25, 75])
         iqr = q3 - q1
-        outliers = [v for v in response_values if v < q1 - 1.5*iqr or v > q3 + 1.5*iqr]
+        outliers = [v for v in response_values if v < q1 - 1.5 * iqr or v > q3 + 1.5 * iqr]
         outlier_pct = len(outliers) / len(response_values) * 100
 
         if outlier_pct > 10:
@@ -1233,7 +1288,7 @@ def _perform_execution_review(design, actual_data):
             recommendations.append("Review outlier runs for measurement errors or unusual conditions")
 
         # Check variance (coefficient of variation)
-        cv = np.std(response_values) / np.mean(response_values) if np.mean(response_values) != 0 else 0
+        np.std(response_values) / np.mean(response_values) if np.mean(response_values) != 0 else 0
 
         # Quality score based on completeness and outlier presence
         completeness = (1 - missing_pct / 100) * 50
@@ -1253,11 +1308,11 @@ def _perform_execution_review(design, actual_data):
     }
 
     overall_score = (
-        coverage_score * weights["coverage"] +
-        balance_score * weights["balance"] +
-        fidelity_score * weights["fidelity"] +
-        randomization_score * weights["randomization"] +
-        sample_quality_score * weights["sample_quality"]
+        coverage_score * weights["coverage"]
+        + balance_score * weights["balance"]
+        + fidelity_score * weights["fidelity"]
+        + randomization_score * weights["randomization"]
+        + sample_quality_score * weights["sample_quality"]
     )
 
     # Generate grade
@@ -1322,37 +1377,38 @@ def _perform_execution_review(design, actual_data):
 # Organization Management
 # =============================================================================
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def org_info(request):
     """Get current user's organization info and their membership."""
-    membership = Membership.objects.filter(
-        user=request.user, is_active=True
-    ).select_related("tenant").first()
+    membership = Membership.objects.filter(user=request.user, is_active=True).select_related("tenant").first()
 
     if not membership:
         can_create = has_feature(request.user.tier, "collaboration")
         return Response({"has_org": False, "can_create_org": can_create})
 
     tenant = membership.tenant
-    return Response({
-        "has_org": True,
-        "org": {
-            "id": str(tenant.id),
-            "name": tenant.name,
-            "slug": tenant.slug,
-            "plan": tenant.plan,
-            "max_members": tenant.max_members,
-            "member_count": tenant.member_count,
-            "is_active": tenant.is_active,
-        },
-        "membership": {
-            "role": membership.role,
-            "can_admin": membership.can_admin,
-            "can_edit": membership.can_edit,
-            "joined_at": membership.joined_at.isoformat() if membership.joined_at else None,
-        },
-    })
+    return Response(
+        {
+            "has_org": True,
+            "org": {
+                "id": str(tenant.id),
+                "name": tenant.name,
+                "slug": tenant.slug,
+                "plan": tenant.plan,
+                "max_members": tenant.max_members,
+                "member_count": tenant.member_count,
+                "is_active": tenant.is_active,
+            },
+            "membership": {
+                "role": membership.role,
+                "can_admin": membership.can_admin,
+                "can_edit": membership.can_edit,
+                "joined_at": membership.joined_at.isoformat() if membership.joined_at else None,
+            },
+        }
+    )
 
 
 @api_view(["POST"])
@@ -1365,9 +1421,12 @@ def org_create(request):
     """
     # Check user doesn't already belong to an org
     if Membership.objects.filter(user=request.user, is_active=True).exists():
-        return Response({
-            "error": "You already belong to an organization",
-        }, status=400)
+        return Response(
+            {
+                "error": "You already belong to an organization",
+            },
+            status=400,
+        )
 
     name = (request.data.get("name") or "").strip()
     slug = (request.data.get("slug") or "").strip().lower()
@@ -1382,14 +1441,21 @@ def org_create(request):
 
     # Validate slug format: lowercase alphanumeric + hyphens
     import re
-    if not re.match(r'^[a-z0-9][a-z0-9-]*[a-z0-9]$', slug) and len(slug) > 1:
-        return Response({
-            "error": "Slug must contain only lowercase letters, numbers, and hyphens",
-        }, status=400)
+
+    if not re.match(r"^[a-z0-9][a-z0-9-]*[a-z0-9]$", slug) and len(slug) > 1:
+        return Response(
+            {
+                "error": "Slug must contain only lowercase letters, numbers, and hyphens",
+            },
+            status=400,
+        )
     if len(slug) < 2 or len(slug) > 100:
-        return Response({
-            "error": "Slug must be between 2 and 100 characters",
-        }, status=400)
+        return Response(
+            {
+                "error": "Slug must be between 2 and 100 characters",
+            },
+            status=400,
+        )
 
     # Check slug uniqueness
     if Tenant.objects.filter(slug=slug).exists():
@@ -1397,6 +1463,7 @@ def org_create(request):
 
     # Map user tier to tenant plan
     from accounts.constants import Tier
+
     plan = Tenant.Plan.ENTERPRISE if request.user.tier == Tier.ENTERPRISE else Tenant.Plan.TEAM
 
     from django.utils import timezone as tz
@@ -1415,16 +1482,19 @@ def org_create(request):
             joined_at=tz.now(),
         )
 
-    return Response({
-        "success": True,
-        "org": {
-            "id": str(tenant.id),
-            "name": tenant.name,
-            "slug": tenant.slug,
-            "plan": tenant.plan,
-            "max_members": tenant.max_members,
+    return Response(
+        {
+            "success": True,
+            "org": {
+                "id": str(tenant.id),
+                "name": tenant.name,
+                "slug": tenant.slug,
+                "plan": tenant.plan,
+                "max_members": tenant.max_members,
+            },
         },
-    }, status=201)
+        status=201,
+    )
 
 
 @api_view(["GET"])
@@ -1432,26 +1502,30 @@ def org_create(request):
 @require_org_admin
 def org_members(request):
     """List all members in the organization."""
-    members = Membership.objects.filter(
-        tenant=request.org_tenant, is_active=True
-    ).select_related("user").order_by("role", "user__email")
+    members = (
+        Membership.objects.filter(tenant=request.org_tenant, is_active=True)
+        .select_related("user")
+        .order_by("role", "user__email")
+    )
 
-    return Response({
-        "members": [
-            {
-                "id": str(m.id),
-                "email": m.user.email,
-                "display_name": getattr(m.user, "display_name", "") or m.user.email,
-                "role": m.role,
-                "can_admin": m.can_admin,
-                "joined_at": m.joined_at.isoformat() if m.joined_at else None,
-                "is_current_user": m.user_id == request.user.id,
-            }
-            for m in members
-        ],
-        "max_members": request.org_tenant.max_members,
-        "seat_count": members.count(),
-    })
+    return Response(
+        {
+            "members": [
+                {
+                    "id": str(m.id),
+                    "email": m.user.email,
+                    "display_name": getattr(m.user, "display_name", "") or m.user.email,
+                    "role": m.role,
+                    "can_admin": m.can_admin,
+                    "joined_at": m.joined_at.isoformat() if m.joined_at else None,
+                    "is_current_user": m.user_id == request.user.id,
+                }
+                for m in members
+            ],
+            "max_members": request.org_tenant.max_members,
+            "seat_count": members.count(),
+        }
+    )
 
 
 @api_view(["PUT"])
@@ -1460,9 +1534,7 @@ def org_members(request):
 def org_change_role(request, membership_id):
     """Change a member's role. Only owners can promote to admin/owner."""
     try:
-        target = Membership.objects.get(
-            id=membership_id, tenant=request.org_tenant, is_active=True
-        )
+        target = Membership.objects.get(id=membership_id, tenant=request.org_tenant, is_active=True)
     except Membership.DoesNotExist:
         return Response({"error": "Member not found"}, status=404)
 
@@ -1473,9 +1545,12 @@ def org_change_role(request, membership_id):
     # Only owners can assign owner/admin roles
     if new_role in (Membership.Role.OWNER, Membership.Role.ADMIN):
         if request.org_membership.role != Membership.Role.OWNER:
-            return Response({
-                "error": "Only owners can assign owner or admin roles",
-            }, status=403)
+            return Response(
+                {
+                    "error": "Only owners can assign owner or admin roles",
+                },
+                status=403,
+            )
 
     # Cannot demote yourself if you're the last owner
     if target.user_id == request.user.id and target.role == Membership.Role.OWNER:
@@ -1483,9 +1558,12 @@ def org_change_role(request, membership_id):
             tenant=request.org_tenant, role=Membership.Role.OWNER, is_active=True
         ).count()
         if owner_count <= 1:
-            return Response({
-                "error": "Cannot change role — you are the only owner",
-            }, status=400)
+            return Response(
+                {
+                    "error": "Cannot change role — you are the only owner",
+                },
+                status=400,
+            )
 
     target.role = new_role
     target.save()
@@ -1498,9 +1576,7 @@ def org_change_role(request, membership_id):
 def org_remove_member(request, membership_id):
     """Remove a member from the organization."""
     try:
-        target = Membership.objects.get(
-            id=membership_id, tenant=request.org_tenant, is_active=True
-        )
+        target = Membership.objects.get(id=membership_id, tenant=request.org_tenant, is_active=True)
     except Membership.DoesNotExist:
         return Response({"error": "Member not found"}, status=404)
 
@@ -1518,6 +1594,7 @@ def org_remove_member(request, membership_id):
 
     # Remove a seat from the Stripe subscription
     from accounts.billing import remove_org_seat
+
     try:
         remove_org_seat(request.org_tenant)
     except Exception as e:
@@ -1543,20 +1620,22 @@ def org_invite(request):
     # Only owners can invite as admin/owner
     if role in (Membership.Role.OWNER, Membership.Role.ADMIN):
         if request.org_membership.role != Membership.Role.OWNER:
-            return Response({
-                "error": "Only owners can invite as owner or admin",
-            }, status=403)
+            return Response(
+                {
+                    "error": "Only owners can invite as owner or admin",
+                },
+                status=403,
+            )
 
     tenant = request.org_tenant
 
     # Check if already a member
     from django.contrib.auth import get_user_model
+
     User = get_user_model()
     existing_user = User.objects.filter(email=email).first()
     if existing_user:
-        if Membership.objects.filter(
-            tenant=tenant, user=existing_user, is_active=True
-        ).exists():
+        if Membership.objects.filter(tenant=tenant, user=existing_user, is_active=True).exists():
             return Response({"error": "User is already a member"}, status=400)
 
     # Check for existing pending invite
@@ -1564,23 +1643,31 @@ def org_invite(request):
         tenant=tenant, email=email, status=OrgInvitation.Status.PENDING
     ).first()
     if existing_invite:
-        return Response({
-            "error": "An invitation is already pending for this email",
-            "invite_id": str(existing_invite.id),
-        }, status=400)
+        return Response(
+            {
+                "error": "An invitation is already pending for this email",
+                "invite_id": str(existing_invite.id),
+            },
+            status=400,
+        )
 
     # Auto-expand: add a seat to the Stripe subscription (prorated charge)
     import stripe
+
     from accounts.billing import add_org_seat
+
     try:
         seat_qty = add_org_seat(tenant)
     except stripe.error.StripeError as e:
         logger.error(f"Seat billing failed for {tenant.name}: {e}")
-        return Response({
-            "error": "Payment failed — could not add seat",
-            "detail": str(e),
-            "message": "Please check the organization owner's payment method.",
-        }, status=402)
+        return Response(
+            {
+                "error": "Payment failed — could not add seat",
+                "detail": str(e),
+                "message": "Please check the organization owner's payment method.",
+            },
+            status=402,
+        )
 
     invitation = OrgInvitation.objects.create(
         tenant=tenant,
@@ -1589,18 +1676,21 @@ def org_invite(request):
         invited_by=request.user,
     )
 
-    return Response({
-        "success": True,
-        "seat_added": True,
-        "seat_count": seat_qty,
-        "invitation": {
-            "id": str(invitation.id),
-            "email": invitation.email,
-            "role": invitation.role,
-            "token": str(invitation.token),
-            "expires_at": invitation.expires_at.isoformat(),
+    return Response(
+        {
+            "success": True,
+            "seat_added": True,
+            "seat_count": seat_qty,
+            "invitation": {
+                "id": str(invitation.id),
+                "email": invitation.email,
+                "role": invitation.role,
+                "token": str(invitation.token),
+                "expires_at": invitation.expires_at.isoformat(),
+            },
         },
-    }, status=201)
+        status=201,
+    )
 
 
 @api_view(["GET"])
@@ -1608,25 +1698,31 @@ def org_invite(request):
 @require_org_admin
 def org_invitations(request):
     """List pending invitations for the organization."""
-    invites = OrgInvitation.objects.filter(
-        tenant=request.org_tenant,
-    ).select_related("invited_by").order_by("-created_at")[:50]
+    invites = (
+        OrgInvitation.objects.filter(
+            tenant=request.org_tenant,
+        )
+        .select_related("invited_by")
+        .order_by("-created_at")[:50]
+    )
 
-    return Response({
-        "invitations": [
-            {
-                "id": str(inv.id),
-                "email": inv.email,
-                "role": inv.role,
-                "status": inv.status,
-                "is_expired": inv.is_expired,
-                "invited_by": inv.invited_by.email if inv.invited_by else None,
-                "created_at": inv.created_at.isoformat(),
-                "expires_at": inv.expires_at.isoformat(),
-            }
-            for inv in invites
-        ],
-    })
+    return Response(
+        {
+            "invitations": [
+                {
+                    "id": str(inv.id),
+                    "email": inv.email,
+                    "role": inv.role,
+                    "status": inv.status,
+                    "is_expired": inv.is_expired,
+                    "invited_by": inv.invited_by.email if inv.invited_by else None,
+                    "created_at": inv.created_at.isoformat(),
+                    "expires_at": inv.expires_at.isoformat(),
+                }
+                for inv in invites
+            ],
+        }
+    )
 
 
 @api_view(["POST"])
@@ -1636,7 +1732,8 @@ def org_cancel_invitation(request, invitation_id):
     """Cancel a pending invitation."""
     try:
         invitation = OrgInvitation.objects.get(
-            id=invitation_id, tenant=request.org_tenant,
+            id=invitation_id,
+            tenant=request.org_tenant,
             status=OrgInvitation.Status.PENDING,
         )
     except OrgInvitation.DoesNotExist:
@@ -1647,6 +1744,7 @@ def org_cancel_invitation(request, invitation_id):
 
     # Release the seat from the Stripe subscription
     from accounts.billing import remove_org_seat
+
     try:
         remove_org_seat(request.org_tenant)
     except Exception as e:
@@ -1681,14 +1779,15 @@ def org_accept_invitation(request):
 
     # Check email matches
     if request.user.email.lower() != invitation.email.lower():
-        return Response({
-            "error": "This invitation was sent to a different email address",
-        }, status=403)
+        return Response(
+            {
+                "error": "This invitation was sent to a different email address",
+            },
+            status=403,
+        )
 
     # Check if already a member
-    if Membership.objects.filter(
-        tenant=invitation.tenant, user=request.user, is_active=True
-    ).exists():
+    if Membership.objects.filter(tenant=invitation.tenant, user=request.user, is_active=True).exists():
         invitation.status = OrgInvitation.Status.ACCEPTED
         invitation.save()
         return Response({"error": "You are already a member of this organization"}, status=400)
@@ -1707,8 +1806,10 @@ def org_accept_invitation(request):
     invitation.status = OrgInvitation.Status.ACCEPTED
     invitation.save()
 
-    return Response({
-        "success": True,
-        "org_name": invitation.tenant.name,
-        "role": invitation.role,
-    })
+    return Response(
+        {
+            "success": True,
+            "org_name": invitation.tenant.name,
+            "role": invitation.role,
+        }
+    )

@@ -33,23 +33,23 @@ The Dashboard is Synara's "window into the temporal cortex."
 """
 
 from .metrics import (
-    SchedulerMetricsCollector,
-    DashboardMetrics,
-    QueueMetrics,
-    WorkerMetrics,
-    TaskTypeMetrics,
-    ScheduleMetrics,
     CircuitMetrics,
+    DashboardMetrics,
     DLQMetrics,
+    QueueMetrics,
+    ScheduleMetrics,
+    SchedulerMetricsCollector,
+    TaskTypeMetrics,
+    WorkerMetrics,
 )
-from .service import DashboardService, DashboardConfig
+from .service import DashboardConfig, DashboardService
 from .views import (
-    dashboard_overview,
-    dashboard_queues,
-    dashboard_workers,
-    dashboard_schedules,
     dashboard_circuits,
     dashboard_dlq,
+    dashboard_overview,
+    dashboard_queues,
+    dashboard_schedules,
+    dashboard_workers,
 )
 
 __all__ = [

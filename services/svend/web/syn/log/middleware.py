@@ -25,17 +25,16 @@ import re
 import threading
 import time
 import uuid
-from datetime import datetime, timedelta
-from typing import Callable
+from collections.abc import Callable
 
 from django.http import HttpRequest, HttpResponse
 from django.utils import timezone
 
 from syn.log.handlers import (
+    get_correlation_id,
+    set_actor_id,
     set_correlation_id,
     set_tenant_id,
-    set_actor_id,
-    get_correlation_id,
 )
 
 logger = logging.getLogger(__name__)
@@ -243,9 +242,7 @@ class RequestLoggingMiddleware:
         """Check if path should be excluded from logging."""
         from django.conf import settings
 
-        exclude_paths = getattr(
-            settings, "LOG_REQUEST_PATHS_EXCLUDE", self.DEFAULT_EXCLUDE_PATHS
-        )
+        exclude_paths = getattr(settings, "LOG_REQUEST_PATHS_EXCLUDE", self.DEFAULT_EXCLUDE_PATHS)
         return any(path.startswith(excluded) for excluded in exclude_paths)
 
     def _log_request_start(self, request: HttpRequest) -> None:
@@ -284,8 +281,7 @@ class RequestLoggingMiddleware:
             log_func = logger.info
 
         log_func(
-            f"Request completed: {request.method} {request.path} "
-            f"-> {response.status_code} ({duration_ms:.2f}ms)",
+            f"Request completed: {request.method} {request.path} -> {response.status_code} ({duration_ms:.2f}ms)",
             extra={
                 "correlation_id": correlation_id,
                 "method": request.method,
@@ -354,8 +350,13 @@ class PerformanceMiddleware:
     """
 
     EXCLUDE_PREFIXES = (
-        "/health/", "/ready/", "/live/", "/metrics/",
-        "/static/", "/media/", "/favicon.ico",
+        "/health/",
+        "/ready/",
+        "/live/",
+        "/metrics/",
+        "/static/",
+        "/media/",
+        "/favicon.ico",
     )
 
     def __init__(self, get_response: Callable):
@@ -384,14 +385,20 @@ class PerformanceMiddleware:
         now = timezone.now()
         bucket_start = now.replace(
             minute=(now.minute // _BUCKET_MINUTES) * _BUCKET_MINUTES,
-            second=0, microsecond=0,
+            second=0,
+            microsecond=0,
         )
 
         with self._lock:
-            self._buffer.append((
-                bucket_start, request.method, path_pattern,
-                status_class, duration_ms,
-            ))
+            self._buffer.append(
+                (
+                    bucket_start,
+                    request.method,
+                    path_pattern,
+                    status_class,
+                    duration_ms,
+                )
+            )
 
         # Flush if enough time has passed (~every 30 seconds to keep buffer small)
         if time.monotonic() - self._last_flush > 30:
@@ -469,14 +476,19 @@ class PerformanceMiddleware:
                             if j < _RESERVOIR_SIZE:
                                 samples[j] = d
                     obj.duration_samples = samples
-                    obj.save(update_fields=[
-                        "request_count", "error_count", "total_duration_ms",
-                        "min_duration_ms", "max_duration_ms", "duration_samples",
-                    ])
+                    obj.save(
+                        update_fields=[
+                            "request_count",
+                            "error_count",
+                            "total_duration_ms",
+                            "min_duration_ms",
+                            "max_duration_ms",
+                            "duration_samples",
+                        ]
+                    )
             except Exception:
                 logger.warning(
-                    f"PerformanceMiddleware: failed to write bucket "
-                    f"{method} {path_pattern} {status_class}",
+                    f"PerformanceMiddleware: failed to write bucket {method} {path_pattern} {status_class}",
                     exc_info=True,
                 )
 
@@ -589,6 +601,7 @@ class AuditLoggingMiddleware:
                 # Validate UUID format - skip if not a valid UUID
                 try:
                     import uuid as uuid_module
+
                     uuid_module.UUID(str(correlation_id))
                 except (ValueError, AttributeError):
                     # Store non-UUID correlation in payload instead

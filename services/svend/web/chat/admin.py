@@ -1,7 +1,6 @@
 """Admin configuration for chat models."""
 
 from django.contrib import admin
-from django.utils import timezone
 
 from .models import (
     Conversation,

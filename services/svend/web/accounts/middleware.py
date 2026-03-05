@@ -5,7 +5,6 @@ import re
 from datetime import timedelta
 from urllib.parse import urlparse
 
-from django.conf import settings
 from django.http import JsonResponse
 from django.utils import timezone
 
@@ -51,9 +50,9 @@ class SubscriptionMiddleware:
         user = request.user
 
         # Check subscription status
-        request.subscription_active = (
-            hasattr(user, "subscription") and user.subscription.is_active
-        ) or is_paid_tier(user.tier)
+        request.subscription_active = (hasattr(user, "subscription") and user.subscription.is_active) or is_paid_tier(
+            user.tier
+        )
 
         # Check query limits
         request.can_query = user.can_query()
@@ -88,9 +87,7 @@ class QueryLimitMiddleware:
         if request.method != "POST":
             return self.get_response(request)
 
-        is_protected = any(
-            request.path.startswith(path) for path in self.PROTECTED_PATHS
-        )
+        is_protected = any(request.path.startswith(path) for path in self.PROTECTED_PATHS)
 
         if not is_protected:
             return self.get_response(request)
@@ -168,10 +165,7 @@ class SiteVisitMiddleware:
 
             ua = request.META.get("HTTP_USER_AGENT", "")
             referrer = request.META.get("HTTP_REFERER", "")
-            ip = (
-                request.META.get("HTTP_CF_CONNECTING_IP", "")
-                or request.META.get("REMOTE_ADDR", "")
-            )
+            ip = request.META.get("HTTP_CF_CONNECTING_IP", "") or request.META.get("REMOTE_ADDR", "")
             ip_hash = hashlib.sha256(ip.encode()).hexdigest() if ip else ""
 
             ref_domain = ""
@@ -181,11 +175,7 @@ class SiteVisitMiddleware:
                 except Exception:
                     pass
 
-            is_bot = bool(
-                not ua.strip()
-                or BOT_PATTERN.search(ua)
-                or _STALE_MOBILE_RE.search(ua)
-            )
+            is_bot = bool(not ua.strip() or BOT_PATTERN.search(ua) or _STALE_MOBILE_RE.search(ua))
 
             # Cloudflare adds CF-IPCountry header (2-letter ISO code)
             country = request.META.get("HTTP_CF_IPCOUNTRY", "")
@@ -206,5 +196,3 @@ class SiteVisitMiddleware:
             pass  # Never let analytics break the request
 
         return response
-
-

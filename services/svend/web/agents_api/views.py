@@ -3,8 +3,6 @@
 Exposes agent functionality (research, writing, DOE) via REST API.
 """
 
-import os
-import sys
 import logging
 
 from rest_framework import status
@@ -19,9 +17,16 @@ logger = logging.getLogger(__name__)
 # Problem Integration Helpers
 # =============================================================================
 
-def add_finding_to_problem(user, problem_id: str, summary: str,
-                           evidence_type: str = "research", source: str = "Agent",
-                           supports: list = None, weakens: list = None) -> dict | None:
+
+def add_finding_to_problem(
+    user,
+    problem_id: str,
+    summary: str,
+    evidence_type: str = "research",
+    source: str = "Agent",
+    supports: list = None,
+    weakens: list = None,
+) -> dict | None:
     """
     Add a finding from an agent to a problem as evidence.
 
@@ -50,9 +55,10 @@ def add_finding_to_problem(user, problem_id: str, summary: str,
 
         # Dual-write: also create core.Evidence if problem has a core_project
         try:
-            core_project = getattr(problem, 'core_project', None)
+            core_project = getattr(problem, "core_project", None)
             if core_project:
                 from core.models import Evidence as CoreEvidence
+
                 # Map evidence_type to core source_type
                 source_map = {
                     "research": "research",
@@ -111,7 +117,7 @@ def get_problem_context_for_agent(user, problem_id: str) -> str:
             context_parts.append("")
             context_parts.append("**Current hypotheses:**")
             for h in hypotheses[:5]:  # Top 5
-                context_parts.append(f"- {h.get('cause', '')} ({h.get('probability', 0.5)*100:.0f}% likely)")
+                context_parts.append(f"- {h.get('cause', '')} ({h.get('probability', 0.5) * 100:.0f}% likely)")
 
         if problem.key_uncertainties:
             context_parts.append("")
@@ -138,7 +144,7 @@ def get_problem_context_for_agent(user, problem_id: str) -> str:
 
 
 # Use centralized LLM management
-from .llm_manager import get_shared_llm, get_coder_llm
+from .llm_manager import get_coder_llm, get_shared_llm
 
 
 @api_view(["POST"])
@@ -172,10 +178,7 @@ def researcher_agent(request):
 
         response = {
             "summary": summary,
-            "sources": [
-                {"title": s.title, "url": s.url}
-                for s in result.sources
-            ] if hasattr(result, "sources") else [],
+            "sources": [{"title": s.title, "url": s.url} for s in result.sources] if hasattr(result, "sources") else [],
             "markdown": result.to_markdown() if hasattr(result, "to_markdown") else None,
         }
 
@@ -201,11 +204,13 @@ def researcher_agent(request):
         return Response(response)
     except ImportError as e:
         logger.error(f"Import error in researcher agent: {e}")
-        return Response({
-            "error": "Research agent not available",
-            "summary": f"Mock research result for: {query}",
-            "sources": [],
-        })
+        return Response(
+            {
+                "error": "Research agent not available",
+                "summary": f"Mock research result for: {query}",
+                "sources": [],
+            }
+        )
     except Exception as e:
         logger.exception("Researcher agent error")
         return Response({"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -245,10 +250,12 @@ def coder_agent(request):
         # Return a simple mock response
         mock_code = f"# Generated code for: {prompt}\n# Language: {language}\n\ndef main():\n    pass\n"
         request.user.increment_queries()
-        return Response({
-            "code": mock_code,
-            "note": "Coder agent not available, returning mock code.",
-        })
+        return Response(
+            {
+                "code": mock_code,
+                "note": "Coder agent not available, returning mock code.",
+            }
+        )
     except Exception as e:
         logger.exception("Coder agent error")
         return Response({"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -267,7 +274,7 @@ def writer_agent(request):
         return Response({"error": "Topic is required"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        from writer.agent import WriterAgent, DocumentRequest, DocumentType
+        from writer.agent import DocumentRequest, DocumentType, WriterAgent
 
         llm = get_shared_llm()
         agent = WriterAgent(llm=llm)
@@ -310,10 +317,12 @@ def writer_agent(request):
     except ImportError as e:
         logger.error(f"Import error in writer agent: {e}")
         request.user.increment_queries()
-        return Response({
-            "content": f"# {topic}\n\nThis is a placeholder document about {topic}.",
-            "note": "Writer agent not available.",
-        })
+        return Response(
+            {
+                "content": f"# {topic}\n\nThis is a placeholder document about {topic}.",
+                "note": "Writer agent not available.",
+            }
+        )
     except Exception as e:
         logger.exception("Writer agent error")
         return Response({"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -366,17 +375,15 @@ def editor_agent(request):
                 ],
                 "repeated_stats": [
                     {"text": r.text, "count": r.count, "suggestion": r.suggestion}
-                    for r in result.repetitions if r.issue_type == "statistic"
+                    for r in result.repetitions
+                    if r.issue_type == "statistic"
                 ][:5],
-                "gaps": [
-                    {"topic": g.topic, "issue": g.issue, "suggestion": g.suggestion}
-                    for g in result.gaps
-                ],
+                "gaps": [{"topic": g.topic, "issue": g.issue, "suggestion": g.suggestion} for g in result.gaps],
                 "drift_issues": [
                     {"expected": d.expected, "severity": d.severity, "suggestion": d.suggestion}
                     for d in result.drift_issues
                 ],
-            }
+            },
         }
 
         # Track usage
@@ -386,16 +393,18 @@ def editor_agent(request):
     except ImportError as e:
         logger.error(f"Import error in editor agent: {e}")
         request.user.increment_queries()
-        return Response({
-            "original_grade": "B",
-            "improved_grade": "B",
-            "citation_confidence": 0.8,
-            "prompt_alignment": 0.9,
-            "edits_made": 0,
-            "cleaned_document": document,
-            "editorial_report": "Editor agent not available - returning document as-is.",
-            "note": "Editor agent not available.",
-        })
+        return Response(
+            {
+                "original_grade": "B",
+                "improved_grade": "B",
+                "citation_confidence": 0.8,
+                "prompt_alignment": 0.9,
+                "edits_made": 0,
+                "cleaned_document": document,
+                "editorial_report": "Editor agent not available - returning document as-is.",
+                "note": "Editor agent not available.",
+            }
+        )
     except Exception as e:
         logger.exception("Editor agent error")
         return Response({"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -479,13 +488,15 @@ def experimenter_agent(request):
     except ImportError as e:
         logger.error(f"Import error in experimenter agent: {e}")
         request.user.increment_queries()
-        return Response({
-            "summary": f"Mock experiment design for: {goal}",
-            "experiment_type": exp_type,
-            "sample_size": 100,
-            "power": 0.8,
-            "note": "Experimenter agent not available.",
-        })
+        return Response(
+            {
+                "summary": f"Mock experiment design for: {goal}",
+                "experiment_type": exp_type,
+                "sample_size": 100,
+                "power": 0.8,
+                "note": "Experimenter agent not available.",
+            }
+        )
     except Exception as e:
         logger.exception("Experimenter agent error")
         return Response({"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -556,10 +567,13 @@ def eda_agent(request):
                 "total_missing_pct": report.total_missing_pct,
                 "columns_with_missing": len([c for c in report.columns if c.missing > 0]),
                 "by_column": {c.name: c.missing for c in report.columns if c.missing > 0},
-            } if report.total_missing > 0 else None,
+            }
+            if report.total_missing > 0
+            else None,
             "outliers": [
                 {"column": c.name, "count": c.outlier_count, "pct": c.outlier_count / c.count if c.count else 0}
-                for c in report.columns if c.has_outliers
+                for c in report.columns
+                if c.has_outliers
             ],
             "correlations": [
                 {"col1": c[0], "col2": c[1], "value": c[2], "type": "pearson"}
@@ -577,7 +591,9 @@ def eda_agent(request):
         if outlier_cols:
             response["recommendations"].append(f"Review outliers in {len(outlier_cols)} column(s)")
         if report.high_correlations:
-            response["recommendations"].append(f"Consider multicollinearity ({len(report.high_correlations)} high correlations)")
+            response["recommendations"].append(
+                f"Consider multicollinearity ({len(report.high_correlations)} high correlations)"
+            )
 
         if report.charts:
             response["charts"] = report.charts
@@ -606,14 +622,16 @@ def eda_agent(request):
         logger.error(f"Import error in EDA agent: {e}")
         request.user.increment_queries()
         # Return basic pandas info
-        return Response({
-            "name": name,
-            "shape": list(df.shape),
-            "columns": list(df.columns),
-            "data_quality_score": 1.0 - df.isnull().sum().sum() / df.size,
-            "summary": f"Dataset has {df.shape[0]} rows and {df.shape[1]} columns.",
-            "note": "Full EDA agent not available - basic info only.",
-        })
+        return Response(
+            {
+                "name": name,
+                "shape": list(df.shape),
+                "columns": list(df.columns),
+                "data_quality_score": 1.0 - df.isnull().sum().sum() / df.size,
+                "summary": f"Dataset has {df.shape[0]} rows and {df.shape[1]} columns.",
+                "note": "Full EDA agent not available - basic info only.",
+            }
+        )
     except Exception as e:
         logger.exception("EDA agent error")
         return Response({"error": str(e)[:200]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

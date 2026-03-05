@@ -2,7 +2,6 @@
 
 from ._datasets import SHARED_DATASET  # noqa: F401
 
-
 BAYESIAN_THINKING = {
     "id": "bayesian-thinking",
     "title": "Bayesian Thinking",
@@ -14,7 +13,7 @@ BAYESIAN_THINKING = {
             "Enter a likelihood ratio of 5 for your evidence",
             "Set confidence in the evidence to 80%",
             "Observe how the posterior probability updates",
-            "Try extreme priors (5% and 95%) to see how they resist evidence"
+            "Try extreme priors (5% and 95%) to see how they resist evidence",
         ],
         "dsw_type": "stats:descriptive",
         "dsw_config": {},
@@ -78,7 +77,7 @@ The same Bayesian update machinery you just learned powers SVEND's Process Belie
             "show_likelihood_ratio": True,
             "show_confidence": True,
             "show_posterior": True,
-        }
+        },
     },
     "key_takeaways": [
         "Probability is a measure of confidence, not truth",
@@ -90,13 +89,13 @@ The same Bayesian update machinery you just learned powers SVEND's Process Belie
         {
             "question": "You believe there's a 30% chance of rain. Weather radar shows clouds (LR=3 for rain). What's your updated probability?",
             "answer": "About 56%. Prior odds = 0.3/0.7 ≈ 0.43. Posterior odds = 0.43 × 3 = 1.29. Posterior probability = 1.29/(1+1.29) ≈ 0.56",
-            "hint": "Convert probability to odds, multiply by LR, convert back"
+            "hint": "Convert probability to odds, multiply by LR, convert back",
         },
         {
             "question": "A test has LR=10 but only 50% reliability. What's the effective LR?",
             "answer": "5.5. Adjusted LR = 1 + (10-1) × 0.5 = 5.5",
-            "hint": "Use the confidence adjustment formula"
-        }
+            "hint": "Use the confidence adjustment formula",
+        },
     ],
     # Interactive tutorial: Synara belief tracking
     "tool_steps": [
@@ -165,7 +164,7 @@ HYPOTHESIS_DRIVEN = {
             "Add at least 3 competing hypotheses before seeing data",
             "For each hypothesis, define what evidence would support or refute it",
             "Assign initial probabilities that sum to 100%",
-            "Enter one piece of evidence and watch probabilities update"
+            "Enter one piece of evidence and watch probabilities update",
         ],
         "dsw_type": "stats:ttest",
         "dsw_config": {"var1": "diameter_mm", "mu": 25.0},
@@ -238,7 +237,7 @@ This prevents falling in love with your first idea.
             "max_hypotheses": 5,
             "show_probability_bars": True,
             "allow_evidence_input": True,
-        }
+        },
     },
     "key_takeaways": [
         "Generate hypotheses BEFORE looking at data",
@@ -251,13 +250,13 @@ This prevents falling in love with your first idea.
         {
             "question": "Your website conversion rate dropped 20%. What are three competing hypotheses?",
             "answer": "Many valid answers. Examples: (1) Recent site change broke something, (2) Traffic source mix changed, (3) Seasonality, (4) Measurement error",
-            "hint": "Think about different categories: technical, external, measurement"
+            "hint": "Think about different categories: technical, external, measurement",
         },
         {
             "question": "You think Hypothesis A is correct. What should you do next?",
             "answer": "Try to disprove it. Look for evidence that would contradict Hypothesis A. If you can't find any, your confidence is justified.",
-            "hint": "Avoid confirmation bias"
-        }
+            "hint": "Avoid confirmation bias",
+        },
     ],
     # Interactive tutorial: Synara hypothesis-driven investigation
     "tool_steps": [
@@ -384,7 +383,7 @@ EVIDENCE_QUALITY = {
             "Set the sample size to 50",
             "Mark replication status as single study",
             "Review the calculated confidence score",
-            "Change to a replicated RCT with n=500 and compare"
+            "Change to a replicated RCT with n=500 and compare",
         ],
         "dsw_type": "stats:correlation",
         "dsw_config": {"vars": ["diameter_mm", "weight_g", "roughness_ra"]},
@@ -462,7 +461,7 @@ Be skeptical when you see:
             "show_sample_size": True,
             "show_replication_status": True,
             "calculate_confidence": True,
-        }
+        },
     },
     "key_takeaways": [
         "Assign confidence scores to all evidence",
@@ -475,9 +474,9 @@ Be skeptical when you see:
         {
             "question": "A blog post claims a new productivity technique 'doubles output.' The author tried it for a week. What confidence would you assign?",
             "answer": "Very low, perhaps 0.2-0.3. Single person, short duration, self-reported, no control group.",
-            "hint": "Consider sample size, measurement reliability, and potential bias"
+            "hint": "Consider sample size, measurement reliability, and potential bias",
         }
-    ]
+    ],
 }
 
 
@@ -492,7 +491,7 @@ BASE_RATE_NEGLECT = {
             "Set test sensitivity to 99% and specificity to 99%",
             "Read the natural frequency table for 10,000 people",
             "Note the positive predictive value",
-            "Change prevalence to 10% and see how it transforms the result"
+            "Change prevalence to 10% and see how it transforms the result",
         ],
         "dsw_type": "stats:descriptive",
         "dsw_config": {},
@@ -583,7 +582,7 @@ Or work through the 100-person table method shown above.
             "show_base_rate": True,
             "show_test_accuracy": True,
             "show_natural_frequencies": True,
-        }
+        },
     },
     "key_takeaways": [
         "Base rate neglect is the tendency to ignore prior probabilities",
@@ -596,14 +595,14 @@ Or work through the 100-person table method shown above.
         {
             "question": "A test for a condition (prevalence 2%) has 90% sensitivity and 90% specificity. If you test positive, what's the probability you have the condition?",
             "answer": "About 15%. In 1000 people: 20 have it (18 test positive), 980 don't (98 test positive). P = 18/(18+98) ≈ 15.5%",
-            "hint": "Use the 1000-person method. Calculate true positives and false positives separately."
+            "hint": "Use the 1000-person method. Calculate true positives and false positives separately.",
         },
         {
             "question": "Why is base rate neglect worse for rare events?",
             "answer": "When something is rare, even a small false positive rate produces more false positives than true positives. The base rate dominates.",
-            "hint": "Think about what happens when there are 1 true case and 1000 non-cases"
-        }
-    ]
+            "hint": "Think about what happens when there are 1 true case and 1000 non-cases",
+        },
+    ],
 }
 
 
@@ -618,7 +617,7 @@ REGRESSION_TO_MEAN = {
             "Observe how extreme scores regress toward the mean",
             "Increase correlation to 0.9 and see less regression",
             "Decrease correlation to 0.2 and see more regression",
-            "Identify the lesson: extreme selection guarantees regression"
+            "Identify the lesson: extreme selection guarantees regression",
         ],
         "dsw_type": "stats:regression",
         "dsw_config": {"response": "diameter_mm", "predictors": ["weight_g"]},
@@ -718,7 +717,7 @@ They regress halfway to the mean.
             "show_scatter_plot": True,
             "show_regression_line": True,
             "allow_correlation_adjustment": True,
-        }
+        },
     },
     "key_takeaways": [
         "Extreme observations tend to be followed by less extreme ones",
@@ -731,14 +730,12 @@ They regress halfway to the mean.
         {
             "question": "A company identifies its 10 worst-performing stores and provides extra training. Performance improves. What should you conclude?",
             "answer": "Very little. Those stores were selected because they were extreme. Regression to the mean would cause improvement even without training. You need to compare to similar stores without training.",
-            "hint": "Think about why those stores were selected in the first place."
+            "hint": "Think about why those stores were selected in the first place.",
         },
         {
             "question": "Why do pilots often think punishment works better than praise for trainees?",
             "answer": "After exceptionally good performance (praised), regression makes next attempt worse. After exceptionally bad performance (punished), regression makes next attempt better. It looks like punishment works, but it's just regression.",
-            "hint": "Consider what follows extreme performances, on average."
-        }
-    ]
+            "hint": "Consider what follows extreme performances, on average.",
+        },
+    ],
 }
-
-

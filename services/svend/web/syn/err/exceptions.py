@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 from .types import (
@@ -46,7 +46,6 @@ from .types import (
     ErrorDetail,
     ErrorEnvelope,
     ErrorSeverity,
-    SystemLayer,
 )
 
 logger = logging.getLogger(__name__)
@@ -96,14 +95,14 @@ class SynaraError(Exception):
         self,
         message: str,
         *,
-        code: Optional[str] = None,
-        category: Optional[ErrorCategory] = None,
-        severity: Optional[ErrorSeverity] = None,
-        correlation_id: Optional[UUID] = None,
-        context: Optional[ErrorContext] = None,
-        details: Optional[List[ErrorDetail]] = None,
-        cause: Optional[Exception] = None,
-        extra: Optional[Dict[str, Any]] = None,
+        code: str | None = None,
+        category: ErrorCategory | None = None,
+        severity: ErrorSeverity | None = None,
+        correlation_id: UUID | None = None,
+        context: ErrorContext | None = None,
+        details: list[ErrorDetail] | None = None,
+        cause: Exception | None = None,
+        extra: dict[str, Any] | None = None,
     ):
         self.message = message
         self.code = code or self.default_code
@@ -154,10 +153,7 @@ class SynaraError(Exception):
                 log_data["context"] = str(self.context)
 
         if self.details:
-            log_data["details"] = [
-                {"field": d.field, "code": d.code, "message": d.message}
-                for d in self.details
-            ]
+            log_data["details"] = [{"field": d.field, "code": d.code, "message": d.message} for d in self.details]
 
         if self.cause:
             log_data["cause_type"] = type(self.cause).__name__
@@ -191,7 +187,7 @@ class SynaraError(Exception):
             f"correlation_id={self.correlation_id!r})"
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert to dictionary for logging/serialization.
 
@@ -242,7 +238,7 @@ class SynaraError(Exception):
 
         return result
 
-    def to_envelope(self, request_id: Optional[str] = None) -> ErrorEnvelope:
+    def to_envelope(self, request_id: str | None = None) -> ErrorEnvelope:
         """
         Convert to ErrorEnvelope for API responses per ERR-002.
 
@@ -293,9 +289,9 @@ class ValidationError(SynaraError):
         self,
         message: str,
         *,
-        field: Optional[str] = None,
-        expected: Optional[str] = None,
-        received: Optional[Any] = None,
+        field: str | None = None,
+        expected: str | None = None,
+        received: Any | None = None,
         **kwargs,
     ):
         self.field = field
@@ -315,11 +311,13 @@ class ValidationError(SynaraError):
             ]
 
         extra = kwargs.pop("extra", {})
-        extra.update({
-            "field": field,
-            "expected": expected,
-            "received": str(received) if received is not None else None,
-        })
+        extra.update(
+            {
+                "field": field,
+                "expected": expected,
+                "received": str(received) if received is not None else None,
+            }
+        )
 
         super().__init__(message, details=details, extra=extra, **kwargs)
 
@@ -352,7 +350,7 @@ class AuthenticationError(SynaraError):
         self,
         message: str,
         *,
-        auth_method: Optional[str] = None,
+        auth_method: str | None = None,
         **kwargs,
     ):
         self.auth_method = auth_method
@@ -392,9 +390,9 @@ class AuthorizationError(SynaraError):
         self,
         message: str,
         *,
-        required_permission: Optional[str] = None,
-        user_permissions: Optional[List[str]] = None,
-        resource: Optional[str] = None,
+        required_permission: str | None = None,
+        user_permissions: list[str] | None = None,
+        resource: str | None = None,
         **kwargs,
     ):
         self.required_permission = required_permission
@@ -402,11 +400,13 @@ class AuthorizationError(SynaraError):
         self.resource = resource
 
         extra = kwargs.pop("extra", {})
-        extra.update({
-            "required_permission": required_permission,
-            "user_permissions": user_permissions,
-            "resource": resource,
-        })
+        extra.update(
+            {
+                "required_permission": required_permission,
+                "user_permissions": user_permissions,
+                "resource": resource,
+            }
+        )
 
         # Log authorization failures to audit log
         # EVT-001: domain.entity.action naming pattern
@@ -451,18 +451,20 @@ class NotFoundError(SynaraError):
         self,
         message: str,
         *,
-        resource_type: Optional[str] = None,
-        resource_id: Optional[str] = None,
+        resource_type: str | None = None,
+        resource_id: str | None = None,
         **kwargs,
     ):
         self.resource_type = resource_type
         self.resource_id = resource_id
 
         extra = kwargs.pop("extra", {})
-        extra.update({
-            "resource_type": resource_type,
-            "resource_id": resource_id,
-        })
+        extra.update(
+            {
+                "resource_type": resource_type,
+                "resource_id": resource_id,
+            }
+        )
 
         super().__init__(message, extra=extra, **kwargs)
 
@@ -498,10 +500,10 @@ class ConflictError(SynaraError):
         self,
         message: str,
         *,
-        resource_type: Optional[str] = None,
-        resource_id: Optional[str] = None,
-        current_state: Optional[str] = None,
-        requested_action: Optional[str] = None,
+        resource_type: str | None = None,
+        resource_id: str | None = None,
+        current_state: str | None = None,
+        requested_action: str | None = None,
         **kwargs,
     ):
         self.resource_type = resource_type
@@ -510,12 +512,14 @@ class ConflictError(SynaraError):
         self.requested_action = requested_action
 
         extra = kwargs.pop("extra", {})
-        extra.update({
-            "resource_type": resource_type,
-            "resource_id": resource_id,
-            "current_state": current_state,
-            "requested_action": requested_action,
-        })
+        extra.update(
+            {
+                "resource_type": resource_type,
+                "resource_id": resource_id,
+                "current_state": current_state,
+                "requested_action": requested_action,
+            }
+        )
 
         super().__init__(message, extra=extra, **kwargs)
 
@@ -550,9 +554,9 @@ class RateLimitError(SynaraError):
         self,
         message: str,
         *,
-        limit: Optional[int] = None,
-        window_seconds: Optional[int] = None,
-        retry_after_seconds: Optional[int] = None,
+        limit: int | None = None,
+        window_seconds: int | None = None,
+        retry_after_seconds: int | None = None,
         **kwargs,
     ):
         self.limit = limit
@@ -560,11 +564,13 @@ class RateLimitError(SynaraError):
         self.retry_after_seconds = retry_after_seconds
 
         extra = kwargs.pop("extra", {})
-        extra.update({
-            "limit": limit,
-            "window_seconds": window_seconds,
-            "retry_after_seconds": retry_after_seconds,
-        })
+        extra.update(
+            {
+                "limit": limit,
+                "window_seconds": window_seconds,
+                "retry_after_seconds": retry_after_seconds,
+            }
+        )
 
         super().__init__(message, extra=extra, **kwargs)
 
@@ -598,9 +604,9 @@ class DependencyError(SynaraError):
         self,
         message: str,
         *,
-        service_name: Optional[str] = None,
-        endpoint: Optional[str] = None,
-        status_code: Optional[int] = None,
+        service_name: str | None = None,
+        endpoint: str | None = None,
+        status_code: int | None = None,
         **kwargs,
     ):
         self.service_name = service_name
@@ -608,11 +614,13 @@ class DependencyError(SynaraError):
         self.service_status_code = status_code
 
         extra = kwargs.pop("extra", {})
-        extra.update({
-            "service_name": service_name,
-            "endpoint": endpoint,
-            "service_status_code": status_code,
-        })
+        extra.update(
+            {
+                "service_name": service_name,
+                "endpoint": endpoint,
+                "service_status_code": status_code,
+            }
+        )
 
         super().__init__(message, extra=extra, **kwargs)
 
@@ -646,9 +654,9 @@ class DatabaseError(SynaraError):
         self,
         message: str,
         *,
-        operation: Optional[str] = None,
-        table: Optional[str] = None,
-        constraint: Optional[str] = None,
+        operation: str | None = None,
+        table: str | None = None,
+        constraint: str | None = None,
         **kwargs,
     ):
         self.operation = operation
@@ -656,11 +664,13 @@ class DatabaseError(SynaraError):
         self.constraint = constraint
 
         extra = kwargs.pop("extra", {})
-        extra.update({
-            "db_operation": operation,
-            "table": table,
-            "constraint": constraint,
-        })
+        extra.update(
+            {
+                "db_operation": operation,
+                "table": table,
+                "constraint": constraint,
+            }
+        )
 
         super().__init__(message, extra=extra, **kwargs)
 
@@ -695,9 +705,9 @@ class TimeoutError(SynaraError):
         self,
         message: str,
         *,
-        operation: Optional[str] = None,
-        timeout_ms: Optional[int] = None,
-        elapsed_ms: Optional[int] = None,
+        operation: str | None = None,
+        timeout_ms: int | None = None,
+        elapsed_ms: int | None = None,
         **kwargs,
     ):
         self.operation = operation
@@ -705,11 +715,13 @@ class TimeoutError(SynaraError):
         self.elapsed_ms = elapsed_ms
 
         extra = kwargs.pop("extra", {})
-        extra.update({
-            "operation": operation,
-            "timeout_ms": timeout_ms,
-            "elapsed_ms": elapsed_ms,
-        })
+        extra.update(
+            {
+                "operation": operation,
+                "timeout_ms": timeout_ms,
+                "elapsed_ms": elapsed_ms,
+            }
+        )
 
         super().__init__(message, extra=extra, **kwargs)
 
@@ -743,7 +755,7 @@ class SystemError(SynaraError):
         self,
         message: str,
         *,
-        component: Optional[str] = None,
+        component: str | None = None,
         **kwargs,
     ):
         self.component = component
@@ -762,9 +774,9 @@ class SystemError(SynaraError):
 def wrap_exception(
     exc: Exception,
     *,
-    message: Optional[str] = None,
-    correlation_id: Optional[UUID] = None,
-    context: Optional[ErrorContext] = None,
+    message: str | None = None,
+    correlation_id: UUID | None = None,
+    context: ErrorContext | None = None,
 ) -> SynaraError:
     """
     Wrap a standard exception in a SynaraError.
@@ -831,8 +843,8 @@ def wrap_exception(
 def create_error_from_code(
     code: str,
     *,
-    message: Optional[str] = None,
-    correlation_id: Optional[UUID] = None,
+    message: str | None = None,
+    correlation_id: UUID | None = None,
     **kwargs,
 ) -> SynaraError:
     """

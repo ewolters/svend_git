@@ -2,7 +2,6 @@
 
 from ._datasets import SHARED_DATASET  # noqa: F401
 
-
 READING_PAPERS = {
     "id": "reading-papers",
     "title": "Reading Research Papers",
@@ -14,7 +13,7 @@ READING_PAPERS = {
             "Apply the methods checklist: sample, groups, outcome, size",
             "Check for red flags: missing data, unusual methods, no power analysis",
             "Compare the abstract claims to the actual results",
-            "Rate your overall confidence in the findings"
+            "Rate your overall confidence in the findings",
         ],
     },
     "content": """
@@ -121,14 +120,14 @@ Authors interpret their findings generously. Ask:
         {
             "question": "A paper's abstract says 'Treatment significantly improved outcomes (p<0.05).' You look at the results table and see 12 outcomes tested, with only 1 reaching p<0.05. What's wrong?",
             "answer": "Multiple comparisons problem. Testing 12 outcomes at α=0.05 gives a ~46% chance of at least one false positive (1 - 0.95¹²). The one 'significant' result is likely a false positive. The abstract cherry-picked the one significant outcome from 12. Check if any correction (Bonferroni, FDR) was applied.",
-            "hint": "How many outcomes were tested total? Were corrections applied?"
+            "hint": "How many outcomes were tested total? Were corrections applied?",
         },
         {
             "question": "A methods section says 'We excluded participants who did not complete the study.' The abstract reports 150 participants but methods mention 230 enrolled. Should you be concerned?",
             "answer": "Very concerned — 80 of 230 (35%) dropped out, and they were excluded from analysis. This is attrition bias. Were dropouts different from completers? Were they disproportionate between groups? This study should use intention-to-treat analysis. The 35% dropout rate also suggests the intervention may be unacceptable to many participants.",
-            "hint": "What happened to the 80 missing participants, and were they different?"
+            "hint": "What happened to the 80 missing participants, and were they different?",
         },
-    ]
+    ],
 }
 
 
@@ -143,7 +142,7 @@ SPOTTING_BAD_SCIENCE = {
             "Check p-value distribution for suspicious clustering near 0.05",
             "Evaluate effect sizes against field norms",
             "Assess institutional red flags (funding, conflicts of interest)",
-            "Assign an overall credibility rating"
+            "Assign an overall credibility rating",
         ],
     },
     "content": """
@@ -259,14 +258,14 @@ The goal is calibrated confidence:
         {
             "question": "A paper tests 8 hypotheses and reports all 8 as significant at p<0.05. The sample size is n=30. Is this suspicious?",
             "answer": "Very suspicious. With n=30, statistical power for typical effect sizes is low (~50% for d=0.5). Getting 8 out of 8 significant results with low power is extremely unlikely unless: (1) all effects are huge (unlikely in most fields), (2) results are selectively reported, or (3) p-values were manipulated. The probability of 8/8 significant with 50% power per test is 0.5⁸ = 0.4%.",
-            "hint": "Low power + all significant = mathematically implausible"
+            "hint": "Low power + all significant = mathematically implausible",
         },
         {
             "question": "A nutrition study funded by a chocolate company finds that chocolate consumption is associated with lower BMI. The study has 200,000 participants and p<0.001. Should you update your beliefs?",
             "answer": "Only slightly. Large n and small p don't overcome design concerns. Check: (1) observational study — can't prove causation, (2) industry funding — conflict of interest, (3) what confounders were controlled? (health-conscious people may eat dark chocolate AND exercise more), (4) what's the effect SIZE? (likely tiny). The study is evidence, but weak evidence given the conflict and design limitations.",
-            "hint": "Large n and small p don't compensate for study design flaws or conflicts of interest"
+            "hint": "Large n and small p don't compensate for study design flaws or conflicts of interest",
         },
-    ]
+    ],
 }
 
 
@@ -280,7 +279,7 @@ META_ANALYSIS_LITERACY = {
             "Identify individual study effects and their confidence intervals",
             "Find the combined diamond and its position relative to zero",
             "Check the I-squared value for heterogeneity",
-            "Look for funnel plot asymmetry indicating publication bias"
+            "Look for funnel plot asymmetry indicating publication bias",
         ],
     },
     "content": """
@@ -400,14 +399,14 @@ Ask:
         {
             "question": "A meta-analysis of 20 studies finds a combined effect of d=0.4 (p<0.001), but I²=82%. Should you trust the combined estimate?",
             "answer": "Not as a single number. I²=82% means the studies are measuring substantially different effects — the true effect likely varies by context, population, or intervention variant. Report the range of effects across studies rather than a single pooled number. Investigate sources of heterogeneity through subgroup analysis or meta-regression. The combined d=0.4 is a misleading average of very different effects.",
-            "hint": "High I² means the pooled estimate masks real differences between studies"
+            "hint": "High I² means the pooled estimate masks real differences between studies",
         },
         {
             "question": "A funnel plot for a meta-analysis shows that small studies cluster on the positive-effect side, while large studies cluster near zero. What does this suggest?",
             "answer": "Publication bias. Small studies with null or negative results are missing (the 'file drawer' problem). The small positive studies that were published likely overestimate the true effect. The large studies, which are published regardless of result, show the truer picture: near-zero effect. The combined meta-analytic estimate is probably inflated.",
-            "hint": "Asymmetric funnel = small studies missing on one side = publication bias"
+            "hint": "Asymmetric funnel = small studies missing on one side = publication bias",
         },
-    ]
+    ],
 }
 
 
@@ -421,7 +420,7 @@ WHEN_NOT_TO_USE_STATISTICS = {
             "Review the scenario and identify the question type",
             "Determine whether the question is answerable with data",
             "Check for Goodhart's Law risk: is the metric a target?",
-            "Decide: statistics, qualitative methods, or pure judgment?"
+            "Decide: statistics, qualitative methods, or pure judgment?",
         ],
     },
     "content": """
@@ -519,14 +518,12 @@ Being willing to NOT use statistics when inappropriate is a sign of competence, 
         {
             "question": "A hospital sets a target of <4 hours for emergency department wait times. Over 6 months, reported wait times drop from 5.2 hours to 3.8 hours. Has patient care improved?",
             "answer": "Not necessarily — this is Goodhart's Law in action. Check HOW wait times dropped: Are patients being triaged differently? Held in ambulances before officially 'arriving'? Moved to hallways before being 'seen'? Rushed through without adequate assessment? The metric improved, but the underlying patient experience may not have. Need qualitative data: patient satisfaction, readmission rates, adverse outcomes.",
-            "hint": "When a measure becomes a target, it ceases to be a good measure"
+            "hint": "When a measure becomes a target, it ceases to be a good measure",
         },
         {
             "question": "Your CEO asks: 'What does the data say we should do about employee morale?' You have only eNPS scores. What's your response?",
             "answer": "eNPS alone can't answer 'what to do' — that's a question about causes and interventions, not just measurement. First, eNPS is one metric of a complex phenomenon (McNamara fallacy risk). Second, 'what to do' requires understanding WHY morale is the way it is — qualitative methods like interviews, focus groups, and open-ended surveys are needed. Recommend a mixed-methods approach: use eNPS to identify THAT there's a problem, then qualitative research to understand WHY.",
-            "hint": "Numbers show what's happening; understanding why requires qualitative methods"
+            "hint": "Numbers show what's happening; understanding why requires qualitative methods",
         },
-    ]
+    ],
 }
-
-

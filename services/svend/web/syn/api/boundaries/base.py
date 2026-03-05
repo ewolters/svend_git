@@ -26,8 +26,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union
-from uuid import UUID
+from typing import Any, TypeVar
 
 from django.db import transaction
 from django.utils import timezone
@@ -102,12 +101,12 @@ class SerializerBoundary:
 
     def __init__(
         self,
-        serializer_cls: Type[serializers.Serializer],
+        serializer_cls: type[serializers.Serializer],
         io_contract_code: str,
         operation: str,
         *,
         context: BoundaryContext,
-        instance: Optional[Any] = None,
+        instance: Any | None = None,
         partial: bool = False,
         many: bool = False,
     ):
@@ -135,7 +134,7 @@ class SerializerBoundary:
 
         if not issubclass(serializer_cls, serializers.Serializer):
             raise BoundaryConfigurationError(
-                f"serializer_cls must be a Serializer subclass",
+                "serializer_cls must be a Serializer subclass",
                 correlation_id=context.correlation_id,
             )
 
@@ -148,17 +147,17 @@ class SerializerBoundary:
         self.many = many
 
         # State tracking
-        self._serializer: Optional[serializers.Serializer] = None
-        self._validated_data: Optional[Dict[str, Any]] = None
+        self._serializer: serializers.Serializer | None = None
+        self._validated_data: dict[str, Any] | None = None
         self._persisted: bool = False
-        self._result: Optional[Dict[str, Any]] = None
+        self._result: dict[str, Any] | None = None
         self._start_time: datetime = timezone.now()
 
         # Event tracking
-        self._events_emitted: List[str] = []
+        self._events_emitted: list[str] = []
 
     @property
-    def validated_data(self) -> Optional[Dict[str, Any]]:
+    def validated_data(self) -> dict[str, Any] | None:
         """Return validated data after validation."""
         return self._validated_data
 
@@ -168,7 +167,7 @@ class SerializerBoundary:
         return self._persisted
 
     @property
-    def result(self) -> Optional[Dict[str, Any]]:
+    def result(self) -> dict[str, Any] | None:
         """Return serialized result after persistence."""
         return self._result
 
@@ -183,7 +182,7 @@ class SerializerBoundary:
     # Core Boundary Operations (SRX-001 §5.1)
     # =========================================================================
 
-    def validate(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         Perform SER-001 structural validation and IO-001 contract validation.
 
@@ -204,10 +203,7 @@ class SerializerBoundary:
         Raises:
             BoundaryValidationError: If validation fails
         """
-        logger.debug(
-            f"[BOUNDARY] Validating {self.operation} on {self.model_name} "
-            f"(contract: {self.io_contract_code})"
-        )
+        logger.debug(f"[BOUNDARY] Validating {self.operation} on {self.model_name} (contract: {self.io_contract_code})")
 
         try:
             # Step 1: DRF serializer validation (SER-001)
@@ -244,7 +240,7 @@ class SerializerBoundary:
             self._emit_validation_failed(error)
             raise error
 
-    def execute(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def execute(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         Full boundary execution: validate -> governance -> persist -> emit -> audit.
 
@@ -270,10 +266,7 @@ class SerializerBoundary:
             GovernanceEscalatedError: If governance escalates
             PersistenceError: If database operation fails
         """
-        logger.info(
-            f"[BOUNDARY] Executing {self.operation} on {self.model_name} "
-            f"(tenant: {self.context.tenant_id})"
-        )
+        logger.info(f"[BOUNDARY] Executing {self.operation} on {self.model_name} (tenant: {self.context.tenant_id})")
 
         # Step 1: Validate
         validated_data = self.validate(data)
@@ -312,9 +305,7 @@ class SerializerBoundary:
         # Step 6: Write audit log
         self._write_audit_log("success", result)
 
-        logger.info(
-            f"[BOUNDARY] Successfully executed {self.operation} on {self.model_name}"
-        )
+        logger.info(f"[BOUNDARY] Successfully executed {self.operation} on {self.model_name}")
 
         return result
 
@@ -322,7 +313,7 @@ class SerializerBoundary:
     # Serializer Management
     # =========================================================================
 
-    def _create_serializer(self, data: Dict[str, Any]) -> serializers.Serializer:
+    def _create_serializer(self, data: dict[str, Any]) -> serializers.Serializer:
         """Create serializer instance with proper context."""
         kwargs = {
             "data": data,
@@ -340,7 +331,7 @@ class SerializerBoundary:
 
         return self.serializer_cls(**kwargs)
 
-    def _get_serializer_context(self) -> Dict[str, Any]:
+    def _get_serializer_context(self) -> dict[str, Any]:
         """Build serializer context with boundary information."""
         return {
             "tenant_id": self.context.tenant_id,
@@ -354,7 +345,7 @@ class SerializerBoundary:
     # IO-001 Contract Validation (SRX-001 §6)
     # =========================================================================
 
-    def _validate_io_contract(self, validated_data: Dict[str, Any]) -> None:
+    def _validate_io_contract(self, validated_data: dict[str, Any]) -> None:
         """
         Validate data against IO-001 contract.
 
@@ -372,8 +363,7 @@ class SerializerBoundary:
                 # Contract not found - log warning but continue
                 # This allows gradual migration
                 logger.warning(
-                    f"[BOUNDARY] IO contract '{self.io_contract_code}' not found, "
-                    f"skipping contract validation"
+                    f"[BOUNDARY] IO contract '{self.io_contract_code}' not found, skipping contract validation"
                 )
                 return
 
@@ -400,9 +390,7 @@ class SerializerBoundary:
     # Governance Integration (SRX-001 §8)
     # =========================================================================
 
-    def _execute_governance_preflight(
-        self, validated_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _execute_governance_preflight(self, validated_data: dict[str, Any]) -> dict[str, Any]:
         """
         Execute governance preflight checks per CGS-1001.
 
@@ -453,7 +441,7 @@ class SerializerBoundary:
             # Default to ALLOW on errors (fail-open for now)
             return {"decision": "ALLOW"}
 
-    def _handle_governance_block(self, judgment: Dict[str, Any]) -> None:
+    def _handle_governance_block(self, judgment: dict[str, Any]) -> None:
         """Handle BLOCK governance decision."""
         # Emit blocked event
         # EVT-001: domain.entity.action naming pattern
@@ -478,7 +466,7 @@ class SerializerBoundary:
             correlation_id=self.context.correlation_id,
         )
 
-    def _handle_governance_escalate(self, judgment: Dict[str, Any]) -> None:
+    def _handle_governance_escalate(self, judgment: dict[str, Any]) -> None:
         """Handle ESCALATE governance decision."""
         # Emit escalated event
         # EVT-001: domain.entity.action naming pattern
@@ -508,7 +496,7 @@ class SerializerBoundary:
     # Persistence (SRX-001 §4.3)
     # =========================================================================
 
-    def _persist(self, validated_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _persist(self, validated_data: dict[str, Any]) -> dict[str, Any]:
         """
         Persist validated data through serializer.
 
@@ -541,7 +529,7 @@ class SerializerBoundary:
     # Event Emission (SRX-001 §7)
     # =========================================================================
 
-    def _emit_event(self, event_name: str, payload: Dict[str, Any]) -> None:
+    def _emit_event(self, event_name: str, payload: dict[str, Any]) -> None:
         """Emit an event through the event system."""
         try:
             from syn.engine import Cortex
@@ -586,7 +574,7 @@ class SerializerBoundary:
             },
         )
 
-    def _emit_persisted(self, result: Dict[str, Any]) -> None:
+    def _emit_persisted(self, result: dict[str, Any]) -> None:
         """Emit io.persisted.* event based on operation."""
         event_name = f"io.persisted.{self.operation}"
 
@@ -611,8 +599,8 @@ class SerializerBoundary:
     def _write_audit_log(
         self,
         outcome: str,
-        result: Optional[Dict[str, Any]],
-        judgment: Optional[Dict[str, Any]] = None,
+        result: dict[str, Any] | None,
+        judgment: dict[str, Any] | None = None,
     ) -> None:
         """Write AUD-001 compliant audit entry."""
         try:
@@ -665,10 +653,10 @@ class SerializerBoundary:
     @classmethod
     def for_create(
         cls,
-        serializer_cls: Type[serializers.Serializer],
+        serializer_cls: type[serializers.Serializer],
         io_contract_code: str,
         context: BoundaryContext,
-    ) -> "SerializerBoundary":
+    ) -> SerializerBoundary:
         """Create a boundary for create operations."""
         return cls(
             serializer_cls=serializer_cls,
@@ -680,12 +668,12 @@ class SerializerBoundary:
     @classmethod
     def for_update(
         cls,
-        serializer_cls: Type[serializers.Serializer],
+        serializer_cls: type[serializers.Serializer],
         io_contract_code: str,
         context: BoundaryContext,
         instance: Any,
         partial: bool = False,
-    ) -> "SerializerBoundary":
+    ) -> SerializerBoundary:
         """Create a boundary for update operations."""
         return cls(
             serializer_cls=serializer_cls,
@@ -699,11 +687,11 @@ class SerializerBoundary:
     @classmethod
     def for_delete(
         cls,
-        serializer_cls: Type[serializers.Serializer],
+        serializer_cls: type[serializers.Serializer],
         io_contract_code: str,
         context: BoundaryContext,
         instance: Any,
-    ) -> "SerializerBoundary":
+    ) -> SerializerBoundary:
         """Create a boundary for delete operations."""
         return cls(
             serializer_cls=serializer_cls,
