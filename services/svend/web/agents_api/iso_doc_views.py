@@ -10,11 +10,9 @@ import uuid
 from io import BytesIO
 
 from django.db import models
-
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import require_team
@@ -26,7 +24,6 @@ from .models import (
     ISODocument,
     ISOSection,
 )
-
 
 # =============================================================================
 # Document Type Registry
@@ -45,10 +42,7 @@ def list_types(request):
             "iso_clause": td.get("iso_clause", ""),
             "category": td.get("category", ""),
             "section_count": len(td["default_sections"]),
-            "sections": [
-                {"key": s["key"], "title": s["title"], "type": s["type"]}
-                for s in td["default_sections"]
-            ],
+            "sections": [{"key": s["key"], "title": s["title"], "type": s["type"]} for s in td["default_sections"]],
         }
     return JsonResponse({"types": types})
 
@@ -95,10 +89,13 @@ def document_list_create(request):
 
     document_type = data.get("document_type", "")
     if document_type not in ISO_DOCUMENT_TYPES:
-        return JsonResponse({
-            "error": f"Invalid document type: {document_type}",
-            "valid_types": list(ISO_DOCUMENT_TYPES.keys()),
-        }, status=400)
+        return JsonResponse(
+            {
+                "error": f"Invalid document type: {document_type}",
+                "valid_types": list(ISO_DOCUMENT_TYPES.keys()),
+            },
+            status=400,
+        )
 
     type_def = ISO_DOCUMENT_TYPES[document_type]
     title = data.get("title", "").strip()
@@ -194,9 +191,7 @@ def section_create(request, doc_id):
             after_sec = doc.sections.get(id=after_id)
             sort_order = after_sec.sort_order + 1
             # Shift subsequent sections
-            doc.sections.filter(sort_order__gte=sort_order).update(
-                sort_order=models.F("sort_order") + 1
-            )
+            doc.sections.filter(sort_order__gte=sort_order).update(sort_order=models.F("sort_order") + 1)
         except ISOSection.DoesNotExist:
             pass
 
@@ -246,6 +241,7 @@ def section_detail(request, doc_id, sec_id):
     if "image_id" in data:
         if data["image_id"]:
             from files.models import UserFile
+
             try:
                 uf = UserFile.objects.get(id=data["image_id"], user=request.user)
                 section.image = uf
@@ -305,6 +301,7 @@ def embed_whiteboard(request, doc_id, sec_id):
         return JsonResponse({"error": "format must be 'svg' or 'png'"}, status=400)
 
     from .models import Board
+
     try:
         board = Board.objects.get(room_code=room_code)
     except Board.DoesNotExist:
@@ -330,11 +327,13 @@ def embed_whiteboard(request, doc_id, sec_id):
     else:
         # Convert SVG to PNG via cairosvg
         import cairosvg
+
         png_bytes = cairosvg.svg2png(
             bytestring=svg_content.encode("utf-8"),
             output_width=min(width, 1200),
         )
         import base64
+
         media_entry["data"] = base64.b64encode(png_bytes).decode("utf-8")
 
     media = section.embedded_media or []
@@ -342,12 +341,14 @@ def embed_whiteboard(request, doc_id, sec_id):
     section.embedded_media = media
     section.save(update_fields=["embedded_media"])
 
-    return JsonResponse({
-        "ok": True,
-        "media_id": media_entry["id"],
-        "format": fmt,
-        "board_name": board.name,
-    })
+    return JsonResponse(
+        {
+            "ok": True,
+            "media_id": media_entry["id"],
+            "format": fmt,
+            "board_name": board.name,
+        }
+    )
 
 
 # =============================================================================
@@ -363,20 +364,25 @@ def export_pdf(request, doc_id):
     sections = list(doc.sections.order_by("sort_order"))
     type_def = ISO_DOCUMENT_TYPES.get(doc.document_type, {})
 
-    html_string = render_to_string("iso_document_print.html", {
-        "document": doc,
-        "sections": sections,
-        "type_def": type_def,
-    })
+    html_string = render_to_string(
+        "iso_document_print.html",
+        {
+            "document": doc,
+            "sections": sections,
+            "type_def": type_def,
+        },
+    )
 
     pdf_buffer = BytesIO()
     try:
         from weasyprint import HTML
+
         HTML(string=html_string, base_url="https://svend.ai").write_pdf(pdf_buffer)
     except Exception:
+        import os
         import subprocess
         import tempfile
-        import os
+
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False, mode="w") as f:
             f.write(html_string)
             html_path = f.name
@@ -384,7 +390,8 @@ def export_pdf(request, doc_id):
         try:
             subprocess.run(
                 ["wkhtmltopdf", "--quiet", html_path, pdf_path],
-                check=True, timeout=30,
+                check=True,
+                timeout=30,
             )
             with open(pdf_path, "rb") as pf:
                 pdf_buffer.write(pf.read())
@@ -416,13 +423,11 @@ def export_docx(request, doc_id):
     type_def = ISO_DOCUMENT_TYPES.get(doc.document_type, {})
 
     from docx import Document as DocxDocument
-    from docx.shared import Inches, Pt
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
 
     docx = DocxDocument()
 
     # Title page
-    title_para = docx.add_heading(doc.title, level=0)
+    docx.add_heading(doc.title, level=0)
     if doc.document_number:
         docx.add_paragraph(f"Document Number: {doc.document_number}")
     docx.add_paragraph(f"Type: {type_def.get('name', doc.document_type)}")
@@ -455,7 +460,7 @@ def export_docx(request, doc_id):
 
 def _render_section_docx(docx, section):
     """Render a single ISOSection into a python-docx Document."""
-    from docx.shared import Pt, Inches
+    from docx.shared import Inches
 
     st = section.section_type
     sd = section.structured_data or {}
@@ -573,6 +578,7 @@ def _render_section_docx(docx, section):
     for m in media:
         if m.get("format") == "png" and m.get("data"):
             import base64
+
             img_bytes = base64.b64decode(m["data"])
             img_buffer = BytesIO(img_bytes)
             try:
@@ -599,9 +605,12 @@ def publish_to_doc_control(request, doc_id):
     doc = get_object_or_404(ISODocument, id=doc_id, owner=request.user)
 
     if doc.status != ISODocument.Status.FINAL:
-        return JsonResponse({
-            "error": "Document must be in 'Final' status to publish to Document Control",
-        }, status=400)
+        return JsonResponse(
+            {
+                "error": "Document must be in 'Final' status to publish to Document Control",
+            },
+            status=400,
+        )
 
     # Render sections to content
     sections = doc.sections.order_by("sort_order")
@@ -670,7 +679,9 @@ def publish_to_doc_control(request, doc_id):
         doc.controlled_document = cd
         doc.save(update_fields=["controlled_document"])
 
-    return JsonResponse({
-        "ok": True,
-        "controlled_document": cd.to_dict(),
-    })
+    return JsonResponse(
+        {
+            "ok": True,
+            "controlled_document": cd.to_dict(),
+        }
+    )

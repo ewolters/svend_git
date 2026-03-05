@@ -18,17 +18,22 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
-from django.db.models import Q
 from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
+from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import require_feature
+
+from .hoshin_views import _get_accessible_sites, _require_tenant
 from .models import (
-    StrategicObjective, AnnualObjective, HoshinKPI,
-    XMatrixCorrelation, HoshinProject, ValueStreamMap, Site,
+    AnnualObjective,
+    HoshinKPI,
+    HoshinProject,
+    Site,
+    StrategicObjective,
+    ValueStreamMap,
+    XMatrixCorrelation,
 )
-from .hoshin_views import _require_tenant, _get_accessible_sites
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +41,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # X-Matrix data endpoint (the core)
 # ---------------------------------------------------------------------------
+
 
 @require_feature("hoshin_kanri")
 @require_http_methods(["GET"])
@@ -65,23 +71,30 @@ def get_xmatrix_data(request):
 
     # Annual objectives for this FY
     annual = AnnualObjective.objects.filter(
-        tenant=tenant, fiscal_year=fiscal_year,
+        tenant=tenant,
+        fiscal_year=fiscal_year,
     ).select_related("site", "strategic_objective")
 
     # Hoshin projects for this FY
-    projects = HoshinProject.objects.filter(
-        site__in=accessible_sites,
-        fiscal_year=fiscal_year,
-    ).exclude(hoshin_status="aborted").select_related("project", "site")
+    projects = (
+        HoshinProject.objects.filter(
+            site__in=accessible_sites,
+            fiscal_year=fiscal_year,
+        )
+        .exclude(hoshin_status="aborted")
+        .select_related("project", "site")
+    )
 
     # KPIs for this FY
     kpis = HoshinKPI.objects.filter(
-        tenant=tenant, fiscal_year=fiscal_year,
+        tenant=tenant,
+        fiscal_year=fiscal_year,
     ).select_related("derived_from")
 
     # Correlations for this FY
     correlations = XMatrixCorrelation.objects.filter(
-        tenant=tenant, fiscal_year=fiscal_year,
+        tenant=tenant,
+        fiscal_year=fiscal_year,
     )
 
     # Build valid ID sets for filtering out orphaned correlations
@@ -113,9 +126,7 @@ def get_xmatrix_data(request):
 
     # Dollar rollup: strategic → annual → projects
     project_map = {str(p.id): p for p in projects}
-    annual_project_links = [
-        c for c in correlations if c.pair_type == "annual_project"
-    ]
+    annual_project_links = [c for c in correlations if c.pair_type == "annual_project"]
 
     rollup_by_strategic = []
     for so in strategic:
@@ -123,10 +134,7 @@ def get_xmatrix_data(request):
         so_agg = so_meta.get("aggregation", "sum")
         so_unit = so_meta.get("unit", so.target_unit or "$")
 
-        linked_annual = [
-            a for a in annual
-            if str(a.strategic_objective_id) == str(so.id)
-        ]
+        linked_annual = [a for a in annual if str(a.strategic_objective_id) == str(so.id)]
         linked_project_ids = set()
         for ao in linked_annual:
             for link in annual_project_links:
@@ -140,7 +148,7 @@ def get_xmatrix_data(request):
                 proj = project_map.get(pid)
                 if not proj:
                     continue
-                for entry in (proj.monthly_actuals or []):
+                for entry in proj.monthly_actuals or []:
                     actual = entry.get("actual")
                     volume = entry.get("volume")
                     if actual is not None and volume:
@@ -148,41 +156,41 @@ def get_xmatrix_data(request):
                         total_v += float(volume)
             linked_actual = round(total_w / total_v, 4) if total_v > 0 else None
             linked_target_val = float(so.target_value) if so.target_value else None
-            rollup_by_strategic.append({
-                "id": str(so.id),
-                "title": so.title,
-                "unit": so_unit,
-                "aggregation": so_agg,
-                "direction": so_meta.get("direction", "up"),
-                "linked_target": linked_target_val,
-                "linked_ytd": linked_actual,
-                "total_volume": round(total_v, 2) if total_v > 0 else None,
-            })
+            rollup_by_strategic.append(
+                {
+                    "id": str(so.id),
+                    "title": so.title,
+                    "unit": so_unit,
+                    "aggregation": so_agg,
+                    "direction": so_meta.get("direction", "up"),
+                    "linked_target": linked_target_val,
+                    "linked_ytd": linked_actual,
+                    "total_volume": round(total_v, 2) if total_v > 0 else None,
+                }
+            )
         else:
             # Default: sum dollar savings
             linked_target = sum(
-                float(project_map[pid].annual_savings_target)
-                for pid in linked_project_ids if pid in project_map
+                float(project_map[pid].annual_savings_target) for pid in linked_project_ids if pid in project_map
             )
-            linked_ytd = sum(
-                float(project_map[pid].ytd_savings)
-                for pid in linked_project_ids if pid in project_map
+            linked_ytd = sum(float(project_map[pid].ytd_savings) for pid in linked_project_ids if pid in project_map)
+            rollup_by_strategic.append(
+                {
+                    "id": str(so.id),
+                    "title": so.title,
+                    "unit": so_unit,
+                    "aggregation": so_agg,
+                    "direction": so_meta.get("direction", "up"),
+                    "linked_target": round(linked_target, 2),
+                    "linked_ytd": round(linked_ytd, 2),
+                }
             )
-            rollup_by_strategic.append({
-                "id": str(so.id),
-                "title": so.title,
-                "unit": so_unit,
-                "aggregation": so_agg,
-                "direction": so_meta.get("direction", "up"),
-                "linked_target": round(linked_target, 2),
-                "linked_ytd": round(linked_ytd, 2),
-            })
 
     total_target = float(sum(p.annual_savings_target for p in projects))
     total_ytd = float(sum(p.ytd_savings for p in projects))
 
     # KPI rollup — aggregate across correlated projects per KPI
-    kpi_map = {str(k.id): k for k in kpis}
+    {str(k.id): k for k in kpis}
     project_kpi_links = [c for c in correlations if c.pair_type == "project_kpi"]
     kpi_rollup = []
     for kpi in kpis:
@@ -205,10 +213,7 @@ def get_xmatrix_data(request):
 
         if agg == "sum":
             # Sum dollar savings across correlated projects
-            agg_value = sum(
-                float(project_map[pid].ytd_savings)
-                for pid in correlated_pids if pid in project_map
-            )
+            agg_value = sum(float(project_map[pid].ytd_savings) for pid in correlated_pids if pid in project_map)
             rollup_entry["aggregated_value"] = round(agg_value, 2)
 
         elif agg == "weighted_avg":
@@ -219,7 +224,7 @@ def get_xmatrix_data(request):
                 proj = project_map.get(pid)
                 if not proj:
                     continue
-                for entry in (proj.monthly_actuals or []):
+                for entry in proj.monthly_actuals or []:
                     actual = entry.get("actual")
                     volume = entry.get("volume")
                     if actual is not None and volume:
@@ -242,31 +247,31 @@ def get_xmatrix_data(request):
         kpi_rollup.append(rollup_entry)
 
     # Expose metric catalog to frontend for dropdown rendering
-    metric_catalog = {
-        k: {ck: cv for ck, cv in v.items()}
-        for k, v in HoshinKPI.METRIC_CATALOG.items()
-    }
+    metric_catalog = {k: {ck: cv for ck, cv in v.items()} for k, v in HoshinKPI.METRIC_CATALOG.items()}
 
-    return JsonResponse({
-        "fiscal_year": fiscal_year,
-        "strategic_objectives": [s.to_dict() for s in strategic],
-        "annual_objectives": [a.to_dict() for a in annual],
-        "projects": [p.to_dict() for p in projects],
-        "kpis": [k.to_dict() for k in kpis],
-        "correlations": corr_grouped,
-        "metric_catalog": metric_catalog,
-        "rollup": {
-            "total_target": round(total_target, 2),
-            "total_ytd": round(total_ytd, 2),
-            "by_strategic_objective": rollup_by_strategic,
-            "by_kpi": kpi_rollup,
-        },
-    })
+    return JsonResponse(
+        {
+            "fiscal_year": fiscal_year,
+            "strategic_objectives": [s.to_dict() for s in strategic],
+            "annual_objectives": [a.to_dict() for a in annual],
+            "projects": [p.to_dict() for p in projects],
+            "kpis": [k.to_dict() for k in kpis],
+            "correlations": corr_grouped,
+            "metric_catalog": metric_catalog,
+            "rollup": {
+                "total_target": round(total_target, 2),
+                "total_ytd": round(total_ytd, 2),
+                "by_strategic_objective": rollup_by_strategic,
+                "by_kpi": kpi_rollup,
+            },
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # Auto-suggestion engine
 # ---------------------------------------------------------------------------
+
 
 def _auto_suggest_correlations(tenant, fiscal_year, accessible_sites):
     """Pre-compute suggested correlations from data lineage.
@@ -274,57 +279,90 @@ def _auto_suggest_correlations(tenant, fiscal_year, accessible_sites):
     Only creates if no existing correlation (manual or auto) for that pair.
     Never overwrites human decisions.
     """
-    annual_objs = list(AnnualObjective.objects.filter(
-        tenant=tenant, fiscal_year=fiscal_year,
-    ).select_related("site", "strategic_objective"))
+    annual_objs = list(
+        AnnualObjective.objects.filter(
+            tenant=tenant,
+            fiscal_year=fiscal_year,
+        ).select_related("site", "strategic_objective")
+    )
 
-    projects = list(HoshinProject.objects.filter(
-        site__in=accessible_sites, fiscal_year=fiscal_year,
-    ).exclude(hoshin_status="aborted").select_related("site"))
+    projects = list(
+        HoshinProject.objects.filter(
+            site__in=accessible_sites,
+            fiscal_year=fiscal_year,
+        )
+        .exclude(hoshin_status="aborted")
+        .select_related("site")
+    )
 
-    kpis = list(HoshinKPI.objects.filter(
-        tenant=tenant, fiscal_year=fiscal_year,
-    ))
+    kpis = list(
+        HoshinKPI.objects.filter(
+            tenant=tenant,
+            fiscal_year=fiscal_year,
+        )
+    )
 
-    strategic_objs = list(StrategicObjective.objects.filter(
-        tenant=tenant,
-        start_year__lte=fiscal_year,
-        end_year__gte=fiscal_year,
-    ).exclude(status="deferred"))
+    strategic_objs = list(
+        StrategicObjective.objects.filter(
+            tenant=tenant,
+            start_year__lte=fiscal_year,
+            end_year__gte=fiscal_year,
+        ).exclude(status="deferred")
+    )
 
     suggestions = []
 
     # strategic_annual: AnnualObjective has FK to StrategicObjective
     for ao in annual_objs:
         if ao.strategic_objective_id:
-            suggestions.append((
-                "strategic_annual", ao.strategic_objective_id, ao.id, "strong",
-            ))
+            suggestions.append(
+                (
+                    "strategic_annual",
+                    ao.strategic_objective_id,
+                    ao.id,
+                    "strong",
+                )
+            )
 
     # annual_project: same site + same fiscal year
     for ao in annual_objs:
         for p in projects:
             if ao.site_id and p.site_id and str(ao.site_id) == str(p.site_id):
-                suggestions.append((
-                    "annual_project", ao.id, p.id, "moderate",
-                ))
+                suggestions.append(
+                    (
+                        "annual_project",
+                        ao.id,
+                        p.id,
+                        "moderate",
+                    )
+                )
 
     # project_kpi: KPI derived_from == project (strong)
     #   + metric catalog filter_method match (moderate)
     for kpi in kpis:
         if kpi.derived_from_id:
-            suggestions.append((
-                "project_kpi", kpi.derived_from_id, kpi.id, "strong",
-            ))
+            suggestions.append(
+                (
+                    "project_kpi",
+                    kpi.derived_from_id,
+                    kpi.id,
+                    "strong",
+                )
+            )
         # Auto-suggest based on matching calculation_method
         meta = HoshinKPI.METRIC_CATALOG.get(kpi.calculator_result_type, {})
         filter_method = meta.get("filter_method")
         if filter_method:
             for p in projects:
                 if p.calculation_method == filter_method:
-                    suggestions.append((
-                        "project_kpi", p.id, kpi.id, "moderate",
-                    ))
+                    suggestions.append(
+                        (
+                            "project_kpi",
+                            p.id,
+                            kpi.id,
+                            "moderate",
+                        )
+                    )
 
     # kpi_strategic: matching metric catalog key
     for kpi in kpis:
@@ -333,17 +371,27 @@ def _auto_suggest_correlations(tenant, fiscal_year, accessible_sites):
             so_metric = so.target_metric or ""
             if so_metric and kpi_metric and so_metric == kpi_metric:
                 # Exact catalog key match → strong
-                suggestions.append((
-                    "kpi_strategic", kpi.id, so.id, "strong",
-                ))
+                suggestions.append(
+                    (
+                        "kpi_strategic",
+                        kpi.id,
+                        so.id,
+                        "strong",
+                    )
+                )
             elif so_metric and kpi_metric:
                 # Same group match (e.g. both dollar savings)
                 so_group = HoshinKPI.METRIC_CATALOG.get(so_metric, {}).get("group")
                 kpi_group = HoshinKPI.METRIC_CATALOG.get(kpi_metric, {}).get("group")
                 if so_group and so_group == kpi_group:
-                    suggestions.append((
-                        "kpi_strategic", kpi.id, so.id, "moderate",
-                    ))
+                    suggestions.append(
+                        (
+                            "kpi_strategic",
+                            kpi.id,
+                            so.id,
+                            "moderate",
+                        )
+                    )
 
     # Batch create — skip existing
     for pair_type, row_id, col_id, strength in suggestions:
@@ -364,6 +412,7 @@ def _auto_suggest_correlations(tenant, fiscal_year, accessible_sites):
 # ---------------------------------------------------------------------------
 # Correlation CRUD
 # ---------------------------------------------------------------------------
+
 
 @require_feature("hoshin_kanri")
 @require_http_methods(["POST"])
@@ -394,8 +443,10 @@ def update_correlation(request):
     # Delete if strength is null/empty
     if not strength:
         deleted, _ = XMatrixCorrelation.objects.filter(
-            tenant=tenant, pair_type=pair_type,
-            row_id=row_id, col_id=col_id,
+            tenant=tenant,
+            pair_type=pair_type,
+            row_id=row_id,
+            col_id=col_id,
         ).delete()
         return JsonResponse({"success": True, "deleted": deleted > 0})
 
@@ -430,6 +481,7 @@ def update_correlation(request):
 # Strategic Objectives CRUD
 # ---------------------------------------------------------------------------
 
+
 @require_feature("hoshin_kanri")
 @require_http_methods(["GET", "POST"])
 def list_create_strategic_objectives(request):
@@ -447,9 +499,11 @@ def list_create_strategic_objectives(request):
                 qs = qs.filter(start_year__lte=fy, end_year__gte=fy)
             except ValueError:
                 pass
-        return JsonResponse({
-            "strategic_objectives": [s.to_dict() for s in qs],
-        })
+        return JsonResponse(
+            {
+                "strategic_objectives": [s.to_dict() for s in qs],
+            }
+        )
 
     # POST
     try:
@@ -524,6 +578,7 @@ def update_delete_strategic_objective(request, obj_id):
 # Annual Objectives CRUD
 # ---------------------------------------------------------------------------
 
+
 @require_feature("hoshin_kanri")
 @require_http_methods(["GET", "POST"])
 def list_create_annual_objectives(request):
@@ -540,11 +595,14 @@ def list_create_annual_objectives(request):
             fiscal_year = date.today().year
 
         qs = AnnualObjective.objects.filter(
-            tenant=tenant, fiscal_year=fiscal_year,
+            tenant=tenant,
+            fiscal_year=fiscal_year,
         ).select_related("site", "strategic_objective")
-        return JsonResponse({
-            "annual_objectives": [a.to_dict() for a in qs],
-        })
+        return JsonResponse(
+            {
+                "annual_objectives": [a.to_dict() for a in qs],
+            }
+        )
 
     # POST
     try:
@@ -563,7 +621,9 @@ def list_create_annual_objectives(request):
     strategic = None
     if data.get("strategic_objective_id"):
         strategic = get_object_or_404(
-            StrategicObjective, id=data["strategic_objective_id"], tenant=tenant,
+            StrategicObjective,
+            id=data["strategic_objective_id"],
+            tenant=tenant,
         )
 
     obj = AnnualObjective.objects.create(
@@ -618,7 +678,8 @@ def update_delete_annual_objective(request, obj_id):
     if "strategic_objective_id" in data:
         obj.strategic_objective = (
             get_object_or_404(StrategicObjective, id=data["strategic_objective_id"], tenant=tenant)
-            if data["strategic_objective_id"] else None
+            if data["strategic_objective_id"]
+            else None
         )
     obj.save()
     return JsonResponse({"success": True, "annual_objective": obj.to_dict()})
@@ -627,6 +688,7 @@ def update_delete_annual_objective(request, obj_id):
 # ---------------------------------------------------------------------------
 # KPIs CRUD
 # ---------------------------------------------------------------------------
+
 
 @require_feature("hoshin_kanri")
 @require_http_methods(["GET", "POST"])
@@ -644,11 +706,14 @@ def list_create_kpis(request):
             fiscal_year = date.today().year
 
         qs = HoshinKPI.objects.filter(
-            tenant=tenant, fiscal_year=fiscal_year,
+            tenant=tenant,
+            fiscal_year=fiscal_year,
         ).select_related("derived_from")
-        return JsonResponse({
-            "kpis": [k.to_dict() for k in qs],
-        })
+        return JsonResponse(
+            {
+                "kpis": [k.to_dict() for k in qs],
+            }
+        )
 
     # POST
     try:
@@ -732,8 +797,7 @@ def update_delete_kpi(request, kpi_id):
         obj.actual_value = _decimal_or_none(data["actual_value"])
     if "derived_from_id" in data:
         obj.derived_from = (
-            get_object_or_404(HoshinProject, id=data["derived_from_id"])
-            if data["derived_from_id"] else None
+            get_object_or_404(HoshinProject, id=data["derived_from_id"]) if data["derived_from_id"] else None
         )
     obj.save()
     return JsonResponse({"success": True, "kpi": obj.to_dict()})
@@ -742,6 +806,7 @@ def update_delete_kpi(request, kpi_id):
 # ---------------------------------------------------------------------------
 # VSM Lifecycle — Promotion
 # ---------------------------------------------------------------------------
+
 
 @require_feature("hoshin_kanri")
 @require_http_methods(["POST"])
@@ -761,12 +826,14 @@ def promote_vsm(request, vsm_id):
 
     if vsm.status != "future":
         return JsonResponse(
-            {"error": "Only future-state maps can be promoted"}, status=400,
+            {"error": "Only future-state maps can be promoted"},
+            status=400,
         )
 
     if not vsm.paired_with_id:
         return JsonResponse(
-            {"error": "No paired current-state map found"}, status=400,
+            {"error": "No paired current-state map found"},
+            status=400,
         )
 
     old_current = vsm.paired_with
@@ -798,7 +865,8 @@ def promote_vsm(request, vsm_id):
 def _writeback_hoshin_savings(vsm, tenant):
     """Annotate VSM kaizen bursts with realized savings from linked projects."""
     projects = HoshinProject.objects.filter(
-        source_vsm=vsm, site__tenant=tenant,
+        source_vsm=vsm,
+        site__tenant=tenant,
     ).select_related("project")
 
     bursts = list(vsm.kaizen_bursts or [])
@@ -821,6 +889,7 @@ def _writeback_hoshin_savings(vsm, tenant):
 # ---------------------------------------------------------------------------
 # Fiscal Year Rollover
 # ---------------------------------------------------------------------------
+
 
 @require_feature("hoshin_kanri")
 @require_http_methods(["POST"])
@@ -855,7 +924,8 @@ def rollover_fiscal_year(request):
 
     # Idempotency check
     existing = AnnualObjective.objects.filter(
-        tenant=tenant, fiscal_year=to_year,
+        tenant=tenant,
+        fiscal_year=to_year,
     ).count()
     if existing > 0:
         return JsonResponse(
@@ -864,13 +934,19 @@ def rollover_fiscal_year(request):
         )
 
     # Get source objects
-    source_annuals = list(AnnualObjective.objects.filter(
-        tenant=tenant, fiscal_year=from_year,
-    ).select_related("strategic_objective"))
+    source_annuals = list(
+        AnnualObjective.objects.filter(
+            tenant=tenant,
+            fiscal_year=from_year,
+        ).select_related("strategic_objective")
+    )
 
-    source_kpis = list(HoshinKPI.objects.filter(
-        tenant=tenant, fiscal_year=from_year,
-    ))
+    source_kpis = list(
+        HoshinKPI.objects.filter(
+            tenant=tenant,
+            fiscal_year=from_year,
+        )
+    )
 
     old_to_new_annual = {}
 
@@ -901,7 +977,8 @@ def rollover_fiscal_year(request):
 
         # Recreate strategic_annual correlations using old→new mapping
         old_corrs = XMatrixCorrelation.objects.filter(
-            tenant=tenant, fiscal_year=from_year,
+            tenant=tenant,
+            fiscal_year=from_year,
             pair_type="strategic_annual",
         )
         for c in old_corrs:
@@ -920,20 +997,23 @@ def rollover_fiscal_year(request):
                     },
                 )
 
-    return JsonResponse({
-        "success": True,
-        "rolled_over": {
-            "annual_objectives": len(old_to_new_annual),
-            "kpis": len(source_kpis),
-            "from_year": from_year,
-            "to_year": to_year,
-        },
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "rolled_over": {
+                "annual_objectives": len(old_to_new_annual),
+                "kpis": len(source_kpis),
+                "from_year": from_year,
+                "to_year": to_year,
+            },
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _decimal_or_none(val):
     """Convert a value to Decimal, or return None."""

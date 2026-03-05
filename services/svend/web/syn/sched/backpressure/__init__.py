@@ -27,9 +27,9 @@ Throttle Levels:
     CRITICAL (1.0) - Full stop (circuit open)
 """
 
-from .health import SystemHealthMonitor, HealthMetrics, HealthStatus
-from .throttle import ThrottlePolicy, ThrottleLevel, ThrottleDecision
-from .controller import BackpressureController, BackpressureConfig
+from .controller import BackpressureConfig, BackpressureController
+from .health import HealthMetrics, HealthStatus, SystemHealthMonitor
+from .throttle import ThrottleDecision, ThrottleLevel, ThrottlePolicy
 
 __all__ = [
     # Health Monitoring

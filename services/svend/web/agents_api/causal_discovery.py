@@ -16,6 +16,7 @@ Dependencies: causal-learn (CMU), numpy, scipy
 """
 
 import logging
+
 import numpy as np
 from scipy import stats as sp_stats
 
@@ -137,10 +138,10 @@ def _run_pc_core(data, labels, alpha, max_cond_size):
     # Use causal-learn's PC with Fisher z (it uses the precision matrix approach internally)
     # But we also run our own CI tests to capture separating sets with p-values
     import warnings
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        cg = pc(data, alpha=alpha, indep_test='fisherz',
-                node_names=labels, depth=max_cond_size)
+        cg = pc(data, alpha=alpha, indep_test="fisherz", node_names=labels, depth=max_cond_size)
 
     graph_matrix = cg.G.graph  # p×p, -1=tail, 1=arrowhead
 
@@ -154,8 +155,7 @@ def _run_pc_core(data, labels, alpha, max_cond_size):
         for j in range(i + 1, p):
             # If no edge exists, find the separating set
             if graph_matrix[i, j] == 0 and graph_matrix[j, i] == 0:
-                raw = sepset[i][j] if sepset[i][j] is not None else (
-                    sepset[j][i] if sepset[j][i] is not None else None)
+                raw = sepset[i][j] if sepset[i][j] is not None else (sepset[j][i] if sepset[j][i] is not None else None)
                 if raw is not None:
                     # raw is a list of tuples, e.g. [(2,), (2,)] — take first
                     first = raw[0] if isinstance(raw, list) and len(raw) > 0 else raw
@@ -174,9 +174,7 @@ def _run_pc_core(data, labels, alpha, max_cond_size):
 
                     if depth not in edges_removed_by_depth:
                         edges_removed_by_depth[depth] = []
-                    edges_removed_by_depth[depth].append(
-                        (labels[i], labels[j], cond_names, pval)
-                    )
+                    edges_removed_by_depth[depth].append((labels[i], labels[j], cond_names, pval))
 
     return graph_matrix, separating_sets, edges_removed_by_depth
 
@@ -215,10 +213,11 @@ def _run_pc_analysis(data, labels, alpha, max_cond_size, n_boot, result):
     edge_stability = _bootstrap_pc(data, labels, alpha, max_cond_size, n_boot)
 
     # --- Build plots ---
-    result["plots"].append(_build_dag_plot(
-        labels, directed_edges, undirected_edges, edge_stability,
-        title="PC Algorithm — Candidate Causal Structure"
-    ))
+    result["plots"].append(
+        _build_dag_plot(
+            labels, directed_edges, undirected_edges, edge_stability, title="PC Algorithm — Candidate Causal Structure"
+        )
+    )
 
     # Edge stability bar chart
     if edge_stability:
@@ -226,20 +225,21 @@ def _run_pc_analysis(data, labels, alpha, max_cond_size, n_boot, result):
 
     # --- Summary ---
     result["summary"] = _build_pc_summary(
-        labels, directed_edges, undirected_edges, sep_sets,
-        removed_by_depth, edge_stability, alpha, max_cond_size, n, p
+        labels, directed_edges, undirected_edges, sep_sets, removed_by_depth, edge_stability, alpha, max_cond_size, n, p
     )
 
     # --- Statistics dict ---
     adj_list = []
     for src, tgt, strength in directed_edges:
         stab = edge_stability.get(_edge_key(src, tgt), 0)
-        adj_list.append({"from": src, "to": tgt, "type": "directed",
-                         "strength": round(strength, 4), "stability": round(stab, 3)})
+        adj_list.append(
+            {"from": src, "to": tgt, "type": "directed", "strength": round(strength, 4), "stability": round(stab, 3)}
+        )
     for a, b, strength in undirected_edges:
         stab = edge_stability.get(_edge_key(a, b), 0)
-        adj_list.append({"from": a, "to": b, "type": "undirected",
-                         "strength": round(strength, 4), "stability": round(stab, 3)})
+        adj_list.append(
+            {"from": a, "to": b, "type": "undirected", "strength": round(strength, 4), "stability": round(stab, 3)}
+        )
 
     result["statistics"] = {
         "algorithm": "PC",
@@ -264,8 +264,11 @@ def _run_pc_analysis(data, labels, alpha, max_cond_size, n_boot, result):
     result["guide_observation"] = (
         f"PC algorithm found {len(directed_edges)} directed and {len(undirected_edges)} "
         f"undirected edges among {p} variables (α={alpha}, n={n}). "
-        + ("All edges >70% stable under bootstrap." if all(v >= 0.7 for v in edge_stability.values()) else
-           "Some edges <70% bootstrap stability — interpret with caution.")
+        + (
+            "All edges >70% stable under bootstrap."
+            if all(v >= 0.7 for v in edge_stability.values())
+            else "Some edges <70% bootstrap stability — interpret with caution."
+        )
     )
 
     return result
@@ -277,6 +280,7 @@ def _bootstrap_pc(data, labels, alpha, max_cond_size, n_boot):
     edge_counts = {}
 
     import warnings
+
     from causallearn.search.ConstraintBased.PC import pc
 
     for b in range(n_boot):
@@ -286,8 +290,7 @@ def _bootstrap_pc(data, labels, alpha, max_cond_size, n_boot):
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                cg = pc(boot_data, alpha=alpha, indep_test='fisherz',
-                        node_names=labels, depth=max_cond_size)
+                cg = pc(boot_data, alpha=alpha, indep_test="fisherz", node_names=labels, depth=max_cond_size)
             G = cg.G.graph
             for i in range(p):
                 for j in range(i + 1, p):
@@ -305,8 +308,9 @@ def _bootstrap_pc(data, labels, alpha, max_cond_size, n_boot):
 # ===========================================================================
 def _run_lingam_analysis(data, labels, alpha, n_boot, result):
     """Full LiNGAM analysis with bootstrap stability."""
-    from causallearn.search.FCMBased import lingam as cl_lingam
     import warnings
+
+    from causallearn.search.FCMBased import lingam as cl_lingam
 
     n, p = data.shape
 
@@ -353,25 +357,27 @@ def _run_lingam_analysis(data, labels, alpha, n_boot, result):
         _, sw_p = sp_stats.shapiro(sample)
         if sw_p > 0.05:
             gaussianity_warnings.append(
-                f"  {labels[j]}: Shapiro-Wilk p={sw_p:.3f} — may be Gaussian "
-                f"(LiNGAM assumes non-Gaussian noise)"
+                f"  {labels[j]}: Shapiro-Wilk p={sw_p:.3f} — may be Gaussian (LiNGAM assumes non-Gaussian noise)"
             )
 
     # --- Build plots ---
-    result["plots"].append(_build_dag_plot(
-        labels, directed_edges, [],
-        edge_stability,
-        title="LiNGAM — Estimated Causal Structure",
-        show_coefficients=True,
-    ))
+    result["plots"].append(
+        _build_dag_plot(
+            labels,
+            directed_edges,
+            [],
+            edge_stability,
+            title="LiNGAM — Estimated Causal Structure",
+            show_coefficients=True,
+        )
+    )
 
     if edge_stability:
         result["plots"].append(_build_stability_plot(edge_stability, labels))
 
     # --- Summary ---
     result["summary"] = _build_lingam_summary(
-        labels, directed_edges, causal_order, edge_stability,
-        edge_cis, gaussianity_warnings, n, p, n_boot
+        labels, directed_edges, causal_order, edge_stability, edge_cis, gaussianity_warnings, n, p, n_boot
     )
 
     # --- Statistics ---
@@ -380,13 +386,17 @@ def _run_lingam_analysis(data, labels, alpha, n_boot, result):
         key = _edge_key(src, tgt)
         stab = edge_stability.get(key, 0)
         ci = edge_cis.get(key, {})
-        adj_list.append({
-            "from": src, "to": tgt, "type": "directed",
-            "coefficient": round(coef, 4),
-            "stability": round(stab, 3),
-            "ci_low": round(ci.get("ci_low", 0), 4),
-            "ci_high": round(ci.get("ci_high", 0), 4),
-        })
+        adj_list.append(
+            {
+                "from": src,
+                "to": tgt,
+                "type": "directed",
+                "coefficient": round(coef, 4),
+                "stability": round(stab, 3),
+                "ci_low": round(ci.get("ci_low", 0), 4),
+                "ci_high": round(ci.get("ci_high", 0), 4),
+            }
+        )
 
     result["statistics"] = {
         "algorithm": "LiNGAM (ICA)",
@@ -403,9 +413,12 @@ def _run_lingam_analysis(data, labels, alpha, n_boot, result):
     result["guide_observation"] = (
         f"LiNGAM found {len(directed_edges)} causal edges among {p} variables (n={n}). "
         f"Causal order: {' → '.join(labels[i] for i in causal_order)}. "
-        + (f"WARNING: {len(gaussianity_warnings)} variable(s) may be Gaussian — "
-           "LiNGAM results unreliable for those edges." if gaussianity_warnings else
-           "All variables appear non-Gaussian — LiNGAM assumptions satisfied.")
+        + (
+            f"WARNING: {len(gaussianity_warnings)} variable(s) may be Gaussian — "
+            "LiNGAM results unreliable for those edges."
+            if gaussianity_warnings
+            else "All variables appear non-Gaussian — LiNGAM assumptions satisfied."
+        )
     )
 
     return result
@@ -413,8 +426,9 @@ def _run_lingam_analysis(data, labels, alpha, n_boot, result):
 
 def _bootstrap_lingam(data, labels, n_boot):
     """Bootstrap LiNGAM for edge stability and coefficient distributions."""
-    from causallearn.search.FCMBased import lingam as cl_lingam
     import warnings
+
+    from causallearn.search.FCMBased import lingam as cl_lingam
 
     n, p = data.shape
     edge_counts = {}
@@ -447,16 +461,16 @@ def _bootstrap_lingam(data, labels, n_boot):
 # ===========================================================================
 # Plotting
 # ===========================================================================
-def _build_dag_plot(labels, directed_edges, undirected_edges, edge_stability,
-                    title="Causal Discovery", show_coefficients=False):
+def _build_dag_plot(
+    labels, directed_edges, undirected_edges, edge_stability, title="Causal Discovery", show_coefficients=False
+):
     """Build a Plotly figure of the causal DAG with nodes in a circle layout."""
     p = len(labels)
     # Circle layout
     angles = np.linspace(0, 2 * np.pi, p, endpoint=False)
     # Start from top, go clockwise
     angles = np.pi / 2 - angles
-    pos = {labels[i]: (float(np.cos(angles[i])), float(np.sin(angles[i])))
-           for i in range(p)}
+    pos = {labels[i]: (float(np.cos(angles[i])), float(np.sin(angles[i]))) for i in range(p)}
 
     traces = []
 
@@ -467,14 +481,18 @@ def _build_dag_plot(labels, directed_edges, undirected_edges, edge_stability,
         key = _edge_key(a, b)
         stab = edge_stability.get(key, 0)
         opacity = max(0.3, min(1.0, stab))
-        traces.append({
-            "type": "scatter", "mode": "lines",
-            "x": [x0, x1, None], "y": [y0, y1, None],
-            "line": {"color": f"rgba(150,150,150,{opacity})", "width": 1.5, "dash": "dash"},
-            "hoverinfo": "text",
-            "text": f"{a} — {b} (undirected, stability={stab:.0%})",
-            "showlegend": False,
-        })
+        traces.append(
+            {
+                "type": "scatter",
+                "mode": "lines",
+                "x": [x0, x1, None],
+                "y": [y0, y1, None],
+                "line": {"color": f"rgba(150,150,150,{opacity})", "width": 1.5, "dash": "dash"},
+                "hoverinfo": "text",
+                "text": f"{a} — {b} (undirected, stability={stab:.0%})",
+                "showlegend": False,
+            }
+        )
 
     # --- Directed edges (with arrowheads via annotations) ---
     annotations = []
@@ -487,7 +505,7 @@ def _build_dag_plot(labels, directed_edges, undirected_edges, edge_stability,
 
         # Shorten line slightly so arrow doesn't overlap node
         dx, dy = x1 - x0, y1 - y0
-        dist = np.sqrt(dx ** 2 + dy ** 2)
+        dist = np.sqrt(dx**2 + dy**2)
         if dist > 0:
             shrink = 0.12 / dist
             x0s = x0 + dx * shrink
@@ -500,51 +518,75 @@ def _build_dag_plot(labels, directed_edges, undirected_edges, edge_stability,
         color = f"rgba(74,159,110,{opacity})"
         width = max(1.5, abs(coef_or_strength) * 4) if show_coefficients else 2
 
-        traces.append({
-            "type": "scatter", "mode": "lines",
-            "x": [x0s, x1s, None], "y": [y0s, y1s, None],
-            "line": {"color": color, "width": width},
-            "hoverinfo": "text",
-            "text": (f"{src} → {tgt} (coef={coef_or_strength:.3f}, stability={stab:.0%})"
-                     if show_coefficients else
-                     f"{src} → {tgt} (stability={stab:.0%})"),
-            "showlegend": False,
-        })
+        traces.append(
+            {
+                "type": "scatter",
+                "mode": "lines",
+                "x": [x0s, x1s, None],
+                "y": [y0s, y1s, None],
+                "line": {"color": color, "width": width},
+                "hoverinfo": "text",
+                "text": (
+                    f"{src} → {tgt} (coef={coef_or_strength:.3f}, stability={stab:.0%})"
+                    if show_coefficients
+                    else f"{src} → {tgt} (stability={stab:.0%})"
+                ),
+                "showlegend": False,
+            }
+        )
 
         # Arrowhead annotation
-        annotations.append({
-            "x": x1s, "y": y1s,
-            "ax": x0s, "ay": y0s,
-            "xref": "x", "yref": "y", "axref": "x", "ayref": "y",
-            "showarrow": True,
-            "arrowhead": 2, "arrowsize": 1.5, "arrowwidth": width,
-            "arrowcolor": color,
-            "standoff": 0,
-        })
+        annotations.append(
+            {
+                "x": x1s,
+                "y": y1s,
+                "ax": x0s,
+                "ay": y0s,
+                "xref": "x",
+                "yref": "y",
+                "axref": "x",
+                "ayref": "y",
+                "showarrow": True,
+                "arrowhead": 2,
+                "arrowsize": 1.5,
+                "arrowwidth": width,
+                "arrowcolor": color,
+                "standoff": 0,
+            }
+        )
 
         # Edge label (coefficient)
         if show_coefficients:
             mx, my = (x0s + x1s) / 2, (y0s + y1s) / 2
-            annotations.append({
-                "x": mx, "y": my, "text": f"{coef_or_strength:.2f}",
-                "showarrow": False,
-                "font": {"size": 9, "color": "#aaa"},
-                "bgcolor": "rgba(26,26,46,0.7)",
-            })
+            annotations.append(
+                {
+                    "x": mx,
+                    "y": my,
+                    "text": f"{coef_or_strength:.2f}",
+                    "showarrow": False,
+                    "font": {"size": 9, "color": "#aaa"},
+                    "bgcolor": "rgba(26,26,46,0.7)",
+                }
+            )
 
     # --- Nodes ---
-    node_x = [pos[l][0] for l in labels]
-    node_y = [pos[l][1] for l in labels]
-    traces.append({
-        "type": "scatter", "mode": "markers+text",
-        "x": node_x, "y": node_y,
-        "marker": {"size": 28, "color": "#1a3a5c", "line": {"width": 2, "color": "#4a9f6e"}},
-        "text": labels, "textposition": "middle center",
-        "textfont": {"color": "white", "size": 10},
-        "hoverinfo": "text",
-        "hovertext": labels,
-        "showlegend": False,
-    })
+    node_x = [pos[lbl][0] for lbl in labels]
+    node_y = [pos[lbl][1] for lbl in labels]
+    traces.append(
+        {
+            "type": "scatter",
+            "mode": "markers+text",
+            "x": node_x,
+            "y": node_y,
+            "marker": {"size": 28, "color": "#1a3a5c", "line": {"width": 2, "color": "#4a9f6e"}},
+            "text": labels,
+            "textposition": "middle center",
+            "textfont": {"color": "white", "size": 10},
+            "hoverinfo": "text",
+            "hovertext": labels,
+            "showlegend": False,
+        }
+    )
 
     return {
         "title": title,
@@ -568,30 +610,38 @@ def _build_stability_plot(edge_stability, labels):
     sorted_edges = sorted(edge_stability.items(), key=lambda x: x[1])
     edge_names = [k for k, v in sorted_edges]
     stabilities = [v for k, v in sorted_edges]
-    colors = ["rgba(74,159,110,0.7)" if s >= 0.7 else
-              "rgba(200,170,60,0.7)" if s >= 0.5 else
-              "rgba(208,96,96,0.7)" for s in stabilities]
+    colors = [
+        "rgba(74,159,110,0.7)" if s >= 0.7 else "rgba(200,170,60,0.7)" if s >= 0.5 else "rgba(208,96,96,0.7)"
+        for s in stabilities
+    ]
 
     return {
         "title": f"Edge Stability ({len(edge_stability)} edges, bootstrap)",
-        "data": [{
-            "type": "bar", "orientation": "h",
-            "x": [round(s, 3) for s in stabilities],
-            "y": edge_names,
-            "marker": {"color": colors},
-            "hovertemplate": "%{y}: %{x:.1%}<extra></extra>",
-        }],
+        "data": [
+            {
+                "type": "bar",
+                "orientation": "h",
+                "x": [round(s, 3) for s in stabilities],
+                "y": edge_names,
+                "marker": {"color": colors},
+                "hovertemplate": "%{y}: %{x:.1%}<extra></extra>",
+            }
+        ],
         "layout": {
             "template": "plotly_dark",
             "height": max(200, len(edge_names) * 25),
-            "xaxis": {"title": "Bootstrap frequency", "range": [0, 1],
-                      "tickformat": ".0%"},
+            "xaxis": {"title": "Bootstrap frequency", "range": [0, 1], "tickformat": ".0%"},
             "yaxis": {"automargin": True},
-            "shapes": [{
-                "type": "line", "x0": 0.7, "x1": 0.7,
-                "y0": -0.5, "y1": len(edge_names) - 0.5,
-                "line": {"color": "rgba(255,255,255,0.3)", "dash": "dot"},
-            }],
+            "shapes": [
+                {
+                    "type": "line",
+                    "x0": 0.7,
+                    "x1": 0.7,
+                    "y0": -0.5,
+                    "y1": len(edge_names) - 0.5,
+                    "line": {"color": "rgba(255,255,255,0.3)", "dash": "dot"},
+                }
+            ],
         },
     }
 
@@ -599,12 +649,11 @@ def _build_stability_plot(edge_stability, labels):
 # ===========================================================================
 # Summary builders
 # ===========================================================================
-def _build_pc_summary(labels, directed, undirected, sep_sets,
-                      removed_by_depth, stability, alpha, max_cond, n, p):
+def _build_pc_summary(labels, directed, undirected, sep_sets, removed_by_depth, stability, alpha, max_cond, n, p):
     """Build the PC summary text with separating-set explanations."""
     lines = []
     lines.append(f"<<COLOR:accent>>{'═' * 70}<</COLOR>>")
-    lines.append(f"<<COLOR:title>>CAUSAL DISCOVERY — PC ALGORITHM<</COLOR>>")
+    lines.append("<<COLOR:title>>CAUSAL DISCOVERY — PC ALGORITHM<</COLOR>>")
     lines.append(f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n")
 
     lines.append(f"<<COLOR:highlight>>Variables:<</COLOR>> {', '.join(labels)}")
@@ -616,7 +665,7 @@ def _build_pc_summary(labels, directed, undirected, sep_sets,
 
     # Causal edges
     if directed:
-        lines.append(f"<<COLOR:accent>>── Directed Edges (Cause → Effect) ──<</COLOR>>")
+        lines.append("<<COLOR:accent>>── Directed Edges (Cause → Effect) ──<</COLOR>>")
         for src, tgt, strength in directed:
             key = _edge_key(src, tgt)
             stab = stability.get(key, 0)
@@ -625,7 +674,7 @@ def _build_pc_summary(labels, directed, undirected, sep_sets,
         lines.append("")
 
     if undirected:
-        lines.append(f"<<COLOR:accent>>── Undirected Edges (direction unresolved) ──<</COLOR>>")
+        lines.append("<<COLOR:accent>>── Undirected Edges (direction unresolved) ──<</COLOR>>")
         for a, b, strength in undirected:
             key = _edge_key(a, b)
             stab = stability.get(key, 0)
@@ -634,7 +683,7 @@ def _build_pc_summary(labels, directed, undirected, sep_sets,
 
     # Separating-set explanations (edges REMOVED)
     if sep_sets:
-        lines.append(f"<<COLOR:accent>>── Edges Removed (with explanation) ──<</COLOR>>")
+        lines.append("<<COLOR:accent>>── Edges Removed (with explanation) ──<</COLOR>>")
         for (i, j), info in sorted(sep_sets.items()):
             var_i, var_j = labels[i], labels[j]
             cond = info["cond_names"]
@@ -642,38 +691,36 @@ def _build_pc_summary(labels, directed, undirected, sep_sets,
             rho = info["partial_corr"]
             cond_str = "{" + ", ".join(cond) + "}" if cond else "∅"
             lines.append(
-                f"  ✗ Removed {var_i}–{var_j} because "
-                f"{var_i} ⊥ {var_j} | {cond_str}  (p={pval:.3f}, ρ={rho:.3f})"
+                f"  ✗ Removed {var_i}–{var_j} because {var_i} ⊥ {var_j} | {cond_str}  (p={pval:.3f}, ρ={rho:.3f})"
             )
         lines.append("")
 
     # Edges removed by conditioning depth
     if removed_by_depth:
-        lines.append(f"<<COLOR:accent>>── Skeleton Refinement by Depth ──<</COLOR>>")
+        lines.append("<<COLOR:accent>>── Skeleton Refinement by Depth ──<</COLOR>>")
         for depth in sorted(removed_by_depth.keys()):
             edges = removed_by_depth[depth]
             lines.append(f"  Depth {depth} (|S|={depth}): {len(edges)} edge(s) removed")
         lines.append("")
 
     # Assumptions
-    lines.append(f"<<COLOR:accent>>── Assumptions ──<</COLOR>>")
-    lines.append(f"<<COLOR:warning>>This is a candidate causal structure, not ground truth.<</COLOR>>")
+    lines.append("<<COLOR:accent>>── Assumptions ──<</COLOR>>")
+    lines.append("<<COLOR:warning>>This is a candidate causal structure, not ground truth.<</COLOR>>")
     lines.append("  The PC algorithm assumes:")
     lines.append("  1. Causal sufficiency — no hidden common causes (use FCI if violated)")
     lines.append("  2. Faithfulness — all conditional independences reflect the true graph")
     lines.append("  3. i.i.d. sampling — observations are independent")
     lines.append("  4. Gaussian CI test — partial correlations detect linear dependencies only")
-    lines.append(f"\n  Sensitivity: try α=0.01 (sparser) or α=0.10 (denser) to assess stability.")
+    lines.append("\n  Sensitivity: try α=0.01 (sparser) or α=0.10 (denser) to assess stability.")
 
     return "\n".join(lines)
 
 
-def _build_lingam_summary(labels, directed, causal_order, stability,
-                          edge_cis, gauss_warnings, n, p, n_boot):
+def _build_lingam_summary(labels, directed, causal_order, stability, edge_cis, gauss_warnings, n, p, n_boot):
     """Build the LiNGAM summary text."""
     lines = []
     lines.append(f"<<COLOR:accent>>{'═' * 70}<</COLOR>>")
-    lines.append(f"<<COLOR:title>>CAUSAL DISCOVERY — LiNGAM (ICA)<</COLOR>>")
+    lines.append("<<COLOR:title>>CAUSAL DISCOVERY — LiNGAM (ICA)<</COLOR>>")
     lines.append(f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n")
 
     lines.append(f"<<COLOR:highlight>>Variables:<</COLOR>> {', '.join(labels)}")
@@ -684,7 +731,7 @@ def _build_lingam_summary(labels, directed, causal_order, stability,
 
     # Edges with CIs
     if directed:
-        lines.append(f"<<COLOR:accent>>── Causal Edges (Source → Target) ──<</COLOR>>")
+        lines.append("<<COLOR:accent>>── Causal Edges (Source → Target) ──<</COLOR>>")
         for src, tgt, coef in sorted(directed, key=lambda x: abs(x[2]), reverse=True):
             key = _edge_key(src, tgt)
             stab = stability.get(key, 0)
@@ -695,15 +742,12 @@ def _build_lingam_summary(labels, directed, causal_order, stability,
             if ci:
                 ci_str = f", 95% CI [{ci['ci_low']:.3f}, {ci['ci_high']:.3f}]"
 
-            lines.append(
-                f"  {stab_icon} {src} → {tgt}  "
-                f"(B={coef:.3f}{ci_str}, stability={stab:.0%})"
-            )
+            lines.append(f"  {stab_icon} {src} → {tgt}  (B={coef:.3f}{ci_str}, stability={stab:.0%})")
         lines.append("")
 
     # Gaussianity warnings
     if gauss_warnings:
-        lines.append(f"<<COLOR:warning>>── Gaussianity Warnings ──<</COLOR>>")
+        lines.append("<<COLOR:warning>>── Gaussianity Warnings ──<</COLOR>>")
         lines.append("  LiNGAM requires non-Gaussian error distributions.")
         lines.append("  The following variables may violate this assumption:")
         for w in gauss_warnings:
@@ -712,14 +756,14 @@ def _build_lingam_summary(labels, directed, causal_order, stability,
         lines.append("")
 
     # Assumptions
-    lines.append(f"<<COLOR:accent>>── Assumptions ──<</COLOR>>")
-    lines.append(f"<<COLOR:warning>>This is a candidate causal structure, not ground truth.<</COLOR>>")
+    lines.append("<<COLOR:accent>>── Assumptions ──<</COLOR>>")
+    lines.append("<<COLOR:warning>>This is a candidate causal structure, not ground truth.<</COLOR>>")
     lines.append("  LiNGAM assumes:")
     lines.append("  1. Linear relationships (X = BX + e)")
     lines.append("  2. Non-Gaussian error terms (violated → edges may reverse)")
     lines.append("  3. Acyclicity — no feedback loops")
     lines.append("  4. Causal sufficiency — no hidden confounders")
-    lines.append(f"\n  Compare with PC algorithm to cross-validate structure.")
+    lines.append("\n  Compare with PC algorithm to cross-validate structure.")
 
     return "\n".join(lines)
 

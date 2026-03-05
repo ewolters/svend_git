@@ -14,10 +14,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum, IntEnum
-from typing import Any, Dict, List, Optional
+from enum import Enum
+from typing import Any
 from uuid import UUID
-
 
 # =============================================================================
 # ERROR SEVERITY (ERR-001 §3.2)
@@ -45,7 +44,7 @@ class ErrorSeverity(str, Enum):
 
 
 # Severity to numeric level mapping
-SEVERITY_LEVELS: Dict[ErrorSeverity, int] = {
+SEVERITY_LEVELS: dict[ErrorSeverity, int] = {
     ErrorSeverity.DEBUG: 10,
     ErrorSeverity.INFO: 20,
     ErrorSeverity.WARNING: 30,
@@ -90,7 +89,7 @@ class ErrorCategory(str, Enum):
 
 
 # Category to HTTP status code mapping
-CATEGORY_STATUS_CODES: Dict[ErrorCategory, int] = {
+CATEGORY_STATUS_CODES: dict[ErrorCategory, int] = {
     ErrorCategory.VALIDATION: 400,
     ErrorCategory.AUTHENTICATION: 401,
     ErrorCategory.AUTHORIZATION: 403,
@@ -127,8 +126,8 @@ class CircuitBreakerState(str, Enum):
         HALF_OPEN → CLOSED (on success) or OPEN (on failure)
     """
 
-    CLOSED = "CLOSED"      # Normal operation, requests pass through
-    OPEN = "OPEN"          # Circuit open, requests fail fast
+    CLOSED = "CLOSED"  # Normal operation, requests pass through
+    OPEN = "OPEN"  # Circuit open, requests fail fast
     HALF_OPEN = "HALF_OPEN"  # Testing recovery, limited requests allowed
 
 
@@ -188,13 +187,13 @@ class SystemLayer(str, Enum):
     Layer identification for error context and routing.
     """
 
-    API = "API"              # API layer (API-001/002)
-    SERVICE = "SERVICE"      # Service/business logic layer
+    API = "API"  # API layer (API-001/002)
+    SERVICE = "SERVICE"  # Service/business logic layer
     REPOSITORY = "REPOSITORY"  # Data access layer
     INTEGRATION = "INTEGRATION"  # External integration layer
-    KERNEL = "KERNEL"        # Synara kernel (SBL-001)
-    CLI = "CLI"              # CLI layer (CLI-001)
-    UI = "UI"                # User interface layer
+    KERNEL = "KERNEL"  # Synara kernel (SBL-001)
+    CLI = "CLI"  # CLI layer (CLI-001)
+    UI = "UI"  # User interface layer
 
 
 # =============================================================================
@@ -225,14 +224,14 @@ class ErrorContext:
     operation: str
     layer: SystemLayer
     timestamp: datetime = field(default_factory=datetime.utcnow)
-    tenant_id: Optional[UUID] = None
-    user_id: Optional[UUID] = None
-    request_id: Optional[str] = None
-    trace_id: Optional[str] = None
-    span_id: Optional[str] = None
-    extra: Dict[str, Any] = field(default_factory=dict)
+    tenant_id: UUID | None = None
+    user_id: UUID | None = None
+    request_id: str | None = None
+    trace_id: str | None = None
+    span_id: str | None = None
+    extra: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "correlation_id": str(self.correlation_id),
@@ -272,9 +271,7 @@ class RetryConfig:
     base_delay_ms: int = 1000
     max_delay_ms: int = 30000
     jitter_factor: float = 0.1
-    retryable_categories: frozenset = field(
-        default_factory=lambda: frozenset(RETRYABLE_CATEGORIES)
-    )
+    retryable_categories: frozenset = field(default_factory=lambda: frozenset(RETRYABLE_CATEGORIES))
 
 
 # =============================================================================
@@ -300,11 +297,13 @@ class CircuitBreakerConfig:
     recovery_timeout_ms: int = 30000
     half_open_max_requests: int = 3
     monitored_categories: frozenset = field(
-        default_factory=lambda: frozenset({
-            ErrorCategory.DEPENDENCY,
-            ErrorCategory.DATABASE,
-            ErrorCategory.TIMEOUT,
-        })
+        default_factory=lambda: frozenset(
+            {
+                ErrorCategory.DEPENDENCY,
+                ErrorCategory.DATABASE,
+                ErrorCategory.TIMEOUT,
+            }
+        )
     )
 
 
@@ -324,7 +323,7 @@ class ErrorDetail:
     field: str
     code: str
     message: str
-    value: Optional[Any] = None
+    value: Any | None = None
 
 
 @dataclass
@@ -351,12 +350,12 @@ class ErrorEnvelope:
     message: str
     retryable: bool
     request_id: str
-    details: List[ErrorDetail] = field(default_factory=list)
-    doc: Optional[str] = None
-    correlation: Optional[str] = None
+    details: list[ErrorDetail] = field(default_factory=list)
+    doc: str | None = None
+    correlation: str | None = None
     locale: str = "en-US"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to API response format per ERR-002 §3."""
         envelope = {
             "error": {
@@ -437,7 +436,7 @@ DEFAULT_CIRCUIT_BREAKER_CONFIG = CircuitBreakerConfig()
 
 
 # Standard error codes registry
-ERROR_REGISTRY: Dict[str, ErrorRegistryEntry] = {
+ERROR_REGISTRY: dict[str, ErrorRegistryEntry] = {
     "bad_request": ErrorRegistryEntry(
         code="bad_request",
         category=ErrorCategory.VALIDATION,

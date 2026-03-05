@@ -14,15 +14,15 @@ from django.conf import settings
 from django.test import SimpleTestCase
 
 from syn.audit.compliance import (
+    _GIT_ROOT,
+    _MAP_STANDARDS_DIR,
     ALL_CHECKS,
+    _check_mapped_paths_exist,
     _find_unmapped_modules,
     _git_head_sha,
     _map_files_to_standards,
     _parse_map_table,
     _scan_phantom_references,
-    _check_mapped_paths_exist,
-    _GIT_ROOT,
-    _MAP_STANDARDS_DIR,
 )
 
 
@@ -49,7 +49,8 @@ class RegistryTableTest(SimpleTestCase):
         for md_file in sorted(_MAP_STANDARDS_DIR.glob("*.md")):
             rel_path = f"docs/standards/{md_file.name}"
             self.assertIn(
-                rel_path, registry_files,
+                rel_path,
+                registry_files,
                 f"{md_file.name} exists on disk but is not in MAP-001 registry",
             )
 
@@ -63,7 +64,8 @@ class RegistryTableTest(SimpleTestCase):
         for entry in self.registry:
             if entry.get("status") == "PHANTOM":
                 self.assertEqual(
-                    entry.get("file"), "—",
+                    entry.get("file"),
+                    "—",
                     f"PHANTOM standard {entry['id']} should have '—' as file, got: {entry.get('file')}",
                 )
 
@@ -79,7 +81,8 @@ class RegistryTableTest(SimpleTestCase):
         for entry in self.registry:
             if entry.get("status") == "DEPRECATED":
                 self.assertEqual(
-                    entry.get("file"), "—",
+                    entry.get("file"),
+                    "—",
                     f"DEPRECATED standard {entry['id']} should have '—' as file, got: {entry.get('file')}",
                 )
 
@@ -88,7 +91,8 @@ class RegistryTableTest(SimpleTestCase):
         for entry in self.registry:
             if entry.get("status") == "PLANNED":
                 self.assertEqual(
-                    entry.get("file"), "—",
+                    entry.get("file"),
+                    "—",
                     f"PLANNED standard {entry['id']} should have '—' as file, got: {entry.get('file')}",
                 )
 
@@ -107,7 +111,8 @@ class ModuleMapTest(SimpleTestCase):
         module_paths = [e.get("module", "") for e in self.module_map]
         unmapped = _find_unmapped_modules(module_paths, self.web_root)
         self.assertEqual(
-            unmapped, [],
+            unmapped,
+            [],
             f"syn/ directories not in module map: {unmapped}",
         )
 
@@ -115,7 +120,8 @@ class ModuleMapTest(SimpleTestCase):
         """Every module map path exists on disk."""
         missing = _check_mapped_paths_exist(self.module_map, self.web_root)
         self.assertEqual(
-            missing, [],
+            missing,
+            [],
             f"Module map paths that don't exist: {[m['module_path'] for m in missing]}",
         )
 
@@ -127,7 +133,8 @@ class ModuleMapTest(SimpleTestCase):
             for std_id in [s.strip() for s in standards_str.split(",")]:
                 if std_id and std_id != "—":
                     self.assertIn(
-                        std_id, registry_ids,
+                        std_id,
+                        registry_ids,
                         f"Module {entry['module']} references {std_id} not in registry",
                     )
 

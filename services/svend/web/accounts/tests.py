@@ -21,12 +21,12 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.constants import (
-    Tier,
-    TIER_LIMITS,
     TIER_FEATURES,
+    TIER_LIMITS,
+    Tier,
+    get_daily_limit,
     has_feature,
     is_paid_tier,
-    get_daily_limit,
 )
 from accounts.models import InviteCode, Subscription
 from core.encryption import hash_token
@@ -43,9 +43,7 @@ PAID_TIERS = [Tier.FOUNDER, Tier.PRO, Tier.TEAM, Tier.ENTERPRISE]
 def _make_user(email, tier=Tier.FREE, password="testpass123!", **kwargs):
     """Create a test user at the given tier."""
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(
-        username=username, email=email, password=password, **kwargs
-    )
+    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -626,8 +624,7 @@ class TierGatingScenarioTest(TestCase):
             self.assertEqual(
                 actual,
                 expected,
-                f"Feature mismatch for {tier}: "
-                f"diff = {set(actual.items()) ^ set(expected.items())}",
+                f"Feature mismatch for {tier}: diff = {set(actual.items()) ^ set(expected.items())}",
             )
 
             # Also verify has_feature() agrees with the dict

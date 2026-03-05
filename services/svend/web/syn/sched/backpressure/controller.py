@@ -37,10 +37,10 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any
 
 from django.utils import timezone
 
@@ -79,13 +79,13 @@ class BackpressureConfig:
     emergency_circuit_threshold: float = 0.8
 
     # Callbacks
-    on_level_change: Optional[Callable[[ThrottleLevel, ThrottleLevel], None]] = None
-    on_emergency: Optional[Callable[[str], None]] = None
+    on_level_change: Callable[[ThrottleLevel, ThrottleLevel], None] | None = None
+    on_emergency: Callable[[str], None] | None = None
 
     # Decision caching
     decision_cache_seconds: int = 5  # Cache decisions for this long
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "health_collection_interval_seconds": self.health_collection_interval_seconds,
@@ -123,18 +123,18 @@ class BackpressureMetrics:
     decisions_denied: int = 0
 
     # Level time tracking
-    time_at_level: Dict[str, float] = field(default_factory=dict)  # seconds at each level
+    time_at_level: dict[str, float] = field(default_factory=dict)  # seconds at each level
     level_changes: int = 0
-    last_level_change: Optional[datetime] = None
+    last_level_change: datetime | None = None
 
     # Emergency counts
     emergency_triggers: int = 0
-    last_emergency: Optional[datetime] = None
+    last_emergency: datetime | None = None
 
     # Paused tasks
     paused_task_count: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "current_level": self.current_level.name,
@@ -188,9 +188,9 @@ class BackpressureController:
 
     def __init__(
         self,
-        config: Optional[BackpressureConfig] = None,
-        health_monitor: Optional[SystemHealthMonitor] = None,
-        throttle_policy: Optional[ThrottlePolicy] = None,
+        config: BackpressureConfig | None = None,
+        health_monitor: SystemHealthMonitor | None = None,
+        throttle_policy: ThrottlePolicy | None = None,
     ):
         """
         Initialize backpressure controller.
@@ -225,20 +225,20 @@ class BackpressureController:
         self._penalty_updated_at = timezone.now()
 
         # Decision cache
-        self._cached_decision: Optional[ThrottleDecision] = None
-        self._cache_expires_at: Optional[datetime] = None
+        self._cached_decision: ThrottleDecision | None = None
+        self._cache_expires_at: datetime | None = None
 
         # Metrics
         self._metrics = BackpressureMetrics()
-        self._level_time_tracker: Dict[ThrottleLevel, datetime] = {}
+        self._level_time_tracker: dict[ThrottleLevel, datetime] = {}
 
         # Decision history for debugging
-        self._decision_history: List[ThrottleDecision] = []
+        self._decision_history: list[ThrottleDecision] = []
         self._max_history_size = 100
 
         # Emergency state
         self._emergency_active = False
-        self._emergency_reason: Optional[str] = None
+        self._emergency_reason: str | None = None
 
     def start(self) -> None:
         """Start the backpressure controller."""
@@ -265,8 +265,8 @@ class BackpressureController:
 
     def should_schedule(
         self,
-        task_name: Optional[str] = None,
-        priority: Optional[int] = None,
+        task_name: str | None = None,
+        priority: int | None = None,
         is_batch: bool = False,
         bypass_cache: bool = False,
     ) -> ThrottleDecision:
@@ -319,9 +319,7 @@ class BackpressureController:
 
             # Update cache
             self._cached_decision = decision
-            self._cache_expires_at = timezone.now() + timedelta(
-                seconds=self._config.decision_cache_seconds
-            )
+            self._cache_expires_at = timezone.now() + timedelta(seconds=self._config.decision_cache_seconds)
 
             # Update metrics
             self._update_metrics(decision)
@@ -329,7 +327,7 @@ class BackpressureController:
             # Store in history
             self._decision_history.append(decision)
             if len(self._decision_history) > self._max_history_size:
-                self._decision_history = self._decision_history[-self._max_history_size:]
+                self._decision_history = self._decision_history[-self._max_history_size :]
 
             return decision
 
@@ -468,9 +466,7 @@ class BackpressureController:
         if self._current_level in self._level_time_tracker:
             elapsed = (timezone.now() - self._level_time_tracker[self._current_level]).total_seconds()
             level_name = self._current_level.name
-            self._metrics.time_at_level[level_name] = (
-                self._metrics.time_at_level.get(level_name, 0.0) + elapsed
-            )
+            self._metrics.time_at_level[level_name] = self._metrics.time_at_level.get(level_name, 0.0) + elapsed
 
     def _is_cache_valid(self) -> bool:
         """Check if decision cache is valid."""
@@ -481,13 +477,13 @@ class BackpressureController:
     def _apply_task_restrictions(
         self,
         base_decision: ThrottleDecision,
-        task_name: Optional[str],
-        priority: Optional[int],
+        task_name: str | None,
+        priority: int | None,
         is_batch: bool,
     ) -> ThrottleDecision:
         """Apply task-specific restrictions to cached decision."""
         # Clone decision
-        decision = ThrottleDecision(
+        ThrottleDecision(
             level=base_decision.level,
             allow=base_decision.allow,
             reasons=list(base_decision.reasons),
@@ -531,7 +527,7 @@ class BackpressureController:
         """Unpause a specific task."""
         self._throttle_policy.unpause_task(task_name)
 
-    def get_paused_tasks(self) -> Set[str]:
+    def get_paused_tasks(self) -> set[str]:
         """Get set of currently paused tasks."""
         return self._throttle_policy.get_paused_tasks()
 
@@ -560,7 +556,7 @@ class BackpressureController:
                 paused_task_count=self._metrics.paused_task_count,
             )
 
-    def get_decision_history(self, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_decision_history(self, limit: int = 10) -> list[dict[str, Any]]:
         """Get recent throttle decisions."""
         with self._lock:
             recent = self._decision_history[-limit:]
@@ -574,7 +570,7 @@ class BackpressureController:
         """Check if emergency state is active."""
         return self._emergency_active
 
-    def get_emergency_reason(self) -> Optional[str]:
+    def get_emergency_reason(self) -> str | None:
         """Get reason for current emergency."""
         return self._emergency_reason
 
@@ -602,6 +598,6 @@ class BackpressureController:
         """Enable or disable a throttle rule."""
         return self._throttle_policy.set_rule_enabled(rule_name, enabled)
 
-    def get_throttle_rules(self) -> List[ThrottleRule]:
+    def get_throttle_rules(self) -> list[ThrottleRule]:
         """Get all throttle rules."""
         return self._throttle_policy.get_rules()

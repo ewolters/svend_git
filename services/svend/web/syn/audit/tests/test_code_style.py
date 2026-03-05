@@ -10,25 +10,23 @@ Compliance: STY-001 (Code Style), SOC 2 CC8.1
 
 import ast
 import re
-import sys
 from pathlib import Path
 
 from django.conf import settings
 from django.test import SimpleTestCase
 
 from syn.audit.compliance import (
-    ALL_CHECKS,
     _ARCH_KNOWN_TIMESTAMP_EXCEPTIONS,
-    _scan_class_docstrings,
-    _scan_class_names,
-    _scan_file_names,
-    _scan_function_names,
+    ALL_CHECKS,
     _check_arch_timestamp_naming,
     _check_arch_url_kebab_case,
     _check_import_order,
     _check_model_field_naming,
-    _check_module_docstrings,
     _check_wildcard_imports,
+    _scan_class_docstrings,
+    _scan_class_names,
+    _scan_file_names,
+    _scan_function_names,
 )
 
 WEB_ROOT = Path(settings.BASE_DIR)
@@ -57,10 +55,7 @@ class FileNamingTest(SimpleTestCase):
     def test_all_py_files_lowercase_snake(self):
         """All .py files follow lowercase_snake.py naming."""
         violations = _scan_file_names(WEB_ROOT)
-        self.assertEqual(
-            violations, [],
-            f"File naming violations: {violations[:10]}"
-        )
+        self.assertEqual(violations, [], f"File naming violations: {violations[:10]}")
 
     def test_view_files_follow_pattern(self):
         """View files match {feature}_views.py pattern."""
@@ -96,10 +91,7 @@ class ClassNamingTest(SimpleTestCase):
     def test_all_classes_pascal_case(self):
         """All classes use PascalCase naming."""
         violations = _scan_class_names(WEB_ROOT)
-        self.assertEqual(
-            violations, [],
-            f"Class naming violations: {violations[:10]}"
-        )
+        self.assertEqual(violations, [], f"Class naming violations: {violations[:10]}")
 
 
 class FunctionNamingTest(SimpleTestCase):
@@ -108,10 +100,7 @@ class FunctionNamingTest(SimpleTestCase):
     def test_all_functions_snake_case(self):
         """All functions use lowercase_snake_case naming."""
         violations = _scan_function_names(WEB_ROOT)
-        self.assertEqual(
-            violations, [],
-            f"Function naming violations: {violations[:10]}"
-        )
+        self.assertEqual(violations, [], f"Function naming violations: {violations[:10]}")
 
 
 class ImportOrderTest(SimpleTestCase):
@@ -120,18 +109,12 @@ class ImportOrderTest(SimpleTestCase):
     def test_key_files_import_order(self):
         """Key infrastructure files follow stdlib -> third-party -> local ordering."""
         violations = _check_import_order(WEB_ROOT)
-        self.assertEqual(
-            violations, [],
-            f"Import order violations: {violations[:10]}"
-        )
+        self.assertEqual(violations, [], f"Import order violations: {violations[:10]}")
 
     def test_no_wildcard_imports(self):
         """No wildcard imports (from X import *) in codebase."""
         violations = _check_wildcard_imports(WEB_ROOT)
-        self.assertEqual(
-            violations, [],
-            f"Wildcard import violations: {violations[:10]}"
-        )
+        self.assertEqual(violations, [], f"Wildcard import violations: {violations[:10]}")
 
 
 class ModuleDocstringTest(SimpleTestCase):
@@ -161,10 +144,7 @@ class ModuleDocstringTest(SimpleTestCase):
                     missing.append(str(fpath.relative_to(WEB_ROOT)))
             except SyntaxError:
                 missing.append(f"{fpath.relative_to(WEB_ROOT)} (syntax error)")
-        self.assertEqual(
-            missing, [],
-            f"Key files missing module docstrings: {missing}"
-        )
+        self.assertEqual(missing, [], f"Key files missing module docstrings: {missing}")
 
 
 class CheckRegistrationTest(SimpleTestCase):
@@ -190,8 +170,7 @@ class CheckRegistrationTest(SimpleTestCase):
         self.assertIn(result["status"], ("pass", "fail", "warning", "error"))
         # Verify details has expected sub-keys
         details = result["details"]
-        for sub_key in ["files_scanned", "file_naming_violations",
-                        "class_naming_violations", "total_violations"]:
+        for sub_key in ["files_scanned", "file_naming_violations", "class_naming_violations", "total_violations"]:
             self.assertIn(sub_key, details, f"Details missing key: {sub_key}")
         self.assertGreater(details["files_scanned"], 100)
 
@@ -202,27 +181,22 @@ class ModelFieldNamingTest(SimpleTestCase):
     def test_no_fk_suffix(self):
         """No ForeignKey field uses _fk suffix."""
         violations = _check_model_field_naming(WEB_ROOT)
-        self.assertEqual(
-            violations["fk_suffix"], [],
-            f"FK _fk suffix violations: {violations['fk_suffix'][:10]}"
-        )
+        self.assertEqual(violations["fk_suffix"], [], f"FK _fk suffix violations: {violations['fk_suffix'][:10]}")
 
     def test_no_mutable_jsonfield_defaults(self):
         """No JSONField uses mutable default ([] or {{}})."""
         violations = _check_model_field_naming(WEB_ROOT)
         self.assertEqual(
-            violations["mutable_default"], [],
-            f"Mutable JSONField default violations: {violations['mutable_default'][:10]}"
+            violations["mutable_default"],
+            [],
+            f"Mutable JSONField default violations: {violations['mutable_default'][:10]}",
         )
 
     def test_boolean_field_is_prefix(self):
         """BooleanField fields should have is_/has_/can_ prefix."""
         violations = _check_model_field_naming(WEB_ROOT)
         bool_violations = violations["boolean_prefix"]
-        self.assertEqual(
-            bool_violations, [],
-            f"BooleanField prefix violations: {bool_violations[:10]}"
-        )
+        self.assertEqual(bool_violations, [], f"BooleanField prefix violations: {bool_violations[:10]}")
 
 
 class URLKebabCaseTest(SimpleTestCase):
@@ -231,10 +205,7 @@ class URLKebabCaseTest(SimpleTestCase):
     def test_no_underscore_urls(self):
         """All URL path segments use kebab-case (no underscores)."""
         violations = _check_arch_url_kebab_case(WEB_ROOT)
-        self.assertEqual(
-            violations, [],
-            f"URL kebab-case violations: {violations[:10]}"
-        )
+        self.assertEqual(violations, [], f"URL kebab-case violations: {violations[:10]}")
 
 
 class TimestampNamingTest(SimpleTestCase):
@@ -243,10 +214,7 @@ class TimestampNamingTest(SimpleTestCase):
     def test_no_timestamp_violations(self):
         """All DateTimeField names end in _at (or are known exceptions)."""
         violations = _check_arch_timestamp_naming(WEB_ROOT)
-        self.assertEqual(
-            violations, [],
-            f"Timestamp naming violations: {violations[:10]}"
-        )
+        self.assertEqual(violations, [], f"Timestamp naming violations: {violations[:10]}")
 
     def test_known_exceptions_documented(self):
         """Built-in Django timestamp fields are tracked as known exceptions."""

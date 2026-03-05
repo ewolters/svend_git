@@ -12,18 +12,27 @@ Usage:
 import re
 
 from django.core.management.base import BaseCommand
-from django.utils import timezone
-
 
 CODE_TYPES = [
-    "feature", "enhancement", "bugfix", "hotfix", "security",
-    "infrastructure", "migration", "debt",
+    "feature",
+    "enhancement",
+    "bugfix",
+    "hotfix",
+    "security",
+    "infrastructure",
+    "migration",
+    "debt",
 ]
 EXEMPT_TYPES = ["documentation", "plan"]
 ROLLBACK_TYPES = ["feature", "migration", "infrastructure", "security"]
 RISK_REQUIRED_TYPES = [
-    "feature", "enhancement", "bugfix", "security",
-    "infrastructure", "migration", "debt",
+    "feature",
+    "enhancement",
+    "bugfix",
+    "security",
+    "infrastructure",
+    "migration",
+    "debt",
 ]
 
 
@@ -33,21 +42,27 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         group = parser.add_mutually_exclusive_group(required=True)
         group.add_argument(
-            "--report", action="store_true",
+            "--report",
+            action="store_true",
             help="Print field completeness report only",
         )
         group.add_argument(
-            "--dry-run", action="store_true",
+            "--dry-run",
+            action="store_true",
             help="Preview backfill changes without applying",
         )
         group.add_argument(
-            "--execute", action="store_true",
+            "--execute",
+            action="store_true",
             help="Apply backfill changes",
         )
 
     def handle(self, *args, **options):
         from syn.audit.models import (
-            ChangeRequest, ChangeLog, RiskAssessment, AgentVote,
+            AgentVote,
+            ChangeLog,
+            ChangeRequest,
+            RiskAssessment,
         )
 
         crs = ChangeRequest.objects.all().order_by("created_at")
@@ -78,7 +93,6 @@ class Command(BaseCommand):
         for cr in crs:
             is_exempt = cr.change_type in EXEMPT_TYPES
             is_completed = cr.status == "completed"
-            is_code = cr.change_type in CODE_TYPES
             changes = []
 
             if is_exempt:
@@ -144,8 +158,7 @@ class Command(BaseCommand):
             # Apply changes
             if changes:
                 self.stdout.write(
-                    f"  {str(cr.id)[:8]} | {cr.change_type:15s} | "
-                    f"{cr.status:12s} | {len(changes)} field(s)"
+                    f"  {str(cr.id)[:8]} | {cr.change_type:15s} | {cr.status:12s} | {len(changes)} field(s)"
                 )
                 for field, val in changes:
                     preview = str(val)[:60] if not isinstance(val, dict) else f"{{...{len(val)} keys}}"
@@ -160,10 +173,7 @@ class Command(BaseCommand):
                         change_request=cr,
                         actor="system",
                         action="comment",
-                        message=(
-                            f"[BACKFILL] CHG-001 v1.6 enforcement: "
-                            f"backfilled {', '.join(f for f, _ in changes)}"
-                        ),
+                        message=(f"[BACKFILL] CHG-001 v1.6 enforcement: backfilled {', '.join(f for f, _ in changes)}"),
                         details={
                             "backfill": True,
                             "fields": [f for f, _ in changes],
@@ -172,7 +182,7 @@ class Command(BaseCommand):
                     stats["logs_created"] += 1
 
         # -- Risk assessments for completed CRs --
-        self.stdout.write(f"\n--- Risk Assessment Backfill ---")
+        self.stdout.write("\n--- Risk Assessment Backfill ---")
         for cr in crs:
             if cr.change_type not in RISK_REQUIRED_TYPES:
                 continue
@@ -184,10 +194,7 @@ class Command(BaseCommand):
             is_multi = cr.change_type in ["feature", "migration"]
             assessment_type = "multi_agent" if is_multi else "expedited"
 
-            self.stdout.write(
-                f"  {str(cr.id)[:8]} | {cr.change_type:15s} | "
-                f"{cr.status:12s} | RA: {assessment_type}"
-            )
+            self.stdout.write(f"  {str(cr.id)[:8]} | {cr.change_type:15s} | {cr.status:12s} | RA: {assessment_type}")
 
             if not dry_run:
                 ra = RiskAssessment.objects.create(
@@ -234,10 +241,7 @@ class Command(BaseCommand):
                     change_request=cr,
                     actor="system",
                     action="risk_assessed",
-                    message=(
-                        f"[BACKFILL] Retroactive risk assessment created "
-                        f"per CHG-001 v1.6 enforcement"
-                    ),
+                    message=("[BACKFILL] Retroactive risk assessment created per CHG-001 v1.6 enforcement"),
                     details={
                         "backfill": True,
                         "assessment_type": assessment_type,
@@ -257,18 +261,11 @@ class Command(BaseCommand):
         self.stdout.write("")
 
         if dry_run:
-            self.stdout.write(
-                self.style.WARNING("  No changes applied (dry-run mode)")
-            )
-            self.stdout.write(
-                "  Run with --execute to apply these changes.\n"
-            )
+            self.stdout.write(self.style.WARNING("  No changes applied (dry-run mode)"))
+            self.stdout.write("  Run with --execute to apply these changes.\n")
         else:
             self.stdout.write(
-                self.style.SUCCESS(
-                    f"  Backfill complete. {stats['logs_created']} "
-                    f"ChangeLog entries created."
-                )
+                self.style.SUCCESS(f"  Backfill complete. {stats['logs_created']} ChangeLog entries created.")
             )
 
     def _report(self, crs, total):
@@ -297,9 +294,6 @@ class Command(BaseCommand):
             filled = sum(1 for cr in code_crs if check(cr))
             pct = (filled / code_total * 100) if code_total else 0
             bar = "#" * int(pct / 5) + "." * (20 - int(pct / 5))
-            self.stdout.write(
-                f"  {field:25s} {filled:3d}/{code_total} "
-                f"({pct:5.1f}%) [{bar}]"
-            )
+            self.stdout.write(f"  {field:25s} {filled:3d}/{code_total} ({pct:5.1f}%) [{bar}]")
 
         self.stdout.write("")

@@ -1,6 +1,7 @@
 """Report API URLs (CAPA, 8D, etc.)."""
 
 from django.urls import path
+
 from . import report_views
 
 urlpatterns = [

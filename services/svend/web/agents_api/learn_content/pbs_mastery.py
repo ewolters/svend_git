@@ -7,7 +7,6 @@ rules with probabilistic beliefs.  All 12 PBS engine components are covered.
 
 from ._datasets import SHARED_DATASET  # noqa: F401
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # Section 1: The Paradigm Shift
 # PBS Component: NormalGammaPosterior
@@ -24,15 +23,10 @@ PBS_PARADIGM_SHIFT = {
             "Run a full PBS analysis with spec limits 24.85–25.15mm and target 25.0mm",
             "Read the narrative output — note how it describes shift probability, not just 'out of control'",
             "Compare to a classical I-MR chart on the same data — note the binary flags vs graduated probabilities",
-            "Observe how PBS gives you a credible interval on Cpk, not just a point estimate"
+            "Observe how PBS gives you a credible interval on Cpk, not just a point estimate",
         ],
         "dsw_type": "pbs:pbs_full",
-        "dsw_config": {
-            "column": "diameter_mm",
-            "USL": 25.15,
-            "LSL": 24.85,
-            "target": 25.0
-        },
+        "dsw_config": {"column": "diameter_mm", "USL": 25.15, "LSL": 24.85, "target": 25.0},
     },
     "content": """
 ## Why Classical SPC Is Broken
@@ -113,10 +107,7 @@ As data accumulates, the likelihood dominates and the prior washes out. After ~5
 | Binary alarm | Graduated: watch → alert → alarm |
 | No forecast | "32% chance of spec exceedance in next 25 obs" |
 """,
-    "interactive": {
-        "type": "pbs_demo",
-        "config": {"analysis": "pbs_full"}
-    },
+    "interactive": {"type": "pbs_demo", "config": {"analysis": "pbs_full"}},
     "key_takeaways": [
         "Classical SPC uses fixed limits and binary decisions — PBS uses adaptive limits and continuous probabilities",
         "The Normal-Gamma posterior encodes everything known about the process in four parameters",
@@ -128,14 +119,14 @@ As data accumulates, the likelihood dominates and the prior washes out. After ~5
         {
             "question": "You have 15 observations from a new process. Classical Cpk is 1.45. Should you sign off on capability?",
             "answer": "No. With only 15 observations, the uncertainty on Cpk is enormous. A Bayesian credible interval might show [0.7, 2.2]. The point estimate of 1.45 is meaningless without quantifying uncertainty. PBS would tell you P(Cpk > 1.33) — that's the number that matters for a sign-off decision.",
-            "hint": "What would the credible interval look like with so few observations?"
+            "hint": "What would the credible interval look like with so few observations?",
         },
         {
             "question": "Why does PBS use a conjugate prior (Normal-Gamma) instead of MCMC sampling?",
             "answer": "Conjugate priors allow exact, closed-form posterior updates in O(1) time. This is critical for streaming data — each new measurement updates the belief instantly. MCMC would require re-running a sampler with every new data point, which is far too slow for real-time process monitoring.",
-            "hint": "Think about what happens when a new measurement arrives every few seconds on a production line."
+            "hint": "Think about what happens when a new measurement arrives every few seconds on a production line.",
         },
-    ]
+    ],
 }
 
 
@@ -156,12 +147,10 @@ PBS_CHANGE_DETECTION = {
             "Note where it crosses 95% (alarm level) — that's the confirmed shift",
             "Check the alert cascade: nominal → watch → alert → alarm",
             "Now run the E-Detector on the same data — does it find the same shift?",
-            "Compare the two methods: BOCPD uses Bayesian updating, E-Detector uses distribution-free CUSUM"
+            "Compare the two methods: BOCPD uses Bayesian updating, E-Detector uses distribution-free CUSUM",
         ],
         "dsw_type": "pbs:pbs_belief",
-        "dsw_config": {
-            "column": "diameter_mm"
-        },
+        "dsw_config": {"column": "diameter_mm"},
     },
     "content": """
 ## The Belief Chart: BOCPD
@@ -251,10 +240,7 @@ When BOCPD and E-Detector **agree**, you have strong corroboration from two inde
 
 This dual-detection approach is something no classical SPC system offers.
 """,
-    "interactive": {
-        "type": "pbs_demo",
-        "config": {"analysis": "pbs_belief"}
-    },
+    "interactive": {"type": "pbs_demo", "config": {"analysis": "pbs_belief"}},
     "key_takeaways": [
         "BOCPD gives you a continuous shift probability (0–100%), not a binary in/out flag",
         "The alert cascade (nominal → watch → alert → alarm) enables graduated response",
@@ -267,14 +253,14 @@ This dual-detection approach is something no classical SPC system offers.
         {
             "question": "The BOCPD shows P(shift) = 72% at observation 45. Should you stop the line?",
             "answer": "Not yet — 72% is 'watch' level, not 'alarm.' Increase monitoring frequency and check the E-Detector for corroboration. If both methods are signaling, prepare to investigate. If only BOCPD is flagging, the shift may be small or within model variation. Wait for P(shift) to cross 80% (alert) or 95% (alarm) before taking production-disrupting action.",
-            "hint": "Check the alert cascade — what level does 72% correspond to?"
+            "hint": "Check the alert cascade — what level does 72% correspond to?",
         },
         {
             "question": "BOCPD detects a shift at observation 30 with robustness 5/5 (all lambda values). What does this tell you?",
             "answer": "A robustness score of 5/5 means the changepoint was detected regardless of the hazard rate setting. This is a very strong signal — the shift is real and not an artifact of a particular sensitivity tuning. You can have high confidence that the process genuinely changed at that point.",
-            "hint": "What does it mean when all lambda values in the grid detect the same changepoint?"
+            "hint": "What does it mean when all lambda values in the grid detect the same changepoint?",
         },
-    ]
+    ],
 }
 
 
@@ -295,12 +281,10 @@ PBS_EVIDENCE_ACCUMULATION = {
             "Note which observation the evidence first becomes 'notable' (5:1)",
             "Find where it becomes 'strong' (20:1) and 'decisive' (100:1)",
             "Compare the evidence timeline to where BOCPD detected the shift",
-            "Key insight: e-values grow proportionally to the strength of the signal"
+            "Key insight: e-values grow proportionally to the strength of the signal",
         ],
         "dsw_type": "pbs:pbs_evidence",
-        "dsw_config": {
-            "column": "diameter_mm"
-        },
+        "dsw_config": {"column": "diameter_mm"},
     },
     "content": """
 ## The Peeking Problem
@@ -359,10 +343,7 @@ In the full PBS analysis, the evidence accumulation chart runs alongside the Bel
 
 Both methods reach the same conclusion through different mathematics. That's powerful.
 """,
-    "interactive": {
-        "type": "pbs_demo",
-        "config": {"analysis": "pbs_evidence"}
-    },
+    "interactive": {"type": "pbs_demo", "config": {"analysis": "pbs_evidence"}},
     "key_takeaways": [
         "P-values are invalidated by peeking — e-values remain valid under any stopping rule",
         "E-values accumulate multiplicatively: each observation adds to the evidence",
@@ -374,14 +355,14 @@ Both methods reach the same conclusion through different mathematics. That's pow
         {
             "question": "Your evidence chart shows e-value = 8 after 50 observations. Is this enough to conclude a shift occurred?",
             "answer": "An e-value of 8 is 'notable' — meaningful evidence but not conclusive. It means the data is 8 times more likely under a shifted process than a stable one. For a process-stopping decision, you'd typically want 'strong' (>20) or 'decisive' (>100). But 8:1 combined with other signals (like BOCPD at 'watch' level) might justify investigation without stopping.",
-            "hint": "Check the evidence level thresholds — where does 8 fall?"
+            "hint": "Check the evidence level thresholds — where does 8 fall?",
         },
         {
             "question": "Why does PBS cap the displayed e-value at 10,000:1?",
             "answer": "After 10,000:1, additional evidence doesn't change the practical decision — you're already certain. Displaying larger values can create a false sense of precision and may cause numerical display issues. The log-space accumulation continues internally, but the display is capped for practical interpretation.",
-            "hint": "Think about what additional practical value 100,000:1 evidence gives over 10,000:1."
+            "hint": "Think about what additional practical value 100,000:1 evidence gives over 10,000:1.",
         },
-    ]
+    ],
 }
 
 
@@ -402,14 +383,10 @@ PBS_PREDICTIVE_ADAPTIVE = {
             "Check the slope posterior: is the process trending? What's P(slope > 0)?",
             "Note P(spec exceedance at 10 obs) vs P(spec exceedance at 25 obs)",
             "Now run Adaptive Control Limits on the same data",
-            "Compare the adaptive limits early (wide, few observations) vs late (narrow, many observations)"
+            "Compare the adaptive limits early (wide, few observations) vs late (narrow, many observations)",
         ],
         "dsw_type": "pbs:pbs_predictive",
-        "dsw_config": {
-            "column": "diameter_mm",
-            "USL": 25.15,
-            "LSL": 24.85
-        },
+        "dsw_config": {"column": "diameter_mm", "USL": 25.15, "LSL": 24.85},
     },
     "content": """
 ## The Predictive Chart
@@ -481,10 +458,7 @@ When $n \\geq 50$ and Bayesian limits diverge from classical by >10%, PBS flags 
 
 Classical SPC with 15 observations has the same limit width as with 1500. That's wrong — your confidence at $n=15$ is nowhere near your confidence at $n=1500$. Adaptive limits make this explicit.
 """,
-    "interactive": {
-        "type": "pbs_demo",
-        "config": {"analysis": "pbs_predictive"}
-    },
+    "interactive": {"type": "pbs_demo", "config": {"analysis": "pbs_predictive"}},
     "key_takeaways": [
         "The Predictive Chart looks forward — classical charts only look backward",
         "Prediction fans show calibrated uncertainty that widens with horizon",
@@ -497,14 +471,14 @@ Classical SPC with 15 observations has the same limit width as with 1500. That's
         {
             "question": "The Predictive Chart shows P(spec exceedance at 25 obs) = 45%. P(slope > 0) = 88%. What should you do?",
             "answer": "The process is trending upward (88% confidence) and has a 45% chance of violating spec within 25 observations. This is a clear warning — investigate the trend source now. Don't wait for an actual spec violation. The predictive chart is giving you lead time to act proactively.",
-            "hint": "This is the power of forward-looking analysis — you have time to prevent the problem."
+            "hint": "This is the power of forward-looking analysis — you have time to prevent the problem.",
         },
         {
             "question": "Why are adaptive control limits wider at the start of a production run?",
             "answer": "With few observations, the posterior is dominated by prior uncertainty. The kappa parameter is low, so the posterior predictive t-distribution has heavy tails (wide spread). As observations accumulate, kappa grows, the degrees of freedom increase, and the limits narrow toward the classical ±3σ. This correctly reflects that early measurements carry more uncertainty about the true process parameters.",
-            "hint": "Think about what kappa represents — effective sample size for the mean."
+            "hint": "Think about what kappa represents — effective sample size for the mean.",
         },
-    ]
+    ],
 }
 
 
@@ -525,14 +499,10 @@ PBS_BAYESIAN_CAPABILITY = {
             "Check the 90% credible interval — how wide is the uncertainty?",
             "Note P(Cpk > 1.33): what's the probability of actually meeting the standard?",
             "Now run the Cpk Trajectory to see how capability has evolved over time",
-            "Check P(Cpk declining): is capability getting worse?"
+            "Check P(Cpk declining): is capability getting worse?",
         ],
         "dsw_type": "pbs:pbs_cpk",
-        "dsw_config": {
-            "column": "diameter_mm",
-            "USL": 25.15,
-            "LSL": 24.85
-        },
+        "dsw_config": {"column": "diameter_mm", "USL": 25.15, "LSL": 24.85},
     },
     "content": """
 ## The Problem with Point-Estimate Cpk
@@ -600,10 +570,7 @@ If P(Cpk declining) > 80% and the estimated crossing point is within your planni
 
 This is something classical capability analysis simply cannot provide — it gives you a snapshot, not a trajectory.
 """,
-    "interactive": {
-        "type": "pbs_demo",
-        "config": {"analysis": "pbs_cpk"}
-    },
+    "interactive": {"type": "pbs_demo", "config": {"analysis": "pbs_cpk"}},
     "key_takeaways": [
         "Classical Cpk is a point estimate that hides enormous uncertainty at small sample sizes",
         "Bayesian Cpk gives a full posterior distribution via ancestral sampling from Normal-Gamma",
@@ -615,14 +582,14 @@ This is something classical capability analysis simply cannot provide — it giv
         {
             "question": "Your Bayesian Cpk shows median 1.42, 90% CI [0.98, 1.86], P(>1.33) = 58%. Your customer requires Cpk > 1.33. What do you tell them?",
             "answer": "Be honest: there is a 58% chance the process meets their 1.33 standard, but a 42% chance it doesn't. The credible interval spans from below 1.0 to above 1.8, indicating substantial uncertainty. Recommend collecting more data to narrow the interval. With more observations, if the process is truly capable, P(>1.33) will increase. If it's not, you'll know sooner.",
-            "hint": "Would you bet on a 58% probability for a critical quality characteristic?"
+            "hint": "Would you bet on a 58% probability for a critical quality characteristic?",
         },
         {
             "question": "The Cpk Trajectory shows P(declining) = 91% with estimated 150 observations to the 1.33 threshold. Current Cpk median is 1.55. What's the priority?",
             "answer": "High priority. Despite the comfortable current Cpk of 1.55, the process is deteriorating with 91% confidence. At the current rate, you have roughly 150 observations before capability drops below the 1.33 threshold. Start investigating root causes now — tool wear, material drift, environmental changes. The trajectory analysis gives you lead time that a single Cpk snapshot never could.",
-            "hint": "A current Cpk of 1.55 would normally look great — but what's the trajectory saying?"
+            "hint": "A current Cpk of 1.55 would normally look great — but what's the trajectory saying?",
         },
-    ]
+    ],
 }
 
 
@@ -644,15 +611,10 @@ PBS_HEALTH_FUSION = {
             "Check the Health score — what's the primary driver?",
             "Look at the Investigation Timeline: how many regimes were detected?",
             "For each regime, check the per-regime Cpk and its credible interval",
-            "If Taguchi Loss is shown, identify whether bias or variance dominates the cost"
+            "If Taguchi Loss is shown, identify whether bias or variance dominates the cost",
         ],
         "dsw_type": "pbs:pbs_full",
-        "dsw_config": {
-            "column": "diameter_mm",
-            "USL": 25.15,
-            "LSL": 24.85,
-            "target": 25.0
-        },
+        "dsw_config": {"column": "diameter_mm", "USL": 25.15, "LSL": 24.85, "target": 25.0},
     },
     "content": """
 ## The Problem: Siloed Metrics
@@ -754,10 +716,7 @@ PBS generates a **plain-language summary** using deterministic templates (no LLM
 
 Every statement is traceable to a specific computation. No interpretation magic, no prompt engineering — just math rendered as text.
 """,
-    "interactive": {
-        "type": "pbs_demo",
-        "config": {"analysis": "pbs_full"}
-    },
+    "interactive": {"type": "pbs_demo", "config": {"analysis": "pbs_full"}},
     "key_takeaways": [
         "MultiStream Health fuses SPC, capability, gage, trend, material, and environment into one score",
         "The primary driver tells you which stream is pulling health down — focus investigation there",
@@ -770,14 +729,14 @@ Every statement is traceable to a specific computation. No interpretation magic,
         {
             "question": "Health score is 55% with primary driver 'gage'. SPC stream is at 92%, Cpk stream is at 74%. What's happening?",
             "answer": "The measurement system is dragging down overall health. Despite good SPC stability (92%) and decent capability (74%), the gage stream is poor — likely >30% GRR. This means some of the observed process variation is actually measurement noise. Fix the measurement system first — both SPC and Cpk assessments may improve once gage noise is removed from the signal.",
-            "hint": "The log-linear fusion means a single poor stream pulls down the overall health disproportionately."
+            "hint": "The log-linear fusion means a single poor stream pulls down the overall health disproportionately.",
         },
         {
             "question": "Taguchi Loss shows bias fraction = 72%, variance fraction = 28%. Total expected loss is $0.15/unit. What's the improvement priority?",
             "answer": "Bias is the dominant cost driver at 72%. The process mean is off-target, and centering it would eliminate most of the loss. Centering (adjusting the mean) is typically cheaper and faster than reducing variance (which often requires process or equipment changes). Centering alone would reduce expected loss from $0.15 to roughly $0.04/unit.",
-            "hint": "Which is easier to fix — centering a process or reducing its spread?"
+            "hint": "Which is easier to fix — centering a process or reducing its spread?",
         },
-    ]
+    ],
 }
 
 
@@ -797,16 +756,10 @@ PBS_ADVANCED = {
             "Compare to the auto-selected lambda — does it detect more or fewer changepoints?",
             "Look at the alarm thresholds: at what P(shift) does PBS recommend investigation?",
             "Consider: if a missed shift costs $10 and a false investigation costs $2, what should the threshold be?",
-            "Think about how you would transfer this process's posterior to a new, similar product line"
+            "Think about how you would transfer this process's posterior to a new, similar product line",
         ],
         "dsw_type": "pbs:pbs_full",
-        "dsw_config": {
-            "column": "diameter_mm",
-            "USL": 25.15,
-            "LSL": 24.85,
-            "target": 25.0,
-            "hazard_lambda": 50
-        },
+        "dsw_config": {"column": "diameter_mm", "USL": 25.15, "LSL": 24.85, "target": 25.0, "hazard_lambda": 50},
     },
     "content": """
 ## Chart Genealogy: Learning Across Processes
@@ -903,10 +856,7 @@ Safety-critical processes have very low thresholds — investigate at the slight
 
 This is a **closed loop** — the system learns continuously, and knowledge transfers across processes. No other SPC platform offers this.
 """,
-    "interactive": {
-        "type": "pbs_demo",
-        "config": {"analysis": "pbs_full"}
-    },
+    "interactive": {"type": "pbs_demo", "config": {"analysis": "pbs_full"}},
     "key_takeaways": [
         "Chart Genealogy inherits priors from parent processes, cutting qualification time by 50%+",
         "Transfer factors control how much to trust the parent's posterior for the child",
@@ -919,12 +869,12 @@ This is a **closed loop** — the system learns continuously, and knowledge tran
         {
             "question": "You're launching a new product on the same machine with the same material. The previous product's posterior has kappa=200, alpha=102, beta=0.05. What transfer factor would you use?",
             "answer": "Use a high transfer factor like 0.7–0.8. Same machine and same material means the process variability should be similar. At f=0.8, the child starts with kappa=160, alpha≈82, beta=0.04 — substantial prior information that will narrow credible intervals immediately. The child still adapts as its own data arrives, but it starts with a significant head start.",
-            "hint": "Same machine and material suggests high transferability."
+            "hint": "Same machine and material suggests high transferability.",
         },
         {
             "question": "A missed shift on your process costs $50 (scrap rework). A false investigation costs $5 (engineer time). Investigation itself costs $10. What should the alarm threshold be?",
             "answer": "P* = (c_fa + c_inv) / (c_miss + c_fa) = (5 + 10) / (50 + 5) = 15/55 ≈ 27%. Investigate whenever P(shift) > 27%. This is the threshold where the expected cost of ignoring equals the expected cost of investigating. Below 27%, the expected cost of a false alarm exceeds the expected cost of a missed shift; above 27%, the reverse is true.",
-            "hint": "Apply the formula: P* = (c_fa + c_inv) / (c_miss + c_fa)."
+            "hint": "Apply the formula: P* = (c_fa + c_inv) / (c_miss + c_fa).",
         },
-    ]
+    ],
 }

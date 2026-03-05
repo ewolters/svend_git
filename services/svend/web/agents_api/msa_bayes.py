@@ -26,7 +26,6 @@ Derived metrics (posterior distributions):
 Dependencies: numpy only.
 """
 
-import math
 import numpy as np
 
 __all__ = ["BayesianGageRR", "run_bayes_msa"]
@@ -55,8 +54,7 @@ class BayesianGageRR:
         USL - LSL for %tolerance computation.
     """
 
-    def __init__(self, parts, operators, measurements,
-                 prior=None, tolerance=None):
+    def __init__(self, parts, operators, measurements, prior=None, tolerance=None):
         parts = np.array(parts)
         operators = np.array(operators)
         measurements = np.array(measurements, dtype=float)
@@ -85,10 +83,10 @@ class BayesianGageRR:
         default_a, default_b = 0.01, 0.01
         pr = prior or {}
         self._prior = {
-            "P":  (pr.get("alpha_P", default_a), pr.get("beta_P", default_b)),
-            "O":  (pr.get("alpha_O", default_a), pr.get("beta_O", default_b)),
+            "P": (pr.get("alpha_P", default_a), pr.get("beta_P", default_b)),
+            "O": (pr.get("alpha_O", default_a), pr.get("beta_O", default_b)),
             "PO": (pr.get("alpha_PO", default_a), pr.get("beta_PO", default_b)),
-            "E":  (pr.get("alpha_E", default_a), pr.get("beta_E", default_b)),
+            "E": (pr.get("alpha_E", default_a), pr.get("beta_E", default_b)),
         }
         self._has_prior = prior is not None
 
@@ -109,8 +107,8 @@ class BayesianGageRR:
 
         # Initialize from data
         mu = np.mean(y)
-        a = np.zeros(n_p)       # part effects
-        b = np.zeros(n_o)       # operator effects
+        a = np.zeros(n_p)  # part effects
+        b = np.zeros(n_o)  # operator effects
         c = np.zeros((n_p, n_o))  # interaction
         sig2_P = np.var(y) * 0.5
         sig2_O = np.var(y) * 0.1
@@ -130,7 +128,7 @@ class BayesianGageRR:
 
         for it in range(n_iter):
             # Residuals without each component
-            resid_full = y - mu - a[pi] - b[oj] - c[pi, oj]
+            y - mu - a[pi] - b[oj] - c[pi, oj]
 
             # --- Sample μ ---
             r_mu = y - a[pi] - b[oj] - c[pi, oj]
@@ -174,25 +172,25 @@ class BayesianGageRR:
 
             # --- Sample σ²_E ---
             resid = y - mu - a[pi] - b[oj] - c[pi, oj]
-            ss_e = np.sum(resid ** 2)
+            ss_e = np.sum(resid**2)
             a_post = self._prior["E"][0] + N / 2.0
             b_post = self._prior["E"][1] + ss_e / 2.0
             sig2_E = 1.0 / np.random.gamma(a_post, 1.0 / b_post)
 
             # --- Sample σ²_P ---
-            ss_p = np.sum(a ** 2)
+            ss_p = np.sum(a**2)
             a_post = self._prior["P"][0] + n_p / 2.0
             b_post = self._prior["P"][1] + ss_p / 2.0
             sig2_P = 1.0 / np.random.gamma(a_post, 1.0 / b_post)
 
             # --- Sample σ²_O ---
-            ss_o = np.sum(b ** 2)
+            ss_o = np.sum(b**2)
             a_post = self._prior["O"][0] + n_o / 2.0
             b_post = self._prior["O"][1] + ss_o / 2.0
             sig2_O = 1.0 / np.random.gamma(a_post, 1.0 / b_post)
 
             # --- Sample σ²_PO ---
-            ss_po = np.sum(c ** 2)
+            ss_po = np.sum(c**2)
             a_post = self._prior["PO"][0] + (n_p * n_o) / 2.0
             b_post = self._prior["PO"][1] + ss_po / 2.0
             sig2_PO = 1.0 / np.random.gamma(a_post, 1.0 / b_post)
@@ -218,17 +216,11 @@ class BayesianGageRR:
         s = self.samples
         self.sig2_grr = s["sig2_O"] + s["sig2_PO"] + s["sig2_E"]
         self.sig2_total = s["sig2_P"] + self.sig2_grr
-        self.pct_grr = (np.sqrt(self.sig2_grr)
-                        / np.sqrt(self.sig2_total) * 100)
-        self.pct_repeat = (np.sqrt(s["sig2_E"])
-                           / np.sqrt(self.sig2_total) * 100)
-        self.pct_reprod = (np.sqrt(s["sig2_O"] + s["sig2_PO"])
-                           / np.sqrt(self.sig2_total) * 100)
-        self.pct_part = (np.sqrt(s["sig2_P"])
-                         / np.sqrt(self.sig2_total) * 100)
-        self.ndc_samples = np.floor(
-            1.41 * np.sqrt(s["sig2_P"] / self.sig2_grr)
-        ).astype(int)
+        self.pct_grr = np.sqrt(self.sig2_grr) / np.sqrt(self.sig2_total) * 100
+        self.pct_repeat = np.sqrt(s["sig2_E"]) / np.sqrt(self.sig2_total) * 100
+        self.pct_reprod = np.sqrt(s["sig2_O"] + s["sig2_PO"]) / np.sqrt(self.sig2_total) * 100
+        self.pct_part = np.sqrt(s["sig2_P"]) / np.sqrt(self.sig2_total) * 100
+        self.ndc_samples = np.floor(1.41 * np.sqrt(s["sig2_P"] / self.sig2_grr)).astype(int)
 
     def summary(self):
         """Posterior summary statistics."""
@@ -279,7 +271,7 @@ class BayesianGageRR:
             v = np.var(samples)
             if v < 1e-15:
                 return 2.01, m * 1.01
-            alpha = m ** 2 / v + 2
+            alpha = m**2 / v + 2
             beta = m * (alpha - 1)
             return float(alpha), float(beta)
 
@@ -290,10 +282,14 @@ class BayesianGageRR:
         aE, bE = _fit_ig(s["sig2_E"])
 
         return {
-            "alpha_P": aP, "beta_P": bP,
-            "alpha_O": aO, "beta_O": bO,
-            "alpha_PO": aPO, "beta_PO": bPO,
-            "alpha_E": aE, "beta_E": bE,
+            "alpha_P": aP,
+            "beta_P": bP,
+            "alpha_O": aO,
+            "beta_O": bO,
+            "alpha_PO": aPO,
+            "beta_PO": bPO,
+            "alpha_E": aE,
+            "beta_E": bE,
         }
 
 
@@ -334,8 +330,7 @@ def run_bayes_msa(df, analysis_id, config):
 
     # Run Gibbs sampler
     prior = prior_json if isinstance(prior_json, dict) else None
-    model = BayesianGageRR(parts, operators, measurements,
-                           prior=prior, tolerance=tolerance)
+    model = BayesianGageRR(parts, operators, measurements, prior=prior, tolerance=tolerance)
     model.fit(n_iter=2000, burn_in=500, thin=2, seed=42)
     s = model.summary()
 
@@ -358,36 +353,40 @@ def run_bayes_msa(df, analysis_id, config):
     lines.append("<<COLOR:title>>BAYESIAN GAGE R&R<</COLOR>>")
     lines.append(f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n")
 
-    lines.append(f"<<COLOR:highlight>>Design:<</COLOR>> "
-                 f"{model.n_p} parts × {model.n_o} operators × "
-                 f"{model.n_r} replicates = {model.N} obs")
-    lines.append(f"<<COLOR:highlight>>Prior:<</COLOR>> "
-                 f"{'Historical (from previous study)' if model._has_prior else 'Weakly informative (vague)'}")
-    lines.append(f"<<COLOR:highlight>>MCMC:<</COLOR>> "
-                 f"{s['n_samples']} posterior samples "
-                 f"(2000 iterations, 500 burn-in, thin 2)")
-
-    lines.append(f"\n<<COLOR:accent>>── Verdict ──<</COLOR>>")
-    lines.append(f"<<COLOR:{verdict_color}>>{verdict}: "
-                 f"%GRR = {s['pct_grr']['mean']:.1f}% "
-                 f"[{s['pct_grr']['ci_low']:.1f}%, "
-                 f"{s['pct_grr']['ci_high']:.1f}%]<</COLOR>>")
-    lines.append(f"<<COLOR:highlight>>P(%GRR < 10%):<</COLOR>> "
-                 f"{p10:.1%}")
-    lines.append(f"<<COLOR:highlight>>P(%GRR < 30%):<</COLOR>> "
-                 f"{p30:.1%}")
-    lines.append(f"<<COLOR:highlight>>NDC:<</COLOR>> "
-                 f"{s['ndc']['mean']:.1f} "
-                 f"[{s['ndc']['ci_low']:.0f}, {s['ndc']['ci_high']:.0f}] "
-                 f"  P(NDC ≥ 5) = {s['p_ndc_ge_5']:.1%}")
-
-    lines.append(f"\n<<COLOR:accent>>── Variance Components "
-                 f"(posterior mean [95% CI]) ──<</COLOR>>")
-    fmt = lambda k, label: (
-        f"  {label:<22} "
-        f"{s[k]['mean']:>10.4f}  "
-        f"[{s[k]['ci_low']:.4f}, {s[k]['ci_high']:.4f}]"
+    lines.append(
+        f"<<COLOR:highlight>>Design:<</COLOR>> "
+        f"{model.n_p} parts × {model.n_o} operators × "
+        f"{model.n_r} replicates = {model.N} obs"
     )
+    lines.append(
+        f"<<COLOR:highlight>>Prior:<</COLOR>> "
+        f"{'Historical (from previous study)' if model._has_prior else 'Weakly informative (vague)'}"
+    )
+    lines.append(
+        f"<<COLOR:highlight>>MCMC:<</COLOR>> {s['n_samples']} posterior samples (2000 iterations, 500 burn-in, thin 2)"
+    )
+
+    lines.append("\n<<COLOR:accent>>── Verdict ──<</COLOR>>")
+    lines.append(
+        f"<<COLOR:{verdict_color}>>{verdict}: "
+        f"%GRR = {s['pct_grr']['mean']:.1f}% "
+        f"[{s['pct_grr']['ci_low']:.1f}%, "
+        f"{s['pct_grr']['ci_high']:.1f}%]<</COLOR>>"
+    )
+    lines.append(f"<<COLOR:highlight>>P(%GRR < 10%):<</COLOR>> {p10:.1%}")
+    lines.append(f"<<COLOR:highlight>>P(%GRR < 30%):<</COLOR>> {p30:.1%}")
+    lines.append(
+        f"<<COLOR:highlight>>NDC:<</COLOR>> "
+        f"{s['ndc']['mean']:.1f} "
+        f"[{s['ndc']['ci_low']:.0f}, {s['ndc']['ci_high']:.0f}] "
+        f"  P(NDC ≥ 5) = {s['p_ndc_ge_5']:.1%}"
+    )
+
+    lines.append("\n<<COLOR:accent>>── Variance Components (posterior mean [95% CI]) ──<</COLOR>>")
+
+    def fmt(k, label):
+        return f"  {label:<22} {s[k]['mean']:>10.4f}  [{s[k]['ci_low']:.4f}, {s[k]['ci_high']:.4f}]"
+
     lines.append(fmt("var_part", "Part-to-Part (σ²_P)"))
     lines.append(fmt("var_operator", "Operator (σ²_O)"))
     lines.append(fmt("var_interaction", "Interaction (σ²_PO)"))
@@ -395,12 +394,11 @@ def run_bayes_msa(df, analysis_id, config):
     lines.append(fmt("var_grr", "GRR (σ²_GRR)"))
     lines.append(fmt("var_total", "Total (σ²_Total)"))
 
-    lines.append(f"\n<<COLOR:accent>>── % Study Variation ──<</COLOR>>")
-    fmt2 = lambda k, label: (
-        f"  {label:<22} "
-        f"{s[k]['mean']:>8.1f}%  "
-        f"[{s[k]['ci_low']:.1f}%, {s[k]['ci_high']:.1f}%]"
-    )
+    lines.append("\n<<COLOR:accent>>── % Study Variation ──<</COLOR>>")
+
+    def fmt2(k, label):
+        return f"  {label:<22} {s[k]['mean']:>8.1f}%  [{s[k]['ci_low']:.1f}%, {s[k]['ci_high']:.1f}%]"
+
     lines.append(fmt2("pct_grr", "GRR"))
     lines.append(fmt2("pct_repeatability", "Repeatability"))
     lines.append(fmt2("pct_reproducibility", "Reproducibility"))
@@ -408,23 +406,18 @@ def run_bayes_msa(df, analysis_id, config):
 
     if tolerance:
         grr_tol = 6 * np.sqrt(s["var_grr"]["mean"]) / tolerance * 100
-        lines.append(f"\n<<COLOR:highlight>>%Tolerance (6σ_GRR/tol):"
-                     f"<</COLOR>> {grr_tol:.1f}%")
+        lines.append(f"\n<<COLOR:highlight>>%Tolerance (6σ_GRR/tol):<</COLOR>> {grr_tol:.1f}%")
 
     # Sequential updating info
     next_prior = model.prior_for_next_study()
-    lines.append(f"\n<<COLOR:accent>>── Sequential Updating ──<</COLOR>>")
-    lines.append("  This posterior can serve as the prior for your next "
-                 "gage study.")
-    lines.append("  Each successive study sharpens the estimates "
-                 "without discarding prior knowledge.")
+    lines.append("\n<<COLOR:accent>>── Sequential Updating ──<</COLOR>>")
+    lines.append("  This posterior can serve as the prior for your next gage study.")
+    lines.append("  Each successive study sharpens the estimates without discarding prior knowledge.")
 
-    lines.append(f"\n<<COLOR:accent>>── Assumptions ──<</COLOR>>")
-    lines.append("  1. Balanced crossed design "
-                 "(each operator measures each part)")
+    lines.append("\n<<COLOR:accent>>── Assumptions ──<</COLOR>>")
+    lines.append("  1. Balanced crossed design (each operator measures each part)")
     lines.append("  2. Random effects are Gaussian")
-    lines.append("  3. Variance components are positive "
-                 "(enforced by InvGamma prior)")
+    lines.append("  3. Variance components are positive (enforced by InvGamma prior)")
     lines.append("  4. No systematic measurement drift within the study")
 
     result["summary"] = "\n".join(lines)
@@ -435,107 +428,142 @@ def run_bayes_msa(df, analysis_id, config):
     hist_vals, bin_edges = np.histogram(pct_grr_arr, bins=50, density=True)
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
 
-    result["plots"].append({
-        "title": "%GRR Posterior Distribution",
-        "data": [
-            {"type": "bar", "x": bin_centers.tolist(),
-             "y": hist_vals.tolist(),
-             "marker": {"color": "rgba(74,159,110,0.5)",
-                        "line": {"color": "#4a9f6e", "width": 0.5}},
-             "name": "Posterior density"},
-            {"type": "scatter", "x": [10, 10],
-             "y": [0, max(hist_vals) * 1.1],
-             "mode": "lines",
-             "line": {"color": "#4a9f6e", "dash": "dash", "width": 1.5},
-             "name": "10% (acceptable)"},
-            {"type": "scatter", "x": [30, 30],
-             "y": [0, max(hist_vals) * 1.1],
-             "mode": "lines",
-             "line": {"color": "#d94a4a", "dash": "dash", "width": 1.5},
-             "name": "30% (unacceptable)"},
-        ],
-        "layout": {
-            "template": "plotly_dark", "height": 300,
-            "xaxis": {"title": "% Study Variation (GRR)"},
-            "yaxis": {"title": "Posterior density"},
-            "annotations": [
-                {"x": 10, "y": max(hist_vals) * 1.05,
-                 "text": f"P(<10%)={p10:.0%}", "showarrow": False,
-                 "font": {"color": "#4a9f6e", "size": 10}},
-                {"x": 30, "y": max(hist_vals) * 1.05,
-                 "text": f"P(<30%)={p30:.0%}", "showarrow": False,
-                 "font": {"color": "#d94a4a", "size": 10}},
+    result["plots"].append(
+        {
+            "title": "%GRR Posterior Distribution",
+            "data": [
+                {
+                    "type": "bar",
+                    "x": bin_centers.tolist(),
+                    "y": hist_vals.tolist(),
+                    "marker": {"color": "rgba(74,159,110,0.5)", "line": {"color": "#4a9f6e", "width": 0.5}},
+                    "name": "Posterior density",
+                },
+                {
+                    "type": "scatter",
+                    "x": [10, 10],
+                    "y": [0, max(hist_vals) * 1.1],
+                    "mode": "lines",
+                    "line": {"color": "#4a9f6e", "dash": "dash", "width": 1.5},
+                    "name": "10% (acceptable)",
+                },
+                {
+                    "type": "scatter",
+                    "x": [30, 30],
+                    "y": [0, max(hist_vals) * 1.1],
+                    "mode": "lines",
+                    "line": {"color": "#d94a4a", "dash": "dash", "width": 1.5},
+                    "name": "30% (unacceptable)",
+                },
             ],
-        },
-    })
+            "layout": {
+                "template": "plotly_dark",
+                "height": 300,
+                "xaxis": {"title": "% Study Variation (GRR)"},
+                "yaxis": {"title": "Posterior density"},
+                "annotations": [
+                    {
+                        "x": 10,
+                        "y": max(hist_vals) * 1.05,
+                        "text": f"P(<10%)={p10:.0%}",
+                        "showarrow": False,
+                        "font": {"color": "#4a9f6e", "size": 10},
+                    },
+                    {
+                        "x": 30,
+                        "y": max(hist_vals) * 1.05,
+                        "text": f"P(<30%)={p30:.0%}",
+                        "showarrow": False,
+                        "font": {"color": "#d94a4a", "size": 10},
+                    },
+                ],
+            },
+        }
+    )
 
     # 2. Variance components comparison (posterior box plots)
     comp_names = ["Part", "Operator", "Interaction", "Repeatability"]
     comp_keys = ["sig2_P", "sig2_O", "sig2_PO", "sig2_E"]
     box_traces = []
     for name, key in zip(comp_names, comp_keys):
-        box_traces.append({
-            "type": "box", "y": model.samples[key].tolist(),
-            "name": name, "boxmean": True,
-            "marker": {"color": "rgba(74,159,110,0.5)"},
-        })
+        box_traces.append(
+            {
+                "type": "box",
+                "y": model.samples[key].tolist(),
+                "name": name,
+                "boxmean": True,
+                "marker": {"color": "rgba(74,159,110,0.5)"},
+            }
+        )
 
-    result["plots"].append({
-        "title": "Posterior Distributions — Variance Components",
-        "data": box_traces,
-        "layout": {
-            "template": "plotly_dark", "height": 300,
-            "yaxis": {"title": "Variance (σ²)"},
-        },
-    })
+    result["plots"].append(
+        {
+            "title": "Posterior Distributions — Variance Components",
+            "data": box_traces,
+            "layout": {
+                "template": "plotly_dark",
+                "height": 300,
+                "yaxis": {"title": "Variance (σ²)"},
+            },
+        }
+    )
 
     # 3. NDC posterior
     ndc_arr = model.ndc_samples
     ndc_vals, ndc_counts = np.unique(ndc_arr, return_counts=True)
     ndc_probs = ndc_counts / len(ndc_arr)
 
-    result["plots"].append({
-        "title": "NDC Posterior (Number of Distinct Categories)",
-        "data": [
-            {"type": "bar", "x": ndc_vals.tolist(),
-             "y": ndc_probs.tolist(),
-             "marker": {"color": ["#4a9f6e" if v >= 5 else "#d94a4a"
-                                   for v in ndc_vals]},
-             "name": "P(NDC=k)"},
-        ],
-        "layout": {
-            "template": "plotly_dark", "height": 250,
-            "xaxis": {"title": "NDC", "dtick": 1},
-            "yaxis": {"title": "Probability"},
-            "annotations": [
-                {"x": 5, "y": max(ndc_probs) * 1.05,
-                 "text": "≥5 required", "showarrow": False,
-                 "font": {"color": "#4a9f6e", "size": 10}},
+    result["plots"].append(
+        {
+            "title": "NDC Posterior (Number of Distinct Categories)",
+            "data": [
+                {
+                    "type": "bar",
+                    "x": ndc_vals.tolist(),
+                    "y": ndc_probs.tolist(),
+                    "marker": {"color": ["#4a9f6e" if v >= 5 else "#d94a4a" for v in ndc_vals]},
+                    "name": "P(NDC=k)",
+                },
             ],
-        },
-    })
+            "layout": {
+                "template": "plotly_dark",
+                "height": 250,
+                "xaxis": {"title": "NDC", "dtick": 1},
+                "yaxis": {"title": "Probability"},
+                "annotations": [
+                    {
+                        "x": 5,
+                        "y": max(ndc_probs) * 1.05,
+                        "text": "≥5 required",
+                        "showarrow": False,
+                        "font": {"color": "#4a9f6e", "size": 10},
+                    },
+                ],
+            },
+        }
+    )
 
     # 4. % Study Variation breakdown (stacked)
     labels = ["%Repeatability", "%Reproducibility", "%Part-to-Part"]
-    means = [s["pct_repeatability"]["mean"],
-             s["pct_reproducibility"]["mean"],
-             s["pct_part"]["mean"]]
+    means = [s["pct_repeatability"]["mean"], s["pct_reproducibility"]["mean"], s["pct_part"]["mean"]]
     colors = ["#d4a24a", "#6ab7d4", "#4a9f6e"]
 
-    result["plots"].append({
-        "title": "% Study Variation Breakdown",
-        "data": [
-            {"type": "bar", "x": [label], "y": [val],
-             "name": label, "marker": {"color": col}}
-            for label, val, col in zip(labels, means, colors)
-        ],
-        "layout": {
-            "template": "plotly_dark", "height": 200,
-            "barmode": "stack",
-            "xaxis": {"showticklabels": False},
-            "yaxis": {"title": "% Study Variation"},
-        },
-    })
+    result["plots"].append(
+        {
+            "title": "% Study Variation Breakdown",
+            "data": [
+                {"type": "bar", "x": [label], "y": [val], "name": label, "marker": {"color": col}}
+                for label, val, col in zip(labels, means, colors)
+            ],
+            "layout": {
+                "template": "plotly_dark",
+                "height": 200,
+                "barmode": "stack",
+                "xaxis": {"showticklabels": False},
+                "yaxis": {"title": "% Study Variation"},
+            },
+        }
+    )
 
     # --- Statistics ---
     result["statistics"] = {
@@ -546,8 +574,7 @@ def run_bayes_msa(df, analysis_id, config):
         "n_total": model.N,
         "verdict": verdict,
         "pct_grr_mean": round(s["pct_grr"]["mean"], 2),
-        "pct_grr_ci": [round(s["pct_grr"]["ci_low"], 2),
-                       round(s["pct_grr"]["ci_high"], 2)],
+        "pct_grr_ci": [round(s["pct_grr"]["ci_low"], 2), round(s["pct_grr"]["ci_high"], 2)],
         "p_grr_lt_10": round(p10, 4),
         "p_grr_lt_30": round(p30, 4),
         "ndc_mean": round(s["ndc"]["mean"], 1),

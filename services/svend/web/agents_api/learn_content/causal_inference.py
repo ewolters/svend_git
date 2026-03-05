@@ -2,7 +2,6 @@
 
 from ._datasets import SHARED_DATASET  # noqa: F401
 
-
 CAUSAL_THINKING = {
     "id": "causal-thinking",
     "title": "Causal Thinking",
@@ -13,7 +12,7 @@ CAUSAL_THINKING = {
             "Add three variables: Treatment, Outcome, and a Confounder",
             "Draw arrows showing assumed causal relationships",
             "Identify the backdoor path through the confounder",
-            "Add a collider and observe the warning when you condition on it"
+            "Add a collider and observe the warning when you condition on it",
         ],
         "dsw_type": "stats:regression",
         "dsw_config": {"response": "diameter_mm", "predictors": ["weight_g", "roughness_ra"]},
@@ -122,14 +121,14 @@ X and Y are NOT causally related here. BUT if you condition on Z (adjust for it,
         {
             "question": "You're studying whether education affects income. You find that education correlates with income, but you suspect family wealth confounds this. Draw the DAG and explain what you'd need to adjust for.",
             "answer": "DAG: Family Wealth → Education, Family Wealth → Income, Education → Income. Family wealth is a confounder creating a backdoor path. You must adjust for family wealth to estimate the causal effect of education on income. But if you can't fully measure family wealth, residual confounding remains.",
-            "hint": "Identify the backdoor path and what blocks it."
+            "hint": "Identify the backdoor path and what blocks it.",
         },
         {
             "question": "Among successful entrepreneurs, you notice a negative correlation between technical skills and social skills. Does this mean technical skills hurt social development?",
             "answer": "No. 'Successful entrepreneur' is a collider—caused by both technical and social skills. Conditioning on success (only studying successful entrepreneurs) creates a spurious negative correlation. In the general population, these skills might be uncorrelated or even positively correlated.",
-            "hint": "What causes someone to become a successful entrepreneur?"
-        }
-    ]
+            "hint": "What causes someone to become a successful entrepreneur?",
+        },
+    ],
 }
 
 
@@ -143,7 +142,7 @@ CONFOUNDING = {
             "Build a DAG with treatment, outcome, and a suspected confounder",
             "Mark the confounder and observe the backdoor path",
             "Specify an adjustment set to block the confounding",
-            "Add a collider variable and see the warning if you adjust for it"
+            "Add a collider variable and see the warning if you adjust for it",
         ],
         "dsw_type": "stats:regression",
         "dsw_config": {"response": "diameter_mm", "predictors": ["weight_g", "roughness_ra"]},
@@ -277,7 +276,7 @@ DAGs help identify:
             "show_confounder_detection": True,
             "show_collider_warning": True,
             "allow_adjustment_sets": True,
-        }
+        },
     },
     "key_takeaways": [
         "Confounders create spurious associations that look causal",
@@ -290,14 +289,14 @@ DAGs help identify:
         {
             "question": "Coffee drinking is associated with lower mortality in observational studies. What confounders might explain this?",
             "answer": "Many possibilities: Healthier people may drink more coffee (healthy user bias). Coffee drinkers may be more affluent (socioeconomic status). Coffee drinkers may be more social. Sicker people may avoid coffee.",
-            "hint": "Think about what kind of person drinks coffee and what else affects mortality."
+            "hint": "Think about what kind of person drinks coffee and what else affects mortality.",
         },
         {
             "question": "A study adjusts for 'general health status' when looking at whether exercise prevents heart disease. What's the problem?",
             "answer": "General health status may be a collider (both exercise and genetics affect it) or a mediator (exercise improves health which prevents heart disease). Adjusting for a mediator blocks the causal path you're trying to measure. Adjusting for a collider creates bias.",
-            "hint": "Draw the DAG. Where does 'general health status' fit?"
-        }
-    ]
+            "hint": "Draw the DAG. Where does 'general health status' fit?",
+        },
+    ],
 }
 
 
@@ -311,7 +310,7 @@ NATURAL_EXPERIMENTS = {
             "Review the three natural experiment types: IV, RD, DiD",
             "Select a scenario and identify the source of quasi-random variation",
             "Evaluate whether the key assumption (exclusion restriction, parallel trends, or no manipulation) holds",
-            "Discuss the limitations of the local estimate"
+            "Discuss the limitations of the local estimate",
         ],
         "dsw_type": "stats:regression",
         "dsw_config": {"response": "diameter_mm", "predictors": ["roughness_ra"]},
@@ -386,10 +385,7 @@ Natural experiments give:
 
 But they're far better than naive observational comparisons.
 """,
-    "interactive": {
-        "type": "natural_experiment_demo",
-        "config": {}
-    },
+    "interactive": {"type": "natural_experiment_demo", "config": {}},
     "key_takeaways": [
         "Natural experiments exploit as-if random variation",
         "IV requires an exclusion restriction that's often questionable",
@@ -401,14 +397,14 @@ But they're far better than naive observational comparisons.
         {
             "question": "A city raises the minimum drinking age from 18 to 21. You want to estimate the effect on traffic accidents. Which natural experiment design is most appropriate?",
             "answer": "Regression discontinuity — compare accident rates for people just under and just above 21 after the change. Those near the cutoff are similar except for legal drinking access. Alternatively, difference-in-differences using a neighboring city that didn't change the law as the control.",
-            "hint": "A sharp age cutoff creates a natural experiment at the threshold"
+            "hint": "A sharp age cutoff creates a natural experiment at the threshold",
         },
         {
             "question": "A researcher uses 'distance from a university' as an instrumental variable for education when studying the effect of education on earnings. What's the key assumption, and is it plausible?",
             "answer": "The exclusion restriction: distance to university affects earnings ONLY through education. This is questionable — people who grow up near universities may differ in many ways (urban vs rural, parental education, local job market). These factors could independently affect earnings, violating the exclusion restriction.",
-            "hint": "The instrument must affect outcome only through the treatment variable"
+            "hint": "The instrument must affect outcome only through the treatment variable",
         },
-    ]
+    ],
 }
 
 
@@ -422,7 +418,7 @@ AB_TESTING_CAUSAL = {
             "Check the sample ratio mismatch diagnostic",
             "Review the time trend for novelty/familiarity effects",
             "Examine segment-level results for heterogeneous treatment effects",
-            "Count the number of metrics tested and assess multiple testing risk"
+            "Count the number of metrics tested and assess multiple testing risk",
         ],
         "dsw_type": "stats:ttest",
         "dsw_config": {"var1": "diameter_mm", "mu": 25.0},
@@ -558,14 +554,12 @@ The best approach uses A/B testing as the final arbiter while using observationa
         {
             "question": "You run an A/B test for a social feature. The treatment group can share content with anyone, but control users might see shared content from treatment users. What problem does this create and how would you address it?",
             "answer": "This violates SUTVA—control users are partially 'treated' by exposure to the feature through treatment users. This spillover contaminates the control, biasing the effect toward zero. Solution: Cluster randomization at the network level (e.g., randomize friend groups or geographic clusters) so treated and control users don't interact.",
-            "hint": "What happens when treatment 'leaks' to control?"
+            "hint": "What happens when treatment 'leaks' to control?",
         },
         {
             "question": "Your A/B test shows a 2% lift in conversions (p=0.03). But you also checked 15 other metrics. Should you launch?",
             "answer": "With 16 metrics at α=0.05, you expect ~0.8 false positives by chance. A single significant result among 16 is suspicious. Apply Bonferroni (α/16 = 0.003) or Benjamini-Hochberg correction. If conversion was pre-registered as primary, you can give it more weight. Also check effect consistency across segments and practical significance of 2% lift.",
-            "hint": "What's the expected false positive count with 16 tests?"
-        }
-    ]
+            "hint": "What's the expected false positive count with 16 tests?",
+        },
+    ],
 }
-
-

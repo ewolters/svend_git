@@ -18,19 +18,19 @@ The TaskExecutor provides:
 from __future__ import annotations
 
 import logging
-import multiprocessing
 import os
-import signal
 import sys
 import threading
 import time
 import traceback
 import uuid
-from concurrent.futures import Future, ProcessPoolExecutor, ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+from collections.abc import Callable
+from concurrent.futures import Future, ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any
 
 from django.utils import timezone
 
@@ -44,6 +44,7 @@ logger = logging.getLogger(__name__)
 _HAS_RESOURCE = False
 try:
     import resource
+
     _HAS_RESOURCE = True
 except ImportError:
     # Windows fallback - resource module not available
@@ -52,6 +53,7 @@ except ImportError:
 
 class ExecutionStatus(Enum):
     """Status of task execution."""
+
     PENDING = "pending"
     RUNNING = "running"
     SUCCESS = "success"
@@ -77,20 +79,20 @@ class ExecutionContext:
 
     task_id: uuid.UUID
     task_name: str
-    correlation_id: Optional[uuid.UUID] = None
-    root_correlation_id: Optional[uuid.UUID] = None
-    tenant_id: Optional[uuid.UUID] = None
+    correlation_id: uuid.UUID | None = None
+    root_correlation_id: uuid.UUID | None = None
+    tenant_id: uuid.UUID | None = None
     attempt: int = 1
     max_attempts: int = 3
     worker_id: str = ""
-    deadline: Optional[datetime] = None
+    deadline: datetime | None = None
     timeout_seconds: int = 60
     memory_limit_mb: int = 512
     resource_class: ResourceClass = ResourceClass.MIXED
 
     # Internal state
     _cancelled: threading.Event = field(default_factory=threading.Event)
-    _started_at: Optional[datetime] = None
+    _started_at: datetime | None = None
 
     def is_cancelled(self) -> bool:
         """Check if execution has been cancelled."""
@@ -123,8 +125,8 @@ class ExecutionContext:
         task: QueuedTask,
         worker_id: str,
         attempt: int = 1,
-        timeout_seconds: Optional[int] = None,
-    ) -> "ExecutionContext":
+        timeout_seconds: int | None = None,
+    ) -> ExecutionContext:
         """Create context from QueuedTask."""
         config = get_worker_config(task.resource_class)
         base_timeout = timeout_seconds or task.metadata.get("timeout_seconds", 60)
@@ -156,12 +158,12 @@ class ExecutionResult:
 
     task_id: uuid.UUID
     status: ExecutionStatus
-    result: Optional[Any] = None
-    error_message: Optional[str] = None
-    error_type: Optional[str] = None
-    error_traceback: Optional[str] = None
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    result: Any | None = None
+    error_message: str | None = None
+    error_type: str | None = None
+    error_traceback: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     duration_ms: float = 0.0
     memory_peak_mb: float = 0.0
     cpu_time_ms: float = 0.0
@@ -190,7 +192,7 @@ class ExecutionResult:
 
         return True
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "task_id": str(self.task_id),
@@ -220,6 +222,7 @@ def _get_memory_usage_mb() -> float:
             # Windows: Use psutil if available, else return 0
             try:
                 import psutil
+
                 process = psutil.Process(os.getpid())
                 return process.memory_info().rss / (1024 * 1024)  # bytes to MB
             except ImportError:
@@ -244,10 +247,10 @@ def _get_cpu_time_ms() -> float:
 
 def _execute_in_subprocess(
     handler: Callable,
-    payload: Dict[str, Any],
-    context_dict: Dict[str, Any],
+    payload: dict[str, Any],
+    context_dict: dict[str, Any],
     memory_limit_mb: int,
-) -> Tuple[Any, str, str, str, float, float]:
+) -> tuple[Any, str, str, str, float, float]:
     """
     Execute handler in subprocess with resource limits.
 
@@ -259,6 +262,7 @@ def _execute_in_subprocess(
     if memory_limit_mb > 0 and sys.platform != "win32":
         try:
             import resource as res
+
             soft_limit = memory_limit_mb * 1024 * 1024  # Convert to bytes
             hard_limit = int(soft_limit * 1.1)  # 10% buffer
             res.setrlimit(res.RLIMIT_AS, (soft_limit, hard_limit))
@@ -272,6 +276,7 @@ def _execute_in_subprocess(
     try:
         # Reconstruct context (simplified - no threading.Event in subprocess)
         from .executor import ExecutionContext
+
         context = ExecutionContext(
             task_id=uuid.UUID(context_dict["task_id"]),
             task_name=context_dict["task_name"],
@@ -356,14 +361,14 @@ class TaskExecutor:
         self.default_timeout = default_timeout
 
         # Execution state
-        self._current_context: Optional[ExecutionContext] = None
-        self._current_future: Optional[Future] = None
+        self._current_context: ExecutionContext | None = None
+        self._current_future: Future | None = None
 
         # Thread pool for lightweight tasks
         self._thread_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"{worker_id}-")
 
         # Process pool for isolated tasks
-        self._process_pool: Optional[ProcessPoolExecutor] = None
+        self._process_pool: ProcessPoolExecutor | None = None
         if use_process_isolation:
             self._process_pool = ProcessPoolExecutor(max_workers=1)
 
@@ -371,7 +376,7 @@ class TaskExecutor:
         self,
         task: QueuedTask,
         handler: Callable,
-        timeout_override: Optional[int] = None,
+        timeout_override: int | None = None,
     ) -> ExecutionResult:
         """
         Execute a task with the given handler.
@@ -399,9 +404,7 @@ class TaskExecutor:
 
         # Determine isolation mode
         use_process = (
-            self.use_process_isolation and
-            config.process_isolation and
-            task.resource_class != ResourceClass.LIGHTWEIGHT
+            self.use_process_isolation and config.process_isolation and task.resource_class != ResourceClass.LIGHTWEIGHT
         )
 
         started_at = timezone.now()

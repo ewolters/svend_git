@@ -9,31 +9,27 @@ Standard: QUAL-001
 """
 
 import inspect
-import math
 import re
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from django.test import SimpleTestCase
 
 from agents_api.calibration import (
-    CalibrationCase,
-    Expectation,
     REFERENCE_POOL,
+    Expectation,
     _check_expectation,
     run_calibration,
 )
 from agents_api.dsw.standardize import (
+    _BOUNDED_METRICS,
     REQUIRED_FIELDS,
     _validate_statistics_bounds,
     standardize_output,
-    _BOUNDED_METRICS,
-    _POSITIVE_METRICS,
-    _FINITE_METRICS,
 )
 from syn.audit.compliance import ALL_CHECKS
 
-
 # ── §4 Three Pillars ─────────────────────────────────────────────────────
+
 
 class ThreePillarsTest(SimpleTestCase):
     """QUAL-001 §4: Output quality enforces three pillars."""
@@ -41,6 +37,7 @@ class ThreePillarsTest(SimpleTestCase):
     def test_standardize_called_in_dispatch(self):
         """standardize_output is imported and called in dispatch.py."""
         import agents_api.dsw.dispatch as dispatch_mod
+
         source = inspect.getsource(dispatch_mod)
         self.assertIn("standardize_output", source)
 
@@ -53,6 +50,7 @@ class ThreePillarsTest(SimpleTestCase):
 
 
 # ── §5 Calibration System ────────────────────────────────────────────────
+
 
 class CalibrationPoolTest(SimpleTestCase):
     """QUAL-001 §5.1: Calibration pool size and category coverage."""
@@ -76,21 +74,19 @@ class CaseStructureTest(SimpleTestCase):
     def test_required_fields(self):
         """Every case has case_id, category, analysis_type, analysis_id, config, data, expectations."""
         for case in REFERENCE_POOL:
-            self.assertTrue(case.case_id, f"Missing case_id")
+            self.assertTrue(case.case_id, "Missing case_id")
             self.assertTrue(case.category, f"{case.case_id}: missing category")
             self.assertTrue(case.analysis_type, f"{case.case_id}: missing analysis_type")
             self.assertTrue(case.analysis_id, f"{case.case_id}: missing analysis_id")
             self.assertIsInstance(case.config, dict, f"{case.case_id}: config not dict")
             self.assertIsInstance(case.data, dict, f"{case.case_id}: data not dict")
-            self.assertGreaterEqual(len(case.expectations), 1,
-                                    f"{case.case_id}: no expectations")
+            self.assertGreaterEqual(len(case.expectations), 1, f"{case.case_id}: no expectations")
 
     def test_case_id_format(self):
         """Case IDs match pattern CAL-{CATEGORY}-{NNN}."""
         pattern = re.compile(r"^CAL-[A-Z]+-\d{3}$")
         for case in REFERENCE_POOL:
-            self.assertRegex(case.case_id, pattern,
-                             f"case_id '{case.case_id}' doesn't match CAL-XXX-NNN")
+            self.assertRegex(case.case_id, pattern, f"case_id '{case.case_id}' doesn't match CAL-XXX-NNN")
 
 
 class ExpectationTypesTest(SimpleTestCase):
@@ -99,38 +95,33 @@ class ExpectationTypesTest(SimpleTestCase):
     def test_abs_within(self):
         """abs_within comparison: |actual - expected| <= tolerance."""
         result = {"statistics": {"r_squared": 0.85}}
-        exp = Expectation(key="statistics.r_squared", expected=0.85,
-                          tolerance=0.01, comparison="abs_within")
+        exp = Expectation(key="statistics.r_squared", expected=0.85, tolerance=0.01, comparison="abs_within")
         check = _check_expectation(result, exp)
         self.assertTrue(check["passed"])
 
         # Out of tolerance
-        exp2 = Expectation(key="statistics.r_squared", expected=0.90,
-                           tolerance=0.01, comparison="abs_within")
+        exp2 = Expectation(key="statistics.r_squared", expected=0.90, tolerance=0.01, comparison="abs_within")
         check2 = _check_expectation(result, exp2)
         self.assertFalse(check2["passed"])
 
     def test_greater_than(self):
         """greater_than comparison: actual > expected."""
         result = {"statistics": {"p_value": 0.45}}
-        exp = Expectation(key="statistics.p_value", expected=0.05,
-                          comparison="greater_than")
+        exp = Expectation(key="statistics.p_value", expected=0.05, comparison="greater_than")
         check = _check_expectation(result, exp)
         self.assertTrue(check["passed"])
 
     def test_less_than(self):
         """less_than comparison: actual < expected."""
         result = {"statistics": {"p_value": 0.003}}
-        exp = Expectation(key="statistics.p_value", expected=0.05,
-                          comparison="less_than")
+        exp = Expectation(key="statistics.p_value", expected=0.05, comparison="less_than")
         check = _check_expectation(result, exp)
         self.assertTrue(check["passed"])
 
     def test_contains(self):
         """contains comparison: substring match."""
         result = {"guide_observation": "Significant difference found between groups"}
-        exp = Expectation(key="guide_observation_contains", expected="significant",
-                          comparison="contains")
+        exp = Expectation(key="guide_observation_contains", expected="significant", comparison="contains")
         check = _check_expectation(result, exp)
         self.assertTrue(check["passed"])
 
@@ -159,6 +150,7 @@ class DriftSeverityTest(SimpleTestCase):
 
 
 # ── §6 Output Validation ─────────────────────────────────────────────────
+
 
 class SchemaTest(SimpleTestCase):
     """QUAL-001 §6.1: Required fields filled by standardize_output."""
@@ -203,7 +195,7 @@ class BoundsCheckTest(SimpleTestCase):
             "statistics": {
                 "correlation": float("inf"),
                 "r_squared": float("-inf"),
-            }
+            },
         }
         _validate_statistics_bounds(result)
         self.assertIsNone(result["p_value"])
@@ -241,7 +233,7 @@ class BoundsCheckTest(SimpleTestCase):
                 "r_squared": 0.52,
                 "cohens_d": 0.8,
                 "bf10": 12.5,
-            }
+            },
         }
         _validate_statistics_bounds(result)
         self.assertEqual(result["p_value"], 0.04)
@@ -276,8 +268,7 @@ class CoherenceTest(SimpleTestCase):
             out = standardize_output(result, "stats", "ttest")
         # With p=0.001, evidence_grade should be generated
         if out.get("evidence_grade"):
-            self.assertIn(out["evidence_grade"],
-                          ("Strong", "Moderate", "Weak", "Inconclusive"))
+            self.assertIn(out["evidence_grade"], ("Strong", "Moderate", "Weak", "Inconclusive"))
 
     def test_guide_observation_populated(self):
         """guide_observation auto-populated from summary when missing."""
@@ -290,17 +281,20 @@ class CoherenceTest(SimpleTestCase):
 
 # ── §7 Data Quality ──────────────────────────────────────────────────────
 
+
 class InputValidationTest(SimpleTestCase):
     """QUAL-001 §7: Input data validation."""
 
     def test_row_limit_enforced(self):
         """dispatch.py enforces a row limit on inline data."""
         import agents_api.dsw.dispatch as dispatch_mod
+
         source = inspect.getsource(dispatch_mod)
         self.assertIn("10000", source)
 
 
 # ── §8 Module-Specific Quality ────────────────────────────────────────────
+
 
 class DSWQualityTest(SimpleTestCase):
     """QUAL-001 §8.1: DSW p-value registry contract."""
@@ -309,10 +303,10 @@ class DSWQualityTest(SimpleTestCase):
         """Analyses marked has_pvalue=True in registry are documented."""
         try:
             from agents_api.dsw.registry import get_all_with_pvalue
+
             pvalue_analyses = get_all_with_pvalue()
             # At minimum, core inference analyses should be registered
-            self.assertGreater(len(pvalue_analyses), 0,
-                               "No analyses with has_pvalue=True found")
+            self.assertGreater(len(pvalue_analyses), 0, "No analyses with has_pvalue=True found")
         except ImportError:
             self.skipTest("ANALYSIS_REGISTRY not available")
 
@@ -324,6 +318,7 @@ class SPCQualityTest(SimpleTestCase):
         """SPC module exists and has control chart logic."""
         try:
             import agents_api.spc as spc_mod
+
             source = inspect.getsource(spc_mod)
             # Must reference UCL, CL, LCL
             self.assertIn("UCL", source)
@@ -339,17 +334,18 @@ class QMSQualityTest(SimpleTestCase):
         """FMEA RPN calculation logic enforces [1, 1000] bounds."""
         try:
             import agents_api.fmea_views as fmea_mod
+
             source = inspect.getsource(fmea_mod)
             # Must reference RPN calculation
             self.assertTrue(
-                "rpn" in source.lower() or "RPN" in source,
-                "FMEA module must contain RPN calculation logic"
+                "rpn" in source.lower() or "RPN" in source, "FMEA module must contain RPN calculation logic"
             )
         except ImportError:
             self.skipTest("FMEA module not available")
 
 
 # ── §11 Compliance Check Registration ─────────────────────────────────────
+
 
 class CheckRegistrationTest(SimpleTestCase):
     """QUAL-001 §11: output_quality compliance check."""

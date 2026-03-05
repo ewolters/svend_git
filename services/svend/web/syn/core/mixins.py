@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any
 
 from django.db import models
 from django.utils import timezone
@@ -64,30 +64,27 @@ class CorrelationMixin(models.Model):
         unique=True,
         db_index=True,
         editable=False,
-        help_text="Unique correlation ID for CTG tracing (CTG-001 §5)"
+        help_text="Unique correlation ID for CTG tracing (CTG-001 §5)",
     )
 
     parent_correlation_id = models.UUIDField(
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="Parent entity correlation ID for causal chain"
+        null=True, blank=True, db_index=True, help_text="Parent entity correlation ID for causal chain"
     )
 
     class Meta:
         abstract = True
 
-    def link_to_parent(self, parent_correlation_id: "UUID"):
+    def link_to_parent(self, parent_correlation_id: UUID):
         """Link this entity to a parent in the causal chain."""
         self.parent_correlation_id = parent_correlation_id
         self.save(update_fields=["parent_correlation_id"])
 
     def create_ctg_edge(
         self,
-        child_correlation_id: "UUID",
+        child_correlation_id: UUID,
         causal_type: str = "causal",
-        event_name: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        event_name: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ):
         """Create a CTG edge to a child entity."""
         try:
@@ -123,16 +120,13 @@ class TenantMixin(models.Model):
     Standard: SDK-001 §6.2, SEC-001 §5.2
     """
 
-    tenant_id = models.UUIDField(
-        db_index=True,
-        help_text="Tenant ID for multi-tenant isolation (SEC-001 §5.2)"
-    )
+    tenant_id = models.UUIDField(db_index=True, help_text="Tenant ID for multi-tenant isolation (SEC-001 §5.2)")
 
     class Meta:
         abstract = True
 
     @classmethod
-    def for_tenant(cls, tenant_id: "UUID"):
+    def for_tenant(cls, tenant_id: UUID):
         """Get queryset filtered by tenant."""
         return cls.objects.filter(tenant_id=tenant_id)
 
@@ -153,29 +147,14 @@ class AuditMixin(models.Model):
     Standard: SDK-001 §6.3, AUD-001
     """
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="Record creation timestamp"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="Record creation timestamp")
 
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        help_text="Last modification timestamp"
-    )
+    updated_at = models.DateTimeField(auto_now=True, help_text="Last modification timestamp")
 
-    created_by = models.CharField(
-        max_length=255,
-        blank=True,
-        default="",
-        help_text="User ID who created this record"
-    )
+    created_by = models.CharField(max_length=255, blank=True, default="", help_text="User ID who created this record")
 
     updated_by = models.CharField(
-        max_length=255,
-        blank=True,
-        default="",
-        help_text="User ID who last modified this record"
+        max_length=255, blank=True, default="", help_text="User ID who last modified this record"
     )
 
     class Meta:
@@ -223,24 +202,11 @@ class SoftDeleteMixin(models.Model):
     Standard: SDK-001 §6.4, DAT-001 §9
     """
 
-    is_deleted = models.BooleanField(
-        default=False,
-        db_index=True,
-        help_text="Soft delete flag"
-    )
+    is_deleted = models.BooleanField(default=False, db_index=True, help_text="Soft delete flag")
 
-    deleted_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Deletion timestamp"
-    )
+    deleted_at = models.DateTimeField(null=True, blank=True, help_text="Deletion timestamp")
 
-    deleted_by = models.CharField(
-        max_length=255,
-        blank=True,
-        default="",
-        help_text="User ID who deleted this record"
-    )
+    deleted_by = models.CharField(max_length=255, blank=True, default="", help_text="User ID who deleted this record")
 
     objects = SoftDeleteManager()
     all_objects = models.Manager()
@@ -303,8 +269,8 @@ class EventEmitterMixin(models.Model):
     def emit_event(
         self,
         action: str,
-        payload: Optional[Dict[str, Any]] = None,
-        correlation_id: Optional[str] = None,
+        payload: dict[str, Any] | None = None,
+        correlation_id: str | None = None,
     ):
         """
         Emit a domain event.
@@ -392,10 +358,10 @@ class LifecycleMixin(models.Model):
     """
 
     # Class-level configuration (override in subclass)
-    lifecycle_states: List[str] = []
-    terminal_states: List[str] = []
+    lifecycle_states: list[str] = []
+    terminal_states: list[str] = []
     initial_state: str = ""
-    transitions: Dict[str, List[str]] = {}
+    transitions: dict[str, list[str]] = {}
 
     # Instance field - override with ForeignKey to registry in subclass
     # This provides a fallback CharField if no registry is used
@@ -471,8 +437,7 @@ class LifecycleMixin(models.Model):
         if not force and not self.can_transition_to(new_status):
             current = self.get_status_value()
             raise ValueError(
-                f"Cannot transition from '{current}' to '{new_status}'. "
-                f"Allowed: {self.transitions.get(current, [])}"
+                f"Cannot transition from '{current}' to '{new_status}'. Allowed: {self.transitions.get(current, [])}"
             )
 
         old_status = self.get_status_value()
@@ -489,7 +454,7 @@ class LifecycleMixin(models.Model):
                     "to_status": new_status,
                     "actor": actor,
                     "reason": reason,
-                }
+                },
             )
 
         return True
@@ -522,11 +487,7 @@ class MetadataMixin(models.Model):
     Standard: SDK-001 §6.7, MOD-001 §10
     """
 
-    metadata = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Extensible metadata"
-    )
+    metadata = models.JSONField(default=dict, blank=True, help_text="Extensible metadata")
 
     class Meta:
         abstract = True
@@ -600,16 +561,9 @@ class VersioningMixin(models.Model):
     Standard: SDK-001 §6.8
     """
 
-    version = models.CharField(
-        max_length=20,
-        default="1.0.0",
-        help_text="Semantic version (MAJOR.MINOR.PATCH)"
-    )
+    version = models.CharField(max_length=20, default="1.0.0", help_text="Semantic version (MAJOR.MINOR.PATCH)")
 
-    version_number = models.PositiveIntegerField(
-        default=1,
-        help_text="Sequential version number"
-    )
+    version_number = models.PositiveIntegerField(default=1, help_text="Sequential version number")
 
     class Meta:
         abstract = True

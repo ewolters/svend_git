@@ -12,15 +12,14 @@ Endpoints:
 import json
 import time
 
+from django.core.signing import BadSignature, Signer
 from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from django.core.signing import BadSignature, Signer
-
 from accounts.permissions import require_auth
-from .models import Notification, NotificationType
 
+from .models import Notification, NotificationType
 
 # Valid type values for preference validation
 _VALID_TYPES = frozenset(t.value for t in NotificationType)
@@ -32,6 +31,7 @@ _MAX_STREAMS_PER_USER = 2
 
 
 # ── List ─────────────────────────────────────────────────────────────────
+
 
 @csrf_exempt
 @require_auth
@@ -73,6 +73,7 @@ def notification_list(request):
 
 # ── SSE Stream ───────────────────────────────────────────────────────────
 
+
 @csrf_exempt
 @require_auth
 @require_http_methods(["GET"])
@@ -100,6 +101,7 @@ def notification_stream(request):
             if last_event_id:
                 try:
                     from django.utils.dateparse import parse_datetime
+
                     parsed = parse_datetime(last_event_id)
                     if parsed:
                         last_check = parsed
@@ -141,9 +143,7 @@ def notification_stream(request):
         finally:
             _active_streams[uid] = max(_active_streams.get(uid, 1) - 1, 0)
 
-    response = StreamingHttpResponse(
-        event_stream(), content_type="text/event-stream"
-    )
+    response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
     response["Cache-Control"] = "no-cache"
     response["X-Accel-Buffering"] = "no"
     return response
@@ -151,18 +151,18 @@ def notification_stream(request):
 
 # ── Unread Count ─────────────────────────────────────────────────────────
 
+
 @csrf_exempt
 @require_auth
 @require_http_methods(["GET"])
 def notification_unread_count(request):
     """NTF-001 §6.3 — lightweight unread count."""
-    count = Notification.objects.filter(
-        recipient=request.user, is_read=False
-    ).count()
+    count = Notification.objects.filter(recipient=request.user, is_read=False).count()
     return JsonResponse({"count": count})
 
 
 # ── Mark Read ────────────────────────────────────────────────────────────
+
 
 @csrf_exempt
 @require_auth
@@ -186,13 +186,12 @@ def notification_mark_read(request, notification_id):
 @require_http_methods(["POST"])
 def notification_mark_all_read(request):
     """NTF-001 §6.4 — mark all notifications as read."""
-    updated = Notification.objects.filter(
-        recipient=request.user, is_read=False
-    ).update(is_read=True)
+    updated = Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
     return JsonResponse({"updated": updated})
 
 
 # ── Preferences ──────────────────────────────────────────────────────────
+
 
 @csrf_exempt
 @require_auth
@@ -203,11 +202,13 @@ def notification_preferences(request):
 
     if request.method == "GET":
         prefs = (getattr(user, "preferences", None) or {}).get("notifications", {})
-        return JsonResponse({
-            "muted_types": prefs.get("muted_types", []),
-            "email_enabled": prefs.get("email_enabled", False),
-            "email_mode": prefs.get("email_mode", "immediate"),
-        })
+        return JsonResponse(
+            {
+                "muted_types": prefs.get("muted_types", []),
+                "email_enabled": prefs.get("email_enabled", False),
+                "email_mode": prefs.get("email_mode", "immediate"),
+            }
+        )
 
     # PUT
     try:
@@ -238,6 +239,7 @@ def notification_preferences(request):
 
     if "email_mode" in data:
         from .email import VALID_EMAIL_MODES
+
         mode = data["email_mode"]
         if mode not in VALID_EMAIL_MODES:
             return JsonResponse(
@@ -248,14 +250,17 @@ def notification_preferences(request):
 
     user.save(update_fields=["preferences"])
 
-    return JsonResponse({
-        "muted_types": user.preferences["notifications"].get("muted_types", []),
-        "email_enabled": user.preferences["notifications"].get("email_enabled", False),
-        "email_mode": user.preferences["notifications"].get("email_mode", "immediate"),
-    })
+    return JsonResponse(
+        {
+            "muted_types": user.preferences["notifications"].get("muted_types", []),
+            "email_enabled": user.preferences["notifications"].get("email_enabled", False),
+            "email_mode": user.preferences["notifications"].get("email_mode", "immediate"),
+        }
+    )
 
 
 # ── Per-Type Unsubscribe ────────────────────────────────────────────────
+
 
 @csrf_exempt
 @require_http_methods(["GET"])

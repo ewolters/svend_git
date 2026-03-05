@@ -21,8 +21,8 @@ def send_notification_email_task(task):
 
     Expected task args: notification_id, token_id
     """
-    from notifications.tokens import NotificationToken
     from notifications.email import build_notification_email, send_notification_email
+    from notifications.tokens import NotificationToken
 
     args = task.get("args", {}) if isinstance(task, dict) else getattr(task, "args", {}) or {}
     notification_id = args.get("notification_id")
@@ -32,9 +32,7 @@ def send_notification_email_task(task):
         return {"error": "Missing notification_id or token_id"}
 
     try:
-        tok = NotificationToken.objects.select_related(
-            "notification", "user"
-        ).get(id=token_id)
+        tok = NotificationToken.objects.select_related("notification", "user").get(id=token_id)
     except NotificationToken.DoesNotExist:
         return {"error": f"Token {token_id} not found"}
 
@@ -49,9 +47,7 @@ def send_notification_email_task(task):
         return {"skipped": True, "reason": "rate_limit"}
 
     subject, body_html = build_notification_email(tok.notification, tok)
-    sent = send_notification_email(
-        tok.user, subject, body_html, tok.notification.notification_type
-    )
+    sent = send_notification_email(tok.user, subject, body_html, tok.notification.notification_type)
 
     if sent:
         tok.email_sent_at = timezone.now()
@@ -82,9 +78,10 @@ def send_weekly_digest(task):
 def _send_digest(period, lookback):
     """Shared digest logic for daily/weekly."""
     from django.contrib.auth import get_user_model
+
+    from notifications.email import build_digest_email, send_notification_email
     from notifications.models import Notification
     from notifications.tokens import NotificationToken
-    from notifications.email import build_digest_email, send_notification_email
 
     User = get_user_model()
     cutoff = timezone.now() - lookback
@@ -111,7 +108,9 @@ def _send_digest(period, lookback):
                 recipient=user,
                 is_read=False,
                 created_at__gte=cutoff,
-            ).exclude(notification_type__in=muted).order_by("-created_at")[:20]
+            )
+            .exclude(notification_type__in=muted)
+            .order_by("-created_at")[:20]
         )
 
         if not unread:

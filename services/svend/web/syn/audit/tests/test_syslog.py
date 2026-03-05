@@ -11,10 +11,9 @@ Compliance: SOC 2 CC7.2 / ISO 27001 A.12.7
 """
 
 import uuid
-from datetime import timedelta
+
 from django.core.exceptions import ValidationError
 from django.test import TestCase
-from django.utils import timezone
 
 from syn.audit.models import IntegrityViolation, SysLogEntry
 from syn.audit.utils import (
@@ -217,7 +216,7 @@ class TestHashChainValidation(TestCase):
     def test_detect_chain_break(self):
         """Test detection of broken chain links."""
         # Create entries
-        entry1 = SysLogEntry.objects.create(
+        SysLogEntry.objects.create(
             tenant_id=self.tenant_id, actor="user@example.com", event_name="event.one", payload={}
         )
 

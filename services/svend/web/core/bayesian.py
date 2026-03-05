@@ -16,26 +16,27 @@ Where:
 
 import math
 from dataclasses import dataclass
-from typing import Optional, List, Tuple
 from enum import Enum
 
 
 class EvidenceStrength(Enum):
     """Standardized evidence strength categories (Jeffreys' scale)."""
-    VERY_STRONG_SUPPORT = "very_strong_support"      # LR >= 10
-    STRONG_SUPPORT = "strong_support"                # LR >= 3
-    MODERATE_SUPPORT = "moderate_support"            # LR >= 1.5
-    WEAK_SUPPORT = "weak_support"                    # LR > 1.05
-    NEUTRAL = "neutral"                              # 0.95 <= LR <= 1.05
-    WEAK_OPPOSITION = "weak_opposition"              # LR < 0.95
-    MODERATE_OPPOSITION = "moderate_opposition"      # LR <= 0.67
-    STRONG_OPPOSITION = "strong_opposition"          # LR <= 0.33
+
+    VERY_STRONG_SUPPORT = "very_strong_support"  # LR >= 10
+    STRONG_SUPPORT = "strong_support"  # LR >= 3
+    MODERATE_SUPPORT = "moderate_support"  # LR >= 1.5
+    WEAK_SUPPORT = "weak_support"  # LR > 1.05
+    NEUTRAL = "neutral"  # 0.95 <= LR <= 1.05
+    WEAK_OPPOSITION = "weak_opposition"  # LR < 0.95
+    MODERATE_OPPOSITION = "moderate_opposition"  # LR <= 0.67
+    STRONG_OPPOSITION = "strong_opposition"  # LR <= 0.33
     VERY_STRONG_OPPOSITION = "very_strong_opposition"  # LR <= 0.1
 
 
 @dataclass
 class BayesianUpdate:
     """Result of a Bayesian probability update."""
+
     prior_probability: float
     posterior_probability: float
     likelihood_ratio: float
@@ -142,11 +143,7 @@ class BayesianUpdater:
         else:
             return EvidenceStrength.NEUTRAL
 
-    def adjust_likelihood_ratio(
-        self,
-        lr: float,
-        confidence: float = 1.0
-    ) -> float:
+    def adjust_likelihood_ratio(self, lr: float, confidence: float = 1.0) -> float:
         """Adjust likelihood ratio based on evidence confidence.
 
         If confidence < 1, the LR is moved toward 1 (neutral).
@@ -212,7 +209,7 @@ class BayesianUpdater:
     def update_multiple(
         self,
         prior: float,
-        evidence: List[Tuple[float, float]],
+        evidence: list[tuple[float, float]],
     ) -> BayesianUpdate:
         """Apply multiple pieces of evidence sequentially.
 
@@ -278,8 +275,8 @@ class BayesianUpdater:
         odds = self.probability_to_odds(prior)
 
         for link in evidence_links:
-            lr = getattr(link, 'likelihood_ratio', 1.0)
-            confidence = getattr(link.evidence, 'confidence', 1.0) if hasattr(link, 'evidence') else 1.0
+            lr = getattr(link, "likelihood_ratio", 1.0)
+            confidence = getattr(link.evidence, "confidence", 1.0) if hasattr(link, "evidence") else 1.0
             adjusted_lr = self.adjust_likelihood_ratio(lr, confidence)
             odds *= adjusted_lr
 
@@ -292,13 +289,13 @@ class BayesianUpdater:
         Returns: 'confirmed', 'rejected', 'uncertain', or 'active'
         """
         if probability >= self.confirmation_threshold:
-            return 'confirmed'
+            return "confirmed"
         elif probability <= self.rejection_threshold:
-            return 'rejected'
+            return "rejected"
         elif 0.3 <= probability <= 0.7:
-            return 'uncertain'
+            return "uncertain"
         else:
-            return 'active'
+            return "active"
 
     def required_lr_for_confirmation(self, current_prob: float) -> float:
         """Calculate the LR needed to reach confirmation threshold."""
@@ -322,7 +319,7 @@ class BayesianUpdater:
 
 
 # Global singleton for convenience
-_default_updater: Optional[BayesianUpdater] = None
+_default_updater: BayesianUpdater | None = None
 
 
 def get_updater() -> BayesianUpdater:
@@ -349,4 +346,4 @@ def update_probability(
 def classify_evidence_strength(likelihood_ratio: float) -> str:
     """Get human-readable evidence strength."""
     strength = BayesianUpdater.classify_strength(likelihood_ratio)
-    return strength.value.replace('_', ' ')
+    return strength.value.replace("_", " ")

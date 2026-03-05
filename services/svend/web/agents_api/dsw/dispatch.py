@@ -3,21 +3,19 @@
 import json
 import logging
 import re
+import tempfile
 import time
 import uuid
-import tempfile
 from pathlib import Path
 
-import numpy as np
-
+from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.conf import settings
 
 from accounts.permissions import gated
-from ..models import DSWResult
-from .common import log_agent_action, get_cached_model, safe_json_response
 
+from ..models import DSWResult
+from .common import get_cached_model, log_agent_action, safe_json_response
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +23,9 @@ logger = logging.getLogger(__name__)
 def _read_csv_safe(file_or_path):
     """Read CSV with encoding fallback: UTF-8 → latin-1."""
     import io
+
     import pandas as pd
+
     if hasattr(file_or_path, "read"):
         raw = file_or_path.read()
         try:
@@ -41,6 +41,7 @@ def _read_csv_safe(file_or_path):
 # =============================================================================
 # ANALYSIS WORKBENCH ENDPOINTS
 # =============================================================================
+
 
 @require_http_methods(["POST"])
 @gated
@@ -76,9 +77,9 @@ def run_analysis(request):
     start_time = time.time()
 
     try:
-        import pandas as pd
-        import numpy as np
         from io import StringIO
+
+        import pandas as pd
 
         df = None
 
@@ -116,6 +117,7 @@ def run_analysis(request):
         if df is None and data_id:
             try:
                 from ..models import TriageResult
+
                 triage_result = TriageResult.objects.get(id=data_id, user=request.user)
                 df = pd.read_csv(StringIO(triage_result.cleaned_csv))
             except Exception:
@@ -131,48 +133,63 @@ def run_analysis(request):
         # Route to appropriate analysis
         if analysis_type == "stats":
             from .stats import run_statistical_analysis
+
             result = run_statistical_analysis(df, analysis_id, config)
         elif analysis_type == "ml":
             from .ml import run_ml_analysis
+
             result = run_ml_analysis(df, analysis_id, config, request.user)
         elif analysis_type == "spc":
             from .spc import run_spc_analysis
+
             result = run_spc_analysis(df, analysis_id, config)
         elif analysis_type == "viz":
             from .viz import run_visualization
+
             result = run_visualization(df, analysis_id, config)
         elif analysis_type == "bayesian":
             from .bayesian import run_bayesian_analysis
+
             result = run_bayesian_analysis(df, analysis_id, config)
         elif analysis_type == "reliability":
             from .reliability import run_reliability_analysis
+
             result = run_reliability_analysis(df, analysis_id, config)
         elif analysis_type == "simulation":
             from .simulation import run_simulation
+
             result = run_simulation(df, analysis_id, config, request.user)
         elif analysis_type == "causal":
             from ..causal_discovery import run_causal_discovery
+
             result = run_causal_discovery(df, analysis_id, config)
         elif analysis_type == "drift":
             from ..drift_detection import run_drift_detection
+
             result = run_drift_detection(df, analysis_id, config)
         elif analysis_type == "anytime":
             from ..anytime_valid import run_anytime_valid
+
             result = run_anytime_valid(df, analysis_id, config)
         elif analysis_type == "bayes_msa":
             from ..msa_bayes import run_bayes_msa
+
             result = run_bayes_msa(df, analysis_id, config)
         elif analysis_type == "quality_econ":
             from ..quality_economics import run_quality_econ
+
             result = run_quality_econ(df, analysis_id, config)
         elif analysis_type == "pbs":
             from ..pbs_engine import run_pbs
+
             result = run_pbs(df, analysis_id, config)
         elif analysis_type == "d_type":
             from .d_type import run_d_type
+
             result = run_d_type(df, analysis_id, config)
         elif analysis_type == "ishap":
             from ..interventional_shap import run_interventional_shap
+
             model_key = config.get("model_key", "")
             model_obj, model_feats = None, []
             if model_key:
@@ -180,15 +197,16 @@ def run_analysis(request):
                 if cached:
                     model_obj = cached.get("model")
                     model_feats = cached.get("meta", {}).get("features", [])
-            result = run_interventional_shap(df, analysis_id, config,
-                                            model=model_obj, model_features=model_feats)
+            result = run_interventional_shap(df, analysis_id, config, model=model_obj, model_features=model_feats)
         else:
             return JsonResponse({"error": f"Unknown analysis type: {analysis_type}"}, status=400)
 
         latency = int((time.time() - start_time) * 1000)
         log_agent_action(request.user, "analysis", analysis_id, latency_ms=latency)
 
-        logger.info(f"Analysis complete: {analysis_id}, plots: {len(result.get('plots', []))}, summary length: {len(result.get('summary', ''))}")
+        logger.info(
+            f"Analysis complete: {analysis_id}, plots: {len(result.get('plots', []))}, summary length: {len(result.get('summary', ''))}"
+        )
 
         # Link results as evidence to a Problem (if problem_id provided)
         problem_id = body.get("problem_id")
@@ -242,15 +260,17 @@ def run_analysis(request):
                     id=result_id,
                     user=request.user,
                     result_type=f"{analysis_type}_{analysis_id}",
-                    data=json.dumps({
-                        "analysis_type": analysis_type,
-                        "analysis_id": analysis_id,
-                        "config": config,
-                        "summary": result.get("summary", ""),
-                        "guide_observation": result.get("guide_observation", ""),
-                        "plots": result.get("plots", []),
-                        "plots_count": len(result.get("plots", [])),
-                    }),
+                    data=json.dumps(
+                        {
+                            "analysis_type": analysis_type,
+                            "analysis_id": analysis_id,
+                            "config": config,
+                            "summary": result.get("summary", ""),
+                            "guide_observation": result.get("guide_observation", ""),
+                            "plots": result.get("plots", []),
+                            "plots_count": len(result.get("plots", [])),
+                        }
+                    ),
                     project=project,
                     title=result_title or f"{analysis_id.replace('_', ' ').title()} Analysis",
                 )
@@ -260,6 +280,7 @@ def run_analysis(request):
 
         # Post-process: enforce canonical output schema (INIT-009 / E9-002)
         from .standardize import standardize_output
+
         result = standardize_output(result, analysis_type, analysis_id)
 
         return safe_json_response(result)
@@ -268,4 +289,3 @@ def run_analysis(request):
         logger.exception(f"Analysis error: {e}")
         log_agent_action(request.user, "analysis", analysis_id, success=False, error_message=str(e))
         return JsonResponse({"error": str(e)}, status=500)
-

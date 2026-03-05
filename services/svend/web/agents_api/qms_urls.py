@@ -1,6 +1,7 @@
 """QMS cross-module intelligence API URLs."""
 
 from django.urls import path
+
 from . import qms_views
 
 urlpatterns = [

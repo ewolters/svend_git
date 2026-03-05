@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import dj_database_url
+
 from svend_config.config import get_settings
 
 # Build paths
@@ -41,9 +42,9 @@ INSTALLED_APPS = [
     "workbench",
     "notifications",
     # ---- Synara Infrastructure (OS layer) ----
-    "syn.core.apps.CoreConfig",    # label="syn_core"
+    "syn.core.apps.CoreConfig",  # label="syn_core"
     "syn.audit.apps.AuditConfig",  # label="audit"
-    "syn.log.apps.LogConfig",      # label="syn_log"
+    "syn.log.apps.LogConfig",  # label="syn_log"
     "syn.sched.apps.SchedConfig",  # label="sched"
     # NOTE: syn.api and syn.synara are NOT registered (no models).
     # syn.err is pure Python, not a Django app.
@@ -100,9 +101,7 @@ WSGI_APPLICATION = "svend.wsgi.application"
 ASGI_APPLICATION = "svend.asgi.application"
 
 # Database — PostgreSQL only
-DATABASES = {
-    "default": dj_database_url.parse(config.database_url)
-}
+DATABASES = {"default": dj_database_url.parse(config.database_url)}
 
 # Auth
 AUTH_USER_MODEL = "accounts.User"
@@ -195,9 +194,7 @@ REST_FRAMEWORK = {
 }
 
 # Tempora (distributed task scheduling)
-TEMPORA_CLUSTER_SECRET = hashlib.sha256(
-    (config.secret_key + ":tempora-cluster").encode()
-).hexdigest()
+TEMPORA_CLUSTER_SECRET = hashlib.sha256((config.secret_key + ":tempora-cluster").encode()).hexdigest()
 TEMPORA_NODE_ID = "svend-1"
 TEMPORA_SETTINGS = {
     "election_timeout_min": 150,
@@ -214,7 +211,17 @@ AUDIT_METHODS = ["POST", "PUT", "PATCH", "DELETE"]
 # Values are lists per CSP middleware API (joined with spaces)
 CONTENT_SECURITY_POLICY = {
     "default-src": ["'self'"],
-    "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://js.stripe.com", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://unpkg.com", "https://cdn.plot.ly", "https://static.cloudflareinsights.com"],
+    "script-src": [
+        "'self'",
+        "'unsafe-inline'",
+        "'unsafe-eval'",
+        "https://js.stripe.com",
+        "https://cdn.jsdelivr.net",
+        "https://cdnjs.cloudflare.com",
+        "https://unpkg.com",
+        "https://cdn.plot.ly",
+        "https://static.cloudflareinsights.com",
+    ],
     "style-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
     "font-src": ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
     "img-src": ["'self'", "data:", "blob:", "https:"],

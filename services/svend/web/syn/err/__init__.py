@@ -105,88 +105,84 @@ References
 - SBL-001: Synara Bus Loop Standard (layer identification)
 """
 
-from .types import (
-    # Enums
-    ErrorSeverity,
-    ErrorCategory,
-    CircuitBreakerState,
-    RetryStrategy,
-    RecoveryMode,
-    SystemLayer,
-    # Dataclasses
-    ErrorContext,
-    RetryConfig,
-    CircuitBreakerConfig,
-    ErrorDetail,
-    ErrorEnvelope,
-    ErrorRegistryEntry,
-    # Constants
-    SEVERITY_LEVELS,
-    CATEGORY_STATUS_CODES,
-    RETRYABLE_CATEGORIES,
-    ERROR_REGISTRY,
-    DEFAULT_RETRY_CONFIG,
-    DEFAULT_CIRCUIT_BREAKER_CONFIG,
+from .events import (
+    BULKHEAD_ACQUIRED,
+    BULKHEAD_FULL,
+    CIRCUIT_BREAKER_CLOSED,
+    CIRCUIT_BREAKER_HALF_OPEN,
+    CIRCUIT_BREAKER_OPENED,
+    CIRCUIT_BREAKER_REJECTED,
+    ERR_EVENTS_CATALOG,
+    ERROR_CRITICAL,
+    # Individual events for direct import
+    ERROR_LOGGED,
+    RATE_LIMIT_EXCEEDED,
+    RECOVERY_FALLBACK_USED,
+    RECOVERY_RETRY_ATTEMPTED,
+    RECOVERY_RETRY_EXHAUSTED,
+    RECOVERY_RETRY_SUCCEEDED,
+    # Event definitions
+    EventDefinition,
+    get_event_definition,
+    list_event_names,
 )
-
 from .exceptions import (
-    # Base exception
-    SynaraError,
-    # Exception subclasses
-    ValidationError,
     AuthenticationError,
     AuthorizationError,
-    NotFoundError,
     ConflictError,
-    RateLimitError,
-    DependencyError,
     DatabaseError,
-    TimeoutError,
+    DependencyError,
+    NotFoundError,
+    RateLimitError,
+    # Base exception
+    SynaraError,
     SystemError,
+    TimeoutError,
+    # Exception subclasses
+    ValidationError,
+    create_error_from_code,
     # Utility functions
     wrap_exception,
-    create_error_from_code,
 )
-
 from .retry import (
-    # Backoff
-    ExponentialBackoff,
+    # Bulkhead
+    Bulkhead,
+    BulkheadFullError,
     # Circuit breaker
     CircuitBreaker,
     CircuitBreakerMetrics,
     CircuitBreakerOpenError,
     CircuitBreakerRegistry,
+    # Backoff
+    ExponentialBackoff,
     circuit_breaker_registry,
-    # Bulkhead
-    Bulkhead,
-    BulkheadFullError,
     # Decorators
     retry,
     with_circuit_breaker,
 )
-
-from .events import (
-    # Event definitions
-    EventDefinition,
-    ERR_EVENTS_CATALOG,
-    get_event_definition,
-    list_event_names,
-    # Individual events for direct import
-    ERROR_LOGGED,
-    ERROR_CRITICAL,
-    RECOVERY_RETRY_ATTEMPTED,
-    RECOVERY_RETRY_SUCCEEDED,
-    RECOVERY_RETRY_EXHAUSTED,
-    RECOVERY_FALLBACK_USED,
-    CIRCUIT_BREAKER_OPENED,
-    CIRCUIT_BREAKER_HALF_OPEN,
-    CIRCUIT_BREAKER_CLOSED,
-    CIRCUIT_BREAKER_REJECTED,
-    BULKHEAD_FULL,
-    BULKHEAD_ACQUIRED,
-    RATE_LIMIT_EXCEEDED,
+from .types import (
+    CATEGORY_STATUS_CODES,
+    DEFAULT_CIRCUIT_BREAKER_CONFIG,
+    DEFAULT_RETRY_CONFIG,
+    ERROR_REGISTRY,
+    RETRYABLE_CATEGORIES,
+    # Constants
+    SEVERITY_LEVELS,
+    CircuitBreakerConfig,
+    CircuitBreakerState,
+    ErrorCategory,
+    # Dataclasses
+    ErrorContext,
+    ErrorDetail,
+    ErrorEnvelope,
+    ErrorRegistryEntry,
+    # Enums
+    ErrorSeverity,
+    RecoveryMode,
+    RetryConfig,
+    RetryStrategy,
+    SystemLayer,
 )
-
 
 __all__ = [
     # ==========================================================================

@@ -1,13 +1,13 @@
 """Workflow API views."""
 
 import json
-import uuid
 from datetime import datetime
 
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated, require_auth
+
 from .models import Workflow
 
 
@@ -17,18 +17,20 @@ def workflows_list(request):
     """List or create workflows."""
     if request.method == "GET":
         workflows = Workflow.objects.filter(user=request.user).order_by("-created_at")
-        return JsonResponse({
-            "workflows": [
-                {
-                    "id": str(wf.id),
-                    "name": wf.name,
-                    "steps": wf.steps,
-                    "created_at": wf.created_at.isoformat(),
-                    "last_run": wf.last_run.isoformat() if wf.last_run else None,
-                }
-                for wf in workflows
-            ]
-        })
+        return JsonResponse(
+            {
+                "workflows": [
+                    {
+                        "id": str(wf.id),
+                        "name": wf.name,
+                        "steps": wf.steps,
+                        "created_at": wf.created_at.isoformat(),
+                        "last_run": wf.last_run.isoformat() if wf.last_run else None,
+                    }
+                    for wf in workflows
+                ]
+            }
+        )
 
     # POST - create new workflow
     try:
@@ -61,13 +63,15 @@ def workflow_detail(request, workflow_id):
         return JsonResponse({"error": "Workflow not found"}, status=404)
 
     if request.method == "GET":
-        return JsonResponse({
-            "id": str(workflow.id),
-            "name": workflow.name,
-            "steps": workflow.steps,
-            "created_at": workflow.created_at.isoformat(),
-            "last_run": workflow.last_run.isoformat() if workflow.last_run else None,
-        })
+        return JsonResponse(
+            {
+                "id": str(workflow.id),
+                "name": workflow.name,
+                "steps": workflow.steps,
+                "created_at": workflow.created_at.isoformat(),
+                "last_run": workflow.last_run.isoformat() if workflow.last_run else None,
+            }
+        )
 
     if request.method == "DELETE":
         workflow.delete()
@@ -132,32 +136,38 @@ def workflow_run(request, workflow_id):
             else:
                 result = {"status": "skipped", "reason": f"Unknown step type: {step_type}"}
 
-            results.append({
-                "step": step_name,
-                "type": step_type,
-                "status": "completed",
-                "result": result,
-            })
+            results.append(
+                {
+                    "step": step_name,
+                    "type": step_type,
+                    "status": "completed",
+                    "result": result,
+                }
+            )
 
             # Store result for next step
             context[step_name] = result
 
         except Exception as e:
-            results.append({
-                "step": step_name,
-                "type": step_type,
-                "status": "error",
-                "error": str(e),
-            })
+            results.append(
+                {
+                    "step": step_name,
+                    "type": step_type,
+                    "status": "error",
+                    "error": str(e),
+                }
+            )
 
-    return JsonResponse({
-        "success": True,
-        "result": {
-            "workflow": workflow.name,
-            "steps_executed": len(results),
-            "results": results,
+    return JsonResponse(
+        {
+            "success": True,
+            "result": {
+                "workflow": workflow.name,
+                "steps_executed": len(results),
+                "results": results,
+            },
         }
-    })
+    )
 
 
 def _run_researcher_step(step, context):
@@ -246,7 +256,7 @@ Write about the specific findings from this research, not about writing in gener
         full_topic = topic
 
     try:
-        from writer.agent import WriterAgent, DocumentRequest, DocumentType
+        from writer.agent import DocumentRequest, DocumentType, WriterAgent
 
         llm = get_shared_llm()
         agent = WriterAgent(llm=llm)
@@ -322,6 +332,7 @@ def _run_decision_guide_step(step, context):
 
         # Add detected biases
         from guide.decision import detect_biases
+
         guide.bias_warnings = detect_biases(situation)
 
         brief = guide.get_brief()
@@ -355,8 +366,8 @@ def _run_scrub_step(step, context):
         }
 
     try:
-        from dsw.interfaces import ScrubAdapter, ScrubRequest
         import pandas as pd
+        from dsw.interfaces import ScrubAdapter, ScrubRequest
 
         # Convert to DataFrame if needed
         if isinstance(data, list):
@@ -401,8 +412,8 @@ def _run_analyst_step(step, context):
         }
 
     try:
-        from dsw.interfaces import AnalystAdapter, AnalystRequest
         import pandas as pd
+        from dsw.interfaces import AnalystAdapter, AnalystRequest
 
         # Convert to DataFrame if needed
         if isinstance(data, list):

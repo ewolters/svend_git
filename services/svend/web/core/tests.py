@@ -17,7 +17,7 @@ from rest_framework.test import APIClient
 SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 from accounts.constants import Tier
-from core.models import Tenant, Membership, OrgInvitation
+from core.models import Membership, OrgInvitation, Tenant
 
 User = get_user_model()
 
@@ -25,9 +25,7 @@ User = get_user_model()
 def _make_user(email, tier=Tier.FREE, **kwargs):
     """Create a user with a given tier."""
     username = email.split("@")[0]
-    user = User.objects.create_user(
-        username=username, email=email, password="testpass123", **kwargs
-    )
+    user = User.objects.create_user(username=username, email=email, password="testpass123", **kwargs)
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -40,10 +38,7 @@ def _make_tenant(name="Test Org", slug="test-org", plan=Tenant.Plan.TEAM, **kwar
 
 def _make_membership(tenant, user, role=Membership.Role.MEMBER, **kwargs):
     """Create an active membership."""
-    return Membership.objects.create(
-        tenant=tenant, user=user, role=role,
-        joined_at=timezone.now(), **kwargs
-    )
+    return Membership.objects.create(tenant=tenant, user=user, role=role, joined_at=timezone.now(), **kwargs)
 
 
 # =========================================================================
@@ -143,7 +138,8 @@ class OrgCreateTest(TestCase):
         user = _make_user("free@example.com", Tier.FREE)
         self.client.force_authenticate(user)
         res = self.client.post(
-            "/api/core/org/create/", {"name": "My Org", "slug": "my-org"},
+            "/api/core/org/create/",
+            {"name": "My Org", "slug": "my-org"},
             format="json",
         )
         self.assertEqual(res.status_code, 403)
@@ -153,7 +149,8 @@ class OrgCreateTest(TestCase):
         user = _make_user("pro@example.com", Tier.PRO)
         self.client.force_authenticate(user)
         res = self.client.post(
-            "/api/core/org/create/", {"name": "My Org", "slug": "my-org"},
+            "/api/core/org/create/",
+            {"name": "My Org", "slug": "my-org"},
             format="json",
         )
         self.assertEqual(res.status_code, 403)
@@ -162,7 +159,8 @@ class OrgCreateTest(TestCase):
         user = _make_user("founder@example.com", Tier.FOUNDER)
         self.client.force_authenticate(user)
         res = self.client.post(
-            "/api/core/org/create/", {"name": "My Org", "slug": "my-org"},
+            "/api/core/org/create/",
+            {"name": "My Org", "slug": "my-org"},
             format="json",
         )
         self.assertEqual(res.status_code, 403)
@@ -171,7 +169,8 @@ class OrgCreateTest(TestCase):
         user = _make_user("team@example.com", Tier.TEAM)
         self.client.force_authenticate(user)
         res = self.client.post(
-            "/api/core/org/create/", {"name": "Team Org", "slug": "team-org"},
+            "/api/core/org/create/",
+            {"name": "Team Org", "slug": "team-org"},
             format="json",
         )
         self.assertEqual(res.status_code, 201)
@@ -193,7 +192,8 @@ class OrgCreateTest(TestCase):
         user = _make_user("ent@example.com", Tier.ENTERPRISE)
         self.client.force_authenticate(user)
         res = self.client.post(
-            "/api/core/org/create/", {"name": "Ent Corp", "slug": "ent-corp"},
+            "/api/core/org/create/",
+            {"name": "Ent Corp", "slug": "ent-corp"},
             format="json",
         )
         self.assertEqual(res.status_code, 201)
@@ -205,7 +205,8 @@ class OrgCreateTest(TestCase):
         user = _make_user("team@example.com", Tier.TEAM)
         self.client.force_authenticate(user)
         res = self.client.post(
-            "/api/core/org/create/", {"name": "New Org", "slug": "taken-slug"},
+            "/api/core/org/create/",
+            {"name": "New Org", "slug": "taken-slug"},
             format="json",
         )
         self.assertEqual(res.status_code, 400)
@@ -218,7 +219,8 @@ class OrgCreateTest(TestCase):
         self.client.force_authenticate(user)
 
         res = self.client.post(
-            "/api/core/org/create/", {"name": "Another", "slug": "another"},
+            "/api/core/org/create/",
+            {"name": "Another", "slug": "another"},
             format="json",
         )
         self.assertEqual(res.status_code, 400)
@@ -228,7 +230,8 @@ class OrgCreateTest(TestCase):
         user = _make_user("team@example.com", Tier.TEAM)
         self.client.force_authenticate(user)
         res = self.client.post(
-            "/api/core/org/create/", {"name": "", "slug": "my-org"},
+            "/api/core/org/create/",
+            {"name": "", "slug": "my-org"},
             format="json",
         )
         self.assertEqual(res.status_code, 400)
@@ -238,7 +241,8 @@ class OrgCreateTest(TestCase):
         user = _make_user("team@example.com", Tier.TEAM)
         self.client.force_authenticate(user)
         res = self.client.post(
-            "/api/core/org/create/", {"name": "My Org", "slug": ""},
+            "/api/core/org/create/",
+            {"name": "My Org", "slug": ""},
             format="json",
         )
         self.assertEqual(res.status_code, 400)
@@ -252,7 +256,8 @@ class OrgCreateTest(TestCase):
         # Only test truly invalid patterns.
         for bad_slug in ["has spaces", "has@special", "-starts-with-dash"]:
             res = self.client.post(
-                "/api/core/org/create/", {"name": "Org", "slug": bad_slug},
+                "/api/core/org/create/",
+                {"name": "Org", "slug": bad_slug},
                 format="json",
             )
             self.assertIn(res.status_code, [400], msg=f"Expected 400 for slug '{bad_slug}'")
@@ -261,7 +266,8 @@ class OrgCreateTest(TestCase):
         user = _make_user("team@example.com", Tier.TEAM)
         self.client.force_authenticate(user)
         res = self.client.post(
-            "/api/core/org/create/", {"name": "Org", "slug": "x"},
+            "/api/core/org/create/",
+            {"name": "Org", "slug": "x"},
             format="json",
         )
         self.assertEqual(res.status_code, 400)
@@ -270,7 +276,8 @@ class OrgCreateTest(TestCase):
         user = _make_user("team@example.com", Tier.TEAM)
         self.client.force_authenticate(user)
         res = self.client.post(
-            "/api/core/org/create/", {"name": "X" * 256, "slug": "valid-slug"},
+            "/api/core/org/create/",
+            {"name": "X" * 256, "slug": "valid-slug"},
             format="json",
         )
         self.assertEqual(res.status_code, 400)
@@ -370,7 +377,8 @@ class OrgInviteTest(TestCase):
         _make_membership(self.tenant, member, Membership.Role.MEMBER)
         self.client.force_authenticate(member)
         res = self.client.post(
-            "/api/core/org/invite/", {"email": "new@example.com"},
+            "/api/core/org/invite/",
+            {"email": "new@example.com"},
             format="json",
         )
         self.assertEqual(res.status_code, 403)
@@ -448,7 +456,8 @@ class OrgInviteTest(TestCase):
     def test_duplicate_pending_invite_rejected(self):
         self.client.force_authenticate(self.owner)
         OrgInvitation.objects.create(
-            tenant=self.tenant, email="dup@example.com",
+            tenant=self.tenant,
+            email="dup@example.com",
             invited_by=self.owner,
         )
         res = self.client.post(
@@ -462,7 +471,8 @@ class OrgInviteTest(TestCase):
     def test_empty_email_rejected(self):
         self.client.force_authenticate(self.owner)
         res = self.client.post(
-            "/api/core/org/invite/", {"email": ""},
+            "/api/core/org/invite/",
+            {"email": ""},
             format="json",
         )
         self.assertEqual(res.status_code, 400)
@@ -578,7 +588,8 @@ class AcceptInvitationTest(TestCase):
         invitee = _make_user("invitee@example.com", Tier.TEAM)
         self.client.force_authenticate(invitee)
         res = self.client.post(
-            "/api/core/org/accept-invite/", {},
+            "/api/core/org/accept-invite/",
+            {},
             format="json",
         )
         self.assertEqual(res.status_code, 400)
@@ -629,11 +640,15 @@ class OrgChangeRoleTest(TestCase):
         self.owner = _make_user("owner@example.com", Tier.TEAM)
         self.tenant = _make_tenant()
         self.owner_membership = _make_membership(
-            self.tenant, self.owner, Membership.Role.OWNER,
+            self.tenant,
+            self.owner,
+            Membership.Role.OWNER,
         )
         self.member_user = _make_user("member@example.com", Tier.TEAM)
         self.member_membership = _make_membership(
-            self.tenant, self.member_user, Membership.Role.MEMBER,
+            self.tenant,
+            self.member_user,
+            Membership.Role.MEMBER,
         )
 
     def test_owner_can_promote_to_admin(self):
@@ -756,7 +771,9 @@ class OrgRemoveMemberTest(TestCase):
         self.owner = _make_user("owner@example.com", Tier.TEAM)
         self.tenant = _make_tenant()
         self.owner_membership = _make_membership(
-            self.tenant, self.owner, Membership.Role.OWNER,
+            self.tenant,
+            self.owner,
+            Membership.Role.OWNER,
         )
 
     def test_owner_can_remove_member(self):
@@ -771,9 +788,7 @@ class OrgRemoveMemberTest(TestCase):
 
     def test_cannot_remove_self(self):
         self.client.force_authenticate(self.owner)
-        res = self.client.delete(
-            f"/api/core/org/members/{self.owner_membership.id}/remove/"
-        )
+        res = self.client.delete(f"/api/core/org/members/{self.owner_membership.id}/remove/")
         self.assertEqual(res.status_code, 400)
         self.assertIn("Cannot remove yourself", res.json()["error"]["message"])
 
@@ -782,9 +797,7 @@ class OrgRemoveMemberTest(TestCase):
         _make_membership(self.tenant, admin, Membership.Role.ADMIN)
         self.client.force_authenticate(admin)
 
-        res = self.client.delete(
-            f"/api/core/org/members/{self.owner_membership.id}/remove/"
-        )
+        res = self.client.delete(f"/api/core/org/members/{self.owner_membership.id}/remove/")
         self.assertEqual(res.status_code, 403)
         self.assertIn("Only owners", res.json()["error"]["message"])
 
@@ -836,9 +849,7 @@ class OrgCancelInvitationTest(TestCase):
 
     def test_owner_can_cancel(self):
         self.client.force_authenticate(self.owner)
-        res = self.client.post(
-            f"/api/core/org/invitations/{self.invitation.id}/cancel/"
-        )
+        res = self.client.post(f"/api/core/org/invitations/{self.invitation.id}/cancel/")
         self.assertEqual(res.status_code, 200)
         self.invitation.refresh_from_db()
         self.assertEqual(self.invitation.status, OrgInvitation.Status.CANCELLED)
@@ -848,16 +859,12 @@ class OrgCancelInvitationTest(TestCase):
         _make_membership(self.tenant, member, Membership.Role.MEMBER)
         self.client.force_authenticate(member)
 
-        res = self.client.post(
-            f"/api/core/org/invitations/{self.invitation.id}/cancel/"
-        )
+        res = self.client.post(f"/api/core/org/invitations/{self.invitation.id}/cancel/")
         self.assertEqual(res.status_code, 403)
 
     def test_cancel_nonexistent_returns_404(self):
         self.client.force_authenticate(self.owner)
-        res = self.client.post(
-            f"/api/core/org/invitations/{uuid.uuid4()}/cancel/"
-        )
+        res = self.client.post(f"/api/core/org/invitations/{uuid.uuid4()}/cancel/")
         self.assertEqual(res.status_code, 404)
 
     def test_cancel_already_accepted_returns_404(self):
@@ -865,9 +872,7 @@ class OrgCancelInvitationTest(TestCase):
         self.invitation.save()
         self.client.force_authenticate(self.owner)
 
-        res = self.client.post(
-            f"/api/core/org/invitations/{self.invitation.id}/cancel/"
-        )
+        res = self.client.post(f"/api/core/org/invitations/{self.invitation.id}/cancel/")
         self.assertEqual(res.status_code, 404)
 
 
@@ -888,10 +893,14 @@ class OrgInvitationsListTest(TestCase):
 
     def test_owner_can_list(self):
         OrgInvitation.objects.create(
-            tenant=self.tenant, email="a@example.com", invited_by=self.owner,
+            tenant=self.tenant,
+            email="a@example.com",
+            invited_by=self.owner,
         )
         OrgInvitation.objects.create(
-            tenant=self.tenant, email="b@example.com", invited_by=self.owner,
+            tenant=self.tenant,
+            email="b@example.com",
+            invited_by=self.owner,
         )
         self.client.force_authenticate(self.owner)
         res = self.client.get("/api/core/org/invitations/")
@@ -975,7 +984,8 @@ class OrgLifecycleTest(TestCase):
         # 7. Owner promotes colleague to admin
         self.client.force_authenticate(owner)
         colleague_membership = Membership.objects.get(
-            tenant=tenant, user=colleague,
+            tenant=tenant,
+            user=colleague,
         )
         res = self.client.put(
             f"/api/core/org/members/{colleague_membership.id}/role/",
@@ -996,9 +1006,7 @@ class OrgLifecycleTest(TestCase):
 
         # 10. Owner removes colleague
         self.client.force_authenticate(owner)
-        res = self.client.delete(
-            f"/api/core/org/members/{colleague_membership.id}/remove/"
-        )
+        res = self.client.delete(f"/api/core/org/members/{colleague_membership.id}/remove/")
         self.assertEqual(res.status_code, 200)
 
         # 11. Colleague no longer in org
@@ -1028,7 +1036,8 @@ class TierGatingIntegrationTest(TestCase):
                 format="json",
             )
             self.assertEqual(
-                res.status_code, 403,
+                res.status_code,
+                403,
                 msg=f"Tier {tier} should be blocked from creating org",
             )
 
@@ -1041,7 +1050,8 @@ class TierGatingIntegrationTest(TestCase):
                 format="json",
             )
             self.assertEqual(
-                res.status_code, 201,
+                res.status_code,
+                201,
                 msg=f"Tier {tier} should be allowed to create org",
             )
 
@@ -1059,6 +1069,7 @@ class TierGatingIntegrationTest(TestCase):
             self.client.force_authenticate(user)
             res = self.client.get("/api/core/org/")
             self.assertEqual(
-                res.json()["can_create_org"], should_allow,
+                res.json()["can_create_org"],
+                should_allow,
                 msg=f"Tier {tier}: can_create_org should be {should_allow}",
             )

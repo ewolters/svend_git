@@ -41,9 +41,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Protocol
-from urllib.parse import urljoin
-from uuid import UUID, uuid4
+from typing import Any
+from uuid import uuid4
 
 import requests
 from django.conf import settings
@@ -59,14 +58,16 @@ logger = logging.getLogger(__name__)
 
 class SIEMFormat(Enum):
     """Supported SIEM export formats."""
-    CEF = "cef"         # Common Event Format (ArcSight)
-    LEEF = "leef"       # Log Event Extended Format (IBM QRadar)
-    JSON = "json"       # Generic JSON
-    SYSLOG = "syslog"   # RFC 5424 Syslog
+
+    CEF = "cef"  # Common Event Format (ArcSight)
+    LEEF = "leef"  # Log Event Extended Format (IBM QRadar)
+    JSON = "json"  # Generic JSON
+    SYSLOG = "syslog"  # RFC 5424 Syslog
 
 
 class SIEMSeverity(Enum):
     """SIEM severity levels mapped to standards."""
+
     UNKNOWN = 0
     LOW = 1
     MEDIUM = 4
@@ -111,19 +112,20 @@ class SIEMEvent:
         status: Event status (success/failure/blocked/error)
         payload: Full event payload
     """
+
     event_id: str
     correlation_id: str
     timestamp: datetime
     event_name: str
     severity: SIEMSeverity
     tenant_id: str
-    actor_id: Optional[str] = None
-    actor_ip: Optional[str] = None
-    resource_type: Optional[str] = None
-    resource_id: Optional[str] = None
-    action: Optional[str] = None
-    status: Optional[str] = None
-    payload: Dict[str, Any] = field(default_factory=dict)
+    actor_id: str | None = None
+    actor_ip: str | None = None
+    resource_type: str | None = None
+    resource_id: str | None = None
+    action: str | None = None
+    status: str | None = None
+    payload: dict[str, Any] = field(default_factory=dict)
 
     def to_cef(self, vendor: str = "Synara", product: str = "QMS", version: str = "1.0") -> str:
         """
@@ -134,6 +136,7 @@ class SIEMEvent:
         Returns:
             CEF formatted string
         """
+
         # Sanitize fields for CEF (escape pipes and backslashes)
         def sanitize(value: str) -> str:
             if value is None:
@@ -143,11 +146,11 @@ class SIEMEvent:
         # Build extension fields
         extensions = []
         extensions.append(f"rt={int(self.timestamp.timestamp() * 1000)}")
-        extensions.append(f"dvchost=synara")
+        extensions.append("dvchost=synara")
         extensions.append(f"cs1={sanitize(self.correlation_id)}")
-        extensions.append(f"cs1Label=CorrelationID")
+        extensions.append("cs1Label=CorrelationID")
         extensions.append(f"cs2={sanitize(self.tenant_id)}")
-        extensions.append(f"cs2Label=TenantID")
+        extensions.append("cs2Label=TenantID")
 
         if self.actor_id:
             extensions.append(f"suser={sanitize(self.actor_id)}")
@@ -155,10 +158,10 @@ class SIEMEvent:
             extensions.append(f"src={sanitize(self.actor_ip)}")
         if self.resource_type:
             extensions.append(f"cs3={sanitize(self.resource_type)}")
-            extensions.append(f"cs3Label=ResourceType")
+            extensions.append("cs3Label=ResourceType")
         if self.resource_id:
             extensions.append(f"cs4={sanitize(self.resource_id)}")
-            extensions.append(f"cs4Label=ResourceID")
+            extensions.append("cs4Label=ResourceID")
         if self.status:
             extensions.append(f"outcome={sanitize(self.status)}")
         if self.action:
@@ -181,6 +184,7 @@ class SIEMEvent:
         Returns:
             LEEF formatted string
         """
+
         def sanitize(value: str) -> str:
             if value is None:
                 return ""
@@ -210,8 +214,7 @@ class SIEMEvent:
         ext_str = "\t".join(fields)
 
         return (
-            f"LEEF:1.0|{sanitize(vendor)}|{sanitize(product)}|{sanitize(version)}|"
-            f"{sanitize(self.event_id)}|{ext_str}"
+            f"LEEF:1.0|{sanitize(vendor)}|{sanitize(product)}|{sanitize(version)}|{sanitize(self.event_id)}|{ext_str}"
         )
 
     def to_json(self) -> str:
@@ -254,11 +257,11 @@ class SIEMEvent:
         """
         # Map severity to syslog severity (0-7)
         syslog_severity_map = {
-            SIEMSeverity.UNKNOWN: 6,    # Informational
-            SIEMSeverity.LOW: 6,        # Informational
-            SIEMSeverity.MEDIUM: 4,     # Warning
-            SIEMSeverity.HIGH: 3,       # Error
-            SIEMSeverity.CRITICAL: 2,   # Critical
+            SIEMSeverity.UNKNOWN: 6,  # Informational
+            SIEMSeverity.LOW: 6,  # Informational
+            SIEMSeverity.MEDIUM: 4,  # Warning
+            SIEMSeverity.HIGH: 3,  # Error
+            SIEMSeverity.CRITICAL: 2,  # Critical
         }
         syslog_severity = syslog_severity_map.get(self.severity, 6)
 
@@ -298,7 +301,7 @@ class SIEMExporter(ABC):
     """
 
     @abstractmethod
-    def export(self, events: List[SIEMEvent]) -> bool:
+    def export(self, events: list[SIEMEvent]) -> bool:
         """Export events to SIEM platform."""
         pass
 
@@ -323,7 +326,7 @@ class HTTPExporter(SIEMExporter):
     def __init__(
         self,
         endpoint_url: str,
-        auth_token: Optional[str] = None,
+        auth_token: str | None = None,
         auth_header: str = "Authorization",
         verify_ssl: bool = True,
         timeout: int = 30,
@@ -336,7 +339,7 @@ class HTTPExporter(SIEMExporter):
         self.timeout = timeout
         self.format = format
 
-    def _get_headers(self) -> Dict[str, str]:
+    def _get_headers(self) -> dict[str, str]:
         """Build request headers."""
         headers = {
             "Content-Type": "application/json",
@@ -357,7 +360,7 @@ class HTTPExporter(SIEMExporter):
         else:
             return event.to_json()
 
-    def export(self, events: List[SIEMEvent]) -> bool:
+    def export(self, events: list[SIEMEvent]) -> bool:
         """Export batch of events."""
         try:
             if self.format == SIEMFormat.JSON:
@@ -428,14 +431,14 @@ class SplunkHECExporter(HTTPExporter):
         self.source = source
         self.sourcetype = sourcetype
 
-    def _get_headers(self) -> Dict[str, str]:
+    def _get_headers(self) -> dict[str, str]:
         """Build Splunk HEC headers."""
         return {
             "Content-Type": "application/json",
             "Authorization": f"Splunk {self.auth_token}",
         }
 
-    def export(self, events: List[SIEMEvent]) -> bool:
+    def export(self, events: list[SIEMEvent]) -> bool:
         """Export events to Splunk HEC."""
         try:
             # Splunk HEC expects newline-delimited JSON
@@ -520,7 +523,7 @@ class SyslogExporter(SIEMExporter):
 
         return self._socket
 
-    def export(self, events: List[SIEMEvent]) -> bool:
+    def export(self, events: list[SIEMEvent]) -> bool:
         """Export events via Syslog."""
         try:
             sock = self._get_socket()
@@ -540,7 +543,7 @@ class SyslogExporter(SIEMExporter):
             logger.info(f"[SIEM/Syslog] Exported {success_count} events to {self.host}:{self.port}")
             return True
 
-        except socket.error as e:
+        except OSError as e:
             logger.error(f"[SIEM/Syslog] Failed to export events: {e}")
             self._socket = None  # Reset socket on error
             return False
@@ -554,7 +557,7 @@ class SyslogExporter(SIEMExporter):
         try:
             sock = self._get_socket()
             return sock is not None
-        except socket.error:
+        except OSError:
             return False
 
     def close(self):
@@ -578,7 +581,7 @@ class SIEMManager:
     """
 
     def __init__(self):
-        self.exporters: List[SIEMExporter] = []
+        self.exporters: list[SIEMExporter] = []
         self._initialized = False
 
     def initialize(self):
@@ -599,7 +602,7 @@ class SIEMManager:
 
         self._initialized = True
 
-    def _create_exporter(self, name: str, config: Dict[str, Any]) -> Optional[SIEMExporter]:
+    def _create_exporter(self, name: str, config: dict[str, Any]) -> SIEMExporter | None:
         """Create exporter from configuration."""
         exporter_type = config.get("type", "http").lower()
 
@@ -697,7 +700,7 @@ class SIEMManager:
 
         return success
 
-    def export_batch(self, events: List[SIEMEvent]) -> bool:
+    def export_batch(self, events: list[SIEMEvent]) -> bool:
         """
         Export batch of events to all configured exporters.
 
@@ -726,7 +729,7 @@ class SIEMManager:
 
         return success
 
-    def test_connections(self) -> Dict[str, bool]:
+    def test_connections(self) -> dict[str, bool]:
         """
         Test connections to all configured SIEM platforms.
 
@@ -771,14 +774,14 @@ def export_to_siem(entry) -> bool:
 def create_siem_event(
     event_name: str,
     tenant_id: str,
-    correlation_id: Optional[str] = None,
+    correlation_id: str | None = None,
     severity: str = "medium",
-    actor_id: Optional[str] = None,
-    resource_type: Optional[str] = None,
-    resource_id: Optional[str] = None,
-    action: Optional[str] = None,
-    status: Optional[str] = None,
-    payload: Optional[Dict[str, Any]] = None,
+    actor_id: str | None = None,
+    resource_type: str | None = None,
+    resource_id: str | None = None,
+    action: str | None = None,
+    status: str | None = None,
+    payload: dict[str, Any] | None = None,
 ) -> SIEMEvent:
     """
     Create a SIEMEvent from components.

@@ -63,8 +63,15 @@ class ThemeSystemTest(SimpleTestCase):
 
     def test_css_variable_namespaces(self):
         """CSS variables follow --bg-*, --accent-*, --text-* naming."""
-        for var in ["--bg-primary", "--accent-primary", "--text-primary",
-                     "--success", "--warning", "--error", "--border"]:
+        for var in [
+            "--bg-primary",
+            "--accent-primary",
+            "--text-primary",
+            "--success",
+            "--warning",
+            "--error",
+            "--border",
+        ]:
             self.assertIn(var, self.content, f"Missing CSS variable: {var}")
 
     def test_theme_persistence_local_storage(self):
@@ -124,15 +131,13 @@ class CDNLibraryTest(SimpleTestCase):
     def test_required_libraries_loaded(self):
         """All required CDN libraries present in base template."""
         for lib_name, cdn in self.REQUIRED_LIBS:
-            self.assertIn(cdn, self.content,
-                          f"Library {lib_name} not loaded from {cdn}")
+            self.assertIn(cdn, self.content, f"Library {lib_name} not loaded from {cdn}")
 
     def test_no_unapproved_cdn_sources(self):
         """No script/link tags load from unapproved CDN origins."""
         urls = re.findall(r'(?:src|href)=["\']https?://([^/"\']+)', self.content)
         for domain in urls:
-            self.assertIn(domain, self.APPROVED_CDNS,
-                          f"Unapproved CDN source: {domain}")
+            self.assertIn(domain, self.APPROVED_CDNS, f"Unapproved CDN source: {domain}")
 
 
 @SECURE_OFF
@@ -201,29 +206,88 @@ class FormPatternTest(SimpleTestCase):
 # Themes may define different values for the same variables.
 BRAND_PALETTE = {
     # Dark theme (root)
-    "#0a0f0a", "#0d120d", "#121a12", "#1a261a",
-    "#4a9f6e", "#4a9faf", "#8a7fbf", "#e8c547", "#e89547",
-    "#e8efe8", "#9aaa9a", "#7a8f7a", "#d06060",
+    "#0a0f0a",
+    "#0d120d",
+    "#121a12",
+    "#1a261a",
+    "#4a9f6e",
+    "#4a9faf",
+    "#8a7fbf",
+    "#e8c547",
+    "#e89547",
+    "#e8efe8",
+    "#9aaa9a",
+    "#7a8f7a",
+    "#d06060",
     # Light theme
-    "#f5f7f5", "#eef2ee", "#e5ebe5", "#dce4dc", "#ffffff",
-    "#2d7a4a", "#2a6070", "#4a3f6f", "#846a0a", "#9a580a",
-    "#1a2a1a", "#4a5a4a", "#5f705f", "#a03030",
+    "#f5f7f5",
+    "#eef2ee",
+    "#e5ebe5",
+    "#dce4dc",
+    "#ffffff",
+    "#2d7a4a",
+    "#2a6070",
+    "#4a3f6f",
+    "#846a0a",
+    "#9a580a",
+    "#1a2a1a",
+    "#4a5a4a",
+    "#5f705f",
+    "#a03030",
     # Nordic
-    "#f2f5f8", "#e8edf2", "#dde3ea", "#d2d9e2",
-    "#2a6b50", "#1a5f80", "#4a3f70", "#7a6505", "#9a5808",
-    "#1a2030", "#485060", "#5f6878", "#b02828",
+    "#f2f5f8",
+    "#e8edf2",
+    "#dde3ea",
+    "#d2d9e2",
+    "#2a6b50",
+    "#1a5f80",
+    "#4a3f70",
+    "#7a6505",
+    "#9a5808",
+    "#1a2030",
+    "#485060",
+    "#5f6878",
+    "#b02828",
     # Sandstone
-    "#f7f4f0", "#ede8e2", "#e3ddd5", "#d9d2c8",
-    "#2a607a", "#5a4070", "#7a6208", "#a06010",
-    "#2a2420", "#5a524a", "#6f675f", "#a82a2a",
+    "#f7f4f0",
+    "#ede8e2",
+    "#e3ddd5",
+    "#d9d2c8",
+    "#2a607a",
+    "#5a4070",
+    "#7a6208",
+    "#a06010",
+    "#2a2420",
+    "#5a524a",
+    "#6f675f",
+    "#a82a2a",
     # Midnight
-    "#0a0a14", "#0d0d1a", "#12121f", "#1a1a2a",
-    "#6a7fff", "#4a9fdf", "#9a6fff", "#ffd54f", "#ff9547",
-    "#e8e8f8", "#9a9aaa", "#7e7e95", "#ff5a5a",
+    "#0a0a14",
+    "#0d0d1a",
+    "#12121f",
+    "#1a1a2a",
+    "#6a7fff",
+    "#4a9fdf",
+    "#9a6fff",
+    "#ffd54f",
+    "#ff9547",
+    "#e8e8f8",
+    "#9a9aaa",
+    "#7e7e95",
+    "#ff5a5a",
     # Contrast
-    "#000000", "#0a0a0a", "#141414", "#1e1e1e",
-    "#50c080", "#50b0e0", "#b090f0", "#f0d050", "#f0a050",
-    "#c0c0c0", "#909090", "#f06060",
+    "#000000",
+    "#0a0a0a",
+    "#141414",
+    "#1e1e1e",
+    "#50c080",
+    "#50b0e0",
+    "#b090f0",
+    "#f0d050",
+    "#f0a050",
+    "#c0c0c0",
+    "#909090",
+    "#f06060",
 }
 
 # Chart colors defined in SvendTheme.chartColors (6-color palette).
@@ -245,8 +309,7 @@ class ColorComplianceTest(SimpleTestCase):
     def test_chart_colors_defined(self):
         """SvendTheme.chartColors contains the 6-color brand palette."""
         for color in CHART_COLORS:
-            self.assertIn(color, self.content,
-                          f"Missing chart color in SvendTheme: {color}")
+            self.assertIn(color, self.content, f"Missing chart color in SvendTheme: {color}")
 
     def test_chart_colors_use_css_vars(self):
         """SvendTheme.chartColors reads from CSS variables, not hardcoded values."""
@@ -264,8 +327,11 @@ class ColorComplianceTest(SimpleTestCase):
     def test_all_themes_define_accent_palette(self):
         """Each theme defines the full accent color set."""
         required_vars = [
-            "--accent-primary", "--accent-blue", "--accent-purple",
-            "--accent-gold", "--accent-orange",
+            "--accent-primary",
+            "--accent-blue",
+            "--accent-purple",
+            "--accent-gold",
+            "--accent-orange",
         ]
         # Check that each data-theme block contains all required variables.
         # Split content by data-theme selectors, verify each block.
@@ -275,14 +341,14 @@ class ColorComplianceTest(SimpleTestCase):
             theme_name = theme_blocks[i - 1]
             block = theme_blocks[i].split("}")[0]  # first {} block
             for var in required_vars:
-                self.assertIn(var, block,
-                              f"Theme '{theme_name}' missing {var}")
+                self.assertIn(var, block, f"Theme '{theme_name}' missing {var}")
 
     def test_error_pages_use_brand_colors(self):
         """Error pages (400/403/404/500) use brand palette, not Tailwind."""
         templates_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(
-                os.path.dirname(os.path.abspath(__file__))))),
+            os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            ),
             "templates",
         )
         tailwind_colors = {"#0f1117", "#e2e8f0", "#f59e0b", "#60a5fa"}
@@ -292,7 +358,7 @@ class ColorComplianceTest(SimpleTestCase):
                 continue
             with open(path) as f:
                 html = f.read()
-            found = set(re.findall(r'#[0-9a-fA-F]{6}', html))
+            found = set(re.findall(r"#[0-9a-fA-F]{6}", html))
             violations = found & tailwind_colors
             self.assertFalse(
                 violations,
@@ -303,9 +369,11 @@ class ColorComplianceTest(SimpleTestCase):
     def test_doe_js_no_hardcoded_tailwind(self):
         """DOE JS files use SvendTheme/CSS vars, not hardcoded Tailwind colors."""
         static_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(
-                os.path.dirname(os.path.abspath(__file__))))),
-            "static", "js",
+            os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            ),
+            "static",
+            "js",
         )
         tailwind_colors = {"#60a5fa", "#f97316", "#22c55e", "#6b7280", "#3b82f6", "#e2e8f0"}
         for fname in ["doe-power.js", "doe-analysis.js"]:
@@ -360,3 +428,85 @@ class WidgetComplianceTest(SimpleTestCase):
             has_preview or has_set or has_apply,
             "No theme switching function found (previewTheme/setTheme/applyTheme)",
         )
+
+
+# =============================================================================
+# Emoji Compliance (FE-001 §9.2)
+# =============================================================================
+
+# Unicode emoji ranges to scan for.
+# Covers common emoji blocks: Emoticons, Dingbats, Misc Symbols, Transport,
+# Supplemental Symbols, Flags, and variation selectors.
+_EMOJI_RE = re.compile(
+    "["
+    "\U0001f600-\U0001f64f"  # Emoticons
+    "\U0001f300-\U0001f5ff"  # Misc Symbols and Pictographs
+    "\U0001f680-\U0001f6ff"  # Transport and Map
+    "\U0001f900-\U0001f9ff"  # Supplemental Symbols
+    "\U0001fa00-\U0001fa6f"  # Chess, extended-A
+    "\U0001fa70-\U0001faff"  # Extended-B
+    "\U00002702-\U000027b0"  # Dingbats
+    "\U0001f1e0-\U0001f1ff"  # Flags
+    "\U00002600-\U000026ff"  # Misc Symbols (includes ⚠ U+26A0)
+    "\U00002700-\U000027bf"  # Dingbats (includes ✓ ✗)
+    "\U0000fe00-\U0000fe0f"  # Variation selectors
+    "\U0000200d"  # Zero-width joiner
+    "\U000025cb"  # White circle ○
+    "\U000025c9"  # Fisheye ◉
+    "\U000025cc"  # Dotted circle ◌
+    "]+",
+)
+
+
+class EmojiComplianceTest(SimpleTestCase):
+    """FE-001 §9.2: No emoji or Unicode pictographs in templates."""
+
+    def _scan_file(self, path):
+        """Return list of (line_num, match) for emoji found in file."""
+        hits = []
+        try:
+            with open(path, errors="ignore") as f:
+                for i, line in enumerate(f, 1):
+                    found = _EMOJI_RE.findall(line)
+                    if found:
+                        hits.append((i, found))
+        except FileNotFoundError:
+            pass
+        return hits
+
+    def test_no_emoji_in_dashboard(self):
+        """internal_dashboard.html contains no emoji or Unicode pictographs."""
+        templates_dir = os.path.join(
+            os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            ),
+            "templates",
+        )
+        path = os.path.join(templates_dir, "internal_dashboard.html")
+        hits = self._scan_file(path)
+        self.assertEqual(
+            len(hits),
+            0,
+            f"Emoji found in internal_dashboard.html at lines: "
+            f"{', '.join(str(h[0]) for h in hits)}. "
+            f"Use _svIcons or inline SVG instead (FE-001 §9.2).",
+        )
+
+    def test_no_emoji_in_app_templates(self):
+        """Core app templates (base_app, base_guest) contain no emoji."""
+        templates_dir = os.path.join(
+            os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            ),
+            "templates",
+        )
+        for tpl in ["base_app.html", "base_guest.html"]:
+            path = os.path.join(templates_dir, tpl)
+            hits = self._scan_file(path)
+            self.assertEqual(
+                len(hits),
+                0,
+                f"Emoji found in {tpl} at lines: "
+                f"{', '.join(str(h[0]) for h in hits)}. "
+                f"Use inline SVG instead (FE-001 §9.2).",
+            )

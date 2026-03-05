@@ -14,7 +14,8 @@ import logging
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
-from accounts.permissions import gated_paid, require_auth, require_enterprise
+from accounts.permissions import require_auth, require_enterprise
+
 from .llm_manager import LLMManager
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,6 @@ When a project is linked, help the user:
 - Connect findings back to the problem statement
 
 Be concise but thorough. Use markdown formatting. Focus on actionable insights.""",
-
     "whiteboard": """You are a facilitation assistant for kaizen and problem-solving sessions.
 You help users:
 - Summarize whiteboard content (brainstorming, fishbone diagrams, process maps)
@@ -46,7 +46,6 @@ You help users:
 - Structure findings for reports
 
 Be concise. Focus on synthesis and actionable takeaways.""",
-
     "project": """You are a project summarization assistant for quality and operational excellence.
 You help users:
 - Compile project findings into structured reports (CAPA, 8D, A3)
@@ -55,7 +54,6 @@ You help users:
 - Generate action plans and control measures
 
 Follow the user's template structure. Be professional and precise.""",
-
     "general": """You are an AI assistant for SVEND, a decision science platform.
 You help with data analysis, problem-solving, and quality improvement.
 Be helpful, concise, and professional.""",
@@ -119,7 +117,9 @@ def guide_chat(request):
                     context_parts.append("\nHypotheses under investigation:")
                     for i, h in enumerate(hypotheses[:5], 1):
                         prob = int((h.get("probability") or 0.5) * 100)
-                        context_parts.append(f"  {i}. \"{h.get('statement', '')[:500]}\" - {prob}% probability ({h.get('status', 'investigating')})")
+                        context_parts.append(
+                            f'  {i}. "{h.get("statement", "")[:500]}" - {prob}% probability ({h.get("status", "investigating")})'
+                        )
                     context_parts.append("\nHelp the user evaluate evidence for/against these hypotheses.")
             # Add session context
             if "summary" in context_data:
@@ -152,22 +152,30 @@ def guide_chat(request):
     )
 
     if result is None:
-        return JsonResponse({
-            "error": "LLM unavailable. Please check API configuration.",
-        }, status=503)
+        return JsonResponse(
+            {
+                "error": "LLM unavailable. Please check API configuration.",
+            },
+            status=503,
+        )
 
     if result.get("rate_limited"):
-        return JsonResponse({
-            "error": result["error"],
-            "rate_limited": True,
-            "rate_limit": result.get("rate_limit", {}),
-        }, status=429)
+        return JsonResponse(
+            {
+                "error": result["error"],
+                "rate_limited": True,
+                "rate_limit": result.get("rate_limit", {}),
+            },
+            status=429,
+        )
 
-    return JsonResponse({
-        "response": result["content"],
-        "model": result["model"],
-        "rate_limit": result.get("rate_limit", {}),
-    })
+    return JsonResponse(
+        {
+            "response": result["content"],
+            "model": result["model"],
+            "rate_limit": result.get("rate_limit", {}),
+        }
+    )
 
 
 @require_enterprise
@@ -202,7 +210,8 @@ def summarize_project(request):
 
     # Load project data
     try:
-        from core.models import Project, Hypothesis
+        from core.models import Hypothesis, Project
+
         from .models import Board
 
         project = Project.objects.get(id=project_id, user=request.user)
@@ -211,7 +220,7 @@ def summarize_project(request):
 
     # Gather context
     context_parts = [f"Project: {project.title}"]
-    if getattr(project, 'problem_statement', ''):
+    if getattr(project, "problem_statement", ""):
         context_parts.append(f"Description: {project.problem_statement}")
 
     # Hypotheses
@@ -242,7 +251,6 @@ def summarize_project(request):
 4. Preventive Actions (systemic)
 5. Verification Plan
 6. Effectiveness Check Criteria""",
-
         "8d": """Generate an 8D report with:
 D0: Preparation/Emergency Response
 D1: Team Formation
@@ -253,7 +261,6 @@ D5: Permanent Corrective Actions
 D6: Implementation & Validation
 D7: Preventive Actions
 D8: Team Recognition""",
-
         "a3": """Generate an A3 report (single page summary) with:
 - Background (why this matters)
 - Current Condition
@@ -293,41 +300,49 @@ Generate the report now, filling in based on available data. If data is missing 
         return JsonResponse({"error": "LLM unavailable"}, status=503)
 
     if result.get("rate_limited"):
-        return JsonResponse({
-            "error": result["error"],
-            "rate_limited": True,
-        }, status=429)
+        return JsonResponse(
+            {
+                "error": result["error"],
+                "rate_limited": True,
+            },
+            status=429,
+        )
 
-    return JsonResponse({
-        "report": result["content"],
-        "template": template,
-        "project_id": str(project.id),
-        "project_title": project.title,
-        "model": result["model"],
-        "rate_limit": result.get("rate_limit", {}),
-    })
+    return JsonResponse(
+        {
+            "report": result["content"],
+            "template": template,
+            "project_id": str(project.id),
+            "project_title": project.title,
+            "model": result["model"],
+            "rate_limit": result.get("rate_limit", {}),
+        }
+    )
 
 
 @require_auth
 @require_http_methods(["GET"])
 def rate_limit_status(request):
     """Get current rate limit status for the user."""
-    from .models import check_rate_limit, LLMUsage
     from django.utils import timezone
+
+    from .models import LLMUsage, check_rate_limit
 
     allowed, remaining, limit = check_rate_limit(request.user)
     usage = LLMUsage.get_daily_usage(request.user, timezone.now().date())
 
-    tier = getattr(request.user, 'subscription_tier', 'FREE') or 'FREE'
+    tier = getattr(request.user, "subscription_tier", "FREE") or "FREE"
 
-    return JsonResponse({
-        "tier": tier,
-        "limit": limit,
-        "remaining": remaining,
-        "used": usage.get("total_requests") or 0,
-        "input_tokens_today": usage.get("total_input_tokens") or 0,
-        "output_tokens_today": usage.get("total_output_tokens") or 0,
-    })
+    return JsonResponse(
+        {
+            "tier": tier,
+            "limit": limit,
+            "remaining": remaining,
+            "used": usage.get("total_requests") or 0,
+            "input_tokens_today": usage.get("total_input_tokens") or 0,
+            "output_tokens_today": usage.get("total_output_tokens") or 0,
+        }
+    )
 
 
 def summarize_whiteboard_elements(elements):

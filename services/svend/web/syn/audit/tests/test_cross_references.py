@@ -12,7 +12,6 @@ by the standards compliance runner.
 Compliance: XRF-001 (Cross-Reference Syntax), ISO 9001:2015 §7.5.3
 """
 
-import os
 import re
 from pathlib import Path
 
@@ -22,25 +21,25 @@ STANDARDS_DIR = Path(__file__).resolve().parents[6] / "docs" / "standards"
 WEB_DIR = Path(__file__).resolve().parents[3]
 
 # Standard code pattern (word boundaries prevent substring matches from longer prefixes)
-CODE_RE = re.compile(r'\b[A-Z]{2,5}-\d{3}\b')
+CODE_RE = re.compile(r"\b[A-Z]{2,5}-\d{3}\b")
 
 # Internal section reference pattern: §N or §N.M or §N.M.P
-SECTION_REF_RE = re.compile(r'§(\d+(?:\.\d+)*)')
+SECTION_REF_RE = re.compile(r"§(\d+(?:\.\d+)*)")
 
 # External standard reference pattern: CODE-NNN §N
-EXT_REF_RE = re.compile(r'([A-Z]{2,5}-\d{3})\s+§(\d+(?:\.\d+)*)')
+EXT_REF_RE = re.compile(r"([A-Z]{2,5}-\d{3})\s+§(\d+(?:\.\d+)*)")
 
 # Compliance header dependency: CODE-NNN ≥ VERSION or CODE-NNN >= VERSION
-COMPLIANCE_DEP_RE = re.compile(r'([A-Z]{2,5}-\d{3})\s*[≥>=]+\s*(\d+\.\d+(?:\.\d+)?)')
+COMPLIANCE_DEP_RE = re.compile(r"([A-Z]{2,5}-\d{3})\s*[≥>=]+\s*(\d+\.\d+(?:\.\d+)?)")
 
 # Prose-style section references (forbidden by XRF-001 §7.2)
 PROSE_SECTION_RE = re.compile(
-    r'(?:section|Section|SECTION)\s+(\d+(?:\.\d+)*)\s+of\s+([A-Z]{2,5}-\d{3})',
+    r"(?:section|Section|SECTION)\s+(\d+(?:\.\d+)*)\s+of\s+([A-Z]{2,5}-\d{3})",
     re.IGNORECASE,
 )
 
 # Code compliance comment pattern
-CODE_COMPLIANCE_RE = re.compile(r'#\s*Compliance:\s*([A-Z]{2,5}-\d{3})\s+§(\d+(?:\.\d+)*)')
+CODE_COMPLIANCE_RE = re.compile(r"#\s*Compliance:\s*([A-Z]{2,5}-\d{3})\s+§(\d+(?:\.\d+)*)")
 
 
 def _get_all_standards():
@@ -55,13 +54,13 @@ def _get_all_standards():
 def _extract_sections(content):
     """Extract section numbers from ## headers."""
     sections = set()
-    for match in re.finditer(r'^## \*\*(\d+)\. ', content, re.MULTILINE):
+    for match in re.finditer(r"^## \*\*(\d+)\. ", content, re.MULTILINE):
         sections.add(match.group(1))
     # Also capture subsections from ### headers
-    for match in re.finditer(r'^### \*\*(\d+\.\d+)', content, re.MULTILINE):
+    for match in re.finditer(r"^### \*\*(\d+\.\d+)", content, re.MULTILINE):
         sections.add(match.group(1))
     # And sub-subsections
-    for match in re.finditer(r'^#### \*\*(\d+\.\d+\.\d+)', content, re.MULTILINE):
+    for match in re.finditer(r"^#### \*\*(\d+\.\d+\.\d+)", content, re.MULTILINE):
         sections.add(match.group(1))
     return sections
 
@@ -102,15 +101,16 @@ class InternalReferenceTest(SimpleTestCase):
                 ref = match.group(1)
                 pos = match.start()
                 # Check if preceded by a standard code (external ref)
-                prefix = content[max(0, pos-10):pos]
+                prefix = content[max(0, pos - 10) : pos]
                 if CODE_RE.search(prefix):
                     continue  # External ref, skip
                 # Check the top-level section exists
                 top_section = ref.split(".")[0]
                 self.assertIn(
-                    top_section, sections,
+                    top_section,
+                    sections,
                     f"{path.name}: internal ref §{ref} — §{top_section} not found. "
-                    f"Available: {sorted(sections, key=lambda x: int(x.split('.')[0]))}"
+                    f"Available: {sorted(sections, key=lambda x: int(x.split('.')[0]))}",
                 )
 
 
@@ -121,35 +121,95 @@ class ExternalReferenceTest(SimpleTestCase):
     # Technical terms, process docs outside docs/standards/, or planned standards.
     NON_STANDARD_CODES = {
         # Hash/crypto algorithms
-        "SHA-256", "SHA-384", "SHA-512",
-        "AES-256", "AES-128",
-        "TLS-128", "RSA-256",
+        "SHA-256",
+        "SHA-384",
+        "SHA-512",
+        "AES-256",
+        "AES-128",
+        "TLS-128",
+        "RSA-256",
         "UTF-008",
         # HTTP status codes
-        "HTTP-200", "HTTP-400", "HTTP-401", "HTTP-403", "HTTP-404", "HTTP-500",
+        "HTTP-200",
+        "HTTP-400",
+        "HTTP-401",
+        "HTTP-403",
+        "HTTP-404",
+        "HTTP-500",
         # Process docs (live outside docs/standards/)
         "DEBT-001",  # .kjerne/DEBT-001.md — debt closure process
         # Historical/superseded references
-        "DOC-002",   # Was merged into XRF-001
+        "DOC-002",  # Was merged into XRF-001
         # Phantom standards — registered in MAP-001 §4 but no .md file yet
-        "MOD-001", "ERR-002", "SBL-001",
-        "SCH-002", "SCH-003", "SCH-004", "SCH-005", "SCH-006",
-        "CONFIG-001", "SRX-001", "IO-001", "CGS-1001",
-        "POL-002", "SEC-002", "ENC-001", "PCONF-001",
-        "CEL-001", "API-002", "AUD-002",
-        "CTG-001", "EVT-001", "EVT-002", "SDK-001",
-        "GOV-001", "GOV-002", "LOG-002", "CLI-001", "COG-001",
-        "SER-001", "TEL-001", "VAL-001", "USER-001", "DRF-001",
-        "PRM-001", "ERM-001", "ORG-001", "ORG-002",
-        "FORM-001", "FLD-001", "EVENTS-001", "SCHEMA-001", "REF-001",
+        "MOD-001",
+        "ERR-002",
+        "SBL-001",
+        "SCH-002",
+        "SCH-003",
+        "SCH-004",
+        "SCH-005",
+        "SCH-006",
+        "CONFIG-001",
+        "SRX-001",
+        "IO-001",
+        "CGS-1001",
+        "POL-002",
+        "SEC-002",
+        "ENC-001",
+        "PCONF-001",
+        "CEL-001",
+        "API-002",
+        "AUD-002",
+        "CTG-001",
+        "EVT-001",
+        "EVT-002",
+        "SDK-001",
+        "GOV-001",
+        "GOV-002",
+        "LOG-002",
+        "CLI-001",
+        "COG-001",
+        "SER-001",
+        "TEL-001",
+        "VAL-001",
+        "USER-001",
+        "DRF-001",
+        "PRM-001",
+        "ERM-001",
+        "ORG-001",
+        "ORG-002",
+        "FORM-001",
+        "FLD-001",
+        "EVENTS-001",
+        "SCHEMA-001",
+        "REF-001",
         "STAT-001",  # Future planned standard (DSW-001 scope note)
         # Process/anti-pattern/error codes (not standards)
-        "AP-003", "BOOT-001", "BOOT-005",
-        "CFG-001", "DB-001",
-        "ENC-002", "ENC-003", "ENC-004", "ENC-005", "ENC-006",
-        "ENC-007", "ENC-008", "ENC-009", "ENC-010", "ENC-011",
-        "SCH-101", "SCH-103", "SCH-201", "SCH-202", "SCH-501",
-        "SYS-200", "INV-001", "INV-008", "INV-011", "XXX-001",
+        "AP-003",
+        "BOOT-001",
+        "BOOT-005",
+        "CFG-001",
+        "DB-001",
+        "ENC-002",
+        "ENC-003",
+        "ENC-004",
+        "ENC-005",
+        "ENC-006",
+        "ENC-007",
+        "ENC-008",
+        "ENC-009",
+        "ENC-010",
+        "ENC-011",
+        "SCH-101",
+        "SCH-103",
+        "SCH-201",
+        "SCH-202",
+        "SCH-501",
+        "SYS-200",
+        "INV-001",
+        "INV-008",
+        "INV-011",
+        "XXX-001",
     }
 
     def test_external_standard_refs_exist(self):
@@ -166,7 +226,7 @@ class ExternalReferenceTest(SimpleTestCase):
                 if ref_code in self.NON_STANDARD_CODES:
                     continue
                 # Skip if it's an external framework reference nearby
-                context = content[max(0, match.start()-20):match.end()+20]
+                context = content[max(0, match.start() - 20) : match.end() + 20]
                 is_external = any(fw in context for fw in external_frameworks)
                 if is_external:
                     continue
@@ -174,20 +234,21 @@ class ExternalReferenceTest(SimpleTestCase):
                 if ref_code == code:
                     continue
                 # Skip code examples (inside ``` blocks)
-                backtick_count = content[:match.start()].count("```")
+                backtick_count = content[: match.start()].count("```")
                 if backtick_count % 2 == 1:
                     continue
                 # Skip HTML comments (hooks)
                 line_start = content.rfind("\n", 0, match.start()) + 1
                 line_end = content.find("\n", match.end())
-                line = content[line_start:line_end if line_end != -1 else None]
+                line = content[line_start : line_end if line_end != -1 else None]
                 if line.strip().startswith("<!--"):
                     continue
                 # Verify the referenced standard exists
                 self.assertIn(
-                    ref_code, all_standards,
+                    ref_code,
+                    all_standards,
                     f"{path.name}: references {ref_code} which doesn't exist in "
-                    f"docs/standards/. Available: {sorted(all_standards.keys())}"
+                    f"docs/standards/. Available: {sorted(all_standards.keys())}",
                 )
 
 
@@ -219,11 +280,11 @@ class ComplianceHeaderTest(SimpleTestCase):
                 if ref not in all_standards:
                     continue  # External standard
                 # Must have version requirement
-                has_version = bool(re.search(r'[≥>=]+\s*\d+\.\d+', line))
+                has_version = bool(re.search(r"[≥>=]+\s*\d+\.\d+", line))
                 self.assertTrue(
                     has_version,
                     f"{path.name}: Compliance dep '{ref}' missing version requirement. "
-                    f"XRF-001 §5.3 requires '≥ VERSION'. Line: {line.strip()}"
+                    f"XRF-001 §5.3 requires '≥ VERSION'. Line: {line.strip()}",
                 )
 
     def test_version_uses_proper_symbol(self):
@@ -247,10 +308,7 @@ class ComplianceHeaderTest(SimpleTestCase):
                     # Only flag if it's a Kjerne standard dep
                     std_match = CODE_RE.search(line)
                     if std_match and std_match.group() in _get_all_standards():
-                        self.fail(
-                            f"{path.name}: uses '>=' instead of '≥' in Compliance header. "
-                            f"Line: {line.strip()}"
-                        )
+                        self.fail(f"{path.name}: uses '>=' instead of '≥' in Compliance header. Line: {line.strip()}")
 
 
 class NoDependencyCyclesTest(SimpleTestCase):
@@ -272,10 +330,8 @@ class NoDependencyCyclesTest(SimpleTestCase):
 
         def has_cycle(node, path_trace):
             if node in in_stack:
-                cycle = path_trace[path_trace.index(node):]
-                self.fail(
-                    f"Circular dependency detected: {' → '.join(cycle + [node])}"
-                )
+                cycle = path_trace[path_trace.index(node) :]
+                self.fail(f"Circular dependency detected: {' → '.join(cycle + [node])}")
                 return True
             if node in visited:
                 return False
@@ -299,10 +355,7 @@ class NoDependencyCyclesTest(SimpleTestCase):
         content = (STANDARDS_DIR / "DOC-001.md").read_text()
         deps = _extract_compliance_deps(content)
         kjerne_deps = [d for d in deps if d in all_standards]
-        self.assertEqual(
-            kjerne_deps, [],
-            f"DOC-001 should be the root with no Kjerne deps, but has: {kjerne_deps}"
-        )
+        self.assertEqual(kjerne_deps, [], f"DOC-001 should be the root with no Kjerne deps, but has: {kjerne_deps}")
 
 
 class ProseReferenceTest(SimpleTestCase):
@@ -320,10 +373,12 @@ class ProseReferenceTest(SimpleTestCase):
                     continue  # Inside code block
                 matches = PROSE_SECTION_RE.findall(block)
                 self.assertEqual(
-                    len(matches), 0,
+                    len(matches),
+                    0,
                     f"{path.name}: prose-style ref found: 'section {matches[0][0]} of {matches[0][1]}'. "
                     f"Use '{matches[0][1]} §{matches[0][0]}' instead (XRF-001 §7.2)."
-                    if matches else ""
+                    if matches
+                    else "",
                 )
 
 
@@ -350,10 +405,7 @@ class EmDashConsistencyTest(SimpleTestCase):
                 std_match = CODE_RE.search(line)
                 if std_match and std_match.group() in _get_all_standards():
                     if " -- " in line or " --" in line.rstrip():
-                        self.fail(
-                            f"{path.name}: uses '--' instead of '—' in Compliance header. "
-                            f"Line: {line.strip()}"
-                        )
+                        self.fail(f"{path.name}: uses '--' instead of '—' in Compliance header. Line: {line.strip()}")
 
 
 class CodeComplianceCommentTest(SimpleTestCase):
@@ -368,8 +420,7 @@ class CodeComplianceCommentTest(SimpleTestCase):
             WEB_DIR / "syn" / "audit" / "standards.py",
             WEB_DIR / "syn" / "audit" / "utils.py",
         ]
-        bad_format = re.compile(r'#.*compliance:.*(?:aud|sec|api|dat|err|log|chg|cmp)',
-                                re.IGNORECASE)
+        re.compile(r"#.*compliance:.*(?:aud|sec|api|dat|err|log|chg|cmp)", re.IGNORECASE)
         good_format = CODE_COMPLIANCE_RE
 
         for fpath in key_files:

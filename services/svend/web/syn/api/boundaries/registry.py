@@ -21,9 +21,10 @@ References:
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any
 
 from django.utils import timezone
 from pydantic import BaseModel, ValidationError
@@ -51,15 +52,15 @@ class IOContract:
     """
 
     code: str
-    input_schema: Type[BaseModel]
-    output_schema: Optional[Type[BaseModel]] = None
+    input_schema: type[BaseModel]
+    output_schema: type[BaseModel] | None = None
     version: str = "1.0.0"
     description: str = ""
     failure_domain: str = "fatal"  # fatal, transient, compensable
     idempotency_strategy: str = "correlation_id"
     registered_at: datetime = field(default_factory=timezone.now)
 
-    def validate(self, data: Dict[str, Any]) -> List[str]:
+    def validate(self, data: dict[str, Any]) -> list[str]:
         """
         Validate data against this contract's input schema.
 
@@ -75,12 +76,12 @@ class IOContract:
             self.input_schema.model_validate(data)
         except ValidationError as e:
             for error in e.errors():
-                loc = ".".join(str(l) for l in error["loc"])
+                loc = ".".join(str(part) for part in error["loc"])
                 violations.append(f"{loc}: {error['msg']}")
 
         return violations
 
-    def validate_output(self, data: Dict[str, Any]) -> List[str]:
+    def validate_output(self, data: dict[str, Any]) -> list[str]:
         """
         Validate data against this contract's output schema.
 
@@ -99,12 +100,12 @@ class IOContract:
             self.output_schema.model_validate(data)
         except ValidationError as e:
             for error in e.errors():
-                loc = ".".join(str(l) for l in error["loc"])
+                loc = ".".join(str(part) for part in error["loc"])
                 violations.append(f"{loc}: {error['msg']}")
 
         return violations
 
-    def to_json_schema(self) -> Dict[str, Any]:
+    def to_json_schema(self) -> dict[str, Any]:
         """
         Export contract as JSON Schema per IO-001 §5.3.
 
@@ -188,15 +189,15 @@ class IOContractRegistry:
         making it effectively a singleton across the application.
     """
 
-    _contracts: Dict[str, IOContract] = {}
+    _contracts: dict[str, IOContract] = {}
     _discovered: bool = False
 
     @classmethod
     def register(
         cls,
         code: str,
-        input_schema: Type[BaseModel],
-        output_schema: Optional[Type[BaseModel]] = None,
+        input_schema: type[BaseModel],
+        output_schema: type[BaseModel] | None = None,
         version: str = "1.0.0",
         description: str = "",
         failure_domain: str = "fatal",
@@ -244,7 +245,7 @@ class IOContractRegistry:
         return contract
 
     @classmethod
-    def get(cls, code: str, version: Optional[str] = None) -> Optional[IOContract]:
+    def get(cls, code: str, version: str | None = None) -> IOContract | None:
         """
         Get an IO contract by code.
 
@@ -266,15 +267,14 @@ class IOContractRegistry:
         # Check version compatibility if specified
         if version and not contract.is_compatible(version):
             logger.warning(
-                f"[REGISTRY] Contract {code} version {contract.version} "
-                f"not compatible with requested {version}"
+                f"[REGISTRY] Contract {code} version {contract.version} not compatible with requested {version}"
             )
             return None
 
         return contract
 
     @classmethod
-    def get_or_raise(cls, code: str, version: Optional[str] = None) -> IOContract:
+    def get_or_raise(cls, code: str, version: str | None = None) -> IOContract:
         """
         Get an IO contract by code, raising if not found.
 
@@ -294,7 +294,7 @@ class IOContractRegistry:
         return contract
 
     @classmethod
-    def list_contracts(cls) -> List[IOContract]:
+    def list_contracts(cls) -> list[IOContract]:
         """
         List all registered contracts.
 
@@ -306,7 +306,7 @@ class IOContractRegistry:
         return list(cls._contracts.values())
 
     @classmethod
-    def list_codes(cls) -> List[str]:
+    def list_codes(cls) -> list[str]:
         """
         List all registered contract codes.
 
@@ -382,17 +382,13 @@ class IOContractRegistry:
 
                     if hasattr(module, "register"):
                         module.register(cls)
-                        logger.debug(
-                            f"[REGISTRY] Discovered contracts from {module_name}"
-                        )
+                        logger.debug(f"[REGISTRY] Discovered contracts from {module_name}")
 
                 except ImportError:
                     # No io_contracts module in this app
                     pass
                 except Exception as e:
-                    logger.warning(
-                        f"[REGISTRY] Error discovering contracts from {app_config.name}: {e}"
-                    )
+                    logger.warning(f"[REGISTRY] Error discovering contracts from {app_config.name}: {e}")
 
         except Exception as e:
             logger.warning(f"[REGISTRY] Autodiscovery failed: {e}")
@@ -404,7 +400,7 @@ class IOContractRegistry:
         return discovered
 
     @classmethod
-    def export_documentation(cls) -> Dict[str, Any]:
+    def export_documentation(cls) -> dict[str, Any]:
         """
         Export registry as documentation per IO-001 §8.2.
 
@@ -423,11 +419,7 @@ class IOContractRegistry:
                     "failure_domain": contract.failure_domain,
                     "idempotency_strategy": contract.idempotency_strategy,
                     "input_schema": contract.input_schema.model_json_schema(),
-                    "output_schema": (
-                        contract.output_schema.model_json_schema()
-                        if contract.output_schema
-                        else None
-                    ),
+                    "output_schema": (contract.output_schema.model_json_schema() if contract.output_schema else None),
                 }
                 for code, contract in cls._contracts.items()
             },
@@ -447,8 +439,8 @@ def io_contract(
     description: str = "",
     failure_domain: str = "fatal",
     idempotency_strategy: str = "correlation_id",
-    output_schema: Optional[Type[BaseModel]] = None,
-) -> Callable[[Type[BaseModel]], Type[BaseModel]]:
+    output_schema: type[BaseModel] | None = None,
+) -> Callable[[type[BaseModel]], type[BaseModel]]:
     """
     Decorator to register an InputSchema as an IO contract.
 
@@ -473,7 +465,7 @@ def io_contract(
         Decorator function
     """
 
-    def decorator(cls: Type[BaseModel]) -> Type[BaseModel]:
+    def decorator(cls: type[BaseModel]) -> type[BaseModel]:
         IOContractRegistry.register(
             code=code,
             input_schema=cls,

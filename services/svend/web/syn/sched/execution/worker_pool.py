@@ -34,21 +34,20 @@ import logging
 import threading
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any
 
 from django.utils import timezone
 
 from .executor import ExecutionResult, ExecutionStatus, TaskExecutor
 from .queue import ExecutionQueue, QueuedTask
 from .resource_class import (
+    WORKER_CONFIGS,
     ResourceClass,
     WorkerConfig,
-    WORKER_CONFIGS,
-    get_worker_config,
 )
 
 logger = logging.getLogger(__name__)
@@ -56,6 +55,7 @@ logger = logging.getLogger(__name__)
 
 class WorkerState(Enum):
     """State of an individual worker."""
+
     STARTING = "starting"
     IDLE = "idle"
     BUSY = "busy"
@@ -67,15 +67,16 @@ class WorkerState(Enum):
 @dataclass
 class WorkerInfo:
     """Information about a single worker."""
+
     worker_id: str
     resource_class: ResourceClass
     state: WorkerState = WorkerState.STARTING
-    started_at: Optional[datetime] = None
-    last_heartbeat: Optional[datetime] = None
+    started_at: datetime | None = None
+    last_heartbeat: datetime | None = None
     tasks_completed: int = 0
     tasks_failed: int = 0
-    current_task_id: Optional[uuid.UUID] = None
-    current_task_started: Optional[datetime] = None
+    current_task_id: uuid.UUID | None = None
+    current_task_started: datetime | None = None
 
 
 @dataclass
@@ -85,22 +86,23 @@ class WorkerPoolMetrics:
 
     Standard: SCH-003 §6.3
     """
+
     total_workers: int = 0
     active_workers: int = 0
     idle_workers: int = 0
-    workers_by_class: Dict[str, int] = field(default_factory=dict)
+    workers_by_class: dict[str, int] = field(default_factory=dict)
     tasks_completed: int = 0
     tasks_failed: int = 0
     tasks_timed_out: int = 0
     avg_task_duration_ms: float = 0.0
     queue_depth: int = 0
     utilization: float = 0.0
-    last_scale_time: Optional[datetime] = None
+    last_scale_time: datetime | None = None
     scale_up_count: int = 0
     scale_down_count: int = 0
     workers_recycled: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "total_workers": self.total_workers,
@@ -137,7 +139,7 @@ class WorkerGroup:
         self,
         resource_class: ResourceClass,
         config: WorkerConfig,
-        task_handler_getter: Callable[[str], Optional[Callable]],
+        task_handler_getter: Callable[[str], Callable | None],
         result_callback: Callable[[ExecutionResult], None],
     ):
         """
@@ -155,17 +157,17 @@ class WorkerGroup:
         self._on_result = result_callback
 
         # Workers
-        self._workers: Dict[str, WorkerInfo] = {}
-        self._executors: Dict[str, TaskExecutor] = {}
-        self._worker_threads: Dict[str, threading.Thread] = {}
+        self._workers: dict[str, WorkerInfo] = {}
+        self._executors: dict[str, TaskExecutor] = {}
+        self._worker_threads: dict[str, threading.Thread] = {}
 
         # State
         self._running = False
         self._lock = threading.RLock()
-        self._last_scale_time: Optional[datetime] = None
+        self._last_scale_time: datetime | None = None
 
         # Metrics
-        self._task_durations: List[float] = []
+        self._task_durations: list[float] = []
 
     def start(self) -> None:
         """Start the worker group."""
@@ -179,10 +181,7 @@ class WorkerGroup:
             for i in range(self.config.default_workers):
                 self._create_worker()
 
-            logger.info(
-                f"[WORKER_GROUP] Started {self.resource_class.value} with "
-                f"{len(self._workers)} workers"
-            )
+            logger.info(f"[WORKER_GROUP] Started {self.resource_class.value} with {len(self._workers)} workers")
 
     def stop(self, graceful: bool = True, timeout: float = 30.0) -> None:
         """Stop all workers in the group."""
@@ -251,7 +250,7 @@ class WorkerGroup:
 
             logger.debug(f"[WORKER_GROUP] Removed worker {worker_id}")
 
-    def execute_task(self, task: QueuedTask) -> Optional[ExecutionResult]:
+    def execute_task(self, task: QueuedTask) -> ExecutionResult | None:
         """
         Execute a task using an available worker.
 
@@ -353,21 +352,22 @@ class WorkerGroup:
         # Emit recycled event (SCH-003 compliance)
         self._emit_worker_recycled_event(worker_id, tasks_completed, tasks_failed)
 
-    def _emit_worker_recycled_event(
-        self, worker_id: str, tasks_completed: int, tasks_failed: int
-    ) -> None:
+    def _emit_worker_recycled_event(self, worker_id: str, tasks_completed: int, tasks_failed: int) -> None:
         """Emit scheduler.worker.recycled event per SCH-003."""
         try:
             from syn.synara.cortex import Cortex
 
-            Cortex.emit("scheduler.worker.recycled", {
-                "worker_id": worker_id,
-                "resource_class": self.resource_class.value,
-                "reason": "task_threshold",
-                "tasks_completed": tasks_completed,
-                "tasks_failed": tasks_failed,
-                "timestamp": timezone.now().isoformat(),
-            })
+            Cortex.emit(
+                "scheduler.worker.recycled",
+                {
+                    "worker_id": worker_id,
+                    "resource_class": self.resource_class.value,
+                    "reason": "task_threshold",
+                    "tasks_completed": tasks_completed,
+                    "tasks_failed": tasks_failed,
+                    "timestamp": timezone.now().isoformat(),
+                },
+            )
         except Exception as e:
             logger.debug(f"[WORKER_GROUP] Non-critical event emission failed: {e}")
 
@@ -409,20 +409,21 @@ class WorkerGroup:
             self._last_scale_time = timezone.now()
             return len(self._workers)
 
-    def _emit_worker_scaled_event(
-        self, previous_count: int, new_count: int, direction: str
-    ) -> None:
+    def _emit_worker_scaled_event(self, previous_count: int, new_count: int, direction: str) -> None:
         """Emit scheduler.worker.scaled event per SCH-003."""
         try:
             from syn.synara.cortex import Cortex
 
-            Cortex.emit("scheduler.worker.scaled", {
-                "resource_class": self.resource_class.value,
-                "previous_count": previous_count,
-                "new_count": new_count,
-                "direction": direction,
-                "timestamp": timezone.now().isoformat(),
-            })
+            Cortex.emit(
+                "scheduler.worker.scaled",
+                {
+                    "resource_class": self.resource_class.value,
+                    "previous_count": previous_count,
+                    "new_count": new_count,
+                    "direction": direction,
+                    "timestamp": timezone.now().isoformat(),
+                },
+            )
         except Exception as e:
             logger.debug(f"[WORKER_GROUP] Non-critical event emission failed: {e}")
 
@@ -441,7 +442,7 @@ class WorkerGroup:
             busy = sum(1 for w in self._workers.values() if w.state == WorkerState.BUSY)
             return busy / total
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get group metrics."""
         with self._lock:
             return {
@@ -483,8 +484,8 @@ class WorkerPool:
 
     def __init__(
         self,
-        execution_queue: Optional[ExecutionQueue] = None,
-        worker_configs: Optional[Dict[ResourceClass, WorkerConfig]] = None,
+        execution_queue: ExecutionQueue | None = None,
+        worker_configs: dict[ResourceClass, WorkerConfig] | None = None,
         auto_scale: bool = True,
         scale_interval_seconds: int = 30,
     ):
@@ -503,26 +504,26 @@ class WorkerPool:
         self._scale_interval = scale_interval_seconds
 
         # Worker groups
-        self._groups: Dict[ResourceClass, WorkerGroup] = {}
+        self._groups: dict[ResourceClass, WorkerGroup] = {}
 
         # State
         self._running = False
-        self._dispatch_thread: Optional[threading.Thread] = None
-        self._scale_thread: Optional[threading.Thread] = None
-        self._fetch_thread: Optional[threading.Thread] = None
+        self._dispatch_thread: threading.Thread | None = None
+        self._scale_thread: threading.Thread | None = None
+        self._fetch_thread: threading.Thread | None = None
 
         # Metrics
         self._metrics = WorkerPoolMetrics()
         self._result_lock = threading.Lock()
 
         # Task handler registry reference
-        self._handler_registry: Optional[Any] = None
+        self._handler_registry: Any | None = None
 
     def set_handler_registry(self, registry: Any) -> None:
         """Set the task handler registry."""
         self._handler_registry = registry
 
-    def _get_handler(self, task_name: str) -> Optional[Callable]:
+    def _get_handler(self, task_name: str) -> Callable | None:
         """Get handler for a task name."""
         if self._handler_registry:
             return self._handler_registry.get_handler(task_name)
@@ -530,6 +531,7 @@ class WorkerPool:
         # Fallback to importing TaskRegistry
         try:
             from syn.sched.core import TaskRegistry
+
             return TaskRegistry.get_handler(task_name)
         except Exception:
             return None
@@ -553,7 +555,7 @@ class WorkerPool:
     def _update_task_state(self, result: ExecutionResult) -> None:
         """Update task state in database."""
         try:
-            from syn.sched.models import CognitiveTask, TaskExecution, DeadLetterEntry
+            from syn.sched.models import CognitiveTask, DeadLetterEntry, TaskExecution
             from syn.sched.types import TaskState
 
             task = CognitiveTask.objects.get(id=result.task_id)
@@ -600,14 +602,17 @@ class WorkerPool:
             from syn.synara.cortex import Cortex
 
             event_name = "scheduler.task.completed" if result.is_success else "scheduler.task.failed"
-            Cortex.emit(event_name, {
-                "task_id": str(result.task_id),
-                "status": result.status.value,
-                "duration_ms": result.duration_ms,
-                "worker_id": result.worker_id,
-                "attempt": result.attempt,
-                "error_type": result.error_type,
-            })
+            Cortex.emit(
+                event_name,
+                {
+                    "task_id": str(result.task_id),
+                    "status": result.status.value,
+                    "duration_ms": result.duration_ms,
+                    "worker_id": result.worker_id,
+                    "attempt": result.attempt,
+                    "error_type": result.error_type,
+                },
+            )
         except Exception as e:
             # Event emission is non-critical, log at debug level
             logger.debug(f"[WORKER_POOL] Non-critical event emission failed: {e}")

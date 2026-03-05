@@ -8,7 +8,6 @@ Standard: CHG-001
 """
 
 import unittest
-from uuid import UUID
 
 from django.test import SimpleTestCase
 
@@ -136,7 +135,7 @@ class ChangeLogTest(SimpleTestCase):
     """CHG-001 §5: ChangeLog records lifecycle events."""
 
     def test_model_exists(self):
-        self.assertTrue(hasattr(ChangeLog, '_meta'))
+        self.assertTrue(hasattr(ChangeLog, "_meta"))
 
     def test_has_action_field(self):
         field = ChangeLog._meta.get_field("action")
@@ -159,7 +158,7 @@ class RiskAssessmentTest(SimpleTestCase):
     """CHG-001 §7: RiskAssessment captures multi-dimensional risk analysis."""
 
     def test_model_exists(self):
-        self.assertTrue(hasattr(RiskAssessment, '_meta'))
+        self.assertTrue(hasattr(RiskAssessment, "_meta"))
 
     def test_has_change_request_fk(self):
         field = RiskAssessment._meta.get_field("change_request")
@@ -170,8 +169,13 @@ class RiskAssessmentTest(SimpleTestCase):
         self.assertIsNotNone(field)
 
     def test_has_dimension_scores(self):
-        for dim in ["security_score", "availability_score", "integrity_score",
-                     "confidentiality_score", "privacy_score"]:
+        for dim in [
+            "security_score",
+            "availability_score",
+            "integrity_score",
+            "confidentiality_score",
+            "privacy_score",
+        ]:
             field = RiskAssessment._meta.get_field(dim)
             self.assertIsNotNone(field, f"Dimension field '{dim}' missing")
 
@@ -180,7 +184,7 @@ class AgentVoteTest(SimpleTestCase):
     """CHG-001 §7: AgentVote records agent assessments."""
 
     def test_model_exists(self):
-        self.assertTrue(hasattr(AgentVote, '_meta'))
+        self.assertTrue(hasattr(AgentVote, "_meta"))
 
     def test_has_agent_role_field(self):
         field = AgentVote._meta.get_field("agent_role")

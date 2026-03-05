@@ -1,11 +1,13 @@
 """Forge models for synthetic data generation."""
 
 import uuid
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
-from accounts.models import User
+
 from accounts.constants import Tier  # Use unified Tier
+from accounts.models import User
 
 
 class DataType(models.TextChoices):
@@ -55,7 +57,9 @@ class Job(models.Model):
 
     job_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     api_key = models.ForeignKey(APIKey, on_delete=models.CASCADE, related_name="jobs", null=True, blank=True)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="forge_jobs", null=True, blank=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="forge_jobs", null=True, blank=True
+    )
 
     # Job configuration
     data_type = models.CharField(max_length=20, choices=DataType.choices)
@@ -110,10 +114,16 @@ class Job(models.Model):
         self.records_generated = records
         self.result_size_bytes = size_bytes
         self.progress = 100
-        self.save(update_fields=[
-            "status", "completed_at", "result_path",
-            "records_generated", "result_size_bytes", "progress"
-        ])
+        self.save(
+            update_fields=[
+                "status",
+                "completed_at",
+                "result_path",
+                "records_generated",
+                "result_size_bytes",
+                "progress",
+            ]
+        )
 
     def mark_failed(self, error: str):
         self.status = JobStatus.FAILED

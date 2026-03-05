@@ -20,12 +20,8 @@ import re
 
 from django.test import SimpleTestCase
 
-TEMPLATE_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "templates"
-)
-STATIC_JS_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "static", "js"
-)
+TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "templates")
+STATIC_JS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "static", "js")
 
 
 def _read_template(name):
@@ -614,12 +610,8 @@ class GlobalAntiPatternSweepTest(SimpleTestCase):
                 violations.append(f"{name}: jQuery() call found")
             jquery_calls = re.findall(r"(?<!\$)\$\(\s*['\"]", content)
             if jquery_calls:
-                violations.append(
-                    f"{name}: $() selector found ({len(jquery_calls)}x)"
-                )
-        self.assertEqual(
-            violations, [], f"jQuery violations:\n" + "\n".join(violations)
-        )
+                violations.append(f"{name}: $() selector found ({len(jquery_calls)}x)")
+        self.assertEqual(violations, [], "jQuery violations:\n" + "\n".join(violations))
 
     def test_no_eval_all_templates(self):
         """§15.3: No eval() in any template."""
@@ -629,9 +621,7 @@ class GlobalAntiPatternSweepTest(SimpleTestCase):
             eval_calls = re.findall(r"(?<!\w)eval\s*\(", js)
             if eval_calls:
                 violations.append(f"{name}: eval() found ({len(eval_calls)}x)")
-        self.assertEqual(
-            violations, [], f"eval() violations:\n" + "\n".join(violations)
-        )
+        self.assertEqual(violations, [], "eval() violations:\n" + "\n".join(violations))
 
     def test_no_document_write_current_page(self):
         """§15.2: No document.write() on current document.
@@ -641,9 +631,7 @@ class GlobalAntiPatternSweepTest(SimpleTestCase):
         """
         violations = []
         for name, content in self.templates.items():
-            for m in re.finditer(
-                r"<script([^>]*)>(.*?)</script>", content, re.DOTALL
-            ):
+            for m in re.finditer(r"<script([^>]*)>(.*?)</script>", content, re.DOTALL):
                 attrs, body = m.group(1), m.group(2)
                 if "src=" in attrs or not body.strip():
                     continue
@@ -655,7 +643,7 @@ class GlobalAntiPatternSweepTest(SimpleTestCase):
         self.assertEqual(
             violations,
             [],
-            f"document.write() violations:\n" + "\n".join(violations),
+            "document.write() violations:\n" + "\n".join(violations),
         )
 
     def test_no_sync_xhr_all_templates(self):
@@ -667,13 +655,11 @@ class GlobalAntiPatternSweepTest(SimpleTestCase):
                 violations.append(f"{name}: XMLHttpRequest found (use fetch)")
             sync_opens = re.findall(r"\.open\s*\([^)]*,\s*false\s*\)", js)
             if sync_opens:
-                violations.append(
-                    f"{name}: synchronous .open() with false flag"
-                )
+                violations.append(f"{name}: synchronous .open() with false flag")
         self.assertEqual(
             violations,
             [],
-            f"Sync XHR violations:\n" + "\n".join(violations),
+            "Sync XHR violations:\n" + "\n".join(violations),
         )
 
     def test_no_function_constructor_all_templates(self):
@@ -683,13 +669,11 @@ class GlobalAntiPatternSweepTest(SimpleTestCase):
             js = _extract_js(content)
             fn_constructors = re.findall(r"new\s+Function\s*\(", js)
             if fn_constructors:
-                violations.append(
-                    f"{name}: new Function() found ({len(fn_constructors)}x)"
-                )
+                violations.append(f"{name}: new Function() found ({len(fn_constructors)}x)")
         self.assertEqual(
             violations,
             [],
-            f"Function constructor violations:\n" + "\n".join(violations),
+            "Function constructor violations:\n" + "\n".join(violations),
         )
 
 
@@ -709,11 +693,13 @@ class AnalysisWorkbenchTest(SimpleTestCase):
         async_count = len(re.findall(r"async\s+function", self.content))
         try_count = len(re.findall(r"\btry\s*\{", self.content))
         self.assertGreater(
-            async_count, 10,
+            async_count,
+            10,
             f"Expected >10 async functions, found {async_count}",
         )
         self.assertGreater(
-            try_count, 10,
+            try_count,
+            10,
             f"Expected >10 try blocks, found {try_count}",
         )
 
@@ -750,7 +736,8 @@ class InternalDashboardTest(SimpleTestCase):
         self.assertIn("makeChart", self.content)
         chart_count = len(re.findall(r"makeChart\(", self.content))
         self.assertGreater(
-            chart_count, 10,
+            chart_count,
+            10,
             f"Expected >10 makeChart calls, found {chart_count}",
         )
 
@@ -764,11 +751,13 @@ class InternalDashboardTest(SimpleTestCase):
         async_count = len(re.findall(r"async\s+function", self.content))
         try_count = len(re.findall(r"\btry\s*\{", self.content))
         self.assertGreater(
-            async_count, 30,
+            async_count,
+            30,
             f"Expected >30 async functions, found {async_count}",
         )
         self.assertGreater(
-            try_count, 20,
+            try_count,
+            20,
             f"Expected >20 try blocks, found {try_count}",
         )
 
@@ -783,7 +772,8 @@ class HoshinTest(SimpleTestCase):
         """Uses async/await for API calls."""
         async_count = len(re.findall(r"async\s+function", self.content))
         self.assertGreater(
-            async_count, 20,
+            async_count,
+            20,
             f"Expected >20 async functions, found {async_count}",
         )
 
@@ -811,11 +801,13 @@ class LearnTest(SimpleTestCase):
         async_count = len(re.findall(r"async\s+function", self.content))
         try_count = len(re.findall(r"\btry\s*\{", self.content))
         self.assertGreater(
-            async_count, 5,
+            async_count,
+            5,
             f"Expected >5 async functions, found {async_count}",
         )
         self.assertGreater(
-            try_count, 5,
+            try_count,
+            5,
             f"Expected >5 try blocks, found {try_count}",
         )
 
@@ -840,11 +832,13 @@ class WhiteboardTest(SimpleTestCase):
         async_count = len(re.findall(r"async\s+function", self.content))
         try_count = len(re.findall(r"\btry\s*\{", self.content))
         self.assertGreater(
-            async_count, 5,
+            async_count,
+            5,
             f"Expected >5 async functions, found {async_count}",
         )
         self.assertGreater(
-            try_count, 5,
+            try_count,
+            5,
             f"Expected >5 try blocks, found {try_count}",
         )
 
@@ -869,11 +863,13 @@ class VSMTest(SimpleTestCase):
         async_count = len(re.findall(r"async\s+function", self.content))
         try_count = len(re.findall(r"\btry\s*\{", self.content))
         self.assertGreater(
-            async_count, 10,
+            async_count,
+            10,
             f"Expected >10 async functions, found {async_count}",
         )
         self.assertGreater(
-            try_count, 10,
+            try_count,
+            10,
             f"Expected >10 try blocks, found {try_count}",
         )
 
@@ -896,7 +892,8 @@ class FMEATest(SimpleTestCase):
         """Uses async/await for API calls."""
         async_count = len(re.findall(r"async\s+function", self.content))
         self.assertGreater(
-            async_count, 5,
+            async_count,
+            5,
             f"Expected >5 async functions, found {async_count}",
         )
 
@@ -924,11 +921,13 @@ class ModelsTest(SimpleTestCase):
         async_count = len(re.findall(r"async\s+function", self.content))
         try_count = len(re.findall(r"\btry\s*\{", self.content))
         self.assertGreater(
-            async_count, 5,
+            async_count,
+            5,
             f"Expected >5 async functions, found {async_count}",
         )
         self.assertGreater(
-            try_count, 5,
+            try_count,
+            5,
             f"Expected >5 try blocks, found {try_count}",
         )
 
@@ -936,7 +935,8 @@ class ModelsTest(SimpleTestCase):
         """Uses Plotly for model prediction charts."""
         plotly_count = len(re.findall(r"Plotly\.(newPlot|react)", self.content))
         self.assertGreater(
-            plotly_count, 5,
+            plotly_count,
+            5,
             f"Expected >5 Plotly calls, found {plotly_count}",
         )
 
@@ -1035,7 +1035,7 @@ class PlotlyComplianceSweepTest(SimpleTestCase):
         self.assertEqual(
             violations,
             [],
-            f"Plotly responsive violations:\n" + "\n".join(violations),
+            "Plotly responsive violations:\n" + "\n".join(violations),
         )
 
     def test_all_plotly_templates_have_bgcolor(self):
@@ -1048,7 +1048,7 @@ class PlotlyComplianceSweepTest(SimpleTestCase):
         self.assertEqual(
             violations,
             [],
-            f"Plotly bgcolor violations:\n" + "\n".join(violations),
+            "Plotly bgcolor violations:\n" + "\n".join(violations),
         )
 
 
@@ -1065,13 +1065,11 @@ class AsyncComplianceSweepTest(SimpleTestCase):
             if async_count > 5:
                 try_count = len(re.findall(r"\btry\s*\{", js))
                 if try_count == 0:
-                    violations.append(
-                        f"{name}: {async_count} async functions, 0 try blocks"
-                    )
+                    violations.append(f"{name}: {async_count} async functions, 0 try blocks")
         self.assertEqual(
             violations,
             [],
-            f"Async error handling gaps:\n" + "\n".join(violations),
+            "Async error handling gaps:\n" + "\n".join(violations),
         )
 
     def test_fetch_templates_use_async(self):
@@ -1084,11 +1082,9 @@ class AsyncComplianceSweepTest(SimpleTestCase):
             if fetch_count > 3:
                 async_count = len(re.findall(r"async\s+function", js))
                 if async_count == 0:
-                    violations.append(
-                        f"{name}: {fetch_count} fetch() calls, no async"
-                    )
+                    violations.append(f"{name}: {fetch_count} fetch() calls, no async")
         self.assertEqual(
             violations,
             [],
-            f"Fetch without async:\n" + "\n".join(violations),
+            "Fetch without async:\n" + "\n".join(violations),
         )

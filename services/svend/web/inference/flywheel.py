@@ -16,8 +16,8 @@ The flywheel turns failures into improvements.
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, List
 from enum import Enum
+from typing import Any
 
 from django.conf import settings
 
@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 class EscalationReason(Enum):
     """Why we escalated to Opus."""
+
     LOW_CONFIDENCE = "low_confidence"
     SYNARA_FAILED = "synara_failed"
     VERIFICATION_FAILED = "verification_failed"
@@ -36,25 +37,26 @@ class EscalationReason(Enum):
 @dataclass
 class FlywheelResult:
     """Result from flywheel processing."""
+
     # Source
     used_synara: bool = True
     used_opus: bool = False
-    escalation_reason: Optional[EscalationReason] = None
+    escalation_reason: EscalationReason | None = None
 
     # Synara result
     synara_success: bool = False
     synara_confidence: float = 0.0
     synara_answer: Any = None
-    synara_trace: List[Dict] = field(default_factory=list)
+    synara_trace: list[dict] = field(default_factory=list)
 
     # Opus result (if escalated)
-    opus_response: Optional[str] = None
+    opus_response: str | None = None
     opus_answer: Any = None
 
     # Final output
     final_answer: Any = None
     final_response: str = ""
-    final_trace: List[Dict] = field(default_factory=list)
+    final_trace: list[dict] = field(default_factory=list)
 
     # Timing
     synara_time_ms: int = 0
@@ -70,7 +72,7 @@ class OpusClient:
     """Client for Claude Opus API escalation."""
 
     def __init__(self):
-        self.api_key = getattr(settings, 'ANTHROPIC_API_KEY', None)
+        self.api_key = getattr(settings, "ANTHROPIC_API_KEY", None)
         self._client = None
 
     def _get_client(self):
@@ -78,6 +80,7 @@ class OpusClient:
         if self._client is None and self.api_key:
             try:
                 import anthropic
+
                 self._client = anthropic.Anthropic(api_key=self.api_key)
             except ImportError:
                 logger.warning("anthropic package not installed")
@@ -92,7 +95,7 @@ class OpusClient:
     def solve(
         self,
         query: str,
-        synara_trace: List[Dict] = None,
+        synara_trace: list[dict] = None,
         domain: str = "",
     ) -> tuple:
         """
@@ -114,10 +117,12 @@ Format: State the answer clearly, then briefly explain if needed."""
         # Include Synara's attempt if available
         user_content = f"Problem: {query}"
         if synara_trace:
-            trace_summary = "\n".join([
-                f"- {s.get('tool', '?')}: {s.get('expression', '?')} → {s.get('result', '?')}"
-                for s in synara_trace[:3]
-            ])
+            trace_summary = "\n".join(
+                [
+                    f"- {s.get('tool', '?')}: {s.get('expression', '?')} → {s.get('result', '?')}"
+                    for s in synara_trace[:3]
+                ]
+            )
             user_content += f"\n\nPrevious attempt (may be wrong):\n{trace_summary}"
             user_content += "\n\nPlease verify and provide the correct answer."
 
@@ -126,7 +131,7 @@ Format: State the answer clearly, then briefly explain if needed."""
                 model="claude-sonnet-4-20250514",  # Use Sonnet for cost, Opus for accuracy
                 max_tokens=500,
                 system=system,
-                messages=[{"role": "user", "content": user_content}]
+                messages=[{"role": "user", "content": user_content}],
             )
 
             time_ms = int((time.time() - start) * 1000)
@@ -148,9 +153,9 @@ Format: State the answer clearly, then briefly explain if needed."""
 
         # Look for common answer patterns
         patterns = [
-            r'(?:answer|result|solution)(?:\s+is)?[:\s]+([^\n.]+)',
-            r'=\s*([^\n.]+)',
-            r'\*\*([^*]+)\*\*',  # Bold markdown
+            r"(?:answer|result|solution)(?:\s+is)?[:\s]+([^\n.]+)",
+            r"=\s*([^\n.]+)",
+            r"\*\*([^*]+)\*\*",  # Bold markdown
         ]
 
         for pattern in patterns:
@@ -159,7 +164,7 @@ Format: State the answer clearly, then briefly explain if needed."""
                 return match.group(1).strip()
 
         # Return first line as fallback
-        return response.split('\n')[0].strip()
+        return response.split("\n")[0].strip()
 
 
 class FlywheelService:
@@ -182,12 +187,12 @@ class FlywheelService:
 
         # Stats
         self.stats = {
-            'total_queries': 0,
-            'synara_success': 0,
-            'synara_low_confidence': 0,
-            'opus_escalations': 0,
-            'opus_success': 0,
-            'training_candidates': 0,
+            "total_queries": 0,
+            "synara_success": 0,
+            "synara_low_confidence": 0,
+            "opus_escalations": 0,
+            "opus_success": 0,
+            "training_candidates": 0,
         }
 
     def process(
@@ -206,7 +211,7 @@ class FlywheelService:
             user_id: For logging
             allow_escalation: Whether to allow Opus escalation
         """
-        self.stats['total_queries'] += 1
+        self.stats["total_queries"] += 1
         result = FlywheelResult()
         start_time = time.time()
 
@@ -215,7 +220,7 @@ class FlywheelService:
         result.synara_answer = synara_result.final_answer
         result.synara_trace = synara_result.reasoning_trace or []
         result.synara_confidence = self._get_synara_confidence(synara_result)
-        result.synara_time_ms = getattr(synara_result, 'inference_time_ms', 0)
+        result.synara_time_ms = getattr(synara_result, "inference_time_ms", 0)
 
         # Decide if we need escalation
         needs_escalation = False
@@ -230,25 +235,25 @@ class FlywheelService:
         if not result.synara_success:
             needs_escalation = True
             escalation_reason = EscalationReason.SYNARA_FAILED
-            self.stats['synara_low_confidence'] += 1
+            self.stats["synara_low_confidence"] += 1
 
         elif result.synara_confidence < self.AUTO_ESCALATE_THRESHOLD:
             needs_escalation = True
             escalation_reason = EscalationReason.LOW_CONFIDENCE
-            self.stats['synara_low_confidence'] += 1
+            self.stats["synara_low_confidence"] += 1
 
         elif result.synara_confidence < self.CONFIDENCE_THRESHOLD:
             # Log as training candidate but don't escalate
             result.training_candidate = True
 
         else:
-            self.stats['synara_success'] += 1
+            self.stats["synara_success"] += 1
 
         # Escalate to Opus if needed
         if needs_escalation and allow_escalation and self.opus.is_available():
             result.used_opus = True
             result.escalation_reason = escalation_reason
-            self.stats['opus_escalations'] += 1
+            self.stats["opus_escalations"] += 1
 
             success, answer, response, time_ms = self.opus.solve(
                 query=query,
@@ -261,7 +266,7 @@ class FlywheelService:
             result.opus_time_ms = time_ms
 
             if success:
-                self.stats['opus_success'] += 1
+                self.stats["opus_success"] += 1
                 result.final_answer = answer
                 result.final_response = response
                 result.training_candidate = True  # Log for training
@@ -280,7 +285,7 @@ class FlywheelService:
         # Log if it's a training candidate
         if result.training_candidate:
             self._log_training_candidate(query, result, synara_result, user_id)
-            self.stats['training_candidates'] += 1
+            self.stats["training_candidates"] += 1
 
         return result
 
@@ -289,7 +294,7 @@ class FlywheelService:
         # Check trace for confidence
         trace = synara_result.reasoning_trace or []
         if trace:
-            confidences = [s.get('confidence', 0.5) for s in trace if 'confidence' in s]
+            confidences = [s.get("confidence", 0.5) for s in trace if "confidence" in s]
             if confidences:
                 return min(confidences)  # Use minimum confidence
 
@@ -309,7 +314,7 @@ class FlywheelService:
     ):
         """Log as training candidate in database."""
         try:
-            from chat.models import TrainingCandidate, TraceLog
+            from chat.models import TrainingCandidate
 
             # Determine candidate type
             if not result.synara_success:
@@ -349,7 +354,7 @@ class FlywheelService:
     ):
         """Log full trace for diagnostics."""
         try:
-            from chat.models import TraceLog, Message
+            from chat.models import Message, TraceLog
 
             message = None
             if message_id:
@@ -380,19 +385,17 @@ class FlywheelService:
         except Exception as e:
             logger.error(f"Failed to log trace: {e}")
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get flywheel statistics."""
-        total = max(1, self.stats['total_queries'])
+        total = max(1, self.stats["total_queries"])
         return {
             **self.stats,
-            'synara_success_rate': self.stats['synara_success'] / total,
-            'escalation_rate': self.stats['opus_escalations'] / total,
-            'opus_success_rate': (
-                self.stats['opus_success'] / max(1, self.stats['opus_escalations'])
-            ),
+            "synara_success_rate": self.stats["synara_success"] / total,
+            "escalation_rate": self.stats["opus_escalations"] / total,
+            "opus_success_rate": (self.stats["opus_success"] / max(1, self.stats["opus_escalations"])),
         }
 
-    def analyze_patterns(self) -> Dict[str, Any]:
+    def analyze_patterns(self) -> dict[str, Any]:
         """
         Analyze logged failures to identify patterns for new tools.
 
@@ -402,40 +405,47 @@ class FlywheelService:
         - Domains needing attention
         """
         try:
-            from chat.models import TrainingCandidate
             from django.db.models import Count
 
+            from chat.models import TrainingCandidate
+
             # Get recent failures by domain
-            domain_failures = TrainingCandidate.objects.filter(
-                candidate_type__in=['error', 'low_confidence'],
-            ).values('domain').annotate(
-                count=Count('id')
-            ).order_by('-count')[:10]
+            domain_failures = (
+                TrainingCandidate.objects.filter(
+                    candidate_type__in=["error", "low_confidence"],
+                )
+                .values("domain")
+                .annotate(count=Count("id"))
+                .order_by("-count")[:10]
+            )
 
             # Get common error patterns
-            error_patterns = TrainingCandidate.objects.filter(
-                candidate_type='error',
-            ).values('error_type').annotate(
-                count=Count('id')
-            ).order_by('-count')[:10]
+            error_patterns = (
+                TrainingCandidate.objects.filter(
+                    candidate_type="error",
+                )
+                .values("error_type")
+                .annotate(count=Count("id"))
+                .order_by("-count")[:10]
+            )
 
             return {
-                'domain_failures': list(domain_failures),
-                'error_patterns': list(error_patterns),
-                'suggestions': self._generate_suggestions(domain_failures, error_patterns),
+                "domain_failures": list(domain_failures),
+                "error_patterns": list(error_patterns),
+                "suggestions": self._generate_suggestions(domain_failures, error_patterns),
             }
 
         except Exception as e:
             logger.error(f"Pattern analysis failed: {e}")
-            return {'error': str(e)}
+            return {"error": str(e)}
 
-    def _generate_suggestions(self, domain_failures, error_patterns) -> List[str]:
+    def _generate_suggestions(self, domain_failures, error_patterns) -> list[str]:
         """Generate suggestions based on failure patterns."""
         suggestions = []
 
         for df in domain_failures[:3]:
-            domain = df.get('domain', 'unknown')
-            count = df.get('count', 0)
+            domain = df.get("domain", "unknown")
+            count = df.get("count", 0)
             if count > 10:
                 suggestions.append(f"Consider adding more tools for '{domain}' domain ({count} failures)")
 
@@ -443,7 +453,7 @@ class FlywheelService:
 
 
 # Singleton instance
-_flywheel: Optional[FlywheelService] = None
+_flywheel: FlywheelService | None = None
 
 
 def get_flywheel() -> FlywheelService:

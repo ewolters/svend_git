@@ -1,6 +1,5 @@
 """Comprehensive API tests — auth, billing, permissions, middleware."""
 
-import uuid
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -9,7 +8,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from accounts.constants import Tier, has_feature, TIER_FEATURES, TIER_LIMITS
+from accounts.constants import TIER_FEATURES, TIER_LIMITS, Tier, has_feature
 
 User = get_user_model()
 
@@ -19,9 +18,7 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _make_user(email, tier=Tier.FREE, password="testpass123!", **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(
-        username=username, email=email, password=password, **kwargs
-    )
+    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -57,11 +54,15 @@ class RegistrationTest(TestCase):
         self.addCleanup(p.stop)
 
     def test_register_success(self):
-        res = self.client.post("/api/auth/register/", {
-            "username": "newuser",
-            "email": "new@example.com",
-            "password": "SecurePass123!",
-        }, format="json")
+        res = self.client.post(
+            "/api/auth/register/",
+            {
+                "username": "newuser",
+                "email": "new@example.com",
+                "password": "SecurePass123!",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 201)
         data = res.json()
         self.assertEqual(data["status"], "registered")
@@ -73,11 +74,15 @@ class RegistrationTest(TestCase):
 
     def test_register_auto_login(self):
         """Registration should auto-login the user."""
-        res = self.client.post("/api/auth/register/", {
-            "username": "autologin",
-            "email": "auto@example.com",
-            "password": "SecurePass123!",
-        }, format="json")
+        res = self.client.post(
+            "/api/auth/register/",
+            {
+                "username": "autologin",
+                "email": "auto@example.com",
+                "password": "SecurePass123!",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 201)
         # Should be able to access /me without logging in again
         res = self.client.get("/api/auth/me/")
@@ -85,74 +90,106 @@ class RegistrationTest(TestCase):
         self.assertEqual(res.json()["username"], "autologin")
 
     def test_register_short_username(self):
-        res = self.client.post("/api/auth/register/", {
-            "username": "ab",
-            "email": "short@example.com",
-            "password": "SecurePass123!",
-        }, format="json")
+        res = self.client.post(
+            "/api/auth/register/",
+            {
+                "username": "ab",
+                "email": "short@example.com",
+                "password": "SecurePass123!",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 400)
         self.assertIn("3 characters", res.json()["error"]["message"])
 
     def test_register_short_password(self):
-        res = self.client.post("/api/auth/register/", {
-            "username": "newuser",
-            "email": "new@example.com",
-            "password": "short",
-        }, format="json")
+        res = self.client.post(
+            "/api/auth/register/",
+            {
+                "username": "newuser",
+                "email": "new@example.com",
+                "password": "short",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 400)
 
     def test_register_common_password(self):
-        res = self.client.post("/api/auth/register/", {
-            "username": "newuser",
-            "email": "new@example.com",
-            "password": "password1234",
-        }, format="json")
+        res = self.client.post(
+            "/api/auth/register/",
+            {
+                "username": "newuser",
+                "email": "new@example.com",
+                "password": "password1234",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 400)
 
     def test_register_duplicate_username(self):
         _make_user("existing@example.com", username="existing")
-        res = self.client.post("/api/auth/register/", {
-            "username": "existing",
-            "email": "other@example.com",
-            "password": "SecurePass123!",
-        }, format="json")
+        res = self.client.post(
+            "/api/auth/register/",
+            {
+                "username": "existing",
+                "email": "other@example.com",
+                "password": "SecurePass123!",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 400)
         self.assertIn("already taken", res.json()["error"]["message"])
 
     def test_register_duplicate_email(self):
         _make_user("taken@example.com")
-        res = self.client.post("/api/auth/register/", {
-            "username": "anotheruser",
-            "email": "taken@example.com",
-            "password": "SecurePass123!",
-        }, format="json")
+        res = self.client.post(
+            "/api/auth/register/",
+            {
+                "username": "anotheruser",
+                "email": "taken@example.com",
+                "password": "SecurePass123!",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 400)
         self.assertIn("already registered", res.json()["error"]["message"])
 
     def test_register_new_user_is_free_tier(self):
-        self.client.post("/api/auth/register/", {
-            "username": "freetier",
-            "email": "free@example.com",
-            "password": "SecurePass123!",
-        }, format="json")
+        self.client.post(
+            "/api/auth/register/",
+            {
+                "username": "freetier",
+                "email": "free@example.com",
+                "password": "SecurePass123!",
+            },
+            format="json",
+        )
         user = User.objects.get(username="freetier")
         self.assertEqual(user.tier, Tier.FREE)
 
     def test_register_empty_username_auto_generates(self):
         """Empty username is auto-generated from email prefix."""
-        res = self.client.post("/api/auth/register/", {
-            "username": "",
-            "email": "x@example.com",
-            "password": "SecurePass123!",
-        }, format="json")
+        res = self.client.post(
+            "/api/auth/register/",
+            {
+                "username": "",
+                "email": "x@example.com",
+                "password": "SecurePass123!",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 201)
 
     def test_register_no_email_fails(self):
         """Email is required at registration."""
-        res = self.client.post("/api/auth/register/", {
-            "username": "noemail",
-            "password": "SecurePass123!",
-        }, format="json")
+        res = self.client.post(
+            "/api/auth/register/",
+            {
+                "username": "noemail",
+                "password": "SecurePass123!",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 400)
 
 
@@ -171,45 +208,60 @@ class LoginTest(TestCase):
         self.addCleanup(p.stop)
 
     def test_login_with_username(self):
-        res = self.client.post("/api/auth/login/", {
-            "username": "testuser",
-            "password": "testpass123!",
-        })
+        res = self.client.post(
+            "/api/auth/login/",
+            {
+                "username": "testuser",
+                "password": "testpass123!",
+            },
+        )
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertEqual(data["status"], "logged_in")
         self.assertEqual(data["user"]["username"], "testuser")
 
     def test_login_with_email(self):
-        res = self.client.post("/api/auth/login/", {
-            "username": "user@example.com",
-            "password": "testpass123!",
-        })
+        res = self.client.post(
+            "/api/auth/login/",
+            {
+                "username": "user@example.com",
+                "password": "testpass123!",
+            },
+        )
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["status"], "logged_in")
 
     def test_login_wrong_password(self):
-        res = self.client.post("/api/auth/login/", {
-            "username": "testuser",
-            "password": "wrongpassword",
-        })
+        res = self.client.post(
+            "/api/auth/login/",
+            {
+                "username": "testuser",
+                "password": "wrongpassword",
+            },
+        )
         self.assertEqual(res.status_code, 401)
         self.assertIn("Invalid", res.json()["error"]["message"])
 
     def test_login_nonexistent_user(self):
-        res = self.client.post("/api/auth/login/", {
-            "username": "nobody",
-            "password": "whatever123",
-        })
+        res = self.client.post(
+            "/api/auth/login/",
+            {
+                "username": "nobody",
+                "password": "whatever123",
+            },
+        )
         self.assertEqual(res.status_code, 401)
 
     def test_login_inactive_user(self):
         self.user.is_active = False
         self.user.save()
-        res = self.client.post("/api/auth/login/", {
-            "username": "testuser",
-            "password": "testpass123!",
-        })
+        res = self.client.post(
+            "/api/auth/login/",
+            {
+                "username": "testuser",
+                "password": "testpass123!",
+            },
+        )
         # Django's authenticate() returns None for inactive users
         self.assertIn(res.status_code, [401, 403])
 
@@ -220,10 +272,13 @@ class LoginTest(TestCase):
     def test_login_returns_tier_and_limit(self):
         self.user.tier = Tier.PRO
         self.user.save()
-        res = self.client.post("/api/auth/login/", {
-            "username": "testuser",
-            "password": "testpass123!",
-        })
+        res = self.client.post(
+            "/api/auth/login/",
+            {
+                "username": "testuser",
+                "password": "testpass123!",
+            },
+        )
         data = res.json()
         self.assertEqual(data["user"]["tier"], "pro")
         self.assertEqual(data["user"]["daily_limit"], TIER_LIMITS[Tier.PRO])
@@ -323,62 +378,94 @@ class ProfileUpdateTest(TestCase):
         self.client.force_authenticate(self.user)
 
     def test_update_display_name(self):
-        res = self.client.patch("/api/auth/profile/", {
-            "display_name": "New Name",
-        }, format="json")
+        res = self.client.patch(
+            "/api/auth/profile/",
+            {
+                "display_name": "New Name",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["user"]["display_name"], "New Name")
         self.user.refresh_from_db()
         self.assertEqual(self.user.display_name, "New Name")
 
     def test_update_theme(self):
-        res = self.client.patch("/api/auth/profile/", {
-            "current_theme": "nordic",
-        }, format="json")
+        res = self.client.patch(
+            "/api/auth/profile/",
+            {
+                "current_theme": "nordic",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["user"]["current_theme"], "nordic")
 
     def test_update_preferences_json(self):
         prefs = {"chart_style": "line", "show_hints": True}
-        res = self.client.patch("/api/auth/profile/", {
-            "preferences": prefs,
-        }, format="json")
+        res = self.client.patch(
+            "/api/auth/profile/",
+            {
+                "preferences": prefs,
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["user"]["preferences"], prefs)
 
     def test_update_valid_industry(self):
-        res = self.client.patch("/api/auth/profile/", {
-            "industry": "manufacturing",
-        }, format="json")
+        res = self.client.patch(
+            "/api/auth/profile/",
+            {
+                "industry": "manufacturing",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["user"]["industry"], "manufacturing")
 
     def test_update_invalid_industry_rejected(self):
-        res = self.client.patch("/api/auth/profile/", {
-            "industry": "fake_industry",
-        }, format="json")
+        res = self.client.patch(
+            "/api/auth/profile/",
+            {
+                "industry": "fake_industry",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 400)
         self.assertIn("Invalid", res.json()["error"]["message"])
 
     def test_update_valid_role(self):
-        res = self.client.patch("/api/auth/profile/", {
-            "role": "engineer",
-        }, format="json")
+        res = self.client.patch(
+            "/api/auth/profile/",
+            {
+                "role": "engineer",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 200)
 
     def test_update_invalid_role_rejected(self):
-        res = self.client.patch("/api/auth/profile/", {
-            "role": "wizard",
-        }, format="json")
+        res = self.client.patch(
+            "/api/auth/profile/",
+            {
+                "role": "wizard",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 400)
 
     def test_update_multiple_fields(self):
-        res = self.client.patch("/api/auth/profile/", {
-            "display_name": "Multi",
-            "bio": "Test bio",
-            "industry": "technology",
-            "role": "analyst",
-        }, format="json")
+        res = self.client.patch(
+            "/api/auth/profile/",
+            {
+                "display_name": "Multi",
+                "bio": "Test bio",
+                "industry": "technology",
+                "role": "analyst",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 200)
         data = res.json()["user"]
         self.assertEqual(data["display_name"], "Multi")
@@ -403,10 +490,14 @@ class PasswordChangeTest(TestCase):
         self.client.force_authenticate(self.user)
 
     def test_change_password_success(self):
-        res = self.client.post("/api/auth/password/", {
-            "current_password": "testpass123!",
-            "new_password": "NewSecurePass456!",
-        }, format="json")
+        res = self.client.post(
+            "/api/auth/password/",
+            {
+                "current_password": "testpass123!",
+                "new_password": "NewSecurePass456!",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["status"], "password_changed")
         # Verify new password works
@@ -414,18 +505,26 @@ class PasswordChangeTest(TestCase):
         self.assertTrue(self.user.check_password("NewSecurePass456!"))
 
     def test_wrong_current_password(self):
-        res = self.client.post("/api/auth/password/", {
-            "current_password": "wrongpassword",
-            "new_password": "NewSecurePass456!",
-        }, format="json")
+        res = self.client.post(
+            "/api/auth/password/",
+            {
+                "current_password": "wrongpassword",
+                "new_password": "NewSecurePass456!",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 400)
         self.assertIn("incorrect", res.json()["error"]["message"])
 
     def test_new_password_too_short(self):
-        res = self.client.post("/api/auth/password/", {
-            "current_password": "testpass123!",
-            "new_password": "short",
-        }, format="json")
+        res = self.client.post(
+            "/api/auth/password/",
+            {
+                "current_password": "testpass123!",
+                "new_password": "short",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 400)
 
     def test_missing_fields(self):
@@ -434,10 +533,14 @@ class PasswordChangeTest(TestCase):
 
     def test_session_maintained_after_change(self):
         """Session should survive password change (update_session_auth_hash)."""
-        res = self.client.post("/api/auth/password/", {
-            "current_password": "testpass123!",
-            "new_password": "NewSecurePass456!",
-        }, format="json")
+        res = self.client.post(
+            "/api/auth/password/",
+            {
+                "current_password": "testpass123!",
+                "new_password": "NewSecurePass456!",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 200)
         # Should still be authenticated
         res = self.client.get("/api/auth/me/")
@@ -571,9 +674,14 @@ class PermissionDecoratorTest(TestCase):
         """@require_team should block PRO tier."""
         user = _make_user("pro@example.com", Tier.PRO)
         self.client.force_authenticate(user)
-        res = self.client.post("/api/core/org/create/", {
-            "name": "Test", "slug": "test",
-        }, format="json")
+        res = self.client.post(
+            "/api/core/org/create/",
+            {
+                "name": "Test",
+                "slug": "test",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 403)
         self.assertIn("Team plan", res.json()["error"]["message"])
 
@@ -581,9 +689,14 @@ class PermissionDecoratorTest(TestCase):
         """@require_team should allow TEAM tier."""
         user = _make_user("team@example.com", Tier.TEAM)
         self.client.force_authenticate(user)
-        res = self.client.post("/api/core/org/create/", {
-            "name": "Team Org", "slug": "team-org",
-        }, format="json")
+        res = self.client.post(
+            "/api/core/org/create/",
+            {
+                "name": "Team Org",
+                "slug": "team-org",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 201)
 
 
@@ -617,12 +730,16 @@ class InternalAccessTest(TestCase):
 
     def test_svend_tenant_admin_allowed(self):
         """Owner/admin of 'svend' tenant should have internal access."""
-        from core.models import Tenant, Membership
+        from core.models import Membership, Tenant
+
         user = _make_user("orgadmin@example.com", Tier.TEAM)
         tenant = Tenant.objects.create(name="Svend", slug="svend", plan="team")
         Membership.objects.create(
-            tenant=tenant, user=user, role="admin",
-            is_active=True, joined_at=timezone.now(),
+            tenant=tenant,
+            user=user,
+            role="admin",
+            is_active=True,
+            joined_at=timezone.now(),
         )
         self.client.force_authenticate(user)
         res = self.client.get("/api/internal/overview/")
@@ -630,12 +747,16 @@ class InternalAccessTest(TestCase):
 
     def test_svend_tenant_member_blocked(self):
         """Regular member of 'svend' tenant should NOT have internal access."""
-        from core.models import Tenant, Membership
+        from core.models import Membership, Tenant
+
         user = _make_user("member@example.com", Tier.TEAM)
         tenant = Tenant.objects.create(name="Svend", slug="svend", plan="team")
         Membership.objects.create(
-            tenant=tenant, user=user, role="member",
-            is_active=True, joined_at=timezone.now(),
+            tenant=tenant,
+            user=user,
+            role="member",
+            is_active=True,
+            joined_at=timezone.now(),
         )
         self.client.force_authenticate(user)
         res = self.client.get("/api/internal/overview/")
@@ -643,12 +764,16 @@ class InternalAccessTest(TestCase):
 
     def test_other_tenant_admin_blocked(self):
         """Admin of a different tenant should NOT have internal access."""
-        from core.models import Tenant, Membership
+        from core.models import Membership, Tenant
+
         user = _make_user("otheradmin@example.com", Tier.TEAM)
         tenant = Tenant.objects.create(name="Other Corp", slug="other-corp", plan="team")
         Membership.objects.create(
-            tenant=tenant, user=user, role="admin",
-            is_active=True, joined_at=timezone.now(),
+            tenant=tenant,
+            user=user,
+            role="admin",
+            is_active=True,
+            joined_at=timezone.now(),
         )
         self.client.force_authenticate(user)
         res = self.client.get("/api/internal/overview/")
@@ -772,6 +897,7 @@ class SiteVisitMiddlewareTest(TestCase):
 
     def test_page_visit_tracked(self):
         from api.models import SiteVisit
+
         count_before = SiteVisit.objects.count()
         # Visit a page (not API, not static)
         self.client.get("/", HTTP_USER_AGENT="Mozilla/5.0 Test Browser")
@@ -780,6 +906,7 @@ class SiteVisitMiddlewareTest(TestCase):
 
     def test_api_visits_not_tracked(self):
         from api.models import SiteVisit
+
         count_before = SiteVisit.objects.count()
         self.client.get("/api/health/")
         count_after = SiteVisit.objects.count()
@@ -787,6 +914,7 @@ class SiteVisitMiddlewareTest(TestCase):
 
     def test_static_not_tracked(self):
         from api.models import SiteVisit
+
         count_before = SiteVisit.objects.count()
         self.client.get("/static/test.css")
         count_after = SiteVisit.objects.count()
@@ -794,6 +922,7 @@ class SiteVisitMiddlewareTest(TestCase):
 
     def test_bot_flagged(self):
         from api.models import SiteVisit
+
         self.client.get("/", HTTP_USER_AGENT="Googlebot/2.1")
         visit = SiteVisit.objects.order_by("-viewed_at").first()
         if visit:
@@ -801,6 +930,7 @@ class SiteVisitMiddlewareTest(TestCase):
 
     def test_staff_not_tracked(self):
         from api.models import SiteVisit
+
         user = _make_user("staff@example.com", is_staff=True)
         self.client.force_login(user)
         count_before = SiteVisit.objects.count()
@@ -827,11 +957,15 @@ class AuthOrgIntegrationTest(TestCase):
         c = APIClient()
 
         # 1. Register
-        res = c.post("/api/auth/register/", {
-            "username": "orgfounder",
-            "email": "founder@company.com",
-            "password": "SecurePass123!",
-        }, format="json")
+        res = c.post(
+            "/api/auth/register/",
+            {
+                "username": "orgfounder",
+                "email": "founder@company.com",
+                "password": "SecurePass123!",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 201)
 
         # 2. User starts as FREE — cannot create org
@@ -850,9 +984,14 @@ class AuthOrgIntegrationTest(TestCase):
         res = c.get("/api/core/org/")
         self.assertTrue(res.json()["can_create_org"])
 
-        res = c.post("/api/core/org/create/", {
-            "name": "My Company", "slug": "my-company",
-        }, format="json")
+        res = c.post(
+            "/api/core/org/create/",
+            {
+                "name": "My Company",
+                "slug": "my-company",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 201)
 
         # 5. Verify org shows in profile

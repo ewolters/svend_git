@@ -8,11 +8,12 @@ import uuid
 from pathlib import Path
 
 from django.conf import settings
-from django.http import JsonResponse, FileResponse
+from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated, require_auth, require_enterprise
-from .common import log_agent_action, _preload_llm_background
+
+from .common import _preload_llm_background, log_agent_action
 
 # Validate data_id to prevent path traversal (must be data_ + alphanumeric)
 _SAFE_DATA_ID = re.compile(r"^data_[a-f0-9]+$")
@@ -22,13 +23,16 @@ def _validate_data_id(data_id: str) -> bool:
     """Return True if data_id is safe (no path traversal)."""
     return bool(data_id and _SAFE_DATA_ID.match(data_id))
 
+
 logger = logging.getLogger(__name__)
 
 
 def _read_csv_safe(file_or_path):
     """Read CSV with encoding fallback: UTF-8 → latin-1."""
     import io
+
     import pandas as pd
+
     if hasattr(file_or_path, "read"):
         raw = file_or_path.read()
         try:
@@ -58,30 +62,30 @@ def upload_data(request):
     MAX_UPLOAD_BYTES = 50 * 1024 * 1024
     if file.size and file.size > MAX_UPLOAD_BYTES:
         return JsonResponse(
-            {"error": f"File too large ({file.size // (1024*1024)} MB). Maximum is 50 MB."},
+            {"error": f"File too large ({file.size // (1024 * 1024)} MB). Maximum is 50 MB."},
             status=413,
         )
 
     filename = file.name.lower()
 
     try:
-        import pandas as pd
         import numpy as np
+        import pandas as pd
 
         # Parse the file - try to detect actual format
         df = None
         parse_errors = []
 
         # Try based on extension first
-        if filename.endswith('.csv'):
+        if filename.endswith(".csv"):
             try:
                 df = _read_csv_safe(file)
             except Exception as e:
                 parse_errors.append(f"CSV: {e}")
 
-        elif filename.endswith('.xlsx'):
+        elif filename.endswith(".xlsx"):
             try:
-                df = pd.read_excel(file, engine='openpyxl')
+                df = pd.read_excel(file, engine="openpyxl")
             except Exception as e:
                 parse_errors.append(f"XLSX: {e}")
                 # Maybe it's actually a CSV with wrong extension
@@ -89,12 +93,12 @@ def upload_data(request):
                 try:
                     df = _read_csv_safe(file)
                     parse_errors.append("(Parsed as CSV)")
-                except:
+                except Exception:
                     pass
 
-        elif filename.endswith('.xls'):
+        elif filename.endswith(".xls"):
             try:
-                df = pd.read_excel(file, engine='xlrd')
+                df = pd.read_excel(file, engine="xlrd")
             except Exception as e:
                 parse_errors.append(f"XLS: {e}")
                 # Maybe it's a CSV or XLSX with wrong extension
@@ -102,27 +106,31 @@ def upload_data(request):
                 try:
                     df = _read_csv_safe(file)
                     parse_errors.append("(Parsed as CSV)")
-                except:
+                except Exception:
                     file.seek(0)
                     try:
-                        df = pd.read_excel(file, engine='openpyxl')
+                        df = pd.read_excel(file, engine="openpyxl")
                         parse_errors.append("(Parsed as XLSX)")
-                    except:
+                    except Exception:
                         pass
         else:
             # Unknown extension - try all formats
-            for parser, name in [(_read_csv_safe, 'CSV'),
-                                  (lambda f: pd.read_excel(f, engine='openpyxl'), 'XLSX'),
-                                  (lambda f: pd.read_excel(f, engine='xlrd'), 'XLS')]:
+            for parser, name in [
+                (_read_csv_safe, "CSV"),
+                (lambda f: pd.read_excel(f, engine="openpyxl"), "XLSX"),
+                (lambda f: pd.read_excel(f, engine="xlrd"), "XLS"),
+            ]:
                 try:
                     file.seek(0)
                     df = parser(file)
                     break
-                except:
+                except Exception:
                     continue
 
         if df is None:
-            return JsonResponse({"error": f"Could not parse file. Tried: {'; '.join(parse_errors) or 'all formats'}"}, status=400)
+            return JsonResponse(
+                {"error": f"Could not parse file. Tried: {'; '.join(parse_errors) or 'all formats'}"}, status=400
+            )
 
         # Save to temp storage for session use
         data_id = f"data_{uuid.uuid4().hex[:12]}"
@@ -150,10 +158,12 @@ def upload_data(request):
             else:
                 col_type = "text"
 
-            columns.append({
-                "name": col,
-                "dtype": col_type,
-            })
+            columns.append(
+                {
+                    "name": col,
+                    "dtype": col_type,
+                }
+            )
 
         # Generate preview (first 100 rows)
         preview = df.head(100).replace({np.nan: None}).to_dict(orient="records")
@@ -163,17 +173,21 @@ def upload_data(request):
         # Preload LLM in background so it's ready when user asks questions
         _preload_llm_background()
 
-        return JsonResponse({
-            "id": data_id,
-            "filename": file.name,
-            "rows": df.shape[0],
-            "columns": columns,
-            "preview": preview,
-        })
+        return JsonResponse(
+            {
+                "id": data_id,
+                "filename": file.name,
+                "rows": df.shape[0],
+                "columns": columns,
+                "preview": preview,
+            }
+        )
 
     except Exception as e:
         logger.exception(f"Data upload error: {e}")
-        return JsonResponse({"error": "Failed to parse uploaded file. Please check the file format and try again."}, status=400)
+        return JsonResponse(
+            {"error": "Failed to parse uploaded file. Please check the file format and try again."}, status=400
+        )
 
 
 @require_http_methods(["POST"])
@@ -195,8 +209,8 @@ def retrieve_data(request):
         return JsonResponse({"error": "Invalid or missing data_id"}, status=400)
 
     try:
-        import pandas as pd
         import numpy as np
+        import pandas as pd
 
         df = None
 
@@ -217,7 +231,9 @@ def retrieve_data(request):
         if df is None:
             try:
                 from io import StringIO
+
                 from ..models import TriageResult
+
                 triage_result = TriageResult.objects.get(id=data_id, user=request.user)
                 df = pd.read_csv(StringIO(triage_result.cleaned_csv))
             except Exception:
@@ -242,13 +258,15 @@ def retrieve_data(request):
         preview_df = df.head(100).replace({np.nan: None})
         preview = {col: list(preview_df[col]) for col in preview_df.columns}
 
-        return JsonResponse({
-            "id": data_id,
-            "filename": body.get("filename", "dataset"),
-            "row_count": df.shape[0],
-            "columns": columns,
-            "preview": preview,
-        })
+        return JsonResponse(
+            {
+                "id": data_id,
+                "filename": body.get("filename", "dataset"),
+                "row_count": df.shape[0],
+                "columns": columns,
+                "preview": preview,
+            }
+        )
 
     except Exception as e:
         logger.exception(f"Data retrieve error: {e}")
@@ -267,7 +285,9 @@ def execute_code(request):
     implemented. See DEBT.md.
     """
     return JsonResponse(
-        {"error": "Code execution is temporarily disabled for security hardening. Use the built-in analysis tools instead."},
+        {
+            "error": "Code execution is temporarily disabled for security hardening. Use the built-in analysis tools instead."
+        },
         status=403,
     )
 
@@ -284,18 +304,24 @@ def execute_code(request):
         return JsonResponse({"error": "No code provided"}, status=400)
 
     try:
-        import pandas as pd
-        import numpy as np
-        from io import StringIO
         import sys
+        from io import StringIO
+
+        import numpy as np
+        import pandas as pd
 
         # Load data if provided
         df = None
         if data_id:
             from files.models import UploadedFile
+
             try:
                 file_record = UploadedFile.objects.get(id=data_id, user=request.user)
-                df = _read_csv_safe(file_record.file.path) if file_record.file.path.endswith('.csv') else pd.read_excel(file_record.file.path)
+                df = (
+                    _read_csv_safe(file_record.file.path)
+                    if file_record.file.path.endswith(".csv")
+                    else pd.read_excel(file_record.file.path)
+                )
             except UploadedFile.DoesNotExist:
                 pass
 
@@ -304,14 +330,16 @@ def execute_code(request):
         sys.stdout = StringIO()
 
         # Import additional libraries for the sandbox
+        import matplotlib
         import scipy
         import scipy.stats
-        import matplotlib
-        matplotlib.use('Agg')  # Non-interactive backend
-        import matplotlib.pyplot as plt
-        import random
+
+        matplotlib.use("Agg")  # Non-interactive backend
         import math
+        import random
         import statistics
+
+        import matplotlib.pyplot as plt
 
         # Execute in namespace with common data science libraries
         namespace = {
@@ -350,7 +378,7 @@ def execute_code(request):
                 "all": all,
                 "isinstance": isinstance,
                 "type": type,
-            }
+            },
         }
 
         exec(code, namespace)
@@ -364,18 +392,16 @@ def execute_code(request):
             # Assume it's a plotly figure
             try:
                 fig = namespace["fig"]
-                plots.append({
-                    "title": "Output",
-                    "data": fig.data,
-                    "layout": fig.layout
-                })
-            except:
+                plots.append({"title": "Output", "data": fig.data, "layout": fig.layout})
+            except Exception:
                 pass
 
-        return JsonResponse({
-            "output": output or "Code executed successfully",
-            "plots": plots,
-        })
+        return JsonResponse(
+            {
+                "output": output or "Code executed successfully",
+                "plots": plots,
+            }
+        )
 
     except Exception as e:
         logger.exception(f"Code execution error: {e}")
@@ -423,7 +449,7 @@ def generate_code(request):
     # Check if using Anthropic models (Enterprise only)
     if model in ("sonnet", "opus", "haiku"):
         # Check enterprise access
-        if not hasattr(request.user, 'subscription') or request.user.subscription.plan != 'enterprise':
+        if not hasattr(request.user, "subscription") or request.user.subscription.plan != "enterprise":
             return JsonResponse({"error": "Anthropic models require Enterprise subscription"}, status=403)
 
         try:
@@ -452,13 +478,14 @@ Available libraries: numpy (np), pandas (pd), scipy, matplotlib (plt), random, m
                 model=model_map.get(model, "claude-sonnet-4-20250514"),
                 max_tokens=2048,
                 system=system_prompt,
-                messages=[{"role": "user", "content": f"{context_prefix}<request>{prompt}</request>"}]
+                messages=[{"role": "user", "content": f"{context_prefix}<request>{prompt}</request>"}],
             )
 
             code = response.content[0].text
 
             # Extract code from markdown if present
             import re
+
             if "```python" in code:
                 match = re.search(r"```python\n?([\s\S]*?)```", code)
                 if match:
@@ -488,15 +515,16 @@ Rules:
     try:
         # Get Qwen Coder LLM
         from .. import views as agent_views
+
         llm = agent_views.get_coder_llm()
 
         if llm is None:
             # Fallback: return a template
-            code = '''import numpy as np
+            code = """import numpy as np
 import pandas as pd
 
 # Qwen Coder is loading, please try again in a moment
-'''
+"""
             return JsonResponse({"code": code, "note": "Qwen Coder is loading, try again shortly"})
 
         # Generate code with Qwen
@@ -504,6 +532,7 @@ import pandas as pd
 
         # Extract code from markdown if present
         import re
+
         if "```python" in code:
             match = re.search(r"```python\n?([\s\S]*?)```", code)
             if match:
@@ -515,7 +544,7 @@ import pandas as pd
 
         # Clean up - remove the prompt echo if present
         if code.startswith(code_prompt[:50]):
-            code = code[len(code_prompt):].strip()
+            code = code[len(code_prompt) :].strip()
 
         return JsonResponse({"code": code.strip(), "model": "qwen"})
 
@@ -555,8 +584,9 @@ def analyst_assistant(request):
         df = None
         if data_id:
             try:
-                import pandas as pd
                 from io import StringIO
+
+                import pandas as pd
 
                 if data_id and _validate_data_id(data_id):
                     data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
@@ -570,10 +600,11 @@ def analyst_assistant(request):
                             df = _read_csv_safe(data_path)
                 else:
                     from ..models import TriageResult
+
                     try:
                         triage_result = TriageResult.objects.get(id=data_id, user=request.user)
                         df = pd.read_csv(StringIO(triage_result.cleaned_csv))
-                    except:
+                    except Exception:
                         pass
             except Exception as e:
                 logger.warning(f"Could not load data for analyst: {e}")
@@ -589,6 +620,7 @@ def analyst_assistant(request):
         # Quick CUDA check
         try:
             import torch
+
             cuda_available = torch.cuda.is_available()
             if not cuda_available:
                 logger.warning("CUDA not available - using keyword fallback")
@@ -608,17 +640,20 @@ def analyst_assistant(request):
                     llm_loading = True
                     logger.info("LLM not yet loaded - triggering background load")
                     import threading
+
                     def load_llm_background():
                         try:
                             agent_views.get_shared_llm()
                             logger.info("Background LLM load completed")
                         except Exception as e:
                             logger.error(f"Background LLM load failed: {e}")
+
                     threading.Thread(target=load_llm_background, daemon=True).start()
 
             except Exception as e:
                 logger.error(f"Failed to check LLM status: {e}")
                 import traceback
+
                 traceback.print_exc()
 
         # Handle different agent types
@@ -661,6 +696,7 @@ def analyst_assistant(request):
             except Exception as e:
                 logger.error(f"LLM generation failed: {e}")
                 import traceback
+
                 traceback.print_exc()
                 response = f"LLM error: {str(e)}"
 
@@ -689,10 +725,10 @@ def generate_anthropic_response(model, message, df, columns, session_history=Non
     else:
         n_rows, n_cols = df.shape
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-        cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+        cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
         data_context = f"""Dataset: {n_rows:,} rows × {n_cols} columns
-Numeric columns: {', '.join(numeric_cols[:10])}
-Categorical columns: {', '.join(cat_cols[:10])}
+Numeric columns: {", ".join(numeric_cols[:10])}
+Categorical columns: {", ".join(cat_cols[:10])}
 
 Summary:
 {df.describe().to_string()}
@@ -715,7 +751,7 @@ Be concise but thorough. Use markdown formatting for clarity."""
         model=model_map.get(model, "claude-sonnet-4-20250514"),
         max_tokens=2048,
         system=system_prompt,
-        messages=[{"role": "user", "content": message}]
+        messages=[{"role": "user", "content": message}],
     )
 
     return response.content[0].text
@@ -731,7 +767,7 @@ def generate_llm_response(llm, message, df, columns, session_history=None):
 
     n_rows, n_cols = df.shape
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+    cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
 
     # Build correlation matrix for numeric columns (helps answer relationship questions)
     corr_info = ""
@@ -741,7 +777,7 @@ def generate_llm_response(llm, message, df, columns, session_history=None):
             # Find top correlations
             corr_pairs = []
             for i, col1 in enumerate(numeric_cols):
-                for col2 in numeric_cols[i+1:]:
+                for col2 in numeric_cols[i + 1 :]:
                     corr_val = corr_matrix.loc[col1, col2]
                     if abs(corr_val) > 0.3:  # Only notable correlations
                         corr_pairs.append((col1, col2, corr_val))
@@ -758,8 +794,8 @@ def generate_llm_response(llm, message, df, columns, session_history=None):
     # Build data summary for context
     data_context = f"""Dataset: {n_rows:,} rows × {n_cols} columns
 
-Numeric columns ({len(numeric_cols)}): {', '.join(numeric_cols[:15])}
-Categorical columns ({len(cat_cols)}): {', '.join(cat_cols[:15])}
+Numeric columns ({len(numeric_cols)}): {", ".join(numeric_cols[:15])}
+Categorical columns ({len(cat_cols)}): {", ".join(cat_cols[:15])}
 
 Summary statistics:
 {df.describe().to_string()}{corr_info}
@@ -773,7 +809,9 @@ Sample data (first 3 rows):
     if session_history:
         session_context = "\n\nSESSION HISTORY (analyses run this session):\n"
         for item in session_history[-10:]:
-            session_context += f"- {item.get('type', 'unknown')}: {item.get('name', '')} - {item.get('summary', '')[:200]}\n"
+            session_context += (
+                f"- {item.get('type', 'unknown')}: {item.get('name', '')} - {item.get('summary', '')[:200]}\n"
+            )
 
     # Build prompt - lab assistant persona
     prompt = f"""You are a lab assistant helping a scientist analyze their data. You're knowledgeable, helpful, and speak like a colleague - not a generic chatbot.
@@ -800,6 +838,7 @@ Respond as a helpful lab assistant. Be specific to this data. If they ask about 
 
     try:
         import concurrent.futures
+
         # Use a thread with timeout to prevent hanging
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(llm.generate, prompt, max_tokens=500, temperature=0.7)
@@ -808,7 +847,10 @@ Respond as a helpful lab assistant. Be specific to this data. If they ask about 
                 return response
             except concurrent.futures.TimeoutError:
                 logger.warning("LLM generation timed out after 30s")
-                return generate_analyst_response(message.lower(), df, columns) + "\n\n*(Response generated via quick mode due to timeout)*"
+                return (
+                    generate_analyst_response(message.lower(), df, columns)
+                    + "\n\n*(Response generated via quick mode due to timeout)*"
+                )
     except Exception as e:
         logger.error(f"LLM generation error: {e}")
         # Fallback
@@ -825,17 +867,17 @@ def generate_analyst_response(message, df, columns):
 
     n_rows, n_cols = df.shape
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+    cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
 
     # Keywords for different intents
-    if any(w in message for w in ['describe', 'summary', 'overview', 'tell me about', 'what is']):
+    if any(w in message for w in ["describe", "summary", "overview", "tell me about", "what is"]):
         summary = f"Your dataset has {n_rows:,} rows and {n_cols} columns.\n\n"
         summary += f"**Numeric columns ({len(numeric_cols)}):** {', '.join(numeric_cols[:5])}"
         if len(numeric_cols) > 5:
-            summary += f" (+{len(numeric_cols)-5} more)"
+            summary += f" (+{len(numeric_cols) - 5} more)"
         summary += f"\n\n**Categorical columns ({len(cat_cols)}):** {', '.join(cat_cols[:5])}"
         if len(cat_cols) > 5:
-            summary += f" (+{len(cat_cols)-5} more)"
+            summary += f" (+{len(cat_cols) - 5} more)"
 
         if numeric_cols:
             summary += "\n\n**Quick stats for numeric columns:**\n"
@@ -845,7 +887,7 @@ def generate_analyst_response(message, df, columns):
         summary += "\n\nUse **Stat > Descriptive Statistics** for detailed analysis."
         return summary
 
-    if any(w in message for w in ['correlation', 'relationship', 'related', 'correlated']):
+    if any(w in message for w in ["correlation", "relationship", "related", "correlated"]):
         if len(numeric_cols) < 2:
             return "You need at least 2 numeric columns to analyze correlations."
 
@@ -853,7 +895,7 @@ def generate_analyst_response(message, df, columns):
         # Find strongest correlations
         pairs = []
         for i, col1 in enumerate(numeric_cols):
-            for col2 in numeric_cols[i+1:]:
+            for col2 in numeric_cols[i + 1 :]:
                 pairs.append((col1, col2, corr_matrix.loc[col1, col2]))
 
         pairs.sort(key=lambda x: abs(x[2]), reverse=True)
@@ -868,7 +910,7 @@ def generate_analyst_response(message, df, columns):
         response += "\n\nTo visualize, use **Graph > Scatterplot** with these variable pairs."
         return response
 
-    if any(w in message for w in ['predict', 'forecast', 'ml', 'machine learning', 'model']):
+    if any(w in message for w in ["predict", "forecast", "ml", "machine learning", "model"]):
         response = "**ML Recommendations:**\n\n"
 
         if cat_cols:
@@ -886,7 +928,7 @@ def generate_analyst_response(message, df, columns):
         response += "**Tip:** Select your target variable and features in the dialog. Start with Random Forest - it works well without tuning."
         return response
 
-    if any(w in message for w in ['outlier', 'anomaly', 'unusual', 'extreme']):
+    if any(w in message for w in ["outlier", "anomaly", "unusual", "extreme"]):
         if not numeric_cols:
             return "No numeric columns found for outlier detection."
 
@@ -894,15 +936,15 @@ def generate_analyst_response(message, df, columns):
         for col in numeric_cols[:4]:
             q1, q3 = df[col].quantile([0.25, 0.75])
             iqr = q3 - q1
-            lower, upper = q1 - 1.5*iqr, q3 + 1.5*iqr
+            lower, upper = q1 - 1.5 * iqr, q3 + 1.5 * iqr
             outliers = df[(df[col] < lower) | (df[col] > upper)][col]
             if len(outliers) > 0:
-                response += f"- **{col}**: {len(outliers)} outliers ({len(outliers)/len(df)*100:.1f}%)\n"
+                response += f"- **{col}**: {len(outliers)} outliers ({len(outliers) / len(df) * 100:.1f}%)\n"
 
         response += "\n\nUse **Graph > Boxplot** to visualize outliers, or use **Triage** to clean them."
         return response
 
-    if any(w in message for w in ['missing', 'null', 'empty', 'na']):
+    if any(w in message for w in ["missing", "null", "empty", "na"]):
         response = "**Missing Data Analysis:**\n\n"
         missing = df.isnull().sum()
         missing = missing[missing > 0].sort_values(ascending=False)
@@ -912,12 +954,12 @@ def generate_analyst_response(message, df, columns):
         else:
             response += "Columns with missing values:\n"
             for col, count in missing.head(10).items():
-                response += f"- **{col}**: {count} ({count/len(df)*100:.1f}%)\n"
+                response += f"- **{col}**: {count} ({count / len(df) * 100:.1f}%)\n"
 
             response += "\n\nUse **Triage** to handle missing values (imputation, removal)."
         return response
 
-    if any(w in message for w in ['compare', 'difference', 'group', 'between']):
+    if any(w in message for w in ["compare", "difference", "group", "between"]):
         if not cat_cols:
             return "No categorical columns found for group comparisons. Use a categorical variable to split your data."
 
@@ -930,7 +972,7 @@ def generate_analyst_response(message, df, columns):
         response += "- **Graph > Histogram** with 'Group by' - Compare distributions"
         return response
 
-    if any(w in message for w in ['distribution', 'normal', 'spread', 'histogram']):
+    if any(w in message for w in ["distribution", "normal", "spread", "histogram"]):
         if not numeric_cols:
             return "No numeric columns found for distribution analysis."
 
@@ -948,12 +990,12 @@ def generate_analyst_response(message, df, columns):
     # Default response
     response = f"I can help you analyze your dataset ({n_rows:,} rows, {n_cols} columns).\n\n"
     response += "**Try asking about:**\n"
-    response += "- \"Describe my data\" - Get an overview\n"
-    response += "- \"Find correlations\" - Discover relationships\n"
-    response += "- \"Check for outliers\" - Find unusual values\n"
-    response += "- \"Missing data\" - Analyze gaps\n"
-    response += "- \"How to predict X\" - ML recommendations\n"
-    response += "- \"Compare groups\" - Statistical comparisons\n\n"
+    response += '- "Describe my data" - Get an overview\n'
+    response += '- "Find correlations" - Discover relationships\n'
+    response += '- "Check for outliers" - Find unusual values\n'
+    response += '- "Missing data" - Analyze gaps\n'
+    response += '- "How to predict X" - ML recommendations\n'
+    response += '- "Compare groups" - Statistical comparisons\n\n'
     response += "Or use the **Stat**, **ML**, and **Graph** menus above."
     return response
 
@@ -979,13 +1021,41 @@ def generate_researcher_response(message, df, columns, data_preview):
 
     # Extract key technical terms from the question
     # Remove common question words
-    query_clean = re.sub(r'\b(can you|could you|please|research|tell me about|what is the|why do|why does|how does|explain|relationship between|correlation between)\b', '', message.lower())
+    query_clean = re.sub(
+        r"\b(can you|could you|please|research|tell me about|what is the|why do|why does|how does|explain|relationship between|correlation between)\b",
+        "",
+        message.lower(),
+    )
     query_clean = query_clean.strip()
 
     # Extract potential chemical/technical terms (capitalized words or known patterns)
-    technical_terms = re.findall(r'\b[A-Za-z]{4,}\b', message)
+    technical_terms = re.findall(r"\b[A-Za-z]{4,}\b", message)
     # Filter to likely technical terms (not common words)
-    common_words = {'what', 'that', 'this', 'with', 'from', 'have', 'been', 'were', 'they', 'their', 'about', 'which', 'when', 'there', 'would', 'could', 'should', 'between', 'relationship', 'correlation', 'drinking', 'water', 'samples'}
+    common_words = {
+        "what",
+        "that",
+        "this",
+        "with",
+        "from",
+        "have",
+        "been",
+        "were",
+        "they",
+        "their",
+        "about",
+        "which",
+        "when",
+        "there",
+        "would",
+        "could",
+        "should",
+        "between",
+        "relationship",
+        "correlation",
+        "drinking",
+        "water",
+        "samples",
+    }
     technical_terms = [t.lower() for t in technical_terms if t.lower() not in common_words]
 
     sources = []
@@ -994,6 +1064,7 @@ def generate_researcher_response(message, df, columns, data_preview):
     # Try ddgs library
     try:
         from ddgs import DDGS
+
         ddgs = DDGS()
 
         # Build multiple targeted searches
@@ -1002,29 +1073,29 @@ def generate_researcher_response(message, df, columns, data_preview):
         # If we found technical terms, search for their relationship
         if len(technical_terms) >= 2:
             # Search for the specific interaction/relationship
-            term_combo = ' '.join(technical_terms[:3])
-            searches.append(f'"{technical_terms[0]}" "{technical_terms[1]}" correlation co-occurrence site:epa.gov OR site:pubmed OR site:ncbi.nlm.nih.gov')
-            searches.append(f'{term_combo} water contamination research')
+            term_combo = " ".join(technical_terms[:3])
+            searches.append(
+                f'"{technical_terms[0]}" "{technical_terms[1]}" correlation co-occurrence site:epa.gov OR site:pubmed OR site:ncbi.nlm.nih.gov'
+            )
+            searches.append(f"{term_combo} water contamination research")
             searches.append(f'"{technical_terms[0]}" "{technical_terms[1]}" drinking water study')
         else:
             # Fallback to cleaned query
-            searches.append(f'{query_clean} EPA research')
-            searches.append(f'{query_clean} scientific study')
+            searches.append(f"{query_clean} EPA research")
+            searches.append(f"{query_clean} scientific study")
 
         seen_urls = set()
         for search_query in searches:
             try:
                 results = list(ddgs.text(search_query, max_results=3))
                 for r in results:
-                    url = r.get('href', '')
+                    url = r.get("href", "")
                     if url and url not in seen_urls:
                         seen_urls.add(url)
-                        search_results.append({
-                            'title': r.get('title', 'Result'),
-                            'snippet': r.get('body', ''),
-                            'url': url
-                        })
-                        sources.append({'title': r.get('title', 'Source')[:60], 'url': url})
+                        search_results.append(
+                            {"title": r.get("title", "Result"), "snippet": r.get("body", ""), "url": url}
+                        )
+                        sources.append({"title": r.get("title", "Source")[:60], "url": url})
             except Exception as e:
                 logger.warning(f"Search query failed: {e}")
                 continue
@@ -1033,36 +1104,31 @@ def generate_researcher_response(message, df, columns, data_preview):
         logger.warning("ddgs not installed, trying fallback")
         # Fallback to requests-based search
         try:
-            import requests
             import urllib.parse
+
+            import requests
             from bs4 import BeautifulSoup
 
             # Use DuckDuckGo HTML search
             search_url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query_clean + ' scientific')}"
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
             resp = requests.get(search_url, headers=headers, timeout=15)
 
             if resp.status_code == 200:
-                soup = BeautifulSoup(resp.text, 'html.parser')
-                for result in soup.select('.result')[:5]:
-                    title_el = result.select_one('.result__title')
-                    snippet_el = result.select_one('.result__snippet')
-                    link_el = result.select_one('.result__url')
+                soup = BeautifulSoup(resp.text, "html.parser")
+                for result in soup.select(".result")[:5]:
+                    title_el = result.select_one(".result__title")
+                    snippet_el = result.select_one(".result__snippet")
+                    link_el = result.select_one(".result__url")
 
                     if title_el and snippet_el:
                         title = title_el.get_text(strip=True)
                         snippet = snippet_el.get_text(strip=True)
-                        url = link_el.get('href', '') if link_el else ''
+                        url = link_el.get("href", "") if link_el else ""
 
-                        search_results.append({
-                            'title': title,
-                            'snippet': snippet,
-                            'url': url
-                        })
+                        search_results.append({"title": title, "snippet": snippet, "url": url})
                         if url:
-                            sources.append({'title': title[:60], 'url': url})
+                            sources.append({"title": title[:60], "url": url})
 
         except Exception as e:
             logger.warning(f"Fallback search failed: {e}")
@@ -1076,6 +1142,7 @@ def generate_researcher_response(message, df, columns, data_preview):
         llm = None
         try:
             from .. import views as agent_views
+
             if agent_views._shared_llm_loaded:
                 llm = agent_views._shared_llm
         except Exception:
@@ -1083,10 +1150,9 @@ def generate_researcher_response(message, df, columns, data_preview):
 
         if llm:
             # Build context for LLM synthesis
-            search_context = "\n\n".join([
-                f"Source: {r['title']}\n{r['snippet']}"
-                for r in search_results[:5] if r.get('snippet')
-            ])
+            search_context = "\n\n".join(
+                [f"Source: {r['title']}\n{r['snippet']}" for r in search_results[:5] if r.get("snippet")]
+            )
 
             synthesis_prompt = f"""You are a research assistant helping analyze data. The user asked: "{message}"
 
@@ -1106,6 +1172,7 @@ Keep response under 250 words. Be specific and scientific, not generic."""
 
             try:
                 import concurrent.futures
+
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                     future = executor.submit(llm.generate, synthesis_prompt, max_tokens=400, temperature=0.7)
                     synthesized = future.result(timeout=30)
@@ -1116,7 +1183,7 @@ Keep response under 250 words. Be specific and scientific, not generic."""
                 if sources:
                     response += "**Sources:**\n"
                     for src in sources[:5]:
-                        if src.get('url'):
+                        if src.get("url"):
                             response += f"- [{src.get('title', 'Link')[:50]}]({src['url']})\n"
 
                 return response, sources
@@ -1129,7 +1196,7 @@ Keep response under 250 words. Be specific and scientific, not generic."""
         response = f"**Research findings for:** *{message}*\n\n"
 
         for i, result in enumerate(search_results[:4], 1):
-            if result['snippet']:
+            if result["snippet"]:
                 response += f"**{result.get('title', f'Finding {i}')}**\n"
                 response += f"{result['snippet']}\n\n"
 
@@ -1139,7 +1206,7 @@ Keep response under 250 words. Be specific and scientific, not generic."""
         if sources:
             response += "**Sources:**\n"
             for src in sources[:5]:
-                if src.get('url'):
+                if src.get("url"):
                     response += f"- [{src.get('title', 'Link')[:50]}]({src['url']})\n"
     else:
         response = f"I searched for information about *{message}* but didn't find specific results.\n\n"
@@ -1159,8 +1226,9 @@ def generate_writer_response(message, df, columns, session_history):
     Writer agent: generates downloadable documents/reports using LLM.
     Creates intelligent markdown documents with analysis and insights.
     """
-    import numpy as np
     from datetime import datetime
+
+    import numpy as np
 
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     filename = f"analysis_report_{datetime.now().strftime('%Y%m%d_%H%M')}.md"
@@ -1171,7 +1239,7 @@ def generate_writer_response(message, df, columns, session_history):
 
     n_rows, n_cols = df.shape
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+    cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
 
     # Build data context for LLM
     stats_summary = df.describe().to_string() if numeric_cols else "No numeric columns"
@@ -1179,15 +1247,15 @@ def generate_writer_response(message, df, columns, session_history):
     # Session history context
     history_text = ""
     if session_history:
-        history_text = "\n".join([
-            f"- {item.get('name', 'Analysis')}: {item.get('summary', '')[:150]}"
-            for item in session_history[-10:]
-        ])
+        history_text = "\n".join(
+            [f"- {item.get('name', 'Analysis')}: {item.get('summary', '')[:150]}" for item in session_history[-10:]]
+        )
 
     # Try to use LLM for intelligent document generation
     llm = None
     try:
         from .. import views as agent_views
+
         if agent_views._shared_llm_loaded:
             llm = agent_views._shared_llm
     except Exception:
@@ -1198,8 +1266,8 @@ def generate_writer_response(message, df, columns, session_history):
 
 DATA CONTEXT:
 - Dataset: {n_rows:,} rows × {n_cols} columns
-- Numeric columns ({len(numeric_cols)}): {', '.join(numeric_cols[:10])}
-- Categorical columns ({len(cat_cols)}): {', '.join(cat_cols[:10])}
+- Numeric columns ({len(numeric_cols)}): {", ".join(numeric_cols[:10])}
+- Categorical columns ({len(cat_cols)}): {", ".join(cat_cols[:10])}
 
 SUMMARY STATISTICS:
 {stats_summary}
@@ -1218,11 +1286,12 @@ Keep it concise but informative (under 500 words)."""
 
         try:
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(llm.generate, writer_prompt, max_tokens=800, temperature=0.7)
                 llm_content = future.result(timeout=45)
 
-            document = f"# Analysis Report\n\n"
+            document = "# Analysis Report\n\n"
             document += f"*Generated: {timestamp}*\n\n"
             document += llm_content + "\n\n"
             document += "---\n\n"
@@ -1246,7 +1315,7 @@ Keep it concise but informative (under 500 words)."""
             logger.warning(f"LLM writer failed: {e}")
 
     # Fallback: static document
-    document = f"# Data Analysis Report\n\n"
+    document = "# Data Analysis Report\n\n"
     document += f"*Generated: {timestamp}*\n\n"
     document += f"*Request: {message}*\n\n"
 
@@ -1271,20 +1340,22 @@ Keep it concise but informative (under 500 words)."""
         document += "|----------|------|---------|-----|-----|\n"
         for col in numeric_cols[:10]:
             stats = df[col].describe()
-            document += f"| {col} | {stats['mean']:.2f} | {stats['std']:.2f} | {stats['min']:.2f} | {stats['max']:.2f} |\n"
+            document += (
+                f"| {col} | {stats['mean']:.2f} | {stats['std']:.2f} | {stats['min']:.2f} | {stats['max']:.2f} |\n"
+            )
 
     if session_history:
         document += "\n## Analyses Performed\n\n"
         for item in session_history[-10:]:
             document += f"- **{item.get('name', 'Analysis')}**: {item.get('summary', '')[:100]}\n"
 
-    response = f"I've prepared a report document for your analysis.\n\n"
-    response += f"**Document includes:**\n"
+    response = "I've prepared a report document for your analysis.\n\n"
+    response += "**Document includes:**\n"
     response += f"- Data overview ({n_rows:,} rows × {n_cols} columns)\n"
-    response += f"- Variable listing with types and missing values\n"
+    response += "- Variable listing with types and missing values\n"
     if numeric_cols:
         response += f"- Summary statistics for {len(numeric_cols)} numeric variables\n"
-    response += f"\nClick the download link below to save."
+    response += "\nClick the download link below to save."
 
     return response, document, filename
 
@@ -1292,6 +1363,7 @@ Keep it concise but informative (under 500 words)."""
 # ============================================================================
 # DATA TRANSFORMATION TOOLS
 # ============================================================================
+
 
 @require_http_methods(["POST"])
 @gated
@@ -1312,9 +1384,10 @@ def transform_data(request):
         return JsonResponse({"error": "No data loaded"}, status=400)
 
     try:
-        import pandas as pd
-        import numpy as np
         from io import StringIO
+
+        import numpy as np
+        import pandas as pd
 
         # Load data
         df = None
@@ -1340,6 +1413,7 @@ def transform_data(request):
         if df is None:
             try:
                 from ..models import TriageResult
+
                 triage_result = TriageResult.objects.get(id=data_id, user=request.user)
                 df = pd.read_csv(StringIO(triage_result.cleaned_csv))
             except Exception:
@@ -1361,7 +1435,7 @@ def transform_data(request):
 
             # Safe evaluation using pandas.eval (no arbitrary code execution)
             try:
-                result_df[new_col] = pd.eval(expression, local_dict={'df': df}, engine='numexpr')
+                result_df[new_col] = pd.eval(expression, local_dict={"df": df}, engine="numexpr")
                 message = f"Created column '{new_col}'"
             except Exception as e:
                 return JsonResponse({"error": f"Expression error: {str(e)}"}, status=400)
@@ -1378,9 +1452,9 @@ def transform_data(request):
             else:
                 # Try to convert value to appropriate type
                 try:
-                    if df[filter_col].dtype in ['int64', 'float64']:
+                    if df[filter_col].dtype in ["int64", "float64"]:
                         filter_value = float(filter_value)
-                except:
+                except Exception:
                     pass
 
                 if condition == "eq":
@@ -1409,7 +1483,7 @@ def transform_data(request):
 
         elif tool == "transpose":
             result_df = df.set_index(df.columns[0]).T.reset_index()
-            result_df.columns = ['Variable'] + list(result_df.columns[1:])
+            result_df.columns = ["Variable"] + list(result_df.columns[1:])
             message = f"Transposed: {len(result_df)} rows × {len(result_df.columns)} columns"
 
         elif tool == "stack":
@@ -1500,12 +1574,14 @@ def transform_data(request):
                 elif method == "custom":
                     if len(custom_bins) < 2:
                         return JsonResponse({"error": "Provide at least 2 breakpoints"}, status=400)
-                    result_df[new_col] = pd.cut(result_df[column], bins=custom_bins, labels=labels or False, include_lowest=True)
+                    result_df[new_col] = pd.cut(
+                        result_df[column], bins=custom_bins, labels=labels or False, include_lowest=True
+                    )
                 else:
                     return JsonResponse({"error": f"Unknown binning method: {method}"}, status=400)
 
                 result_df[new_col] = result_df[new_col].astype(str)
-                message = f"Binned {column} into '{new_col}' ({method}, {n_bins if method != 'custom' else len(custom_bins)-1} bins)"
+                message = f"Binned {column} into '{new_col}' ({method}, {n_bins if method != 'custom' else len(custom_bins) - 1} bins)"
             except Exception as e:
                 return JsonResponse({"error": f"Binning error: {str(e)}"}, status=400)
 
@@ -1537,14 +1613,16 @@ def transform_data(request):
                 col_type = "text"
             columns.append({"name": col, "dtype": col_type})
 
-        return JsonResponse({
-            "data_id": new_data_id,
-            "filename": f"{tool}_{new_data_id[:8]}",
-            "rows": len(result_df),
-            "columns": columns,
-            "preview": result_df.head(100).to_dict(orient="records"),
-            "message": message
-        })
+        return JsonResponse(
+            {
+                "data_id": new_data_id,
+                "filename": f"{tool}_{new_data_id[:8]}",
+                "rows": len(result_df),
+                "columns": columns,
+                "preview": result_df.head(100).to_dict(orient="records"),
+                "message": message,
+            }
+        )
 
     except Exception as e:
         logger.exception(f"Transform error: {e}")
@@ -1568,8 +1646,9 @@ def download_data(request):
         return JsonResponse({"error": "No data_id provided"}, status=400)
 
     try:
-        import pandas as pd
         from io import StringIO
+
+        import pandas as pd
         from django.http import HttpResponse
 
         df = None
@@ -1595,6 +1674,7 @@ def download_data(request):
         if df is None:
             try:
                 from ..models import TriageResult
+
                 triage_result = TriageResult.objects.get(id=data_id, user=request.user)
                 df = pd.read_csv(StringIO(triage_result.cleaned_csv))
             except Exception:
@@ -1604,8 +1684,8 @@ def download_data(request):
             return JsonResponse({"error": "Data not found"}, status=404)
 
         # Return as CSV
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="{data_id}.csv"'
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = f'attachment; filename="{data_id}.csv"'
         df.to_csv(response, index=False)
         return response
 
@@ -1634,10 +1714,10 @@ def triage_data(request):
         return JsonResponse({"error": "No data_id provided"}, status=400)
 
     try:
-        import pandas as pd
-        import numpy as np
         from io import StringIO
-        from scrub import DataCleaner, CleaningConfig
+
+        import numpy as np
+        import pandas as pd
 
         # Load the data
         df = None
@@ -1663,6 +1743,7 @@ def triage_data(request):
         if df is None:
             try:
                 from ..models import TriageResult
+
                 triage_result = TriageResult.objects.get(id=data_id, user=request.user)
                 df = pd.read_csv(StringIO(triage_result.cleaned_csv))
             except Exception:
@@ -1696,7 +1777,7 @@ def triage_data(request):
 
         # 1. Fix Excel errors
         if fix_excel:
-            excel_errors = ['#NUM!', '#DIV/0!', '#VALUE!', '#REF!', '#NAME?', '#N/A', '#NULL!', '#ERROR!']
+            excel_errors = ["#NUM!", "#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#N/A", "#NULL!", "#ERROR!"]
             for col in df_clean.columns:
                 if df_clean[col].dtype == object:
                     mask = df_clean[col].astype(str).str.upper().isin(excel_errors)
@@ -1710,7 +1791,7 @@ def triage_data(request):
             for col in df_clean.columns:
                 if df_clean[col].dtype == object:
                     try:
-                        converted = pd.to_numeric(df_clean[col].str.replace(',', ''), errors='coerce')
+                        converted = pd.to_numeric(df_clean[col].str.replace(",", ""), errors="coerce")
                         non_null_original = df_clean[col].notna().sum()
                         non_null_converted = converted.notna().sum()
                         # Only convert if no values are lost (coerce didn't create new NaNs)
@@ -1776,7 +1857,9 @@ def triage_data(request):
                         # Warn about high-missing columns
                         missing_pct = missing_count / max(original_rows, 1) * 100
                         if missing_pct > 50:
-                            warnings.append(f"'{col}' has {missing_pct:.0f}% missing — imputed, but consider whether this column is reliable")
+                            warnings.append(
+                                f"'{col}' has {missing_pct:.0f}% missing — imputed, but consider whether this column is reliable"
+                            )
 
         # 4. Handle outliers
         if fix_outliers:
@@ -1812,6 +1895,7 @@ def triage_data(request):
 
         # Also produce CSV string for frontends that re-upload
         import io
+
         csv_buf = io.StringIO()
         df_clean.to_csv(csv_buf, index=False)
         cleaned_csv_str = csv_buf.getvalue()
@@ -1846,20 +1930,22 @@ def triage_data(request):
         # Convert changes to Python int
         changes_clean = {k: int(v) for k, v in changes.items()}
 
-        return JsonResponse({
-            "success": True,
-            "data": {
-                "id": new_data_id,
-                "rows": len(df_clean),
-                "columns": columns,
-                "preview": preview,
-            },
-            "cleaned_csv": cleaned_csv_str,
-            "changes": changes_clean,
-            "rows_removed": int(original_rows - len(df_clean)),
-            "cols_removed": int(original_cols - len(df_clean.columns)),
-            "warnings": warnings,
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "data": {
+                    "id": new_data_id,
+                    "rows": len(df_clean),
+                    "columns": columns,
+                    "preview": preview,
+                },
+                "cleaned_csv": cleaned_csv_str,
+                "changes": changes_clean,
+                "rows_removed": int(original_rows - len(df_clean)),
+                "cols_removed": int(original_cols - len(df_clean.columns)),
+                "warnings": warnings,
+            }
+        )
 
     except Exception as e:
         logger.exception(f"Triage error: {e}")
@@ -1889,9 +1975,9 @@ def triage_scan(request):
         return JsonResponse({"error": "No data_id provided"}, status=400)
 
     try:
-        import pandas as pd
-        import numpy as np
         from io import StringIO
+
+        import pandas as pd
 
         # Load the data
         df = None
@@ -1917,6 +2003,7 @@ def triage_scan(request):
         if df is None:
             try:
                 from ..models import TriageResult
+
                 triage_result = TriageResult.objects.get(id=data_id, user=request.user)
                 df = pd.read_csv(StringIO(triage_result.cleaned_csv))
             except Exception:
@@ -1936,10 +2023,10 @@ def triage_scan(request):
                 "missing": 0,
                 "outliers": 0,
                 "type_issues": 0,
-            }
+            },
         }
 
-        excel_errors = ['#NUM!', '#DIV/0!', '#VALUE!', '#REF!', '#NAME?', '#N/A', '#NULL!', '#ERROR!']
+        excel_errors = ["#NUM!", "#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#N/A", "#NULL!", "#ERROR!"]
 
         for col in df.columns:
             # Check for Excel errors
@@ -1955,7 +2042,7 @@ def triage_scan(request):
             if missing_count > 0:
                 issues["missing"][col] = {
                     "count": int(missing_count),
-                    "percent": round(float(missing_count / len(df) * 100), 1)
+                    "percent": round(float(missing_count / len(df) * 100), 1),
                 }
                 issues["totals"]["missing"] += int(missing_count)
 
@@ -1972,7 +2059,7 @@ def triage_scan(request):
                         issues["outliers"][col] = {
                             "count": int(outlier_count),
                             "percent": round(float(outlier_count / len(df) * 100), 1),
-                            "range": f"{lower:.2f} - {upper:.2f}"
+                            "range": f"{lower:.2f} - {upper:.2f}",
                         }
                         issues["totals"]["outliers"] += int(outlier_count)
 
@@ -1982,34 +2069,38 @@ def triage_scan(request):
                 numeric_count = 0
                 for val in sample:
                     try:
-                        float(str(val).replace(',', ''))
+                        float(str(val).replace(",", ""))
                         numeric_count += 1
                     except (ValueError, TypeError):
                         pass
                 if len(sample) > 0 and numeric_count / len(sample) > 0.8:
-                    issues["type_issues"].append({
-                        "column": col,
-                        "current": "text",
-                        "suggested": "numeric",
-                        "confidence": round(numeric_count / len(sample) * 100, 1)
-                    })
+                    issues["type_issues"].append(
+                        {
+                            "column": col,
+                            "current": "text",
+                            "suggested": "numeric",
+                            "confidence": round(numeric_count / len(sample) * 100, 1),
+                        }
+                    )
                     issues["totals"]["type_issues"] += 1
 
         # Determine if data has issues
         has_issues = (
-            issues["totals"]["excel_errors"] > 0 or
-            issues["totals"]["missing"] > 0 or
-            issues["totals"]["outliers"] > 0 or
-            issues["totals"]["type_issues"] > 0
+            issues["totals"]["excel_errors"] > 0
+            or issues["totals"]["missing"] > 0
+            or issues["totals"]["outliers"] > 0
+            or issues["totals"]["type_issues"] > 0
         )
 
-        return JsonResponse({
-            "success": True,
-            "has_issues": has_issues,
-            "issues": issues,
-            "rows": len(df),
-            "columns": len(df.columns),
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "has_issues": has_issues,
+                "issues": issues,
+                "rows": len(df),
+                "columns": len(df.columns),
+            }
+        )
 
     except Exception as e:
         logger.exception(f"Triage scan error: {e}")

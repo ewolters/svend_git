@@ -15,24 +15,22 @@ from bayes_core.py.  No MCMC, O(p³) — industrial-grade fast.
 from itertools import combinations
 
 import numpy as np
-import pandas as pd
 from scipy.linalg import cho_solve
 from scipy.stats import t as t_dist
 
 from .bayes_core import (
     bayesian_linear_posterior,
     contrast_posterior,
-    predictive_posterior,
     marginal_log_likelihood,
+    predictive_posterior,
 )
-
 
 # ---------------------------------------------------------------------------
 # Design Matrix Builder
 # ---------------------------------------------------------------------------
 
-def build_doe_design_matrix(df, factor_cols, response_col,
-                            include_2fi=True, include_quad=False):
+
+def build_doe_design_matrix(df, factor_cols, response_col, include_2fi=True, include_quad=False):
     """
     Build a coded design matrix from a DataFrame of DOE data.
 
@@ -68,7 +66,7 @@ def build_doe_design_matrix(df, factor_cols, response_col,
     n = len(df)
     y = df[response_col].values.astype(np.float64)
 
-    coded_columns = []      # list of ndarray (n,), one per main effect
+    coded_columns = []  # list of ndarray (n,), one per main effect
     term_names = ["Intercept"]
     coding_records = []
 
@@ -79,13 +77,15 @@ def build_doe_design_matrix(df, factor_cols, response_col,
 
         if n_unique < 2:
             # Constant factor — skip with warning record
-            coding_records.append({
-                "column": col,
-                "coding_type": "constant",
-                "center": float(unique[0]) if n_unique == 1 else 0.0,
-                "scale": 0.0,
-                "level_map": None,
-            })
+            coding_records.append(
+                {
+                    "column": col,
+                    "coding_type": "constant",
+                    "center": float(unique[0]) if n_unique == 1 else 0.0,
+                    "scale": 0.0,
+                    "level_map": None,
+                }
+            )
             coded_columns.append(np.zeros(n))
             term_names.append(col)
             continue
@@ -103,13 +103,15 @@ def build_doe_design_matrix(df, factor_cols, response_col,
             center = (low + high) / 2.0
             scale = (high - low) / 2.0
             coded = (numeric_vals.values - center) / scale
-            coding_records.append({
-                "column": col,
-                "coding_type": "binary",
-                "center": center,
-                "scale": scale,
-                "level_map": {str(low): -1, str(high): 1},
-            })
+            coding_records.append(
+                {
+                    "column": col,
+                    "coding_type": "binary",
+                    "center": center,
+                    "scale": scale,
+                    "level_map": {str(low): -1, str(high): 1},
+                }
+            )
             coded_columns.append(coded)
             term_names.append(col)
 
@@ -121,13 +123,15 @@ def build_doe_design_matrix(df, factor_cols, response_col,
             if scale < 1e-15:
                 scale = 1.0
             coded = (numeric_vals.values - center) / scale
-            coding_records.append({
-                "column": col,
-                "coding_type": "numeric_scaled",
-                "center": center,
-                "scale": scale,
-                "level_map": None,
-            })
+            coding_records.append(
+                {
+                    "column": col,
+                    "coding_type": "numeric_scaled",
+                    "center": center,
+                    "scale": scale,
+                    "level_map": None,
+                }
+            )
             coded_columns.append(coded)
             term_names.append(col)
 
@@ -135,13 +139,15 @@ def build_doe_design_matrix(df, factor_cols, response_col,
             # Binary categorical: sorted alphabetically, low=-1, high=+1
             level_map = {str(unique[0]): -1, str(unique[1]): 1}
             coded = np.array([level_map[str(v)] for v in vals], dtype=np.float64)
-            coding_records.append({
-                "column": col,
-                "coding_type": "binary",
-                "center": 0.0,
-                "scale": 1.0,
-                "level_map": level_map,
-            })
+            coding_records.append(
+                {
+                    "column": col,
+                    "coding_type": "binary",
+                    "center": 0.0,
+                    "scale": 1.0,
+                    "level_map": level_map,
+                }
+            )
             coded_columns.append(coded)
             term_names.append(col)
 
@@ -169,13 +175,15 @@ def build_doe_design_matrix(df, factor_cols, response_col,
                 coded_columns.append(cat_coded[:, i])
                 term_names.append(f"{col}[{levels[i]}]")
 
-            coding_records.append({
-                "column": col,
-                "coding_type": "categorical_effect",
-                "center": 0.0,
-                "scale": 1.0,
-                "level_map": {lev: idx for lev, idx in level_map.items()},
-            })
+            coding_records.append(
+                {
+                    "column": col,
+                    "coding_type": "categorical_effect",
+                    "center": 0.0,
+                    "scale": 1.0,
+                    "level_map": {lev: idx for lev, idx in level_map.items()},
+                }
+            )
 
     # Build X: intercept + main effects
     n_main = len(coded_columns)
@@ -246,6 +254,7 @@ def _decode_coded_to_natural(coded_vals, coding_records, factor_cols):
 # Tool Dispatcher
 # ---------------------------------------------------------------------------
 
+
 def run_bayesian_doe(df, analysis_id, config):
     """
     Dispatch to the appropriate Bayesian DOE tool.
@@ -290,9 +299,10 @@ def run_bayesian_doe(df, analysis_id, config):
         return handler(df, config)
     except Exception as e:
         import traceback
+
         return {
             "summary": f"<<COLOR:error>>Error in {analysis_id}: {str(e)}<</COLOR>>\n\n"
-                       f"```\n{traceback.format_exc()}\n```",
+            f"```\n{traceback.format_exc()}\n```",
             "plots": [],
             "guide_observation": str(e),
             "statistics": {"error": str(e)},
@@ -302,6 +312,7 @@ def run_bayesian_doe(df, analysis_id, config):
 # ---------------------------------------------------------------------------
 # Tool 1: Effect Screening
 # ---------------------------------------------------------------------------
+
 
 def _run_doe_effects(df, config):
     """
@@ -318,20 +329,22 @@ def _run_doe_effects(df, config):
     if not factor_cols or not response_col:
         return {
             "summary": "<<COLOR:error>>Please specify factor columns and a response column.<</COLOR>>",
-            "plots": [], "guide_observation": None, "statistics": {},
+            "plots": [],
+            "guide_observation": None,
+            "statistics": {},
         }
 
     # Build design matrix
-    X, y, term_names, coding_records = build_doe_design_matrix(
-        df, factor_cols, response_col, include_2fi=include_2fi
-    )
+    X, y, term_names, coding_records = build_doe_design_matrix(df, factor_cols, response_col, include_2fi=include_2fi)
     n, p = X.shape
 
     if n < p:
         return {
             "summary": f"<<COLOR:error>>Not enough data: {n} runs for {p} parameters. "
-                       f"Need at least {p} runs.<</COLOR>>",
-            "plots": [], "guide_observation": None, "statistics": {},
+            f"Need at least {p} runs.<</COLOR>>",
+            "plots": [],
+            "guide_observation": None,
+            "statistics": {},
         }
 
     # Auto threshold: 10% of response range
@@ -350,8 +363,9 @@ def _run_doe_effects(df, config):
         loc, scale, df_t = contrast_posterior(e_j, mu_n, Lambda_n, L_n, alpha_n, beta_n)
 
         # P(|βj| > threshold)
-        p_above = (1.0 - t_dist.cdf(threshold, df_t, loc=loc, scale=scale)
-                   + t_dist.cdf(-threshold, df_t, loc=loc, scale=scale))
+        p_above = (
+            1.0 - t_dist.cdf(threshold, df_t, loc=loc, scale=scale) + t_dist.cdf(-threshold, df_t, loc=loc, scale=scale)
+        )
 
         # 95% credible interval
         ci_half = t_dist.ppf(0.975, df_t) * scale
@@ -386,20 +400,22 @@ def _run_doe_effects(df, config):
             verdict = "INERT"
             color = "red"
 
-        effects.append({
-            "term": term_name,
-            "coded_coeff": round(loc, 4),
-            "ci_low": round(ci_low, 4),
-            "ci_high": round(ci_high, 4),
-            "natural_effect": round(natural_effect, 4),
-            "natural_ci_low": round(natural_ci_low, 4),
-            "natural_ci_high": round(natural_ci_high, 4),
-            "p_practical": round(p_above, 4),
-            "verdict": verdict,
-            "color": color,
-            "scale_t": round(scale, 4),
-            "df_t": round(df_t, 2),
-        })
+        effects.append(
+            {
+                "term": term_name,
+                "coded_coeff": round(loc, 4),
+                "ci_low": round(ci_low, 4),
+                "ci_high": round(ci_high, 4),
+                "natural_effect": round(natural_effect, 4),
+                "natural_ci_low": round(natural_ci_low, 4),
+                "natural_ci_high": round(natural_ci_high, 4),
+                "p_practical": round(p_above, 4),
+                "verdict": verdict,
+                "color": color,
+                "scale_t": round(scale, 4),
+                "df_t": round(df_t, 2),
+            }
+        )
 
     # Sort by P(practical significance) descending for Pareto
     effects_sorted = sorted(effects, key=lambda e: e["p_practical"], reverse=True)
@@ -440,9 +456,7 @@ def _run_doe_effects(df, config):
                     break
             else:
                 # Interaction or other
-                summary_lines.append(
-                    f"- **{e['term']}**: coded coefficient = {e['coded_coeff']:.4f}"
-                )
+                summary_lines.append(f"- **{e['term']}**: coded coefficient = {e['coded_coeff']:.4f}")
 
     summary_lines.append(
         "\n*Bayesian screening eliminates p-value thresholds. "
@@ -464,32 +478,45 @@ def _run_doe_effects(df, config):
         else:
             bar_colors.append("rgba(231, 76, 60, 0.8)")
 
-    plots.append({
-        "data": [{
-            "type": "bar",
-            "y": bar_terms,
-            "x": bar_probs,
-            "orientation": "h",
-            "marker": {"color": bar_colors},
-            "text": [f"{p:.1%}" for p in bar_probs],
-            "textposition": "auto",
-        }],
-        "layout": {
-            "title": "P(Practical Significance) by Term",
-            "xaxis": {"title": "Probability", "range": [0, 1]},
-            "yaxis": {"autorange": "reversed"},
-            "shapes": [{
-                "type": "line", "x0": 0.90, "x1": 0.90,
-                "y0": -0.5, "y1": len(bar_terms) - 0.5,
-                "line": {"color": "green", "width": 2, "dash": "dash"},
-            }, {
-                "type": "line", "x0": 0.50, "x1": 0.50,
-                "y0": -0.5, "y1": len(bar_terms) - 0.5,
-                "line": {"color": "orange", "width": 1, "dash": "dot"},
-            }],
-            "margin": {"l": 120},
-        },
-    })
+    plots.append(
+        {
+            "data": [
+                {
+                    "type": "bar",
+                    "y": bar_terms,
+                    "x": bar_probs,
+                    "orientation": "h",
+                    "marker": {"color": bar_colors},
+                    "text": [f"{p:.1%}" for p in bar_probs],
+                    "textposition": "auto",
+                }
+            ],
+            "layout": {
+                "title": "P(Practical Significance) by Term",
+                "xaxis": {"title": "Probability", "range": [0, 1]},
+                "yaxis": {"autorange": "reversed"},
+                "shapes": [
+                    {
+                        "type": "line",
+                        "x0": 0.90,
+                        "x1": 0.90,
+                        "y0": -0.5,
+                        "y1": len(bar_terms) - 0.5,
+                        "line": {"color": "green", "width": 2, "dash": "dash"},
+                    },
+                    {
+                        "type": "line",
+                        "x0": 0.50,
+                        "x1": 0.50,
+                        "y0": -0.5,
+                        "y1": len(bar_terms) - 0.5,
+                        "line": {"color": "orange", "width": 1, "dash": "dot"},
+                    },
+                ],
+                "margin": {"l": 120},
+            },
+        }
+    )
 
     # Plot 2: Posterior ridge — top 6 effects with threshold lines
     top_effects = effects_sorted[:6]
@@ -500,33 +527,48 @@ def _run_doe_effects(df, config):
         scale_val = e["scale_t"]
         x_range = np.linspace(loc_val - 4 * scale_val, loc_val + 4 * scale_val, 200)
         y_pdf = t_dist.pdf(x_range, df_t, loc=loc_val, scale=scale_val)
-        ridge_traces.append({
-            "type": "scatter",
-            "x": x_range.tolist(),
-            "y": (y_pdf + i * 0.1).tolist(),  # offset for ridge
-            "mode": "lines",
-            "name": e["term"],
-            "fill": "tonexty" if i > 0 else None,
-        })
+        ridge_traces.append(
+            {
+                "type": "scatter",
+                "x": x_range.tolist(),
+                "y": (y_pdf + i * 0.1).tolist(),  # offset for ridge
+                "mode": "lines",
+                "name": e["term"],
+                "fill": "tonexty" if i > 0 else None,
+            }
+        )
 
-    plots.append({
-        "data": ridge_traces,
-        "layout": {
-            "title": "Posterior Distributions (Top Effects)",
-            "xaxis": {"title": "Coded Coefficient"},
-            "yaxis": {"title": "Density (offset)", "showticklabels": False},
-            "shapes": [{
-                "type": "line", "x0": threshold, "x1": threshold,
-                "y0": 0, "y1": 1, "yref": "paper",
-                "line": {"color": "red", "width": 1, "dash": "dash"},
-            }, {
-                "type": "line", "x0": -threshold, "x1": -threshold,
-                "y0": 0, "y1": 1, "yref": "paper",
-                "line": {"color": "red", "width": 1, "dash": "dash"},
-            }],
-            "showlegend": True,
-        },
-    })
+    plots.append(
+        {
+            "data": ridge_traces,
+            "layout": {
+                "title": "Posterior Distributions (Top Effects)",
+                "xaxis": {"title": "Coded Coefficient"},
+                "yaxis": {"title": "Density (offset)", "showticklabels": False},
+                "shapes": [
+                    {
+                        "type": "line",
+                        "x0": threshold,
+                        "x1": threshold,
+                        "y0": 0,
+                        "y1": 1,
+                        "yref": "paper",
+                        "line": {"color": "red", "width": 1, "dash": "dash"},
+                    },
+                    {
+                        "type": "line",
+                        "x0": -threshold,
+                        "x1": -threshold,
+                        "y0": 0,
+                        "y1": 1,
+                        "yref": "paper",
+                        "line": {"color": "red", "width": 1, "dash": "dash"},
+                    },
+                ],
+                "showlegend": True,
+            },
+        }
+    )
 
     # Plot 3: Effect size with CI error bars, Pareto-ordered
     pareto_terms = [e["term"] for e in effects_sorted]
@@ -534,32 +576,41 @@ def _run_doe_effects(df, config):
     pareto_ci_low = [e["ci_low"] for e in effects_sorted]
     pareto_ci_high = [e["ci_high"] for e in effects_sorted]
 
-    plots.append({
-        "data": [{
-            "type": "scatter",
-            "x": pareto_terms,
-            "y": pareto_coeff,
-            "mode": "markers",
-            "marker": {"size": 10, "color": bar_colors},
-            "error_y": {
-                "type": "data",
-                "symmetric": False,
-                "array": [h - c for h, c in zip(pareto_ci_high, pareto_coeff)],
-                "arrayminus": [c - l for c, l in zip(pareto_coeff, pareto_ci_low)],
+    plots.append(
+        {
+            "data": [
+                {
+                    "type": "scatter",
+                    "x": pareto_terms,
+                    "y": pareto_coeff,
+                    "mode": "markers",
+                    "marker": {"size": 10, "color": bar_colors},
+                    "error_y": {
+                        "type": "data",
+                        "symmetric": False,
+                        "array": [h - c for h, c in zip(pareto_ci_high, pareto_coeff)],
+                        "arrayminus": [c - lo for c, lo in zip(pareto_coeff, pareto_ci_low)],
+                    },
+                    "name": "Effect ± 95% CI",
+                }
+            ],
+            "layout": {
+                "title": "Effect Sizes (Pareto Order)",
+                "xaxis": {"title": "Term"},
+                "yaxis": {"title": "Coded Coefficient"},
+                "shapes": [
+                    {
+                        "type": "line",
+                        "x0": -0.5,
+                        "x1": len(pareto_terms) - 0.5,
+                        "y0": 0,
+                        "y1": 0,
+                        "line": {"color": "gray", "width": 1},
+                    }
+                ],
             },
-            "name": "Effect ± 95% CI",
-        }],
-        "layout": {
-            "title": "Effect Sizes (Pareto Order)",
-            "xaxis": {"title": "Term"},
-            "yaxis": {"title": "Coded Coefficient"},
-            "shapes": [{
-                "type": "line", "x0": -0.5, "x1": len(pareto_terms) - 0.5,
-                "y0": 0, "y1": 0,
-                "line": {"color": "gray", "width": 1},
-            }],
-        },
-    })
+        }
+    )
 
     # Guide observation
     n_active = len([e for e in effects if e["verdict"] == "ACTIVE"])
@@ -567,8 +618,11 @@ def _run_doe_effects(df, config):
     guide_obs = (
         f"Bayesian DOE effect screening: {n_active} active, {n_possible} possibly active "
         f"out of {len(effects)} terms. "
-        + (f"Top effect: {effects_sorted[0]['term']} (P={effects_sorted[0]['p_practical']:.1%})."
-           if effects_sorted else "")
+        + (
+            f"Top effect: {effects_sorted[0]['term']} (P={effects_sorted[0]['p_practical']:.1%})."
+            if effects_sorted
+            else ""
+        )
     )
 
     return {
@@ -590,6 +644,7 @@ def _run_doe_effects(df, config):
 # Tool 2: Model Selection
 # ---------------------------------------------------------------------------
 
+
 def _run_doe_model(df, config):
     """
     Bayesian model selection — compare model families via marginal likelihood.
@@ -604,7 +659,9 @@ def _run_doe_model(df, config):
     if not factor_cols or not response_col:
         return {
             "summary": "<<COLOR:error>>Please specify factor columns and a response column.<</COLOR>>",
-            "plots": [], "guide_observation": None, "statistics": {},
+            "plots": [],
+            "guide_observation": None,
+            "statistics": {},
         }
 
     n_obs = len(df)
@@ -620,23 +677,21 @@ def _run_doe_model(df, config):
         models.append(("Main Effects", X1, terms1))
 
     # M2: Main + 2FI
-    X2, _, terms2, _ = build_doe_design_matrix(
-        df, factor_cols, response_col, include_2fi=True, include_quad=False
-    )
+    X2, _, terms2, _ = build_doe_design_matrix(df, factor_cols, response_col, include_2fi=True, include_quad=False)
     if n_obs >= X2.shape[1]:
         models.append(("Main + Interactions", X2, terms2))
 
     # M3: Main + 2FI + Quadratic
-    X3, _, terms3, _ = build_doe_design_matrix(
-        df, factor_cols, response_col, include_2fi=True, include_quad=True
-    )
+    X3, _, terms3, _ = build_doe_design_matrix(df, factor_cols, response_col, include_2fi=True, include_quad=True)
     if n_obs >= X3.shape[1] and X3.shape[1] > X2.shape[1]:
         models.append(("Full Quadratic", X3, terms3))
 
     if not models:
         return {
             "summary": f"<<COLOR:error>>Not enough data ({n_obs} runs) for any model.<</COLOR>>",
-            "plots": [], "guide_observation": None, "statistics": {},
+            "plots": [],
+            "guide_observation": None,
+            "statistics": {},
         }
 
     # Compute posterior and marginal log-likelihood for each model
@@ -658,24 +713,24 @@ def _run_doe_model(df, config):
         s2 = np.var(y, ddof=1) if n_k > 1 else 1.0
         beta0 = max(alpha0 * s2, 1e-10)
 
-        log_ml = marginal_log_likelihood(
-            Lambda0, Lambda_n, L_0, L_n, alpha0, alpha_n, beta0, beta_n, n_k
-        )
+        log_ml = marginal_log_likelihood(Lambda0, Lambda_n, L_0, L_n, alpha0, alpha_n, beta0, beta_n, n_k)
 
         # Fitted values
         y_hat = X_k @ mu_n
 
-        model_results.append({
-            "name": name,
-            "n_params": p_k,
-            "terms": terms_k,
-            "log_ml": log_ml,
-            "mu_n": mu_n,
-            "y_hat": y_hat,
-            "alpha_n": alpha_n,
-            "beta_n": beta_n,
-            "residual_sigma": float(np.sqrt(beta_n / alpha_n)),
-        })
+        model_results.append(
+            {
+                "name": name,
+                "n_params": p_k,
+                "terms": terms_k,
+                "log_ml": log_ml,
+                "mu_n": mu_n,
+                "y_hat": y_hat,
+                "alpha_n": alpha_n,
+                "beta_n": beta_n,
+                "residual_sigma": float(np.sqrt(beta_n / alpha_n)),
+            }
+        )
 
     # Posterior model probabilities via log-softmax
     log_mls = np.array([m["log_ml"] for m in model_results])
@@ -719,16 +774,12 @@ def _run_doe_model(df, config):
         prob_str = f"{m['probability']:.1%}"
         if m["name"] == best["name"]:
             prob_str = f"<<COLOR:green>>{prob_str}<</COLOR>>"
-        summary_lines.append(
-            f"| {m['name']} | {m['n_params']} | {prob_str} | {m['residual_sigma']:.4f} |"
-        )
+        summary_lines.append(f"| {m['name']} | {m['n_params']} | {prob_str} | {m['residual_sigma']:.4f} |")
 
     summary_lines.append(f"\n**Best model:** {best['name']} (P = {best['probability']:.1%})")
 
     summary_lines.append("\n### Factor Importance")
-    summary_lines.append(
-        "*Probability that at least one model containing this factor is correct:*\n"
-    )
+    summary_lines.append("*Probability that at least one model containing this factor is correct:*\n")
     for col in factor_cols:
         imp = factor_importance[col]
         if imp >= 0.90:
@@ -749,75 +800,84 @@ def _run_doe_model(df, config):
     plots = []
 
     # Plot 1: Model probability bars
-    plots.append({
-        "data": [{
-            "type": "bar",
-            "x": [m["name"] for m in model_results],
-            "y": [m["probability"] for m in model_results],
-            "marker": {"color": [
-                "rgba(46, 204, 113, 0.8)" if m["name"] == best["name"]
-                else "rgba(149, 165, 166, 0.6)"
-                for m in model_results
-            ]},
-            "text": [f"{m['probability']:.1%}" for m in model_results],
-            "textposition": "auto",
-        }],
-        "layout": {
-            "title": "Posterior Model Probabilities",
-            "yaxis": {"title": "P(Model | Data)", "range": [0, 1]},
-        },
-    })
+    plots.append(
+        {
+            "data": [
+                {
+                    "type": "bar",
+                    "x": [m["name"] for m in model_results],
+                    "y": [m["probability"] for m in model_results],
+                    "marker": {
+                        "color": [
+                            "rgba(46, 204, 113, 0.8)" if m["name"] == best["name"] else "rgba(149, 165, 166, 0.6)"
+                            for m in model_results
+                        ]
+                    },
+                    "text": [f"{m['probability']:.1%}" for m in model_results],
+                    "textposition": "auto",
+                }
+            ],
+            "layout": {
+                "title": "Posterior Model Probabilities",
+                "yaxis": {"title": "P(Model | Data)", "range": [0, 1]},
+            },
+        }
+    )
 
     # Plot 2: Factor importance bars
     fi_cols = list(factor_importance.keys())
     fi_vals = [factor_importance[c] for c in fi_cols]
     fi_colors = [
-        "rgba(46, 204, 113, 0.8)" if v >= 0.90
-        else "rgba(241, 196, 15, 0.8)" if v >= 0.50
-        else "rgba(231, 76, 60, 0.8)"
+        "rgba(46, 204, 113, 0.8)" if v >= 0.90 else "rgba(241, 196, 15, 0.8)" if v >= 0.50 else "rgba(231, 76, 60, 0.8)"
         for v in fi_vals
     ]
-    plots.append({
-        "data": [{
-            "type": "bar",
-            "x": fi_cols,
-            "y": fi_vals,
-            "marker": {"color": fi_colors},
-            "text": [f"{v:.1%}" for v in fi_vals],
-            "textposition": "auto",
-        }],
-        "layout": {
-            "title": "Factor Importance (Marginal Inclusion Probability)",
-            "yaxis": {"title": "Confidence Factor Matters", "range": [0, 1]},
-        },
-    })
+    plots.append(
+        {
+            "data": [
+                {
+                    "type": "bar",
+                    "x": fi_cols,
+                    "y": fi_vals,
+                    "marker": {"color": fi_colors},
+                    "text": [f"{v:.1%}" for v in fi_vals],
+                    "textposition": "auto",
+                }
+            ],
+            "layout": {
+                "title": "Factor Importance (Marginal Inclusion Probability)",
+                "yaxis": {"title": "Confidence Factor Matters", "range": [0, 1]},
+            },
+        }
+    )
 
     # Plot 3: Observed vs model-averaged predicted
-    plots.append({
-        "data": [
-            {
-                "type": "scatter",
-                "x": y.tolist(),
-                "y": y_avg.tolist(),
-                "mode": "markers",
-                "marker": {"size": 8, "color": "rgba(52, 152, 219, 0.7)"},
-                "name": "Model-Averaged",
+    plots.append(
+        {
+            "data": [
+                {
+                    "type": "scatter",
+                    "x": y.tolist(),
+                    "y": y_avg.tolist(),
+                    "mode": "markers",
+                    "marker": {"size": 8, "color": "rgba(52, 152, 219, 0.7)"},
+                    "name": "Model-Averaged",
+                },
+                {
+                    "type": "scatter",
+                    "x": [float(np.min(y)), float(np.max(y))],
+                    "y": [float(np.min(y)), float(np.max(y))],
+                    "mode": "lines",
+                    "line": {"color": "gray", "dash": "dash"},
+                    "name": "Perfect fit",
+                },
+            ],
+            "layout": {
+                "title": "Observed vs Model-Averaged Predicted",
+                "xaxis": {"title": "Observed"},
+                "yaxis": {"title": "Predicted"},
             },
-            {
-                "type": "scatter",
-                "x": [float(np.min(y)), float(np.max(y))],
-                "y": [float(np.min(y)), float(np.max(y))],
-                "mode": "lines",
-                "line": {"color": "gray", "dash": "dash"},
-                "name": "Perfect fit",
-            },
-        ],
-        "layout": {
-            "title": "Observed vs Model-Averaged Predicted",
-            "xaxis": {"title": "Observed"},
-            "yaxis": {"title": "Predicted"},
-        },
-    })
+        }
+    )
 
     guide_obs = (
         f"Bayesian model selection: {best['name']} preferred "
@@ -833,10 +893,13 @@ def _run_doe_model(df, config):
             "n_runs": n_obs,
             "n_factors": len(factor_cols),
             "models": [
-                {"name": m["name"], "n_params": m["n_params"],
-                 "probability": round(m["probability"], 4),
-                 "log_ml": round(m["log_ml"], 4),
-                 "residual_sigma": round(m["residual_sigma"], 4)}
+                {
+                    "name": m["name"],
+                    "n_params": m["n_params"],
+                    "probability": round(m["probability"], 4),
+                    "log_ml": round(m["log_ml"], 4),
+                    "residual_sigma": round(m["residual_sigma"], 4),
+                }
                 for m in model_results
             ],
             "best_model": best["name"],
@@ -848,6 +911,7 @@ def _run_doe_model(df, config):
 # ---------------------------------------------------------------------------
 # Tool 3: Sample Size (Pre-Posterior)
 # ---------------------------------------------------------------------------
+
 
 def _run_doe_samplesize(df, config):
     """
@@ -864,22 +928,28 @@ def _run_doe_samplesize(df, config):
     if n_factors < 1 or n_factors > 10:
         return {
             "summary": "<<COLOR:error>>Number of factors must be between 1 and 10.<</COLOR>>",
-            "plots": [], "guide_observation": None, "statistics": {},
+            "plots": [],
+            "guide_observation": None,
+            "statistics": {},
         }
 
     rng = np.random.default_rng(42)
 
     # Candidate sample sizes
-    base = 2 ** n_factors
-    candidates = sorted(set([
-        base,
-        max(base, 2 * (n_factors + 1)),  # minimum for main effects
-        base * 2,
-        base * 3,
-        min(base * 4, 64),
-        min(base * 6, 96),
-        min(base * 8, 128),
-    ]))
+    base = 2**n_factors
+    candidates = sorted(
+        set(
+            [
+                base,
+                max(base, 2 * (n_factors + 1)),  # minimum for main effects
+                base * 2,
+                base * 3,
+                min(base * 4, 64),
+                min(base * 6, 96),
+                min(base * 8, 128),
+            ]
+        )
+    )
     candidates = [c for c in candidates if c <= 128]
     if not candidates:
         candidates = [2 * (n_factors + 1), 4 * (n_factors + 1)]
@@ -940,22 +1010,27 @@ def _run_doe_samplesize(df, config):
             loc, scale, df_t = contrast_posterior(e1, mu_n, Lambda_n, L_n, alpha_n, beta_n)
 
             # P(|β1| > threshold)
-            p_detect = (1.0 - t_dist.cdf(threshold, df_t, loc=loc, scale=scale)
-                        + t_dist.cdf(-threshold, df_t, loc=loc, scale=scale))
+            p_detect = (
+                1.0
+                - t_dist.cdf(threshold, df_t, loc=loc, scale=scale)
+                + t_dist.cdf(-threshold, df_t, loc=loc, scale=scale)
+            )
             detect_probs[s] = p_detect
 
             # CI width
             ci_widths[s] = 2.0 * t_dist.ppf(0.975, df_t) * scale
 
-        results.append({
-            "n": actual_n,
-            "mean_detect": float(np.mean(detect_probs)),
-            "p10_detect": float(np.percentile(detect_probs, 10)),
-            "p90_detect": float(np.percentile(detect_probs, 90)),
-            "mean_ci_width": float(np.mean(ci_widths)),
-            "p10_ci": float(np.percentile(ci_widths, 10)),
-            "p90_ci": float(np.percentile(ci_widths, 90)),
-        })
+        results.append(
+            {
+                "n": actual_n,
+                "mean_detect": float(np.mean(detect_probs)),
+                "p10_detect": float(np.percentile(detect_probs, 10)),
+                "p90_detect": float(np.percentile(detect_probs, 90)),
+                "mean_ci_width": float(np.mean(ci_widths)),
+                "p10_ci": float(np.percentile(ci_widths, 10)),
+                "p90_ci": float(np.percentile(ci_widths, 90)),
+            }
+        )
 
     # Find minimum n for mean P(detect) >= 0.90
     recommended_n = None
@@ -1004,90 +1079,97 @@ def _run_doe_samplesize(df, config):
     ns = [r["n"] for r in results]
 
     # Plot 1: n vs P(detect) with band
-    plots.append({
-        "data": [
-            {
-                "type": "scatter",
-                "x": ns,
-                "y": [r["p90_detect"] for r in results],
-                "mode": "lines",
-                "line": {"width": 0},
-                "showlegend": False,
+    plots.append(
+        {
+            "data": [
+                {
+                    "type": "scatter",
+                    "x": ns,
+                    "y": [r["p90_detect"] for r in results],
+                    "mode": "lines",
+                    "line": {"width": 0},
+                    "showlegend": False,
+                },
+                {
+                    "type": "scatter",
+                    "x": ns,
+                    "y": [r["p10_detect"] for r in results],
+                    "mode": "lines",
+                    "fill": "tonexty",
+                    "fillcolor": "rgba(52, 152, 219, 0.2)",
+                    "line": {"width": 0},
+                    "name": "10th-90th percentile",
+                },
+                {
+                    "type": "scatter",
+                    "x": ns,
+                    "y": [r["mean_detect"] for r in results],
+                    "mode": "lines+markers",
+                    "line": {"color": "rgba(52, 152, 219, 1)", "width": 2},
+                    "marker": {"size": 8},
+                    "name": "Mean P(Detect)",
+                },
+            ],
+            "layout": {
+                "title": "Detection Probability vs Sample Size",
+                "xaxis": {"title": "Number of Runs"},
+                "yaxis": {"title": "P(Detect Effect)", "range": [0, 1]},
+                "shapes": [
+                    {
+                        "type": "line",
+                        "x0": min(ns),
+                        "x1": max(ns),
+                        "y0": 0.90,
+                        "y1": 0.90,
+                        "line": {"color": "green", "width": 2, "dash": "dash"},
+                    }
+                ],
             },
-            {
-                "type": "scatter",
-                "x": ns,
-                "y": [r["p10_detect"] for r in results],
-                "mode": "lines",
-                "fill": "tonexty",
-                "fillcolor": "rgba(52, 152, 219, 0.2)",
-                "line": {"width": 0},
-                "name": "10th-90th percentile",
-            },
-            {
-                "type": "scatter",
-                "x": ns,
-                "y": [r["mean_detect"] for r in results],
-                "mode": "lines+markers",
-                "line": {"color": "rgba(52, 152, 219, 1)", "width": 2},
-                "marker": {"size": 8},
-                "name": "Mean P(Detect)",
-            },
-        ],
-        "layout": {
-            "title": "Detection Probability vs Sample Size",
-            "xaxis": {"title": "Number of Runs"},
-            "yaxis": {"title": "P(Detect Effect)", "range": [0, 1]},
-            "shapes": [{
-                "type": "line",
-                "x0": min(ns), "x1": max(ns),
-                "y0": 0.90, "y1": 0.90,
-                "line": {"color": "green", "width": 2, "dash": "dash"},
-            }],
-        },
-    })
+        }
+    )
 
     # Plot 2: n vs CI width
-    plots.append({
-        "data": [
-            {
-                "type": "scatter",
-                "x": ns,
-                "y": [r["p90_ci"] for r in results],
-                "mode": "lines",
-                "line": {"width": 0},
-                "showlegend": False,
+    plots.append(
+        {
+            "data": [
+                {
+                    "type": "scatter",
+                    "x": ns,
+                    "y": [r["p90_ci"] for r in results],
+                    "mode": "lines",
+                    "line": {"width": 0},
+                    "showlegend": False,
+                },
+                {
+                    "type": "scatter",
+                    "x": ns,
+                    "y": [r["p10_ci"] for r in results],
+                    "mode": "lines",
+                    "fill": "tonexty",
+                    "fillcolor": "rgba(155, 89, 182, 0.2)",
+                    "line": {"width": 0},
+                    "name": "10th-90th percentile",
+                },
+                {
+                    "type": "scatter",
+                    "x": ns,
+                    "y": [r["mean_ci_width"] for r in results],
+                    "mode": "lines+markers",
+                    "line": {"color": "rgba(155, 89, 182, 1)", "width": 2},
+                    "marker": {"size": 8},
+                    "name": "Mean CI Width",
+                },
+            ],
+            "layout": {
+                "title": "Expected 95% CI Width vs Sample Size",
+                "xaxis": {"title": "Number of Runs"},
+                "yaxis": {"title": "CI Width (coded units)"},
             },
-            {
-                "type": "scatter",
-                "x": ns,
-                "y": [r["p10_ci"] for r in results],
-                "mode": "lines",
-                "fill": "tonexty",
-                "fillcolor": "rgba(155, 89, 182, 0.2)",
-                "line": {"width": 0},
-                "name": "10th-90th percentile",
-            },
-            {
-                "type": "scatter",
-                "x": ns,
-                "y": [r["mean_ci_width"] for r in results],
-                "mode": "lines+markers",
-                "line": {"color": "rgba(155, 89, 182, 1)", "width": 2},
-                "marker": {"size": 8},
-                "name": "Mean CI Width",
-            },
-        ],
-        "layout": {
-            "title": "Expected 95% CI Width vs Sample Size",
-            "xaxis": {"title": "Number of Runs"},
-            "yaxis": {"title": "CI Width (coded units)"},
-        },
-    })
+        }
+    )
 
-    guide_obs = (
-        f"DOE sample size: {n_factors} factors, effect={expected_effect}, σ={expected_sigma}. "
-        + (f"Recommended {recommended_n} runs." if recommended_n else "No size achieved 90% detection.")
+    guide_obs = f"DOE sample size: {n_factors} factors, effect={expected_effect}, σ={expected_sigma}. " + (
+        f"Recommended {recommended_n} runs." if recommended_n else "No size achieved 90% detection."
     )
 
     return {
@@ -1109,6 +1191,7 @@ def _run_doe_samplesize(df, config):
 # Tool 4: Response Optimization
 # ---------------------------------------------------------------------------
 
+
 def _run_doe_optimize(df, config):
     """
     Bayesian response optimization — propagates parameter uncertainty.
@@ -1125,18 +1208,20 @@ def _run_doe_optimize(df, config):
     if not factor_cols or not response_col:
         return {
             "summary": "<<COLOR:error>>Please specify factor columns and a response column.<</COLOR>>",
-            "plots": [], "guide_observation": None, "statistics": {},
+            "plots": [],
+            "guide_observation": None,
+            "statistics": {},
         }
 
-    X, y, term_names, coding_records = build_doe_design_matrix(
-        df, factor_cols, response_col, include_2fi=include_2fi
-    )
+    X, y, term_names, coding_records = build_doe_design_matrix(df, factor_cols, response_col, include_2fi=include_2fi)
     n, p = X.shape
 
     if n < p:
         return {
             "summary": f"<<COLOR:error>>Not enough data: {n} runs for {p} parameters.<</COLOR>>",
-            "plots": [], "guide_observation": None, "statistics": {},
+            "plots": [],
+            "guide_observation": None,
+            "statistics": {},
         }
 
     mu_n, Lambda_n, L_n, alpha_n, beta_n = bayesian_linear_posterior(X, y)
@@ -1226,8 +1311,7 @@ def _run_doe_optimize(df, config):
     # Decode optimal point
     optimal_coded = coded_full[best_idx]
     optimal_natural = _decode_coded_to_natural(
-        {factor_cols[j]: optimal_coded[j] for j in range(k)},
-        coding_records, factor_cols
+        {factor_cols[j]: optimal_coded[j] for j in range(k)}, coding_records, factor_cols
     )
     optimal_pred = pred_means[best_idx]
     optimal_ci = (pred_lows[best_idx], pred_highs[best_idx])
@@ -1240,12 +1324,14 @@ def _run_doe_optimize(df, config):
     if goal == "target" and target_value is not None:
         summary_lines[-1] += f" (target = {target_value})"
 
-    summary_lines.extend([
-        f"**Design:** {n} runs, {k} factors\n",
-        "### Optimal Settings",
-        "| Factor | Coded | Natural |",
-        "|--------|-------|---------|",
-    ])
+    summary_lines.extend(
+        [
+            f"**Design:** {n} runs, {k} factors\n",
+            "### Optimal Settings",
+            "| Factor | Coded | Natural |",
+            "|--------|-------|---------|",
+        ]
+    )
     for col in factor_cols:
         coded_val = optimal_coded[factor_cols.index(col)]
         natural_val = optimal_natural.get(col, coded_val)
@@ -1254,12 +1340,13 @@ def _run_doe_optimize(df, config):
         else:
             summary_lines.append(f"| {col} | {coded_val:+.3f} | {natural_val} |")
 
-    summary_lines.extend([
-        f"\n**Predicted {response_col}:** {optimal_pred:.4g} "
-        f"[95% CI: {optimal_ci[0]:.4g}, {optimal_ci[1]:.4g}]",
-        "\n*Unlike frequentist optimization, this propagates parameter uncertainty "
-        "through the prediction. The CI reflects both model and noise uncertainty.*",
-    ])
+    summary_lines.extend(
+        [
+            f"\n**Predicted {response_col}:** {optimal_pred:.4g} [95% CI: {optimal_ci[0]:.4g}, {optimal_ci[1]:.4g}]",
+            "\n*Unlike frequentist optimization, this propagates parameter uncertainty "
+            "through the prediction. The CI reflects both model and noise uncertainty.*",
+        ]
+    )
 
     if k > 3:
         held = [c for i, c in enumerate(factor_cols) if i not in grid_factors]
@@ -1288,28 +1375,33 @@ def _run_doe_optimize(df, config):
             slice_idx = max(0, min(n_grid_pts - 1, slice_idx))
             z_2d = z_grid[:, :, slice_idx]
 
-        plots.append({
-            "data": [{
-                "type": "contour",
-                "x": grid_1d.tolist(),
-                "y": grid_1d.tolist(),
-                "z": z_2d.tolist(),
-                "colorscale": "Viridis",
-                "colorbar": {"title": response_col},
-            }, {
-                "type": "scatter",
-                "x": [float(optimal_coded[f1_idx])],
-                "y": [float(optimal_coded[f2_idx])],
-                "mode": "markers",
-                "marker": {"size": 14, "color": "red", "symbol": "star"},
-                "name": "Optimal",
-            }],
-            "layout": {
-                "title": f"Predicted {response_col} Surface",
-                "xaxis": {"title": f"{f1_name} (coded)"},
-                "yaxis": {"title": f"{f2_name} (coded)"},
-            },
-        })
+        plots.append(
+            {
+                "data": [
+                    {
+                        "type": "contour",
+                        "x": grid_1d.tolist(),
+                        "y": grid_1d.tolist(),
+                        "z": z_2d.tolist(),
+                        "colorscale": "Viridis",
+                        "colorbar": {"title": response_col},
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [float(optimal_coded[f1_idx])],
+                        "y": [float(optimal_coded[f2_idx])],
+                        "mode": "markers",
+                        "marker": {"size": 14, "color": "red", "symbol": "star"},
+                        "name": "Optimal",
+                    },
+                ],
+                "layout": {
+                    "title": f"Predicted {response_col} Surface",
+                    "xaxis": {"title": f"{f1_name} (coded)"},
+                    "yaxis": {"title": f"{f2_name} (coded)"},
+                },
+            }
+        )
 
     # Plot 2: Marginal response curves per factor
     marginal_traces = []
@@ -1328,78 +1420,90 @@ def _run_doe_optimize(df, config):
         lows_j = np.zeros(n_grid_pts)
         highs_j = np.zeros(n_grid_pts)
         for i in range(n_grid_pts):
-            loc, scale, df_t = predictive_posterior(
-                X_sweep[i], mu_n, Lambda_n, L_n, alpha_n, beta_n
-            )
+            loc, scale, df_t = predictive_posterior(X_sweep[i], mu_n, Lambda_n, L_n, alpha_n, beta_n)
             means_j[i] = loc
             ci_half = t_dist.ppf(0.975, df_t) * scale
             lows_j[i] = loc - ci_half
             highs_j[i] = loc + ci_half
 
-        marginal_traces.append({
-            "type": "scatter",
-            "x": grid_1d.tolist(),
-            "y": means_j.tolist(),
-            "mode": "lines",
-            "name": factor_cols[j],
-            "line": {"width": 2},
-        })
-        marginal_traces.append({
-            "type": "scatter",
-            "x": grid_1d.tolist() + grid_1d[::-1].tolist(),
-            "y": highs_j.tolist() + lows_j[::-1].tolist(),
-            "fill": "toself",
-            "fillcolor": "rgba(0,0,0,0.05)",
-            "line": {"width": 0},
-            "showlegend": False,
-        })
+        marginal_traces.append(
+            {
+                "type": "scatter",
+                "x": grid_1d.tolist(),
+                "y": means_j.tolist(),
+                "mode": "lines",
+                "name": factor_cols[j],
+                "line": {"width": 2},
+            }
+        )
+        marginal_traces.append(
+            {
+                "type": "scatter",
+                "x": grid_1d.tolist() + grid_1d[::-1].tolist(),
+                "y": highs_j.tolist() + lows_j[::-1].tolist(),
+                "fill": "toself",
+                "fillcolor": "rgba(0,0,0,0.05)",
+                "line": {"width": 0},
+                "showlegend": False,
+            }
+        )
 
-    plots.append({
-        "data": marginal_traces,
-        "layout": {
-            "title": "Marginal Response Curves (others at midpoint)",
-            "xaxis": {"title": "Coded Factor Level"},
-            "yaxis": {"title": response_col},
-        },
-    })
+    plots.append(
+        {
+            "data": marginal_traces,
+            "layout": {
+                "title": "Marginal Response Curves (others at midpoint)",
+                "xaxis": {"title": "Coded Factor Level"},
+                "yaxis": {"title": response_col},
+            },
+        }
+    )
 
     # Plot 3: Optimal point annotation
-    plots.append({
-        "data": [{
-            "type": "scatter",
-            "x": y.tolist(),
-            "y": (X @ mu_n).tolist(),
-            "mode": "markers",
-            "marker": {"size": 8, "color": "rgba(52, 152, 219, 0.7)"},
-            "name": "Data (obs vs fit)",
-        }, {
-            "type": "scatter",
-            "x": [float(optimal_pred)],
-            "y": [float(optimal_pred)],
-            "mode": "markers",
-            "marker": {"size": 14, "color": "red", "symbol": "star"},
-            "name": f"Optimal: {optimal_pred:.3g}",
-        }, {
-            "type": "scatter",
-            "x": [float(np.min(y)), float(np.max(y))],
-            "y": [float(np.min(y)), float(np.max(y))],
-            "mode": "lines",
-            "line": {"color": "gray", "dash": "dash"},
-            "showlegend": False,
-        }],
-        "layout": {
-            "title": "Model Fit + Optimal Prediction",
-            "xaxis": {"title": "Observed"},
-            "yaxis": {"title": "Predicted"},
-            "annotations": [{
-                "x": float(optimal_pred),
-                "y": float(optimal_pred),
-                "text": f"Optimal: {optimal_pred:.3g}<br>[{optimal_ci[0]:.3g}, {optimal_ci[1]:.3g}]",
-                "showarrow": True,
-                "arrowhead": 2,
-            }],
-        },
-    })
+    plots.append(
+        {
+            "data": [
+                {
+                    "type": "scatter",
+                    "x": y.tolist(),
+                    "y": (X @ mu_n).tolist(),
+                    "mode": "markers",
+                    "marker": {"size": 8, "color": "rgba(52, 152, 219, 0.7)"},
+                    "name": "Data (obs vs fit)",
+                },
+                {
+                    "type": "scatter",
+                    "x": [float(optimal_pred)],
+                    "y": [float(optimal_pred)],
+                    "mode": "markers",
+                    "marker": {"size": 14, "color": "red", "symbol": "star"},
+                    "name": f"Optimal: {optimal_pred:.3g}",
+                },
+                {
+                    "type": "scatter",
+                    "x": [float(np.min(y)), float(np.max(y))],
+                    "y": [float(np.min(y)), float(np.max(y))],
+                    "mode": "lines",
+                    "line": {"color": "gray", "dash": "dash"},
+                    "showlegend": False,
+                },
+            ],
+            "layout": {
+                "title": "Model Fit + Optimal Prediction",
+                "xaxis": {"title": "Observed"},
+                "yaxis": {"title": "Predicted"},
+                "annotations": [
+                    {
+                        "x": float(optimal_pred),
+                        "y": float(optimal_pred),
+                        "text": f"Optimal: {optimal_pred:.3g}<br>[{optimal_ci[0]:.3g}, {optimal_ci[1]:.3g}]",
+                        "showarrow": True,
+                        "arrowhead": 2,
+                    }
+                ],
+            },
+        }
+    )
 
     guide_obs = (
         f"DOE optimization ({goal}): optimal {response_col} = {optimal_pred:.4g} "
@@ -1413,10 +1517,8 @@ def _run_doe_optimize(df, config):
         "statistics": {
             "goal": goal,
             "target_value": target_value,
-            "optimal_coded": {factor_cols[j]: round(float(optimal_coded[j]), 4)
-                              for j in range(k)},
-            "optimal_natural": {k_: round(v, 4) if isinstance(v, float) else v
-                                for k_, v in optimal_natural.items()},
+            "optimal_coded": {factor_cols[j]: round(float(optimal_coded[j]), 4) for j in range(k)},
+            "optimal_natural": {k_: round(v, 4) if isinstance(v, float) else v for k_, v in optimal_natural.items()},
             "predicted_response": round(optimal_pred, 4),
             "prediction_ci": [round(optimal_ci[0], 4), round(optimal_ci[1], 4)],
         },
@@ -1426,6 +1528,7 @@ def _run_doe_optimize(df, config):
 # ---------------------------------------------------------------------------
 # Tool 5: Next Experiment (Sequential DOE)
 # ---------------------------------------------------------------------------
+
 
 def _run_doe_next(df, config):
     """
@@ -1442,18 +1545,20 @@ def _run_doe_next(df, config):
     if not factor_cols or not response_col:
         return {
             "summary": "<<COLOR:error>>Please specify factor columns and a response column.<</COLOR>>",
-            "plots": [], "guide_observation": None, "statistics": {},
+            "plots": [],
+            "guide_observation": None,
+            "statistics": {},
         }
 
-    X, y, term_names, coding_records = build_doe_design_matrix(
-        df, factor_cols, response_col, include_2fi=include_2fi
-    )
+    X, y, term_names, coding_records = build_doe_design_matrix(df, factor_cols, response_col, include_2fi=include_2fi)
     n, p_dim = X.shape
 
     if n < p_dim:
         return {
             "summary": f"<<COLOR:error>>Not enough data: {n} runs for {p_dim} parameters.<</COLOR>>",
-            "plots": [], "guide_observation": None, "statistics": {},
+            "plots": [],
+            "guide_observation": None,
+            "statistics": {},
         }
 
     mu_n, Lambda_n, L_n, alpha_n, beta_n = bayesian_linear_posterior(X, y)
@@ -1474,9 +1579,7 @@ def _run_doe_next(df, config):
         X_pred_pts = np.column_stack([X_pred_pts, pred_points_coded[:, j]])
     if include_2fi and k >= 2:
         for i, j in combinations(range(k), 2):
-            X_pred_pts = np.column_stack([
-                X_pred_pts, pred_points_coded[:, i] * pred_points_coded[:, j]
-            ])
+            X_pred_pts = np.column_stack([X_pred_pts, pred_points_coded[:, i] * pred_points_coded[:, j]])
 
     # Current average predictive variance
     scale_factor = beta_n / alpha_n
@@ -1505,9 +1608,7 @@ def _run_doe_next(df, config):
         X_cand = np.column_stack([X_cand, candidates_coded[:, j]])
     if include_2fi and k >= 2:
         for i, j in combinations(range(k), 2):
-            X_cand = np.column_stack([
-                X_cand, candidates_coded[:, i] * candidates_coded[:, j]
-            ])
+            X_cand = np.column_stack([X_cand, candidates_coded[:, i] * candidates_coded[:, j]])
 
     # Evaluate information gain for each candidate
     gains = np.zeros(n_candidates)
@@ -1530,18 +1631,18 @@ def _run_doe_next(df, config):
     for rank, idx in enumerate(top_indices):
         coded_vals = candidates_coded[idx]
         natural_vals = _decode_coded_to_natural(
-            {factor_cols[j]: coded_vals[j] for j in range(k)},
-            coding_records, factor_cols
+            {factor_cols[j]: coded_vals[j] for j in range(k)}, coding_records, factor_cols
         )
         reduction_pct = float(gains[idx] / current_apv * 100) if current_apv > 0 else 0.0
-        suggestions.append({
-            "rank": rank + 1,
-            "coded": {factor_cols[j]: round(float(coded_vals[j]), 3) for j in range(k)},
-            "natural": {kk: round(v, 4) if isinstance(v, float) else v
-                        for kk, v in natural_vals.items()},
-            "info_gain": round(float(gains[idx]), 6),
-            "reduction_pct": round(reduction_pct, 1),
-        })
+        suggestions.append(
+            {
+                "rank": rank + 1,
+                "coded": {factor_cols[j]: round(float(coded_vals[j]), 3) for j in range(k)},
+                "natural": {kk: round(v, 4) if isinstance(v, float) else v for kk, v in natural_vals.items()},
+                "info_gain": round(float(gains[idx]), 6),
+                "reduction_pct": round(reduction_pct, 1),
+            }
+        )
 
     # --- Summary ---
     summary_lines = [
@@ -1572,12 +1673,13 @@ def _run_doe_next(df, config):
         summary_lines.append(row)
 
     total_reduction = sum(s["reduction_pct"] for s in suggestions)
-    summary_lines.extend([
-        f"\n**Expected total uncertainty reduction:** {total_reduction:.1f}% "
-        f"(if all {n_suggest} runs are added)",
-        "\n*Sequential DOE: each suggested point maximally reduces prediction uncertainty "
-        "across the factor space. Run these experiments, add the data, and re-analyze.*",
-    ])
+    summary_lines.extend(
+        [
+            f"\n**Expected total uncertainty reduction:** {total_reduction:.1f}% (if all {n_suggest} runs are added)",
+            "\n*Sequential DOE: each suggested point maximally reduces prediction uncertainty "
+            "across the factor space. Run these experiments, add the data, and re-analyze.*",
+        ]
+    )
 
     # --- Plots ---
     plots = []
@@ -1604,82 +1706,90 @@ def _run_doe_next(df, config):
                 except np.linalg.LinAlgError:
                     gain_grid[i, j] = 0.0
 
-        plots.append({
-            "data": [
-                {
-                    "type": "heatmap",
-                    "x": grid_1d.tolist(),
-                    "y": grid_1d.tolist(),
-                    "z": gain_grid.tolist(),
-                    "colorscale": "YlOrRd",
-                    "colorbar": {"title": "Info Gain"},
+        plots.append(
+            {
+                "data": [
+                    {
+                        "type": "heatmap",
+                        "x": grid_1d.tolist(),
+                        "y": grid_1d.tolist(),
+                        "z": gain_grid.tolist(),
+                        "colorscale": "YlOrRd",
+                        "colorbar": {"title": "Info Gain"},
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [s["coded"][factor_cols[0]] for s in suggestions],
+                        "y": [s["coded"][factor_cols[1]] for s in suggestions],
+                        "mode": "markers+text",
+                        "marker": {"size": 12, "color": "blue", "symbol": "star"},
+                        "text": [str(s["rank"]) for s in suggestions],
+                        "textposition": "top center",
+                        "name": "Suggestions",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": X[:, 1].tolist(),
+                        "y": X[:, 2].tolist(),
+                        "mode": "markers",
+                        "marker": {"size": 6, "color": "white", "line": {"width": 1, "color": "black"}},
+                        "name": "Existing runs",
+                    },
+                ],
+                "layout": {
+                    "title": "Information Gain Across Factor Space",
+                    "xaxis": {"title": f"{factor_cols[0]} (coded)"},
+                    "yaxis": {"title": f"{factor_cols[1]} (coded)"},
                 },
-                {
-                    "type": "scatter",
-                    "x": [s["coded"][factor_cols[0]] for s in suggestions],
-                    "y": [s["coded"][factor_cols[1]] for s in suggestions],
-                    "mode": "markers+text",
-                    "marker": {"size": 12, "color": "blue", "symbol": "star"},
-                    "text": [str(s["rank"]) for s in suggestions],
-                    "textposition": "top center",
-                    "name": "Suggestions",
-                },
-                {
-                    "type": "scatter",
-                    "x": X[:, 1].tolist(),
-                    "y": X[:, 2].tolist(),
-                    "mode": "markers",
-                    "marker": {"size": 6, "color": "white",
-                               "line": {"width": 1, "color": "black"}},
-                    "name": "Existing runs",
-                },
-            ],
-            "layout": {
-                "title": "Information Gain Across Factor Space",
-                "xaxis": {"title": f"{factor_cols[0]} (coded)"},
-                "yaxis": {"title": f"{factor_cols[1]} (coded)"},
-            },
-        })
+            }
+        )
     else:
         # Bar chart of suggestions
-        plots.append({
-            "data": [{
-                "type": "bar",
-                "x": [f"Run {s['rank']}" for s in suggestions],
-                "y": [s["reduction_pct"] for s in suggestions],
-                "marker": {"color": "rgba(52, 152, 219, 0.8)"},
-                "text": [f"{s['reduction_pct']:.1f}%" for s in suggestions],
-                "textposition": "auto",
-            }],
-            "layout": {
-                "title": "Expected Uncertainty Reduction per Suggested Run",
-                "yaxis": {"title": "Variance Reduction (%)"},
-            },
-        })
+        plots.append(
+            {
+                "data": [
+                    {
+                        "type": "bar",
+                        "x": [f"Run {s['rank']}" for s in suggestions],
+                        "y": [s["reduction_pct"] for s in suggestions],
+                        "marker": {"color": "rgba(52, 152, 219, 0.8)"},
+                        "text": [f"{s['reduction_pct']:.1f}%" for s in suggestions],
+                        "textposition": "auto",
+                    }
+                ],
+                "layout": {
+                    "title": "Expected Uncertainty Reduction per Suggested Run",
+                    "yaxis": {"title": "Variance Reduction (%)"},
+                },
+            }
+        )
 
     # Plot 2: Table visualization as a simple scatter showing coded settings
     traces = []
     for j in range(k):
-        traces.append({
-            "type": "scatter",
-            "x": [s["rank"] for s in suggestions],
-            "y": [s["coded"][factor_cols[j]] for s in suggestions],
-            "mode": "markers+lines",
-            "name": factor_cols[j],
-            "marker": {"size": 10},
-        })
-    plots.append({
-        "data": traces,
-        "layout": {
-            "title": "Suggested Factor Settings",
-            "xaxis": {"title": "Suggestion Rank", "dtick": 1},
-            "yaxis": {"title": "Coded Level", "range": [-1.2, 1.2]},
-        },
-    })
+        traces.append(
+            {
+                "type": "scatter",
+                "x": [s["rank"] for s in suggestions],
+                "y": [s["coded"][factor_cols[j]] for s in suggestions],
+                "mode": "markers+lines",
+                "name": factor_cols[j],
+                "marker": {"size": 10},
+            }
+        )
+    plots.append(
+        {
+            "data": traces,
+            "layout": {
+                "title": "Suggested Factor Settings",
+                "xaxis": {"title": "Suggestion Rank", "dtick": 1},
+                "yaxis": {"title": "Coded Level", "range": [-1.2, 1.2]},
+            },
+        }
+    )
 
     guide_obs = (
-        f"Sequential DOE: {n_suggest} experiments suggested. "
-        f"Total expected variance reduction: {total_reduction:.1f}%."
+        f"Sequential DOE: {n_suggest} experiments suggested. Total expected variance reduction: {total_reduction:.1f}%."
     )
 
     return {

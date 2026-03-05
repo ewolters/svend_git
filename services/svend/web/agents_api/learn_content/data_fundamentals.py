@@ -2,7 +2,6 @@
 
 from ._datasets import SHARED_DATASET  # noqa: F401
 
-
 DATA_CLEANING = {
     "id": "data-cleaning",
     "title": "Data Cleaning",
@@ -14,7 +13,7 @@ DATA_CLEANING = {
             "Classify each missing pattern as MCAR, MAR, or MNAR",
             "Select a handling strategy for each column",
             "Run the outlier detection and inspect flagged values",
-            "Document your cleaning decisions"
+            "Document your cleaning decisions",
         ],
         "dsw_type": "stats:descriptive",
         "dsw_config": {},
@@ -93,7 +92,7 @@ assert customer_id in customers_table, "Unknown customer"
             "show_missing_analysis": True,
             "show_outlier_detection": True,
             "allow_strategy_selection": True,
-        }
+        },
     },
     "key_takeaways": [
         "Understand WHY data is missing before choosing a strategy",
@@ -105,14 +104,14 @@ assert customer_id in customers_table, "Unknown customer"
         {
             "question": "A survey has 15% missing income data. Higher earners are less likely to respond. What type of missingness is this, and what imputation strategy is best?",
             "answer": "MNAR — missingness depends on the value itself (high income). No imputation fully corrects MNAR. Multiple imputation with auxiliary variables (education, job title) can reduce bias but not eliminate it. Report the limitation.",
-            "hint": "Ask: does the probability of being missing depend on the missing value itself?"
+            "hint": "Ask: does the probability of being missing depend on the missing value itself?",
         },
         {
             "question": "You find a data point where a patient's age is listed as 3 but their occupation is 'engineer'. What should you do?",
             "answer": "This is a cross-field validation failure. Investigate: likely a data entry error (maybe 30 or 33). Check the source record. Don't auto-delete or auto-impute — document the decision either way.",
-            "hint": "Cross-field consistency checks catch errors that univariate checks miss"
+            "hint": "Cross-field consistency checks catch errors that univariate checks miss",
         },
-    ]
+    ],
 }
 
 
@@ -127,7 +126,7 @@ SAMPLING = {
             "Set margin of error to 3%",
             "Leave population size at the default (large)",
             "Note the required sample size",
-            "Change margin of error to 5% and see how n drops"
+            "Change margin of error to 5% and see how n drops",
         ],
         "dsw_type": "stats:descriptive",
         "dsw_config": {},
@@ -217,7 +216,7 @@ If your sample of "all customers" only includes those with email addresses, you'
             "show_margin_of_error": True,
             "show_population_size": True,
             "calculate_n": True,
-        }
+        },
     },
     "key_takeaways": [
         "Random sampling is the foundation of valid inference",
@@ -229,14 +228,14 @@ If your sample of "all customers" only includes those with email addresses, you'
         {
             "question": "You want to estimate customer satisfaction within ±4% margin at 95% confidence. You have no prior data. How many customers do you need?",
             "answer": "n = (1.96² × 0.5 × 0.5) / 0.04² = 0.9604 / 0.0016 ≈ 601 customers. We use p=0.5 (worst case) since we have no prior estimate.",
-            "hint": "Use the proportion sample size formula with p=0.5 for maximum conservatism"
+            "hint": "Use the proportion sample size formula with p=0.5 for maximum conservatism",
         },
         {
             "question": "A company surveys users by emailing a link. Response rate is 8%. The survey finds 92% satisfaction. Should management trust this number?",
             "answer": "No — severe non-response bias. The 8% who respond are likely more engaged/satisfied. The 92% who didn't respond may have very different satisfaction levels. This is self-selection bias. Need to compare responders to non-responders on observable characteristics, or use follow-up methods to reach non-responders.",
-            "hint": "Who chose not to respond, and why?"
+            "hint": "Who chose not to respond, and why?",
         },
-    ]
+    ],
 }
 
 
@@ -251,7 +250,7 @@ DISTRIBUTIONS = {
             "Check the Q-Q plot for departures from normality",
             "Note the skewness and kurtosis values",
             "Apply a log transformation and re-check the Q-Q plot",
-            "Compare the Shapiro-Wilk p-value before and after"
+            "Compare the Shapiro-Wilk p-value before and after",
         ],
         "dsw_type": "stats:normality",
         "dsw_config": {"var": "diameter_mm"},
@@ -340,10 +339,7 @@ When data is non-normal, sometimes transforming helps:
 - If outliers are real and important
 - If transforming makes less conceptual sense
 """,
-    "interactive": {
-        "type": "distribution_explorer",
-        "config": {}
-    },
+    "interactive": {"type": "distribution_explorer", "config": {}},
     "key_takeaways": [
         "Check distribution shape before choosing statistical tests",
         "Large samples make normality less critical (CLT)",
@@ -355,14 +351,14 @@ When data is non-normal, sometimes transforming helps:
         {
             "question": "Your data has a skewness of 2.1 and you plan to run a t-test with n=15 per group. Should you be concerned?",
             "answer": "Yes — very concerned. Skewness of 2.1 is heavily right-skewed, and with only n=15 per group, the CLT hasn't kicked in to normalize the sampling distribution. Options: (1) log-transform the data and check if skewness drops, (2) use Mann-Whitney U instead, (3) bootstrap the confidence interval.",
-            "hint": "With small n, normality assumption matters more"
+            "hint": "With small n, normality assumption matters more",
         },
         {
             "question": "A Shapiro-Wilk test on your data (n=5000) gives p<0.001. Does this mean you can't use parametric tests?",
             "answer": "No. With n=5000, Shapiro-Wilk detects trivial departures from normality. Check the Q-Q plot visually instead. If the data looks roughly bell-shaped with minor deviations, parametric tests are fine — they're robust with large n. This is a case where the visual check is more informative than the statistical test.",
-            "hint": "With large n, normality tests reject even negligible deviations"
+            "hint": "With large n, normality tests reject even negligible deviations",
         },
-    ]
+    ],
 }
 
 
@@ -377,7 +373,7 @@ EDA = {
             "Examine scatter plots and correlations between variable pairs",
             "Identify any outliers or unexpected patterns",
             "Note which findings are interesting but need confirmation",
-            "Write down one hypothesis generated by your exploration"
+            "Write down one hypothesis generated by your exploration",
         ],
         "dsw_type": "stats:descriptive",
         "dsw_config": {},
@@ -463,10 +459,7 @@ This prevents:
 - Forgetting what you already tried
 - Selective reporting of interesting patterns
 """,
-    "interactive": {
-        "type": "eda_explorer",
-        "config": {}
-    },
+    "interactive": {"type": "eda_explorer", "config": {}},
     "key_takeaways": [
         "EDA generates hypotheses; it doesn't confirm them",
         "Visual inspection catches what summary statistics miss",
@@ -478,14 +471,12 @@ This prevents:
         {
             "question": "During EDA you discover that customers who bought product A also tend to buy product B (correlation = 0.45). Your manager asks you to report this as a finding. What do you say?",
             "answer": "This is an EDA observation, not a confirmed finding. It should be treated as a hypothesis to test, not a conclusion. To confirm: (1) preregister the hypothesis, (2) test on held-out data or a new sample, (3) consider confounders (maybe both products appeal to the same demographic). Report it as 'pattern observed in exploratory analysis — requires confirmation.'",
-            "hint": "EDA generates hypotheses; confirmation requires separate testing"
+            "hint": "EDA generates hypotheses; confirmation requires separate testing",
         },
         {
             "question": "You plot revenue by month and see a spike in March. Is this meaningful or noise?",
             "answer": "Can't tell from one data point. Check: (1) Is there a March spike in previous years? (seasonal pattern), (2) Was there a known event (promotion, holiday)? (3) How variable is month-to-month revenue normally? If the spike is within normal month-to-month variation, it's likely noise. If it's 3+ SD above the monthly mean, investigate further. One observation is never enough to conclude.",
-            "hint": "A single unusual point needs context — compare to baseline variability"
+            "hint": "A single unusual point needs context — compare to baseline variability",
         },
-    ]
+    ],
 }
-
-

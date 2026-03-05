@@ -13,8 +13,9 @@ Lists use JSONField for multiple entries (e.g., multiple "whats").
 """
 
 import uuid
+
 from django.conf import settings
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -353,8 +354,8 @@ class Project(models.Model):
         constraints = [
             models.CheckConstraint(
                 check=(
-                    models.Q(user__isnull=False, tenant__isnull=True) |
-                    models.Q(user__isnull=True, tenant__isnull=False)
+                    models.Q(user__isnull=False, tenant__isnull=True)
+                    | models.Q(user__isnull=True, tenant__isnull=False)
                 ),
                 name="project_has_single_owner",
             )
@@ -379,6 +380,7 @@ class Project(models.Model):
     @property
     def evidence_count(self) -> int:
         from .hypothesis import Evidence
+
         return Evidence.objects.filter(hypothesis_links__hypothesis__project=self).distinct().count()
 
     def generate_problem_statement(self) -> str:
@@ -437,18 +439,22 @@ class Project(models.Model):
         from django.utils import timezone
 
         old_phase = self.current_phase
-        self.phase_history.append({
-            "phase": new_phase,
-            "entered_at": timezone.now().isoformat(),
-            "notes": notes,
-        })
+        self.phase_history.append(
+            {
+                "phase": new_phase,
+                "entered_at": timezone.now().isoformat(),
+                "notes": notes,
+            }
+        )
         self.current_phase = new_phase
-        self.changelog.append({
-            "ts": timezone.now().isoformat(),
-            "action": "phase_advanced",
-            "detail": f"{old_phase} → {new_phase}" + (f": {notes}" if notes else ""),
-            "user": (user.display_name or user.email) if user else "",
-        })
+        self.changelog.append(
+            {
+                "ts": timezone.now().isoformat(),
+                "action": "phase_advanced",
+                "detail": f"{old_phase} → {new_phase}" + (f": {notes}" if notes else ""),
+                "user": (user.display_name or user.email) if user else "",
+            }
+        )
         self.save(update_fields=["current_phase", "phase_history", "changelog", "updated_at"])
 
     def resolve(self, summary: str, confidence: float = None):
@@ -459,10 +465,7 @@ class Project(models.Model):
         self.resolution_summary = summary
         self.resolution_confidence = confidence
         self.resolved_at = timezone.now()
-        self.save(update_fields=[
-            "status", "resolution_summary", "resolution_confidence",
-            "resolved_at", "updated_at"
-        ])
+        self.save(update_fields=["status", "resolution_summary", "resolution_confidence", "resolved_at", "updated_at"])
 
 
 class Dataset(models.Model):

@@ -17,13 +17,12 @@ import logging
 import re
 import time
 import uuid
-from typing import Callable, Set
+from collections.abc import Callable
 
-from django.conf import settings
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.utils import timezone
 
-from syn.err import SynaraError, ErrorEnvelope
+from syn.err import SynaraError
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 # POL-002 §8: Patterns to redact from error messages and stack traces
-SENSITIVE_ERROR_PATTERNS: Set[str] = {
+SENSITIVE_ERROR_PATTERNS: set[str] = {
     r"password[=:]\s*['\"]?[^'\"\s]+['\"]?",
     r"secret[=:]\s*['\"]?[^'\"\s]+['\"]?",
     r"api[_-]?key[=:]\s*['\"]?[^'\"\s]+['\"]?",
@@ -47,7 +46,7 @@ SENSITIVE_ERROR_PATTERNS: Set[str] = {
 }
 
 # Environment variable patterns to never log
-ENV_VAR_PATTERNS: Set[str] = {
+ENV_VAR_PATTERNS: set[str] = {
     r"DATABASE_URL",
     r"SECRET_KEY",
     r"AWS_SECRET",
@@ -85,6 +84,7 @@ def redact_exception_for_logging(exception: Exception) -> str:
     exc_type = type(exception).__name__
     exc_message = redact_error_message(str(exception))
     return f"{exc_type}: {exc_message}"
+
 
 # =============================================================================
 # Constants (API-002 §8-9)
@@ -138,6 +138,7 @@ def _generate_request_id() -> str:
     """
     try:
         import ulid
+
         return str(ulid.new())
     except ImportError:
         # Fallback to UUID-based format if ulid not available
@@ -147,6 +148,7 @@ def _generate_request_id() -> str:
 # =============================================================================
 # Syn-Request-Id Middleware (API-002 §8.1)
 # =============================================================================
+
 
 class SynRequestIdMiddleware:
     """
@@ -217,6 +219,7 @@ class SynRequestIdMiddleware:
 # API Headers Middleware (API-002 §8.2)
 # =============================================================================
 
+
 class APIHeadersMiddleware:
     """
     Middleware to enforce required API headers.
@@ -286,6 +289,7 @@ class APIHeadersMiddleware:
 # =============================================================================
 # Idempotency Middleware (API-002 §9)
 # =============================================================================
+
 
 class IdempotencyMiddleware:
     """
@@ -394,6 +398,7 @@ class IdempotencyMiddleware:
         """
         try:
             from django.core.cache import cache
+
             cache_key = f"idempotency:{tenant_id}:{idempotency_key}"
             return cache.get(cache_key)
         except Exception as e:
@@ -438,6 +443,7 @@ class IdempotencyMiddleware:
 # =============================================================================
 # Error Envelope Middleware (API-002 §10)
 # =============================================================================
+
 
 class ErrorEnvelopeMiddleware:
     """
@@ -497,9 +503,7 @@ class ErrorEnvelopeMiddleware:
             if "error" in content and "code" in content.get("error", {}):
                 # Already has proper envelope, just add request_id if missing
                 if "request_id" not in content["error"]:
-                    content["error"]["request_id"] = getattr(
-                        request, "syn_request_id", None
-                    )
+                    content["error"]["request_id"] = getattr(request, "syn_request_id", None)
                     response.content = json.dumps(content).encode("utf-8")
                 return response
         except (json.JSONDecodeError, UnicodeDecodeError):

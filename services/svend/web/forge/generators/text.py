@@ -3,6 +3,7 @@
 import random
 import uuid
 from datetime import datetime, timedelta, timezone
+
 from faker import Faker
 
 fake = Faker()
@@ -45,9 +46,7 @@ class TextGenerator:
         }[sentiment]
 
         if self.llm:
-            text = self._generate_with_llm(
-                f"Write a {sentiment} product review in 2-3 sentences."
-            )
+            text = self._generate_with_llm(f"Write a {sentiment} product review in 2-3 sentences.")
         else:
             text = self._mock_review(sentiment)
 
@@ -70,17 +69,13 @@ class TextGenerator:
         statuses = ["open", "in_progress", "pending_customer", "resolved", "closed"]
 
         category = random.choice(categories)
-        priority = random.choices(
-            priorities, weights=[0.3, 0.4, 0.2, 0.1]
-        )[0]
+        priority = random.choices(priorities, weights=[0.3, 0.4, 0.2, 0.1])[0]
 
         if self.llm:
             subject = self._generate_with_llm(
                 f"Write a customer support ticket subject about {category}. Just the subject line, no other text."
             )
-            body = self._generate_with_llm(
-                f"Write a brief customer support message about {category}. 2-3 sentences."
-            )
+            body = self._generate_with_llm(f"Write a brief customer support message about {category}. 2-3 sentences.")
         else:
             subject = self._mock_ticket_subject(category)
             body = self._mock_ticket_body(category)
@@ -112,11 +107,13 @@ class TextGenerator:
             else:
                 content = self._mock_chat_message(role)
 
-            messages.append({
-                "role": role,
-                "content": content,
-                "timestamp": (self._random_datetime() + timedelta(minutes=i * 2)).isoformat(),
-            })
+            messages.append(
+                {
+                    "role": role,
+                    "content": content,
+                    "timestamp": (self._random_datetime() + timedelta(minutes=i * 2)).isoformat(),
+                }
+            )
 
         return {
             "conversation_id": str(uuid.uuid4()),

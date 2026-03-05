@@ -5,7 +5,6 @@ Linked from LLM-001 and DAT-001 via <!-- test: --> hooks.
 """
 
 import uuid
-from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
@@ -20,9 +19,7 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _make_user(email, tier=Tier.FREE, password="testpass123!", **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(
-        username=username, email=email, password=password, **kwargs
-    )
+    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -45,12 +42,8 @@ class ConversationLifecycleTest(TestCase):
         from chat.models import Conversation, Message
 
         conv = Conversation.objects.create(user=self.user, title="Test Chat")
-        msg1 = Message.objects.create(
-            conversation=conv, role="user", content="Hello, can you help me?"
-        )
-        msg2 = Message.objects.create(
-            conversation=conv, role="assistant", content="Of course! How can I help?"
-        )
+        Message.objects.create(conversation=conv, role="user", content="Hello, can you help me?")
+        Message.objects.create(conversation=conv, role="assistant", content="Of course! How can I help?")
 
         self.assertEqual(conv.messages.count(), 2)
         messages = list(conv.messages.order_by("created_at"))
@@ -62,10 +55,7 @@ class ConversationLifecycleTest(TestCase):
         from chat.models import Conversation, Message
 
         conv = Conversation.objects.create(user=self.user)
-        Message.objects.create(
-            conversation=conv, role="user",
-            content="What is the capability index for my process?"
-        )
+        Message.objects.create(conversation=conv, role="user", content="What is the capability index for my process?")
 
         conv.generate_title()
         conv.refresh_from_db()
@@ -74,7 +64,7 @@ class ConversationLifecycleTest(TestCase):
 
     def test_message_encrypted_fields(self):
         """Message content and reasoning_trace use encrypted fields."""
-        from chat.models import Message, Conversation
+        from chat.models import Conversation, Message
 
         conv = Conversation.objects.create(user=self.user, title="Encryption test")
         msg = Message.objects.create(
@@ -120,9 +110,7 @@ class UsageLogTest(TestCase):
         """First request creates usage log row for today."""
         from chat.models import UsageLog
 
-        log = UsageLog.log_request(
-            user=self.user, tokens_in=100, tokens_out=200, inference_ms=500
-        )
+        log = UsageLog.log_request(user=self.user, tokens_in=100, tokens_out=200, inference_ms=500)
         self.assertEqual(log.request_count, 1)
         self.assertEqual(log.tokens_input, 100)
         self.assertEqual(log.tokens_output, 200)
@@ -182,12 +170,16 @@ class ModelVersionTest(TestCase):
         from chat.models import ModelVersion
 
         v1 = ModelVersion.objects.create(
-            model_type="reasoner", name="reasoner-v1",
-            checkpoint_path="/models/v1", is_active=True,
+            model_type="reasoner",
+            name="reasoner-v1",
+            checkpoint_path="/models/v1",
+            is_active=True,
         )
         v2 = ModelVersion.objects.create(
-            model_type="reasoner", name="reasoner-v2",
-            checkpoint_path="/models/v2", is_active=False,
+            model_type="reasoner",
+            name="reasoner-v2",
+            checkpoint_path="/models/v2",
+            is_active=False,
         )
 
         v2.activate()
@@ -203,12 +195,16 @@ class ModelVersionTest(TestCase):
         from chat.models import ModelVersion
 
         r = ModelVersion.objects.create(
-            model_type="reasoner", name="reasoner-v1",
-            checkpoint_path="/models/r1", is_active=True,
+            model_type="reasoner",
+            name="reasoner-v1",
+            checkpoint_path="/models/r1",
+            is_active=True,
         )
         v = ModelVersion.objects.create(
-            model_type="verifier", name="verifier-v1",
-            checkpoint_path="/models/v1", is_active=True,
+            model_type="verifier",
+            name="verifier-v1",
+            checkpoint_path="/models/v1",
+            is_active=True,
         )
 
         # Both should remain active (different types)

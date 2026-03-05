@@ -2,7 +2,6 @@
 
 from ._datasets import SHARED_DATASET  # noqa: F401
 
-
 ML_SUPERVISED_CLASSIFICATION = {
     "id": "ml-supervised-classification",
     "title": "Classification: Predicting Categories",
@@ -15,7 +14,7 @@ ML_SUPERVISED_CLASSIFICATION = {
             "Start with just tenure_months — observe the decision boundary",
             "Add contract_type — watch accuracy jump but notice precision/recall tradeoff",
             "Try adding senior_citizen (a red herring) — see almost no improvement",
-            "Find the feature combination that maximizes F1 score"
+            "Find the feature combination that maximizes F1 score",
         ],
         "dsw_type": "stats:logistic",
         "dsw_config": {
@@ -93,7 +92,7 @@ Signs a feature is noise:
             ],
             "target": "churned",
             "threshold": 0.5,
-        }
+        },
     },
     "key_takeaways": [
         "Classification predicts categories by drawing decision boundaries between groups",
@@ -106,14 +105,14 @@ Signs a feature is noise:
         {
             "question": "A fraud detection model has 99.5% accuracy but only 10% recall. Is this model useful? Why or why not?",
             "answer": "No, it's nearly useless for its purpose. 10% recall means it catches only 1 in 10 fraud cases. The 99.5% accuracy is misleading because fraud is rare — the model is mostly just predicting 'not fraud' for everything. A model with 85% accuracy but 80% recall would be far more valuable.",
-            "hint": "Think about what the model's job is — catching fraud — and which metric measures that."
+            "hint": "Think about what the model's job is — catching fraud — and which metric measures that.",
         },
         {
             "question": "You're building a model to predict whether manufactured parts are defective. Should you optimize for precision or recall?",
             "answer": "Recall — missing a defective part (false negative) means shipping a bad product to customers, which is more costly than flagging a good part for re-inspection (false positive). You want to catch as many defective parts as possible.",
-            "hint": "Consider the cost of each type of error: missing a defective part vs. needlessly re-inspecting a good part."
-        }
-    ]
+            "hint": "Consider the cost of each type of error: missing a defective part vs. needlessly re-inspecting a good part.",
+        },
+    ],
 }
 
 
@@ -129,7 +128,7 @@ ML_SUPERVISED_REGRESSION = {
             "Push degree to 10 — watch the model contort itself to fit every point",
             "Compare training error vs test error at each complexity level",
             "Add regularization (increase lambda) — watch the overfitting smooth out",
-            "Find the sweet spot: enough complexity to capture signal, not noise"
+            "Find the sweet spot: enough complexity to capture signal, not noise",
         ],
         "dsw_type": "stats:regression",
         "dsw_config": {
@@ -200,7 +199,7 @@ $$\\hat{y} \\pm t_{\\alpha/2} \\cdot s \\cdot \\sqrt{1 + \\frac{1}{n} + \\frac{(
             "show_regularization": True,
             "show_train_test_split": True,
             "show_residuals": True,
-        }
+        },
     },
     "key_takeaways": [
         "More complex models fit training data better but may generalize worse",
@@ -213,14 +212,14 @@ $$\\hat{y} \\pm t_{\\alpha/2} \\cdot s \\cdot \\sqrt{1 + \\frac{1}{n} + \\frac{(
         {
             "question": "Your model has R²=0.99 on training data but R²=0.45 on test data. What's happening and what should you do?",
             "answer": "Classic overfitting — the model memorized training data instead of learning the pattern. Solutions: reduce model complexity (fewer features, lower polynomial degree), add regularization (Ridge/Lasso), get more training data, or use cross-validation to select hyperparameters.",
-            "hint": "The huge gap between training and test performance is the key diagnostic."
+            "hint": "The huge gap between training and test performance is the key diagnostic.",
         },
         {
             "question": "When would you choose Lasso over Ridge regression?",
             "answer": "When you suspect many features are irrelevant. Lasso drives coefficients to exactly zero (automatic feature selection), while Ridge only shrinks them toward zero. If you have 50 features but suspect only 5 matter, Lasso will identify them. Ridge is better when most features contribute at least somewhat.",
-            "hint": "Think about what L1 vs L2 penalty does to small coefficients."
-        }
-    ]
+            "hint": "Think about what L1 vs L2 penalty does to small coefficients.",
+        },
+    ],
 }
 
 
@@ -236,7 +235,7 @@ ML_UNSUPERVISED = {
             "Try k=4, k=5 — notice diminishing returns",
             "Toggle PCA on — see the 2D projection of all features",
             "Examine cluster profiles — what business meaning do they have?",
-            "Decide: how many segments actually make sense for this business?"
+            "Decide: how many segments actually make sense for this business?",
         ],
     },
     "content": """
@@ -310,7 +309,7 @@ A 3-cluster solution might be: "Price-sensitive short-term customers", "Loyal lo
             "show_pca": True,
             "show_silhouette": True,
             "show_elbow": True,
-        }
+        },
     },
     "key_takeaways": [
         "Clustering finds groups without labels — but you must judge if the groups are meaningful",
@@ -323,14 +322,14 @@ A 3-cluster solution might be: "Price-sensitive short-term customers", "Loyal lo
         {
             "question": "You run K-Means with k=2 through k=10. The silhouette score peaks at k=3 (0.62) and k=5 (0.58). Which should you choose?",
             "answer": "Start with k=3. Higher silhouette score means better-defined clusters, and fewer clusters are easier to interpret and act on. Only choose k=5 if domain knowledge suggests 5 distinct segments exist and the k=3 solution merges genuinely different groups. Simpler models that explain the data well should be preferred.",
-            "hint": "Consider both the silhouette scores and practical interpretability."
+            "hint": "Consider both the silhouette scores and practical interpretability.",
         },
         {
             "question": "PCA on your 15-feature dataset shows the first 3 components explain 85% of variance. Should you drop the other 12 dimensions?",
             "answer": "For visualization and exploration, yes — 3 components capturing 85% is excellent. For prediction, be more careful: the remaining 15% might contain signal relevant to your outcome. Try both and compare model performance. PCA is great for understanding structure but can discard useful information.",
-            "hint": "It depends on the goal — visualization vs prediction have different requirements."
-        }
-    ]
+            "hint": "It depends on the goal — visualization vs prediction have different requirements.",
+        },
+    ],
 }
 
 
@@ -346,7 +345,7 @@ ML_MODEL_VALIDATION = {
             "Switch to a decision tree with max_depth=20 (very complex)",
             "Notice: training accuracy is near-perfect but test accuracy varies wildly",
             "Reduce depth to 5 — find the sweet spot",
-            "Compare the bias-variance decomposition at each complexity level"
+            "Compare the bias-variance decomposition at each complexity level",
         ],
     },
     "content": """
@@ -415,7 +414,7 @@ Plot training and test error vs training set size:
             "show_learning_curve": True,
             "show_bias_variance": True,
             "complexity_levels": ["linear", "depth_3", "depth_5", "depth_10", "depth_20"],
-        }
+        },
     },
     "key_takeaways": [
         "Never evaluate a model on the data it was trained on — the result is meaningless",
@@ -428,14 +427,14 @@ Plot training and test error vs training set size:
         {
             "question": "Your 5-fold CV scores are [0.91, 0.68, 0.88, 0.72, 0.90]. Should you trust the average (0.82)?",
             "answer": "The average is concerning because of the high variance — scores range from 0.68 to 0.91. This signals an unstable model. Two folds (0.68 and 0.72) are much worse, possibly because those folds contained data from a different subpopulation. Investigate what's different about the low-scoring folds before trusting any single number. The model may need simplification or the data may have heterogeneous subgroups.",
-            "hint": "Look at the spread, not just the mean. What does high fold-to-fold variance indicate?"
+            "hint": "Look at the spread, not just the mean. What does high fold-to-fold variance indicate?",
         },
         {
             "question": "You tune hyperparameters using 5-fold CV and get accuracy of 0.87. You then report this as your model's expected performance. What's wrong?",
             "answer": "Information leakage. You selected the hyperparameters that gave the best 5-fold CV score, so that score is optimistically biased — it's the best of many tries. You need nested CV: an inner loop to select hyperparameters and an outer loop to estimate true performance. The true out-of-sample performance is typically 2-5% lower than the number you'd report.",
-            "hint": "Think about what happens when you pick the best of many options based on the same data."
-        }
-    ]
+            "hint": "Think about what happens when you pick the best of many options based on the same data.",
+        },
+    ],
 }
 
 
@@ -451,7 +450,7 @@ ML_FEATURE_ENGINEERING = {
             "Bin tenure into categories (new/mid/veteran) — compare to raw tenure for classification",
             "Create an interaction feature: tenure × monthly_charges — see if it captures something new",
             "One-hot encode contract_type — compare to ordinal encoding",
-            "Compare model performance before and after engineering"
+            "Compare model performance before and after engineering",
         ],
     },
     "content": """
@@ -515,7 +514,7 @@ Adding features isn't always better. Irrelevant features:
             "encodings": ["one_hot", "ordinal", "target"],
             "show_distribution_before_after": True,
             "show_model_comparison": True,
-        }
+        },
     },
     "key_takeaways": [
         "Feature engineering is often more impactful than choosing a fancier algorithm",
@@ -528,14 +527,14 @@ Adding features isn't always better. Irrelevant features:
         {
             "question": "You have a 'zip_code' column with 500 unique values. How should you encode it for a model?",
             "answer": "One-hot encoding would create 500 sparse columns — too many. Better options: (1) Target encoding — replace each zip with the mean of the target variable (with smoothing to avoid overfitting), (2) Group into regions (state, metro area) and one-hot encode those, or (3) Extract features from zip codes (median income, population density) that might actually predict the outcome.",
-            "hint": "One-hot encoding with 500 categories creates a very wide, sparse matrix."
+            "hint": "One-hot encoding with 500 categories creates a very wide, sparse matrix.",
         },
         {
             "question": "Your model uses raw income (range $20K-$500K) and age (range 18-80). Should you standardize?",
             "answer": "It depends on the algorithm. For distance-based methods (K-means, KNN, SVM) or regularized regression (Ridge, Lasso): yes, absolutely — income's large scale would dominate. For tree-based methods (Random Forest, XGBoost): no need — they split on individual features and are scale-invariant. For neural networks: standardization helps gradient descent converge faster.",
-            "hint": "Consider whether the algorithm is sensitive to feature scale."
-        }
-    ]
+            "hint": "Consider whether the algorithm is sensitive to feature scale.",
+        },
+    ],
 }
 
 
@@ -551,7 +550,7 @@ ML_ENSEMBLE_METHODS = {
             "Increase to 100 trees — diminishing returns but even more stable",
             "Switch to boosting — see bias decrease as each tree corrects the previous",
             "Compare: Random Forest vs Boosted Trees vs single tree on test accuracy",
-            "Examine: which approach wins, and why?"
+            "Examine: which approach wins, and why?",
         ],
     },
     "content": """
@@ -629,7 +628,7 @@ If the CI includes zero, the models are statistically indistinguishable. Don't a
             "show_ensemble_prediction": True,
             "show_variance_across_folds": True,
             "show_bias_variance_decomposition": True,
-        }
+        },
     },
     "key_takeaways": [
         "Ensembles combine many weak models into one strong model by canceling out individual errors",
@@ -642,14 +641,14 @@ If the CI includes zero, the models are statistically indistinguishable. Don't a
         {
             "question": "Your single decision tree has high training accuracy (95%) but poor test accuracy (72%). Would you try bagging or boosting?",
             "answer": "Bagging (Random Forest). The large gap between training and test accuracy indicates high variance (overfitting). Bagging reduces variance by averaging many trees trained on different bootstrap samples. Boosting would likely make overfitting worse since it reduces bias (which isn't the problem here).",
-            "hint": "What kind of error does the model have — high bias or high variance?"
+            "hint": "What kind of error does the model have — high bias or high variance?",
         },
         {
             "question": "You've trained a Random Forest with 500 trees. Adding more trees to 2000 improves training score slightly but test score stays the same. What's happening?",
             "answer": "Diminishing returns — Random Forest is already close to optimal for this data. More trees reduce variance further, but the variance was already low at 500 trees. The remaining error is either bias (the model can't capture the true relationship) or irreducible noise. To improve further, you'd need better features, more data, or a different algorithm (try gradient boosting to reduce bias).",
-            "hint": "After a certain point, adding trees only reduces variance marginally."
-        }
-    ]
+            "hint": "After a certain point, adding trees only reduces variance marginally.",
+        },
+    ],
 }
 
 
@@ -664,7 +663,7 @@ ML_INTERPRETABILITY = {
             "Pick a specific customer and see the SHAP-style contribution of each feature",
             "Find a customer where the model says 'high churn risk' — which features push the prediction up?",
             "Compare two similar customers with different predictions — what's the key difference?",
-            "Toggle features off one at a time — which single removal changes predictions most?"
+            "Toggle features off one at a time — which single removal changes predictions most?",
         ],
     },
     "content": """
@@ -748,9 +747,16 @@ Often the accuracy difference is small (1-3%), and an interpretable model you tr
             "show_individual_explanation": True,
             "show_feature_toggle": True,
             "show_partial_dependence": True,
-            "features": ["tenure_months", "monthly_charges", "contract_type", "tech_support", "num_tickets", "internet_service"],
+            "features": [
+                "tenure_months",
+                "monthly_charges",
+                "contract_type",
+                "tech_support",
+                "num_tickets",
+                "internet_service",
+            ],
             "target": "churned",
-        }
+        },
     },
     "key_takeaways": [
         "Interpretability catches model bugs, builds trust, and satisfies regulatory requirements",
@@ -763,12 +769,12 @@ Often the accuracy difference is small (1-3%), and an interpretable model you tr
         {
             "question": "A SHAP analysis shows 'customer_id' has the highest importance in your churn model. What should you do?",
             "answer": "This is a red flag — customer_id has no real predictive power. The model is memorizing individual customers rather than learning patterns. This signals data leakage or severe overfitting. Remove customer_id from features immediately and retrain. This is exactly why interpretability matters: it caught a serious bug that accuracy metrics alone would miss.",
-            "hint": "Should a random identifier have predictive power? What does it mean if it does?"
+            "hint": "Should a random identifier have predictive power? What does it mean if it does?",
         },
         {
             "question": "Your manager wants to know why the model predicted a specific customer as 'high churn risk.' What interpretability method would you use?",
             "answer": "SHAP values for that individual customer. SHAP provides local explanations — it shows exactly how much each feature pushed the prediction up or down from the baseline. For example: 'Baseline churn probability is 27%. This customer's month-to-month contract adds +18%, their 3-month tenure adds +12%, but their low ticket count subtracts -5%, resulting in a 52% churn prediction.' This is concrete and actionable.",
-            "hint": "You need local (individual prediction) interpretability, not global."
-        }
-    ]
+            "hint": "You need local (individual prediction) interpretability, not global.",
+        },
+    ],
 }

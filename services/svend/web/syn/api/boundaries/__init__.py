@@ -67,22 +67,25 @@ __standard__ = "SRX-001"
 # Context (SRX-001 §3.3)
 # =============================================================================
 
+# =============================================================================
+# Boundary (SRX-001 §5)
+# =============================================================================
+from syn.api.boundaries.base import SerializerBoundary
 from syn.api.boundaries.context import BoundaryContext
 
 # =============================================================================
 # Exceptions (SRX-001 §7)
 # =============================================================================
-
 from syn.api.boundaries.exceptions import (
+    BoundaryConfigurationError,
     # Base
     BoundaryError,
-    BoundaryConfigurationError,
     # Validation
     BoundaryValidationError,
-    IOContractViolationError,
     # Governance
     GovernanceBlockedError,
     GovernanceEscalatedError,
+    IOContractViolationError,
     # Persistence
     PersistenceError,
 )
@@ -90,18 +93,11 @@ from syn.api.boundaries.exceptions import (
 # =============================================================================
 # Registry (SRX-001 §6, IO-001 §8)
 # =============================================================================
-
 from syn.api.boundaries.registry import (
     IOContract,
     IOContractRegistry,
     io_contract,
 )
-
-# =============================================================================
-# Boundary (SRX-001 §5)
-# =============================================================================
-
-from syn.api.boundaries.base import SerializerBoundary
 
 # =============================================================================
 # Public API

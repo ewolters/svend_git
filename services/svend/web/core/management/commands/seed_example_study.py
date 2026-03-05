@@ -19,8 +19,8 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from core.models.project import Project
 from core.models.hypothesis import Evidence, EvidenceLink, Hypothesis
+from core.models.project import Project
 
 User = get_user_model()
 
@@ -53,17 +53,13 @@ class Command(BaseCommand):
 
         # Clean up previous example if requested
         if options["clean"]:
-            deleted, _ = Project.objects.filter(
-                title=EXAMPLE_TITLE, user=user
-            ).delete()
+            deleted, _ = Project.objects.filter(title=EXAMPLE_TITLE, user=user).delete()
             if deleted:
                 self.stdout.write(self.style.WARNING(f"Deleted {deleted} previous example object(s)."))
 
         # Check for existing
         if Project.objects.filter(title=EXAMPLE_TITLE, user=user).exists():
-            self.stdout.write(self.style.WARNING(
-                "Example study already exists. Use --clean to recreate."
-            ))
+            self.stdout.write(self.style.WARNING("Example study already exists. Use --clean to recreate."))
             return
 
         # =====================================================================
@@ -92,7 +88,6 @@ class Command(BaseCommand):
                     "notes": "Hypotheses formed, statistical analysis underway",
                 },
             ],
-
             # Problem Definition (5W2H)
             problem_whats=[
                 "Flash defects on injection-molded housing assemblies",
@@ -120,7 +115,6 @@ class Command(BaseCommand):
                 "~240 affected parts per week. The problem was first observed on "
                 "Shift B but has since spread to both shifts."
             ),
-
             # Business Impact
             impact_financial=(
                 "Scrap cost: $18/part x 240 parts/week = $4,320/week. "
@@ -137,10 +131,8 @@ class Command(BaseCommand):
                 "Process is not capable. SPC charts showing out-of-control signals."
             ),
             impact_delivery=(
-                "Sorting and rework adding 0.5 days to lead time. "
-                "2 late shipments last week due to rework queue."
+                "Sorting and rework adding 0.5 days to lead time. 2 late shipments last week due to rework queue."
             ),
-
             # Goal Statement
             goal_statement=(
                 "Reduce flash defect rate on part HX-4200 from 4.8% to below 1.0% "
@@ -151,7 +143,6 @@ class Command(BaseCommand):
             goal_target="< 1.0%",
             goal_unit="%",
             goal_deadline=date.today() + timedelta(days=21),
-
             # Scope
             scope_in=[
                 "Line 4, Station 3 (Engel 500T press)",
@@ -174,7 +165,6 @@ class Command(BaseCommand):
                 "Material spec has not changed from supplier",
                 "Mold maintenance records are accurate",
             ],
-
             # Team
             champion_name="Sarah Chen",
             champion_title="VP of Manufacturing",
@@ -186,7 +176,6 @@ class Command(BaseCommand):
                 {"name": "Priya Sharma", "role": "Data Analyst", "department": "Quality"},
                 {"name": "James O'Brien", "role": "Shift B Lead", "department": "Production"},
             ],
-
             # Timeline
             target_completion=date.today() + timedelta(days=21),
             milestones=[
@@ -215,7 +204,6 @@ class Command(BaseCommand):
                     "status": "planned",
                 },
             ],
-
             domain="manufacturing",
             can_experiment=True,
             tags=["injection-molding", "flash-defect", "DMAIC", "SPC", "customer-return"],
@@ -278,8 +266,7 @@ class Command(BaseCommand):
             if_clause="the resin material lot has excessive moisture content",
             then_clause="flash will increase",
             because_clause=(
-                "water vaporization during injection creates gas pressure that "
-                "forces material past the parting line"
+                "water vaporization during injection creates gas pressure that forces material past the parting line"
             ),
             independent_variable="Resin Moisture Content",
             independent_var_values=["0.02% (spec max)", "current lot TBD"],
@@ -298,8 +285,7 @@ class Command(BaseCommand):
                 "3. If high, run trial with properly dried material."
             ),
             success_criteria=(
-                "Confirm: Moisture >0.02% AND flash rate drops with dried material. "
-                "Refute: Moisture within spec."
+                "Confirm: Moisture >0.02% AND flash rate drops with dried material. Refute: Moisture within spec."
             ),
             prior_probability=0.35,
             current_probability=0.35,
@@ -319,8 +305,7 @@ class Command(BaseCommand):
             if_clause="mold cavity wear at the parting line has exceeded tolerance",
             then_clause="flash will progressively worsen",
             because_clause=(
-                "the parting line seal surface can no longer contain material "
-                "under normal injection pressure"
+                "the parting line seal surface can no longer contain material under normal injection pressure"
             ),
             independent_variable="Parting Line Wear (gap)",
             independent_var_values=["0.00mm (new)", "0.05mm (max spec)", "TBD (current)"],
@@ -383,8 +368,7 @@ class Command(BaseCommand):
         e2 = Evidence.objects.create(
             project=project,
             summary=(
-                "Resin moisture test: 0.008% — well within spec (<0.02%). "
-                "Dryer dew point logs normal for past 4 weeks."
+                "Resin moisture test: 0.008% — well within spec (<0.02%). Dryer dew point logs normal for past 4 weeks."
             ),
             details=(
                 "Karl Fischer titration on current resin lot #R2026-0127. "

@@ -9,7 +9,7 @@ import os
 
 from django.core.management.base import BaseCommand
 
-from core.encryption import encrypt_bytes, decrypt_bytes
+from core.encryption import encrypt_bytes
 from files.models import UserFile
 
 
@@ -62,6 +62,4 @@ class Command(BaseCommand):
                 errors += 1
                 self.stderr.write(f"  Error processing {uf.original_name}: {e}")
 
-        self.stdout.write(
-            f"\nDone: {encrypted} encrypted, {skipped} skipped, {errors} errors"
-        )
+        self.stdout.write(f"\nDone: {encrypted} encrypted, {skipped} skipped, {errors} errors")

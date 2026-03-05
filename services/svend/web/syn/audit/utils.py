@@ -4,10 +4,15 @@ Audit logging utilities for structured log entry creation.
 Compliance: SOC 2 CC7.2 / ISO 27001 A.12.7
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ValidationError
+
+if TYPE_CHECKING:
+    from syn.audit.models import IntegrityViolation, SysLogEntry
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +21,8 @@ def generate_entry(
     tenant_id: str,
     actor: str,
     event_name: str,
-    payload: Optional[Dict[str, Any]] = None,
-    correlation_id: Optional[str] = None,
+    payload: dict[str, Any] | None = None,
+    correlation_id: str | None = None,
 ) -> "SysLogEntry":
     """
     Generate a tamper-proof audit log entry.
@@ -66,7 +71,7 @@ def generate_entry(
         # Save triggers hash computation and chain linkage
         entry.save()
 
-        logger.debug(f"Audit entry created: {event_name} by {actor} " f"(chain: {entry.current_hash[:8]}...)")
+        logger.debug(f"Audit entry created: {event_name} by {actor} (chain: {entry.current_hash[:8]}...)")
 
         # TD-AUD-EVENTS-001: FIXED 2025-12-26
         # Event emission now works because audit.* events are short-circuited
@@ -80,7 +85,7 @@ def generate_entry(
         raise ValidationError(f"Failed to create audit log entry: {e}")
 
 
-def verify_chain_integrity(tenant_id: str) -> Dict[str, Any]:
+def verify_chain_integrity(tenant_id: str) -> dict[str, Any]:
     """
     Verify the integrity of the entire audit log chain for a tenant.
 
@@ -191,7 +196,7 @@ def verify_chain_integrity(tenant_id: str) -> Dict[str, Any]:
 
 
 def record_integrity_violation(
-    tenant_id: str, violation_type: str, entry_id: Optional[int] = None, details: Optional[Dict[str, Any]] = None
+    tenant_id: str, violation_type: str, entry_id: int | None = None, details: dict[str, Any] | None = None
 ) -> "IntegrityViolation":
     """
     Record a detected integrity violation.
@@ -221,9 +226,9 @@ def record_integrity_violation(
         # Emit audit events per AUD-001 §8
         try:
             from syn.audit.events import (
-                emit_audit_event,
-                build_integrity_violation_payload,
                 build_governance_integrity_violation_payload,
+                build_integrity_violation_payload,
+                emit_audit_event,
             )
 
             # Emit integrity violation event
@@ -245,7 +250,7 @@ def record_integrity_violation(
                 tenant_id=tenant_id,
             )
 
-            logger.critical(f"Audit integrity violation detected: {violation_type} " f"for tenant {tenant_id}")
+            logger.critical(f"Audit integrity violation detected: {violation_type} for tenant {tenant_id}")
 
         except Exception as e:
             logger.error(f"Failed to emit violation event: {e}")
@@ -259,9 +264,9 @@ def record_integrity_violation(
 
 def get_audit_trail(
     tenant_id: str,
-    event_name: Optional[str] = None,
-    actor: Optional[str] = None,
-    correlation_id: Optional[str] = None,
+    event_name: str | None = None,
+    actor: str | None = None,
+    correlation_id: str | None = None,
     limit: int = 100,
 ) -> list:
     """

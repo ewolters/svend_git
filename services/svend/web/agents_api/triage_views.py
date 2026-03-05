@@ -3,16 +3,14 @@
 import io
 import json
 import logging
-import tempfile
-import time
 import uuid
-from datetime import datetime
 
-from django.http import JsonResponse, HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated, require_auth
-from .models import TriageResult, AgentLog
+
+from .models import AgentLog, TriageResult
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +18,9 @@ logger = logging.getLogger(__name__)
 def _read_csv_safe(file_or_path):
     """Read CSV with encoding fallback: UTF-8 → latin-1."""
     import io
+
     import pandas as pd
+
     if hasattr(file_or_path, "read"):
         raw = file_or_path.read()
         try:
@@ -77,8 +77,7 @@ def triage_clean(request):
         return JsonResponse({"error": "Invalid config JSON"}, status=400)
 
     try:
-        import pandas as pd
-        from scrub import DataCleaner, CleaningConfig
+        from scrub import CleaningConfig, DataCleaner
 
         # Read CSV
         df = _read_csv_safe(uploaded_file)
@@ -135,23 +134,25 @@ def triage_clean(request):
         # Track usage
         request.user.increment_queries()
 
-        return JsonResponse({
-            "success": True,
-            "job_id": job_id,
-            "summary": result.to_dict(),
-            "report": result.to_markdown(),
-            "preview": {
-                "original_rows": result.original_shape[0],
-                "original_cols": result.original_shape[1],
-                "cleaned_rows": result.cleaned_shape[0],
-                "cleaned_cols": result.cleaned_shape[1],
-            },
-            "outliers_flagged": result.outliers.count if result.outliers else 0,
-            "missing_filled": result.missing.total_filled if result.missing else 0,
-            "columns_dropped": result.missing.columns_dropped if result.missing else [],
-            "rows_dropped": result.missing.rows_dropped if result.missing else 0,
-            "warnings": result.warnings,
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "job_id": job_id,
+                "summary": result.to_dict(),
+                "report": result.to_markdown(),
+                "preview": {
+                    "original_rows": result.original_shape[0],
+                    "original_cols": result.original_shape[1],
+                    "cleaned_rows": result.cleaned_shape[0],
+                    "cleaned_cols": result.cleaned_shape[1],
+                },
+                "outliers_flagged": result.outliers.count if result.outliers else 0,
+                "missing_filled": result.missing.total_filled if result.missing else 0,
+                "columns_dropped": result.missing.columns_dropped if result.missing else [],
+                "rows_dropped": result.missing.rows_dropped if result.missing else 0,
+                "warnings": result.warnings,
+            }
+        )
 
     except Exception as e:
         logger.exception(f"Triage error: {e}")
@@ -210,8 +211,7 @@ def triage_preview(request):
     uploaded_file = request.FILES["file"]
 
     try:
-        import pandas as pd
-        from scrub import OutlierDetector, MissingHandler, TypeInferrer
+        from scrub import OutlierDetector, TypeInferrer
         from scrub.outliers import OutlierMethod
 
         # Read CSV
@@ -253,11 +253,13 @@ def triage_preview(request):
             inferred = inferrer._infer_type(df[col])
             actual = str(df[col].dtype)
             if inferred != actual and inferred != "object":
-                issues["type_issues"].append({
-                    "column": col,
-                    "current": actual,
-                    "suggested": inferred,
-                })
+                issues["type_issues"].append(
+                    {
+                        "column": col,
+                        "current": actual,
+                        "suggested": inferred,
+                    }
+                )
 
         # Detect potential biases
         bias_warnings = _detect_data_biases(df)
@@ -265,12 +267,14 @@ def triage_preview(request):
         # Track query usage
         request.user.increment_queries()
 
-        return JsonResponse({
-            "success": True,
-            "issues": issues,
-            "bias_warnings": bias_warnings,
-            "recommendations": _generate_recommendations(issues, bias_warnings),
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "issues": issues,
+                "bias_warnings": bias_warnings,
+                "recommendations": _generate_recommendations(issues, bias_warnings),
+            }
+        )
 
     except Exception as e:
         logger.exception(f"Triage validation error: {e}")
@@ -290,9 +294,22 @@ def _detect_data_biases(df) -> list:
 
     # Protected/sensitive column patterns
     sensitive_patterns = [
-        "gender", "sex", "race", "ethnicity", "religion", "age",
-        "disability", "marital", "nationality", "origin", "zip", "zipcode",
-        "postal", "income", "salary", "neighborhood",
+        "gender",
+        "sex",
+        "race",
+        "ethnicity",
+        "religion",
+        "age",
+        "disability",
+        "marital",
+        "nationality",
+        "origin",
+        "zip",
+        "zipcode",
+        "postal",
+        "income",
+        "salary",
+        "neighborhood",
     ]
 
     # Check for sensitive columns
@@ -300,38 +317,42 @@ def _detect_data_biases(df) -> list:
         col_lower = col.lower().replace("_", " ").replace("-", " ")
         for pattern in sensitive_patterns:
             if pattern in col_lower:
-                warnings.append({
-                    "type": "sensitive_feature",
-                    "column": col,
-                    "message": f"'{col}' may contain sensitive/protected information. "
-                               f"Consider whether it should be used in modeling, "
-                               f"or if it could serve as a proxy for discrimination.",
-                    "severity": "high",
-                })
+                warnings.append(
+                    {
+                        "type": "sensitive_feature",
+                        "column": col,
+                        "message": f"'{col}' may contain sensitive/protected information. "
+                        f"Consider whether it should be used in modeling, "
+                        f"or if it could serve as a proxy for discrimination.",
+                        "severity": "high",
+                    }
+                )
                 break
 
     # Check for class imbalance in categorical columns
     for col in df.columns:
-        if df[col].dtype in ['object', 'bool', 'category'] or df[col].nunique() <= 10:
+        if df[col].dtype in ["object", "bool", "category"] or df[col].nunique() <= 10:
             if df[col].nunique() >= 2:
                 value_counts = df[col].value_counts(normalize=True)
                 max_ratio = value_counts.iloc[0]
                 min_ratio = value_counts.iloc[-1]
                 if max_ratio > 0.9:
-                    warnings.append({
-                        "type": "class_imbalance",
-                        "column": col,
-                        "message": f"'{col}' has severe class imbalance "
-                                   f"({max_ratio:.1%} majority vs {min_ratio:.1%} minority). "
-                                   f"Models may be biased toward the majority class.",
-                        "severity": "medium",
-                    })
+                    warnings.append(
+                        {
+                            "type": "class_imbalance",
+                            "column": col,
+                            "message": f"'{col}' has severe class imbalance "
+                            f"({max_ratio:.1%} majority vs {min_ratio:.1%} minority). "
+                            f"Models may be biased toward the majority class.",
+                            "severity": "medium",
+                        }
+                    )
 
     # Check for correlated missing data (systematic collection bias)
     missing_cols = df.columns[df.isnull().any()].tolist()
     if len(missing_cols) > 1:
         for i, col1 in enumerate(missing_cols[:5]):  # Limit checks
-            for col2 in missing_cols[i+1:i+4]:
+            for col2 in missing_cols[i + 1 : i + 4]:
                 both_missing = (df[col1].isnull() & df[col2].isnull()).mean()
                 col1_missing = df[col1].isnull().mean()
                 col2_missing = df[col2].isnull().mean()
@@ -339,13 +360,15 @@ def _detect_data_biases(df) -> list:
 
                 if col1_missing > 0 and col2_missing > 0:
                     if both_missing > 2 * expected and both_missing > 0.05:
-                        warnings.append({
-                            "type": "correlated_missing",
-                            "columns": [col1, col2],
-                            "message": f"Missing data in '{col1}' and '{col2}' are correlated. "
-                                       f"This could indicate systematic bias in data collection.",
-                            "severity": "medium",
-                        })
+                        warnings.append(
+                            {
+                                "type": "correlated_missing",
+                                "columns": [col1, col2],
+                                "message": f"Missing data in '{col1}' and '{col2}' are correlated. "
+                                f"This could indicate systematic bias in data collection.",
+                                "severity": "medium",
+                            }
+                        )
 
     return warnings
 
@@ -360,17 +383,19 @@ def list_datasets(request):
     """
     datasets = TriageResult.objects.filter(user=request.user).order_by("-created_at")[:20]
 
-    return JsonResponse({
-        "datasets": [
-            {
-                "id": d.id,
-                "filename": d.original_filename,
-                "created_at": d.created_at.isoformat(),
-                "summary": json.loads(d.summary_json) if d.summary_json else {},
-            }
-            for d in datasets
-        ]
-    })
+    return JsonResponse(
+        {
+            "datasets": [
+                {
+                    "id": d.id,
+                    "filename": d.original_filename,
+                    "created_at": d.created_at.isoformat(),
+                    "summary": json.loads(d.summary_json) if d.summary_json else {},
+                }
+                for d in datasets
+            ]
+        }
+    )
 
 
 @require_http_methods(["GET"])
@@ -389,9 +414,10 @@ def load_dataset(request, job_id):
         return JsonResponse({"error": "Dataset not found"}, status=404)
 
     try:
-        import pandas as pd
-        import numpy as np
         from io import StringIO
+
+        import numpy as np
+        import pandas as pd
 
         # Parse the stored CSV
         df = pd.read_csv(StringIO(result.cleaned_csv))
@@ -407,10 +433,12 @@ def load_dataset(request, job_id):
             else:
                 col_type = "text"
 
-            columns.append({
-                "name": col,
-                "dtype": col_type,
-            })
+            columns.append(
+                {
+                    "name": col,
+                    "dtype": col_type,
+                }
+            )
 
         # Generate preview (first 100 rows)
         preview = df.head(100).replace({np.nan: None}).to_dict(orient="records")
@@ -418,32 +446,40 @@ def load_dataset(request, job_id):
         # Preload LLM in background for Analysis Workbench assistant
         _preload_llm_background()
 
-        return JsonResponse({
-            "id": job_id,
-            "filename": result.original_filename,
-            "rows": len(df),
-            "columns": columns,
-            "preview": preview,
-        })
+        return JsonResponse(
+            {
+                "id": job_id,
+                "filename": result.original_filename,
+                "rows": len(df),
+                "columns": columns,
+                "preview": preview,
+            }
+        )
 
     except Exception as e:
         logger.exception(f"Dataset load error: {e}")
-        return JsonResponse({"error": "Dataset load failed. Please verify the file is valid and try again."}, status=500)
+        return JsonResponse(
+            {"error": "Dataset load failed. Please verify the file is valid and try again."}, status=500
+        )
 
 
 def _preload_llm_background():
     """Start loading the LLM in a background thread if not already loaded."""
     import threading
+
     try:
         from . import views as agent_views
+
         if not agent_views._shared_llm_loaded:
             logger.info("Preloading LLM in background (triage data loaded)")
+
             def load():
                 try:
                     agent_views.get_shared_llm()
                     logger.info("LLM preload completed")
                 except Exception as e:
                     logger.error(f"LLM preload failed: {e}")
+
             threading.Thread(target=load, daemon=True).start()
     except Exception as e:
         logger.warning(f"Could not trigger LLM preload: {e}")
@@ -460,23 +496,24 @@ def _generate_recommendations(issues: dict, bias_warnings: list = None) -> list[
 
         if sensitive:
             cols = [w["column"] for w in sensitive]
-            recs.append(f"⚠️ BIAS ALERT: Sensitive features detected ({', '.join(cols[:3])}). "
-                       f"Review whether these should be used in modeling.")
+            recs.append(
+                f"⚠️ BIAS ALERT: Sensitive features detected ({', '.join(cols[:3])}). "
+                f"Review whether these should be used in modeling."
+            )
 
         if imbalanced:
             cols = [w["column"] for w in imbalanced]
-            recs.append(f"⚠️ Class imbalance in {', '.join(cols[:3])}. "
-                       f"Consider SMOTE, class weights, or stratified sampling.")
+            recs.append(
+                f"⚠️ Class imbalance in {', '.join(cols[:3])}. Consider SMOTE, class weights, or stratified sampling."
+            )
 
     # Missing data recommendations
     if issues["missing"]:
-        high_missing = [col for col, data in issues["missing"].items()
-                       if data["percent"] > 50]
+        high_missing = [col for col, data in issues["missing"].items() if data["percent"] > 50]
         if high_missing:
             recs.append(f"Consider dropping columns with >50% missing: {', '.join(high_missing)}")
 
-        low_missing = [col for col, data in issues["missing"].items()
-                      if data["percent"] <= 50]
+        low_missing = [col for col, data in issues["missing"].items() if data["percent"] <= 50]
         if low_missing:
             recs.append(f"Imputation recommended for: {', '.join(low_missing[:5])}")
 

@@ -14,11 +14,10 @@ from django.conf import settings
 from django.test import SimpleTestCase
 
 from syn.audit.compliance import (
-    ALL_CHECKS,
     _CACHE_MEMORY_BOUNDS,
     _CACHE_REQUIRED_MIDDLEWARE,
     _CACHE_WHITENOISE_MIDDLEWARE,
-    _CACHE_WHITENOISE_STORAGE,
+    ALL_CHECKS,
     _check_cache_cdn_versions,
     _check_cache_idempotency_ttl,
     _check_cache_memory_bounds,
@@ -36,7 +35,8 @@ class CacheMiddlewareTest(SimpleTestCase):
         """NoCacheDynamicMiddleware is in MIDDLEWARE."""
         middleware = settings.MIDDLEWARE
         self.assertIn(
-            _CACHE_REQUIRED_MIDDLEWARE, middleware,
+            _CACHE_REQUIRED_MIDDLEWARE,
+            middleware,
             "NoCacheDynamicMiddleware missing from MIDDLEWARE",
         )
 
@@ -48,7 +48,8 @@ class CacheMiddlewareTest(SimpleTestCase):
     def test_whitenoise_present(self):
         """WhiteNoiseMiddleware is in MIDDLEWARE."""
         self.assertIn(
-            _CACHE_WHITENOISE_MIDDLEWARE, settings.MIDDLEWARE,
+            _CACHE_WHITENOISE_MIDDLEWARE,
+            settings.MIDDLEWARE,
             "WhiteNoiseMiddleware missing from MIDDLEWARE",
         )
 
@@ -80,6 +81,7 @@ class AppCacheTest(SimpleTestCase):
     def test_idempotency_ttl_value(self):
         """Idempotency TTL is 24 hours."""
         from syn.api.middleware import IDEMPOTENCY_TTL_HOURS
+
         self.assertEqual(IDEMPOTENCY_TTL_HOURS, 24)
 
 
@@ -89,24 +91,28 @@ class MemoryCacheTest(SimpleTestCase):
     def test_dsw_cache_has_bounds(self):
         """DSW model cache has MODEL_CACHE_MAX_SIZE constant."""
         from agents_api.dsw_views import MODEL_CACHE_MAX_SIZE
+
         self.assertGreater(MODEL_CACHE_MAX_SIZE, 0)
         self.assertLessEqual(MODEL_CACHE_MAX_SIZE, 500)
 
     def test_spc_cache_has_bounds(self):
         """SPC data cache has _CACHE_MAX_SIZE constant."""
         from agents_api.spc_views import _CACHE_MAX_SIZE
+
         self.assertGreater(_CACHE_MAX_SIZE, 0)
         self.assertLessEqual(_CACHE_MAX_SIZE, 1000)
 
     def test_synara_cache_has_bounds(self):
         """Synara cache has _SYNARA_CACHE_MAX constant."""
         from agents_api.synara_views import _SYNARA_CACHE_MAX
+
         self.assertGreater(_SYNARA_CACHE_MAX, 0)
         self.assertLessEqual(_SYNARA_CACHE_MAX, 500)
 
     def test_interview_cache_has_bounds(self):
         """Interview cache has _INTERVIEW_CACHE_MAX constant."""
         from agents_api.problem_views import _INTERVIEW_CACHE_MAX
+
         self.assertGreater(_INTERVIEW_CACHE_MAX, 0)
         self.assertLessEqual(_INTERVIEW_CACHE_MAX, 500)
 
@@ -148,6 +154,7 @@ class LRUCacheTest(SimpleTestCase):
     def test_lru_caches_have_maxsize(self):
         """Known @lru_cache usages have explicit maxsize parameter."""
         import re
+
         files = [
             WEB_ROOT / "svend_config" / "config.py",
             WEB_ROOT / "syn" / "core" / "config.py",
@@ -161,6 +168,7 @@ class LRUCacheTest(SimpleTestCase):
     def test_no_unbounded_lru_cache(self):
         """No @lru_cache() with maxsize=None (unbounded) in core files."""
         import re
+
         for f in WEB_ROOT.glob("**/*.py"):
             if ".venv" in str(f) or "site-packages" in str(f):
                 continue
@@ -178,6 +186,7 @@ class BrowserStorageTest(SimpleTestCase):
     def test_localstorage_no_auth_tokens(self):
         """localStorage.setItem calls do not store auth tokens or passwords."""
         import re
+
         base_app = (WEB_ROOT / "templates" / "base_app.html").read_text()
         setitems = re.findall(r"localStorage\.setItem\(['\"](\w+)['\"]", base_app)
         forbidden = {"token", "jwt", "session_id", "password", "api_key"}
@@ -187,6 +196,7 @@ class BrowserStorageTest(SimpleTestCase):
     def test_sessionstorage_no_secrets(self):
         """sessionStorage does not store secrets."""
         import re
+
         for tpl in (WEB_ROOT / "templates").glob("*.html"):
             src = tpl.read_text()
             setitems = re.findall(r"sessionStorage\.setItem\(['\"](\w+)['\"]", src)

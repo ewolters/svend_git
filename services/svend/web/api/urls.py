@@ -145,6 +145,12 @@ urlpatterns = [
     path("internal/changes/<uuid:change_id>/", internal_views.api_change_detail, name="internal_change_detail"),
     path("internal/changes/<uuid:change_id>/transition/", internal_views.api_change_transition, name="internal_change_transition"),
 
+    # Incident Management (staff-only, INC-001)
+    path("internal/incidents/", internal_views.api_incident_list, name="internal_incidents"),
+    path("internal/incidents/create/", internal_views.api_incident_create, name="internal_incident_create"),
+    path("internal/incidents/<uuid:incident_id>/", internal_views.api_incident_detail, name="internal_incident_detail"),
+    path("internal/incidents/<uuid:incident_id>/transition/", internal_views.api_incident_transition, name="internal_incident_transition"),
+
     # Standards library
     path("internal/standards/", internal_views.api_standards, name="internal_standards"),
 

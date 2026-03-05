@@ -25,8 +25,9 @@ Usage:
 
 import json
 import logging
+from collections.abc import Callable
 from datetime import timedelta
-from typing import Any, Callable, Optional
+from typing import Any
 
 from django.db import models
 from django.utils import timezone
@@ -47,9 +48,9 @@ class SessionCache:
         cls,
         key: str,
         value: Any,
-        ttl_seconds: Optional[int] = None,
+        ttl_seconds: int | None = None,
         namespace: str = "",
-        user_id: Optional[int] = None,
+        user_id: int | None = None,
         value_type: str = "pickle",
     ) -> bool:
         """Store a value in the cache.
@@ -156,9 +157,9 @@ class SessionCache:
         cls,
         key: str,
         factory: Callable[[], Any],
-        ttl_seconds: Optional[int] = None,
+        ttl_seconds: int | None = None,
         namespace: str = "",
-        user_id: Optional[int] = None,
+        user_id: int | None = None,
     ) -> Any:
         """Get a value or create it using factory function.
 
@@ -212,9 +213,7 @@ class SessionCache:
         ).count()
 
         by_namespace = {}
-        for entry in CacheEntry.objects.values("namespace").annotate(
-            count=models.Count("id")
-        ):
+        for entry in CacheEntry.objects.values("namespace").annotate(count=models.Count("id")):
             ns = entry["namespace"] or "(default)"
             by_namespace[ns] = entry["count"]
 
@@ -240,6 +239,7 @@ def cleanup_expired_cache():
 # =============================================================================
 # Convenience functions for common cache patterns
 # =============================================================================
+
 
 class SynaraCache:
     """Cache manager for Synara instances."""

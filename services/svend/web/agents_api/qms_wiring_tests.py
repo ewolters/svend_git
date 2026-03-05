@@ -20,12 +20,7 @@ from django.test import TestCase, override_settings
 
 from accounts.constants import Tier
 from agents_api.models import (
-    A3Report,
-    ActionItem,
-    FMEA,
-    FMEARow,
     HoshinKPI,
-    HoshinProject,
     RCASession,
 )
 from core.models import Project
@@ -62,6 +57,7 @@ def _make_enterprise_user(email):
 # qms-fmea-types: FMEA supports 3 types (process, design, system)
 # =============================================================================
 
+
 @SECURE_OFF
 class FMEATypesTest(TestCase):
     """QMS-001 §4.1 — FMEA supports process, design, and system types."""
@@ -72,28 +68,40 @@ class FMEATypesTest(TestCase):
 
     def test_create_process_fmea(self):
         """Create FMEA with fmea_type=process."""
-        resp = _post(self.client, "/api/fmea/create/", {
-            "title": "Process FMEA",
-            "fmea_type": "process",
-        })
+        resp = _post(
+            self.client,
+            "/api/fmea/create/",
+            {
+                "title": "Process FMEA",
+                "fmea_type": "process",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["fmea"]["fmea_type"], "process")
 
     def test_create_design_fmea(self):
         """Create FMEA with fmea_type=design."""
-        resp = _post(self.client, "/api/fmea/create/", {
-            "title": "Design FMEA",
-            "fmea_type": "design",
-        })
+        resp = _post(
+            self.client,
+            "/api/fmea/create/",
+            {
+                "title": "Design FMEA",
+                "fmea_type": "design",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["fmea"]["fmea_type"], "design")
 
     def test_create_system_fmea(self):
         """Create FMEA with fmea_type=system."""
-        resp = _post(self.client, "/api/fmea/create/", {
-            "title": "System FMEA",
-            "fmea_type": "system",
-        })
+        resp = _post(
+            self.client,
+            "/api/fmea/create/",
+            {
+                "title": "System FMEA",
+                "fmea_type": "system",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["fmea"]["fmea_type"], "system")
 
@@ -101,6 +109,7 @@ class FMEATypesTest(TestCase):
 # =============================================================================
 # qms-rca-chain: RCA stores causal chain as ordered JSON
 # =============================================================================
+
 
 @SECURE_OFF
 class RCAChainTest(TestCase):
@@ -117,11 +126,15 @@ class RCAChainTest(TestCase):
             {"claim": "Inadequate lubrication", "accepted": True},
             {"claim": "PM schedule not followed", "accepted": False},
         ]
-        resp = _post(self.client, "/api/rca/sessions/create/", {
-            "event": "Line 3 bearing failure",
-            "title": "Chain Test",
-            "chain": chain,
-        })
+        resp = _post(
+            self.client,
+            "/api/rca/sessions/create/",
+            {
+                "event": "Line 3 bearing failure",
+                "title": "Chain Test",
+                "chain": chain,
+            },
+        )
         self.assertEqual(resp.status_code, 201)
         session = resp.json()["session"]
         self.assertEqual(len(session["chain"]), 3)
@@ -131,11 +144,15 @@ class RCAChainTest(TestCase):
 
     def test_chain_persists_through_updates(self):
         """Chain persists and can be updated via PUT."""
-        resp = _post(self.client, "/api/rca/sessions/create/", {
-            "event": "Weld defect",
-            "title": "Chain Update Test",
-            "chain": [{"claim": "Incorrect parameters"}],
-        })
+        resp = _post(
+            self.client,
+            "/api/rca/sessions/create/",
+            {
+                "event": "Weld defect",
+                "title": "Chain Update Test",
+                "chain": [{"claim": "Incorrect parameters"}],
+            },
+        )
         sid = resp.json()["session"]["id"]
 
         # Update chain with additional steps
@@ -143,18 +160,22 @@ class RCAChainTest(TestCase):
             {"claim": "Incorrect parameters", "accepted": True},
             {"claim": "Operator not trained on new material", "accepted": True},
         ]
-        resp = _put(self.client, f"/api/rca/sessions/{sid}/update/", {
-            "chain": new_chain,
-        })
+        resp = _put(
+            self.client,
+            f"/api/rca/sessions/{sid}/update/",
+            {
+                "chain": new_chain,
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.json()["session"]["chain"]), 2)
-        self.assertEqual(resp.json()["session"]["chain"][1]["claim"],
-                         "Operator not trained on new material")
+        self.assertEqual(resp.json()["session"]["chain"][1]["claim"], "Operator not trained on new material")
 
 
 # =============================================================================
 # qms-rca-critique: RCA AI critique via LLM
 # =============================================================================
+
 
 @SECURE_OFF
 class RCACritiqueTest(TestCase):
@@ -167,15 +188,23 @@ class RCACritiqueTest(TestCase):
     def test_critique_endpoint_validates_input(self):
         """Critique rejects missing required fields."""
         # Missing event
-        resp = _post(self.client, "/api/rca/critique/", {
-            "current_claim": "Bad bearing",
-        })
+        resp = _post(
+            self.client,
+            "/api/rca/critique/",
+            {
+                "current_claim": "Bad bearing",
+            },
+        )
         self.assertIn(resp.status_code, [400, 422])
 
         # Missing current_claim
-        resp = _post(self.client, "/api/rca/critique/", {
-            "event": "Line 3 failure",
-        })
+        resp = _post(
+            self.client,
+            "/api/rca/critique/",
+            {
+                "event": "Line 3 failure",
+            },
+        )
         self.assertIn(resp.status_code, [400, 422])
 
     @patch("anthropic.Anthropic")
@@ -189,10 +218,14 @@ class RCACritiqueTest(TestCase):
         mock_response.usage.output_tokens = 50
         mock_client.messages.create.return_value = mock_response
 
-        resp = _post(self.client, "/api/rca/critique/", {
-            "event": "Bearing failure on Line 3",
-            "current_claim": "Operator error caused the failure",
-        })
+        resp = _post(
+            self.client,
+            "/api/rca/critique/",
+            {
+                "event": "Bearing failure on Line 3",
+                "current_claim": "Operator error caused the failure",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertIn("critique", data)
@@ -201,6 +234,7 @@ class RCACritiqueTest(TestCase):
 # =============================================================================
 # qms-rca-similarity: RCA similarity search via embeddings
 # =============================================================================
+
 
 @SECURE_OFF
 class RCASimilarityTest(TestCase):
@@ -215,10 +249,14 @@ class RCASimilarityTest(TestCase):
         import numpy as np
 
         # Create session and advance past draft (draft sessions are excluded)
-        resp = _post(self.client, "/api/rca/sessions/create/", {
-            "event": "Bearing failure on press line",
-            "title": "Past Incident",
-        })
+        resp = _post(
+            self.client,
+            "/api/rca/sessions/create/",
+            {
+                "event": "Bearing failure on press line",
+                "title": "Past Incident",
+            },
+        )
         self.assertEqual(resp.status_code, 201)
         session_id = resp.json()["session"]["id"]
 
@@ -229,14 +267,20 @@ class RCASimilarityTest(TestCase):
         session.save(update_fields=["embedding"])
 
         # Mock embedding generation for the query and similarity search
-        with patch("agents_api.embeddings.generate_embedding") as mock_embed, \
-             patch("agents_api.embeddings.find_similar_in_memory") as mock_find:
+        with (
+            patch("agents_api.embeddings.generate_embedding") as mock_embed,
+            patch("agents_api.embeddings.find_similar_in_memory") as mock_find,
+        ):
             mock_embed.return_value = np.array([0.1] * 256, dtype=np.float32)
             mock_find.return_value = [(session_id, 0.85)]
 
-            resp = _post(self.client, "/api/rca/similar/", {
-                "event": "Bearing seized on packaging line",
-            })
+            resp = _post(
+                self.client,
+                "/api/rca/similar/",
+                {
+                    "event": "Bearing seized on packaging line",
+                },
+            )
             self.assertEqual(resp.status_code, 200)
             data = resp.json()
             self.assertIn("similar", data)
@@ -246,6 +290,7 @@ class RCASimilarityTest(TestCase):
 # =============================================================================
 # qms-a3-sections: A3 has 7 PDCA sections
 # =============================================================================
+
 
 @SECURE_OFF
 class A3SectionsTest(TestCase):
@@ -261,29 +306,48 @@ class A3SectionsTest(TestCase):
 
     def test_a3_has_seven_sections(self):
         """A3 creation returns all 7 section fields."""
-        resp = _post(self.client, "/api/a3/create/", {
-            "project_id": str(self.project.id),
-            "title": "Seven Sections Test",
-        })
+        resp = _post(
+            self.client,
+            "/api/a3/create/",
+            {
+                "project_id": str(self.project.id),
+                "title": "Seven Sections Test",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         report = resp.json()["report"]
-        sections = ["background", "current_condition", "goal", "root_cause",
-                     "countermeasures", "implementation_plan", "follow_up"]
+        sections = [
+            "background",
+            "current_condition",
+            "goal",
+            "root_cause",
+            "countermeasures",
+            "implementation_plan",
+            "follow_up",
+        ]
         for section in sections:
             self.assertIn(section, report, f"Missing section: {section}")
 
     def test_a3_section_update(self):
         """A3 sections can be individually updated."""
-        resp = _post(self.client, "/api/a3/create/", {
-            "project_id": str(self.project.id),
-            "title": "Section Update Test",
-        })
+        resp = _post(
+            self.client,
+            "/api/a3/create/",
+            {
+                "project_id": str(self.project.id),
+                "title": "Section Update Test",
+            },
+        )
         report_id = resp.json()["report"]["id"]
 
-        resp = _put(self.client, f"/api/a3/{report_id}/update/", {
-            "background": "Machine downtime increased 15% Q4 vs Q3.",
-            "goal": "Reduce unplanned downtime to <5% by end of Q1.",
-        })
+        resp = _put(
+            self.client,
+            f"/api/a3/{report_id}/update/",
+            {
+                "background": "Machine downtime increased 15% Q4 vs Q3.",
+                "goal": "Reduce unplanned downtime to <5% by end of Q1.",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         report = resp.json()["report"]
         self.assertIn("15%", report["background"])
@@ -293,6 +357,7 @@ class A3SectionsTest(TestCase):
 # =============================================================================
 # qms-a3-import: A3 imports from hypothesis and RCA
 # =============================================================================
+
 
 @SECURE_OFF
 class A3ImportTest(TestCase):
@@ -309,23 +374,32 @@ class A3ImportTest(TestCase):
     def test_import_from_hypothesis(self):
         """A3 imports hypothesis content into a section."""
         from core.models import Hypothesis
+
         hyp = Hypothesis.objects.create(
             project=self.project,
             statement="Bearing failure caused by inadequate lubrication",
             because_clause="Lack of PM schedule leads to dry bearing surfaces",
         )
 
-        resp = _post(self.client, "/api/a3/create/", {
-            "project_id": str(self.project.id),
-            "title": "Hypothesis Import Test",
-        })
+        resp = _post(
+            self.client,
+            "/api/a3/create/",
+            {
+                "project_id": str(self.project.id),
+                "title": "Hypothesis Import Test",
+            },
+        )
         report_id = resp.json()["report"]["id"]
 
-        resp = _post(self.client, f"/api/a3/{report_id}/import/", {
-            "section": "root_cause",
-            "source_type": "hypothesis",
-            "source_id": str(hyp.id),
-        })
+        resp = _post(
+            self.client,
+            f"/api/a3/{report_id}/import/",
+            {
+                "section": "root_cause",
+                "source_type": "hypothesis",
+                "source_id": str(hyp.id),
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         report = resp.json()["report"]
         self.assertIn("lubrication", report["root_cause"].lower())
@@ -333,26 +407,38 @@ class A3ImportTest(TestCase):
     def test_import_from_rca(self):
         """A3 auto-imports RCA content when created with rca_session_id."""
         # Create RCA session with root cause
-        resp = _post(self.client, "/api/rca/sessions/create/", {
-            "event": "Press line bearing seized",
-            "title": "Bearing Failure",
-        })
+        resp = _post(
+            self.client,
+            "/api/rca/sessions/create/",
+            {
+                "event": "Press line bearing seized",
+                "title": "Bearing Failure",
+            },
+        )
         sid = resp.json()["session"]["id"]
 
         # Walk to root_cause_identified
         _put(self.client, f"/api/rca/sessions/{sid}/update/", {"status": "investigating"})
-        _put(self.client, f"/api/rca/sessions/{sid}/update/", {
-            "root_cause": "Inadequate lubrication schedule",
-            "countermeasure": "Implement weekly PM lube checks",
-            "status": "root_cause_identified",
-        })
+        _put(
+            self.client,
+            f"/api/rca/sessions/{sid}/update/",
+            {
+                "root_cause": "Inadequate lubrication schedule",
+                "countermeasure": "Implement weekly PM lube checks",
+                "status": "root_cause_identified",
+            },
+        )
 
         # Create A3 linked to RCA
-        resp = _post(self.client, "/api/a3/create/", {
-            "project_id": str(self.project.id),
-            "title": "RCA Import Test",
-            "rca_session_id": sid,
-        })
+        resp = _post(
+            self.client,
+            "/api/a3/create/",
+            {
+                "project_id": str(self.project.id),
+                "title": "RCA Import Test",
+                "rca_session_id": sid,
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         report = resp.json()["report"]
         # RCA content should appear in root_cause section
@@ -360,13 +446,14 @@ class A3ImportTest(TestCase):
             "lubrication" in report["root_cause"].lower()
             or "bearing" in report["background"].lower()
             or len(report["root_cause"]) > 0,
-            "A3 should import some content from linked RCA session"
+            "A3 should import some content from linked RCA session",
         )
 
 
 # =============================================================================
 # qms-kpi-effective: HoshinKPI effective_actual aggregation
 # =============================================================================
+
 
 @SECURE_OFF
 class KPIEffectiveActualTest(TestCase):
@@ -396,6 +483,7 @@ class KPIEffectiveActualTest(TestCase):
 # qms-fmea-spc: SPC OOC updates FMEA occurrence
 # =============================================================================
 
+
 @SECURE_OFF
 class FMEASPCUpdateTest(TestCase):
     """QMS-001 §5.4 — SPC OOC data updates FMEA occurrence."""
@@ -405,18 +493,26 @@ class FMEASPCUpdateTest(TestCase):
         self.client.force_login(self.user)
         resp = _post(self.client, "/api/fmea/create/", {"title": "SPC Test"})
         self.fmea_id = resp.json()["id"]
-        resp = _post(self.client, f"/api/fmea/{self.fmea_id}/rows/", {
-            "failure_mode": "Dimension out of spec",
-            "severity": 7, "occurrence": 5, "detection": 4,
-        })
+        resp = _post(
+            self.client,
+            f"/api/fmea/{self.fmea_id}/rows/",
+            {
+                "failure_mode": "Dimension out of spec",
+                "severity": 7,
+                "occurrence": 5,
+                "detection": 4,
+            },
+        )
         self.row_id = resp.json()["row"]["id"]
 
     def test_ooc_updates_occurrence(self):
         """SPC OOC rate updates occurrence and recalculates RPN."""
         # 2 out of 100 = 2% → occurrence should be moderate (3-4 per AIAG)
-        resp = _post(self.client,
-                     f"/api/fmea/{self.fmea_id}/rows/{self.row_id}/spc-update/",
-                     {"ooc_count": 2, "total_points": 100})
+        resp = _post(
+            self.client,
+            f"/api/fmea/{self.fmea_id}/rows/{self.row_id}/spc-update/",
+            {"ooc_count": 2, "total_points": 100},
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertTrue(data["success"])
@@ -426,9 +522,11 @@ class FMEASPCUpdateTest(TestCase):
 
     def test_ooc_zero_rate_maps_to_one(self):
         """SPC OOC rate of 0% maps to occurrence=1 (remote)."""
-        resp = _post(self.client,
-                     f"/api/fmea/{self.fmea_id}/rows/{self.row_id}/spc-update/",
-                     {"ooc_count": 0, "total_points": 100})
+        resp = _post(
+            self.client,
+            f"/api/fmea/{self.fmea_id}/rows/{self.row_id}/spc-update/",
+            {"ooc_count": 0, "total_points": 100},
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["new_occurrence"], 1)
 
@@ -436,6 +534,7 @@ class FMEASPCUpdateTest(TestCase):
 # =============================================================================
 # qms-action-sources: ActionItem from FMEA, RCA, A3
 # =============================================================================
+
 
 @SECURE_OFF
 class ActionItemSourcesTest(TestCase):
@@ -448,22 +547,36 @@ class ActionItemSourcesTest(TestCase):
     def test_promote_action_from_fmea(self):
         """FMEA row promotes to ActionItem with source_type=fmea."""
         project = Project.objects.create(title="FMEA Action Project", user=self.user)
-        resp = _post(self.client, "/api/fmea/create/", {
-            "title": "Action FMEA",
-            "project_id": str(project.id),
-        })
+        resp = _post(
+            self.client,
+            "/api/fmea/create/",
+            {
+                "title": "Action FMEA",
+                "project_id": str(project.id),
+            },
+        )
         fmea_id = resp.json()["id"]
 
-        resp = _post(self.client, f"/api/fmea/{fmea_id}/rows/", {
-            "failure_mode": "Seal leak",
-            "severity": 8, "occurrence": 4, "detection": 6,
-            "recommended_action": "Replace seal material with Viton",
-        })
+        resp = _post(
+            self.client,
+            f"/api/fmea/{fmea_id}/rows/",
+            {
+                "failure_mode": "Seal leak",
+                "severity": 8,
+                "occurrence": 4,
+                "detection": 6,
+                "recommended_action": "Replace seal material with Viton",
+            },
+        )
         row_id = resp.json()["row"]["id"]
 
-        resp = _post(self.client, f"/api/fmea/{fmea_id}/rows/{row_id}/promote-action/", {
-            "title": "Replace seal material",
-        })
+        resp = _post(
+            self.client,
+            f"/api/fmea/{fmea_id}/rows/{row_id}/promote-action/",
+            {
+                "title": "Replace seal material",
+            },
+        )
         self.assertIn(resp.status_code, [200, 201])
         action = resp.json()["action_item"]
         self.assertEqual(action["source_type"], "fmea")
@@ -471,15 +584,23 @@ class ActionItemSourcesTest(TestCase):
 
     def test_create_action_from_rca(self):
         """RCA session creates ActionItem with source_type=rca."""
-        resp = _post(self.client, "/api/rca/sessions/create/", {
-            "event": "Conveyor jam",
-            "title": "Conveyor Action Test",
-        })
+        resp = _post(
+            self.client,
+            "/api/rca/sessions/create/",
+            {
+                "event": "Conveyor jam",
+                "title": "Conveyor Action Test",
+            },
+        )
         sid = resp.json()["session"]["id"]
 
-        resp = _post(self.client, f"/api/rca/sessions/{sid}/actions/create/", {
-            "title": "Install jam sensor on conveyor",
-        })
+        resp = _post(
+            self.client,
+            f"/api/rca/sessions/{sid}/actions/create/",
+            {
+                "title": "Install jam sensor on conveyor",
+            },
+        )
         self.assertIn(resp.status_code, [200, 201])
         action = resp.json()["action_item"]
         self.assertEqual(action["source_type"], "rca")

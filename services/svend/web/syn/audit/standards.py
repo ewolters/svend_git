@@ -46,6 +46,7 @@ FENCE_RE = re.compile(r"^```")
 # Data structures
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Assertion:
     text: str
@@ -63,12 +64,13 @@ class Assertion:
 @dataclass
 class SLADefinition:
     """A machine-readable SLA extracted from <!-- sla: --> tags in standards."""
+
     description: str
     sla_id: str
-    metric: str          # availability, response_time, durability, etc.
-    target: str          # "99.9%", "2000ms", "24h"
-    window: str          # monthly, quarterly, per_incident
-    severity: str        # critical, high, medium, low
+    metric: str  # availability, response_time, durability, etc.
+    target: str  # "99.9%", "2000ms", "24h"
+    window: str  # monthly, quarterly, per_incident
+    severity: str  # critical, high, medium, low
     measurement: str = "automated"
     soc2_controls: list = field(default_factory=list)
     standard: str = ""
@@ -78,6 +80,7 @@ class SLADefinition:
 # ---------------------------------------------------------------------------
 # Parser
 # ---------------------------------------------------------------------------
+
 
 def parse_standard(filepath: Path) -> list[Assertion]:
     """Parse a single standards markdown file, return Assertions."""
@@ -194,7 +197,27 @@ def parse_standard_titles() -> dict[str, str]:
             m = title_re.match(first_line)
             if m:
                 # Title-case but preserve known acronyms
-                _ACRONYMS = {"API", "LLM", "SPC", "DOE", "CI", "CD", "SLA", "RCA", "VSM", "CSV", "SOC", "NIST", "FMEA", "CSRF", "CDN", "TLS", "SSL", "SQL", "ORM"}
+                _ACRONYMS = {
+                    "API",
+                    "LLM",
+                    "SPC",
+                    "DOE",
+                    "CI",
+                    "CD",
+                    "SLA",
+                    "RCA",
+                    "VSM",
+                    "CSV",
+                    "SOC",
+                    "NIST",
+                    "FMEA",
+                    "CSRF",
+                    "CDN",
+                    "TLS",
+                    "SSL",
+                    "SQL",
+                    "ORM",
+                }
                 words = m.group(2).split()
                 titled = []
                 for w in words:
@@ -292,18 +315,20 @@ def parse_sla_definitions(filepath: Path) -> list[SLADefinition]:
         sla_id = attrs.get("check", f"sla-{_slug(description)}")
         soc2 = [attrs["soc2"]] if "soc2" in attrs else []
 
-        slas.append(SLADefinition(
-            description=description,
-            sla_id=sla_id,
-            metric=metric,
-            target=target,
-            window=window,
-            severity=severity,
-            measurement=attrs.get("measurement", "automated"),
-            soc2_controls=soc2,
-            standard=standard_name,
-            section=current_section,
-        ))
+        slas.append(
+            SLADefinition(
+                description=description,
+                sla_id=sla_id,
+                metric=metric,
+                target=target,
+                window=window,
+                severity=severity,
+                measurement=attrs.get("measurement", "automated"),
+                soc2_controls=soc2,
+                standard=standard_name,
+                section=current_section,
+            )
+        )
 
     return slas
 
@@ -329,6 +354,7 @@ def parse_all_sla_definitions() -> list[SLADefinition]:
 # ---------------------------------------------------------------------------
 # Verification executors
 # ---------------------------------------------------------------------------
+
 
 def verify_impl_exists(impl_ref: str) -> tuple[bool, str]:
     """
@@ -414,17 +440,35 @@ def verify_code_pattern(impl_ref: str, code_block: str) -> tuple[bool, str]:
         return True, "No significant patterns to verify"
 
     # Check how many key patterns appear in source
-    source_normalized = re.sub(r"\s+", " ", source)
+    re.sub(r"\s+", " ", source)
     matched = 0
     missing = []
     for pattern in key_patterns:
         # Check for key identifiers from the pattern
         # Extract quoted strings, variable names, function calls
-        tokens = re.findall(r'[a-zA-Z_]\w+', pattern)
-        significant_tokens = [t for t in tokens if len(t) > 3 and t not in (
-            "self", "None", "True", "False", "return", "from", "import",
-            "class", "def", "async", "await", "with", "for", "while",
-        )]
+        tokens = re.findall(r"[a-zA-Z_]\w+", pattern)
+        significant_tokens = [
+            t
+            for t in tokens
+            if len(t) > 3
+            and t
+            not in (
+                "self",
+                "None",
+                "True",
+                "False",
+                "return",
+                "from",
+                "import",
+                "class",
+                "def",
+                "async",
+                "await",
+                "with",
+                "for",
+                "while",
+            )
+        ]
         if significant_tokens:
             # At least half of significant tokens should appear in source
             found = sum(1 for t in significant_tokens if t in source)
@@ -459,8 +503,9 @@ def verify_code_absent(impl_ref: str, code_block: str) -> tuple[bool, str]:
     source = file_path.read_text()
 
     # Extract the core anti-pattern lines (skip comments and blanks)
-    pattern_lines = [l.strip() for l in code_block.splitlines()
-                     if l.strip() and not l.strip().startswith("#")]
+    pattern_lines = [
+        line.strip() for line in code_block.splitlines() if line.strip() and not line.strip().startswith("#")
+    ]
 
     if not pattern_lines:
         return True, "No prohibited patterns to check"
@@ -476,9 +521,8 @@ def verify_code_absent(impl_ref: str, code_block: str) -> tuple[bool, str]:
     # Multi-line pattern: require contiguous block match.
     # Normalize both source and pattern lines, then check if the full
     # sequence of pattern lines appears consecutively in the source.
-    source_lines = [re.sub(r"\s+", "", l.strip()) for l in source.splitlines()]
-    norm_patterns = [re.sub(r"\s+", "", l) for l in pattern_lines
-                     if len(re.sub(r"\s+", "", l)) > 5]
+    source_lines = [re.sub(r"\s+", "", line.strip()) for line in source.splitlines()]
+    norm_patterns = [re.sub(r"\s+", "", line) for line in pattern_lines if len(re.sub(r"\s+", "", line)) > 5]
 
     if not norm_patterns:
         return True, "No significant prohibited patterns to check"
@@ -486,8 +530,7 @@ def verify_code_absent(impl_ref: str, code_block: str) -> tuple[bool, str]:
     # Slide a window over source lines looking for the full pattern sequence
     window_size = len(norm_patterns)
     for i in range(len(source_lines) - window_size + 1):
-        if all(norm_patterns[j] in source_lines[i + j]
-               for j in range(window_size)):
+        if all(norm_patterns[j] in source_lines[i + j] for j in range(window_size)):
             matched_source = pattern_lines[0][:80]
             return False, f"Prohibited pattern found: {matched_source}"
 
@@ -582,6 +625,7 @@ def run_linked_test(test_ref: str) -> dict:
 
     if not _test_env_setup:
         from django.test.utils import setup_test_environment
+
         try:
             setup_test_environment()
         except RuntimeError:
@@ -603,8 +647,12 @@ def run_linked_test(test_ref: str) -> dict:
         if os.path.isfile(file_path):
             ok, _ = _ast_verify_test(file_path, class_name, method_name)
             if ok:
-                return {"test_ref": test_ref, "passed": False, "status": "skip",
-                        "message": f"Cannot import (missing dependency): {e}"}
+                return {
+                    "test_ref": test_ref,
+                    "passed": False,
+                    "status": "skip",
+                    "message": f"Cannot import (missing dependency): {e}",
+                }
         return {"test_ref": test_ref, "passed": False, "status": "error", "message": str(e)}
 
     # TestCase/TransactionTestCase need the test DB — switch connection.
@@ -614,6 +662,7 @@ def run_linked_test(test_ref: str) -> dict:
     if needs_db:
         try:
             from django.db import connections
+
             conn = connections["default"]
             original_db_name = conn.settings_dict["NAME"]
             test_db_name = conn.creation._get_test_db_name()
@@ -621,8 +670,12 @@ def run_linked_test(test_ref: str) -> dict:
             conn.settings_dict["NAME"] = test_db_name
             switched_db = True
         except Exception:
-            return {"test_ref": test_ref, "passed": False, "status": "skip",
-                    "message": "Requires test database (Django TestCase)"}
+            return {
+                "test_ref": test_ref,
+                "passed": False,
+                "status": "skip",
+                "message": "Requires test database (Django TestCase)",
+            }
 
     try:
         test_instance = cls(method_name)
@@ -635,8 +688,7 @@ def run_linked_test(test_ref: str) -> dict:
         if switched_db:
             _restore_db(original_db_name)
         if _is_db_error(err_msg):
-            return {"test_ref": test_ref, "passed": False, "status": "skip",
-                    "message": "Requires test database"}
+            return {"test_ref": test_ref, "passed": False, "status": "skip", "message": "Requires test database"}
         return {"test_ref": test_ref, "passed": False, "status": "error", "message": err_msg}
 
     if switched_db:
@@ -648,8 +700,7 @@ def run_linked_test(test_ref: str) -> dict:
     # Check if errors are DB-related
     for _, tb in result.errors:
         if _is_db_error(tb):
-            return {"test_ref": test_ref, "passed": False, "status": "skip",
-                    "message": "Requires test database"}
+            return {"test_ref": test_ref, "passed": False, "status": "skip", "message": "Requires test database"}
 
     # Collect failure/error messages
     msgs = []
@@ -662,9 +713,16 @@ def run_linked_test(test_ref: str) -> dict:
 def _is_db_error(msg: str) -> bool:
     """Detect database-related errors that indicate a test needs a test DB."""
     indicators = [
-        "database", "relation", "does not exist", "no such table",
-        "OperationalError", "ProgrammingError", "connection",
-        "test_svend", "createdb", "TransactionManagementError",
+        "database",
+        "relation",
+        "does not exist",
+        "no such table",
+        "OperationalError",
+        "ProgrammingError",
+        "connection",
+        "test_svend",
+        "createdb",
+        "TransactionManagementError",
     ]
     msg_lower = str(msg).lower()
     return any(ind.lower() in msg_lower for ind in indicators)
@@ -673,6 +731,7 @@ def _is_db_error(msg: str) -> bool:
 def _restore_db(original_name: str):
     """Restore the default DB connection to the original database."""
     from django.db import connections
+
     conn = connections["default"]
     conn.close()
     conn.settings_dict["NAME"] = original_name
@@ -686,12 +745,14 @@ def _is_testcase_needing_db(cls) -> bool:
     SimpleTestCase and plain unittest.TestCase do not.
     """
     from django.test import TransactionTestCase
+
     return issubclass(cls, TransactionTestCase)
 
 
 # ---------------------------------------------------------------------------
 # Assertion runner
 # ---------------------------------------------------------------------------
+
 
 def verify_assertion(assertion: Assertion, run_tests: bool = False) -> dict:
     """Run all applicable verifications for a single assertion."""

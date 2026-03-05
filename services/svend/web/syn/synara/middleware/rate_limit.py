@@ -15,7 +15,6 @@ Compliance: ISO 27001 A.14.1, SOC 2 CC7.2
 
 import time
 
-from django.conf import settings
 from django.core.cache import cache
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin

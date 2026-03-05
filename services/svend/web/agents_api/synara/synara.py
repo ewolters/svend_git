@@ -8,24 +8,23 @@ Synara is a model of epistemic motion -
 how belief flows across a fractured causal landscape.
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Optional, Any
+from dataclasses import dataclass
 from uuid import uuid4
 
-from .kernel import (
-    HypothesisRegion,
-    Evidence,
-    CausalLink,
-    CausalGraph,
-    ExpansionSignal,
-)
 from .belief import BeliefEngine
+from .kernel import (
+    CausalGraph,
+    CausalLink,
+    Evidence,
+    ExpansionSignal,
+    HypothesisRegion,
+)
 
 
 @dataclass
 class UpdateResult:
     """Result of adding evidence to Synara."""
+
     evidence_id: str
 
     # Likelihood of the evidence under each hypothesis
@@ -38,11 +37,11 @@ class UpdateResult:
     propagated_changes: dict[str, float]
 
     # Expansion signal (if causal surface appears incomplete)
-    expansion_signal: Optional[ExpansionSignal] = None
+    expansion_signal: ExpansionSignal | None = None
 
     # Summary
-    most_supported: Optional[str] = None  # Hypothesis with highest posterior
-    most_weakened: Optional[str] = None   # Hypothesis with largest decrease
+    most_supported: str | None = None  # Hypothesis with highest posterior
+    most_weakened: str | None = None  # Hypothesis with largest decrease
 
     def to_dict(self) -> dict:
         return {
@@ -139,7 +138,7 @@ class Synara:
         )
         return self.add_hypothesis(h)
 
-    def get_hypothesis(self, h_id: str) -> Optional[HypothesisRegion]:
+    def get_hypothesis(self, h_id: str) -> HypothesisRegion | None:
         """Get a hypothesis by ID."""
         return self.graph.hypotheses.get(h_id)
 
@@ -200,14 +199,10 @@ class Synara:
         self.graph.evidence.append(evidence)
 
         # Store prior posteriors for comparison
-        prior_posteriors = {
-            h_id: h.posterior for h_id, h in self.graph.hypotheses.items()
-        }
+        prior_posteriors = {h_id: h.posterior for h_id, h in self.graph.hypotheses.items()}
 
         # 1. Compute likelihoods
-        likelihoods = self.belief_engine.compute_all_likelihoods(
-            self.graph, evidence
-        )
+        likelihoods = self.belief_engine.compute_all_likelihoods(self.graph, evidence)
 
         # 2. Check for expansion signal BEFORE updating
         expansion_signal = self.belief_engine.check_expansion(evidence, likelihoods)
@@ -215,9 +210,7 @@ class Synara:
             self.expansion_signals.append(expansion_signal)
 
         # 3. Update posteriors
-        posteriors = self.belief_engine.update_posteriors(
-            self.graph, evidence, likelihoods
-        )
+        posteriors = self.belief_engine.update_posteriors(self.graph, evidence, likelihoods)
 
         # 4. Propagate through causal graph
         propagated_changes = {}
@@ -291,7 +284,7 @@ class Synara:
         self,
         signal_id: str,
         resolution: str,
-        new_hypothesis: Optional[HypothesisRegion] = None,
+        new_hypothesis: HypothesisRegion | None = None,
     ) -> bool:
         """
         Resolve an expansion signal.
@@ -301,10 +294,7 @@ class Synara:
         - "expanded_hypothesis": an existing hypothesis was expanded
         - "dismissed": signal was a false positive
         """
-        signal = next(
-            (s for s in self.expansion_signals if s.id == signal_id),
-            None
-        )
+        signal = next((s for s in self.expansion_signals if s.id == signal_id), None)
         if not signal:
             return False
 
@@ -340,7 +330,7 @@ class Synara:
     # Queries
     # =========================================================================
 
-    def get_most_likely_cause(self) -> Optional[HypothesisRegion]:
+    def get_most_likely_cause(self) -> HypothesisRegion | None:
         """Get the hypothesis with highest posterior."""
         if not self.graph.hypotheses:
             return None
@@ -355,10 +345,7 @@ class Synara:
             return []
 
         top_posterior = max(h.posterior for h in self.graph.hypotheses.values())
-        return [
-            h for h in self.graph.hypotheses.values()
-            if h.posterior >= top_posterior - threshold
-        ]
+        return [h for h in self.graph.hypotheses.values() if h.posterior >= top_posterior - threshold]
 
     def get_causal_chains_to(self, h_id: str) -> list[list[str]]:
         """Get all causal chains leading to a hypothesis."""
@@ -375,12 +362,8 @@ class Synara:
             return {"error": "Hypothesis not found"}
 
         # Get supporting and weakening evidence
-        supporting_evidence = [
-            e for e in self.graph.evidence if e.id in hypothesis.evidence_for
-        ]
-        weakening_evidence = [
-            e for e in self.graph.evidence if e.id in hypothesis.evidence_against
-        ]
+        supporting_evidence = [e for e in self.graph.evidence if e.id in hypothesis.evidence_for]
+        weakening_evidence = [e for e in self.graph.evidence if e.id in hypothesis.evidence_against]
 
         # Get causal influences
         upstream = self.graph.get_upstream(h_id)
@@ -391,12 +374,8 @@ class Synara:
             "description": hypothesis.description,
             "prior": hypothesis.prior,
             "posterior": hypothesis.posterior,
-            "evidence_for": [
-                {"id": e.id, "event": e.event} for e in supporting_evidence
-            ],
-            "evidence_against": [
-                {"id": e.id, "event": e.event} for e in weakening_evidence
-            ],
+            "evidence_for": [{"id": e.id, "event": e.event} for e in supporting_evidence],
+            "evidence_against": [{"id": e.id, "event": e.event} for e in weakening_evidence],
             "upstream_causes": upstream,
             "downstream_effects": downstream,
             "domain_conditions": hypothesis.domain_conditions,

@@ -2,7 +2,6 @@
 
 from ._datasets import SHARED_DATASET  # noqa: F401
 
-
 RANDOMIZATION_CONTROLS = {
     "id": "randomization-controls",
     "title": "Randomization & Controls",
@@ -14,7 +13,7 @@ RANDOMIZATION_CONTROLS = {
             "Check baseline balance between treatment and control",
             "Enable stratification by age and re-randomize",
             "Compare balance with and without stratification",
-            "Observe how confounding disappears with proper randomization"
+            "Observe how confounding disappears with proper randomization",
         ],
         "dsw_type": "stats:anova",
         "dsw_config": {"response": "diameter_mm", "factor": "line"},
@@ -132,7 +131,7 @@ Then use:
             "show_group_balance": True,
             "allow_stratification": True,
             "show_confounding_removal": True,
-        }
+        },
     },
     "key_takeaways": [
         "Randomization balances both measured and unmeasured confounders",
@@ -145,13 +144,13 @@ Then use:
         {
             "question": "You're testing a new teaching method. Students in the new method class score higher. Why might this NOT prove the method works?",
             "answer": "Students weren't randomized to classes. Motivated students may have chosen the new method. The classes may meet at different times attracting different students. Without randomization, confounding is likely.",
-            "hint": "Think about how students ended up in each class."
+            "hint": "Think about how students ended up in each class.",
         },
         {
             "question": "In a drug trial, 40% of patients in the treatment group stop taking the medication due to side effects. How should you analyze the results?",
             "answer": "Primary analysis should be intention-to-treat: analyze everyone according to their randomized group, regardless of compliance. This preserves randomization. You can do per-protocol as secondary analysis, acknowledging the selection bias.",
-            "hint": "Why would analyzing only compliers be biased?"
-        }
+            "hint": "Why would analyzing only compliers be biased?",
+        },
     ],
     "tool_steps": [
         {
@@ -209,7 +208,12 @@ Then use:
                     {"name": "outcome", "type": "numeric", "mean": 72, "std": 10},
                 ],
                 "injections": [
-                    {"type": "mean_shift", "column": "outcome", "condition": {"column": "treatment", "equals": 1}, "shift": 5},
+                    {
+                        "type": "mean_shift",
+                        "column": "outcome",
+                        "condition": {"column": "treatment", "equals": 1},
+                        "shift": 5,
+                    },
                 ],
             },
             "editable_fields": [],
@@ -261,7 +265,7 @@ POWER_ANALYSIS = {
             "Set alpha to 0.05 and power to 0.80",
             "Read the required sample size per group",
             "Change effect size to small (d=0.2) and see n explode",
-            "Adjust power to 0.90 and note the additional cost"
+            "Adjust power to 0.90 and note the additional cost",
         ],
         "dsw_type": "stats:descriptive",
         "dsw_config": {},
@@ -372,7 +376,7 @@ Rough guide for detecting 5 percentage point difference:
             "show_alpha_beta_tradeoff": True,
             "calculate_sample_size": True,
             "show_power_curve": True,
-        }
+        },
     },
     "key_takeaways": [
         "Always calculate required sample size BEFORE collecting data",
@@ -385,13 +389,13 @@ Rough guide for detecting 5 percentage point difference:
         {
             "question": "You expect a medium effect size (d=0.5). You want 80% power at α=0.05. Roughly how many participants per group do you need?",
             "answer": "About 64 per group. Using n ≈ 16/d² = 16/0.25 = 64",
-            "hint": "Use the simplified formula n ≈ 16/d² per group"
+            "hint": "Use the simplified formula n ≈ 16/d² per group",
         },
         {
             "question": "A study with n=20 per group found p=0.08 and concluded 'no effect.' What's wrong with this conclusion?",
             "answer": "The study was likely underpowered. With n=20, you can only reliably detect large effects (d≈0.8). A smaller effect might exist but be undetectable. The correct conclusion is 'inconclusive' not 'no effect.'",
-            "hint": "Calculate what effect size this study was powered to detect."
-        }
+            "hint": "Calculate what effect size this study was powered to detect.",
+        },
     ],
     "tool_steps": [
         {
@@ -425,7 +429,12 @@ Rough guide for detecting 5 percentage point difference:
                     {"name": "outcome", "type": "numeric", "mean": 50, "std": 10},
                 ],
                 "injections": [
-                    {"type": "mean_shift", "column": "outcome", "condition": {"column": "group", "equals": "treatment"}, "shift": 5},
+                    {
+                        "type": "mean_shift",
+                        "column": "outcome",
+                        "condition": {"column": "group", "equals": "treatment"},
+                        "shift": 5,
+                    },
                 ],
             },
             "editable_fields": ["n_rows"],
@@ -448,7 +457,12 @@ Rough guide for detecting 5 percentage point difference:
                     {"name": "outcome", "type": "numeric", "mean": 50, "std": 10},
                 ],
                 "injections": [
-                    {"type": "mean_shift", "column": "outcome", "condition": {"column": "group", "equals": "treatment"}, "shift": 5},
+                    {
+                        "type": "mean_shift",
+                        "column": "outcome",
+                        "condition": {"column": "group", "equals": "treatment"},
+                        "shift": 5,
+                    },
                 ],
             },
             "editable_fields": [],
@@ -480,7 +494,7 @@ BLOCKING_STRATIFICATION = {
             "Identify the blocking variable in the scenario",
             "Randomize treatments within each block",
             "Compare the precision of blocked vs unblocked designs",
-            "Check whether the blocking variable explains meaningful variance"
+            "Check whether the blocking variable explains meaningful variance",
         ],
         "dsw_type": "stats:anova",
         "dsw_config": {"response": "diameter_mm", "factor": "line"},
@@ -577,14 +591,14 @@ Extreme blocking: Each block has exactly 2 units.
         {
             "question": "You're testing a new teaching method across 4 schools. Student ability varies a lot within each school. Should you block on school, student ability, or both?",
             "answer": "Block on school (since each school is a natural cluster with its own baseline), and consider stratifying students within schools by prior test scores (ability). School is the primary blocking variable because school-level factors (teacher quality, resources) affect outcomes but aren't your interest. Blocking on both maximizes precision.",
-            "hint": "Block on the variable that introduces the most unwanted variation"
+            "hint": "Block on the variable that introduces the most unwanted variation",
         },
         {
             "question": "A colleague blocks on hair color when testing a drug's effectiveness. Is this a good idea?",
             "answer": "Almost certainly not. Hair color is unlikely to explain meaningful variance in drug response (unless the drug targets a condition related to pigmentation). Blocking on irrelevant variables wastes degrees of freedom and can actually reduce power. Block on variables that explain >10% of outcome variance — like disease severity, age, or weight.",
-            "hint": "Blocking on irrelevant variables hurts more than it helps"
+            "hint": "Blocking on irrelevant variables hurts more than it helps",
         },
-    ]
+    ],
 }
 
 
@@ -598,7 +612,7 @@ COMMON_DESIGN_FLAWS = {
             "Review the eight-item bias checklist",
             "For each item, identify whether the scenario has this flaw",
             "Mark each bias as present, absent, or uncertain",
-            "Determine which biases are fatal vs manageable"
+            "Determine which biases are fatal vs manageable",
         ],
     },
     "content": """
@@ -702,14 +716,12 @@ These flaws can make your results meaningless, no matter how sophisticated your 
         {
             "question": "A study analyzes Yelp reviews to conclude that restaurant quality has improved over time. What bias might invalidate this conclusion?",
             "answer": "Survivorship bias. Restaurants that close (presumably the worst ones) disappear from Yelp. Over time, the remaining restaurants are increasingly a selected group of survivors. Their improving average rating may reflect bad restaurants dying, not existing restaurants getting better.",
-            "hint": "What happened to the restaurants that aren't in the dataset?"
+            "hint": "What happened to the restaurants that aren't in the dataset?",
         },
         {
             "question": "In a 12-month weight loss trial, 40% of the treatment group drops out vs 15% of the control group. The remaining treatment participants lost significantly more weight. Is the treatment effective?",
             "answer": "Can't conclude that — severe differential attrition bias. The 40% who dropped out of treatment likely had poor results (side effects, didn't work). The remaining 60% are a selected, possibly more motivated group. Compare baseline characteristics of dropouts vs completers. Use intention-to-treat analysis (count dropouts as treatment failures).",
-            "hint": "Differential dropout rates destroy the randomization balance"
+            "hint": "Differential dropout rates destroy the randomization balance",
         },
-    ]
+    ],
 }
-
-

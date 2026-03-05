@@ -13,7 +13,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 
 from accounts.constants import Tier
-from agents_api.models import FMEA, FMEARow, RCASession
+from agents_api.models import FMEARow
 
 User = get_user_model()
 SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
@@ -39,6 +39,7 @@ def _make_team_user(email):
 # D-001: AIAG 4th Edition FMEA Fields
 # =============================================================================
 
+
 @SECURE_OFF
 class FMEA4thEditionFieldsTest(TestCase):
     """QMS-001 §4.1.1 — AIAG 4th Ed fields on FMEARow."""
@@ -51,12 +52,18 @@ class FMEA4thEditionFieldsTest(TestCase):
 
     def test_prevention_detection_controls(self):
         """FMEARow accepts prevention_controls and detection_controls."""
-        resp = _post(self.client, f"/api/fmea/{self.fmea_id}/rows/", {
-            "failure_mode": "Seal leak",
-            "severity": 7, "occurrence": 4, "detection": 5,
-            "prevention_controls": "Torque spec on assembly",
-            "detection_controls": "Pressure test at end-of-line",
-        })
+        resp = _post(
+            self.client,
+            f"/api/fmea/{self.fmea_id}/rows/",
+            {
+                "failure_mode": "Seal leak",
+                "severity": 7,
+                "occurrence": 4,
+                "detection": 5,
+                "prevention_controls": "Torque spec on assembly",
+                "detection_controls": "Pressure test at end-of-line",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         row = resp.json()["row"]
         self.assertEqual(row["prevention_controls"], "Torque spec on assembly")
@@ -64,38 +71,60 @@ class FMEA4thEditionFieldsTest(TestCase):
 
     def test_failure_mode_class(self):
         """FMEARow accepts failure_mode_class from AIAG classification."""
-        resp = _post(self.client, f"/api/fmea/{self.fmea_id}/rows/", {
-            "failure_mode": "Safety critical weld",
-            "severity": 9, "occurrence": 3, "detection": 4,
-            "failure_mode_class": "safety",
-        })
+        resp = _post(
+            self.client,
+            f"/api/fmea/{self.fmea_id}/rows/",
+            {
+                "failure_mode": "Safety critical weld",
+                "severity": 9,
+                "occurrence": 3,
+                "detection": 4,
+                "failure_mode_class": "safety",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["row"]["failure_mode_class"], "safety")
 
     def test_control_type(self):
         """FMEARow accepts control_type (prevent/detect/both)."""
-        resp = _post(self.client, f"/api/fmea/{self.fmea_id}/rows/", {
-            "failure_mode": "Dimension out of spec",
-            "severity": 6, "occurrence": 5, "detection": 3,
-            "control_type": "both",
-        })
+        resp = _post(
+            self.client,
+            f"/api/fmea/{self.fmea_id}/rows/",
+            {
+                "failure_mode": "Dimension out of spec",
+                "severity": 6,
+                "occurrence": 5,
+                "detection": 3,
+                "control_type": "both",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["row"]["control_type"], "both")
 
     def test_update_4th_edition_fields(self):
         """4th Ed fields can be updated via PUT."""
-        resp = _post(self.client, f"/api/fmea/{self.fmea_id}/rows/", {
-            "failure_mode": "Corrosion",
-            "severity": 5, "occurrence": 3, "detection": 6,
-        })
+        resp = _post(
+            self.client,
+            f"/api/fmea/{self.fmea_id}/rows/",
+            {
+                "failure_mode": "Corrosion",
+                "severity": 5,
+                "occurrence": 3,
+                "detection": 6,
+            },
+        )
         row_id = resp.json()["row"]["id"]
 
-        resp = _put(self.client, f"/api/fmea/{self.fmea_id}/rows/{row_id}/", {
-            "prevention_controls": "Anti-corrosion coating",
-            "detection_controls": "Visual inspection schedule",
-            "failure_mode_class": "function",
-            "control_type": "prevent",
-        })
+        resp = _put(
+            self.client,
+            f"/api/fmea/{self.fmea_id}/rows/{row_id}/",
+            {
+                "prevention_controls": "Anti-corrosion coating",
+                "detection_controls": "Visual inspection schedule",
+                "failure_mode_class": "function",
+                "control_type": "prevent",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         row = resp.json()["row"]
         self.assertEqual(row["prevention_controls"], "Anti-corrosion coating")
@@ -107,6 +136,7 @@ class FMEA4thEditionFieldsTest(TestCase):
 # =============================================================================
 # D-002: Action Priority (AP) Scoring
 # =============================================================================
+
 
 @SECURE_OFF
 class FMEAActionPriorityTest(TestCase):
@@ -131,10 +161,14 @@ class FMEAActionPriorityTest(TestCase):
         """FMEA accepts scoring_method='ap' on creation."""
         user = _make_team_user("fmeaap@test.com")
         self.client.force_login(user)
-        resp = _post(self.client, "/api/fmea/create/", {
-            "title": "AP Test",
-            "scoring_method": "ap",
-        })
+        resp = _post(
+            self.client,
+            "/api/fmea/create/",
+            {
+                "title": "AP Test",
+                "scoring_method": "ap",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["fmea"]["scoring_method"], "ap")
 
@@ -142,19 +176,37 @@ class FMEAActionPriorityTest(TestCase):
         """rpn_summary includes action_priority_buckets when scoring_method=ap."""
         user = _make_team_user("fmeaapsum@test.com")
         self.client.force_login(user)
-        resp = _post(self.client, "/api/fmea/create/", {
-            "title": "AP Summary Test",
-            "scoring_method": "ap",
-        })
+        resp = _post(
+            self.client,
+            "/api/fmea/create/",
+            {
+                "title": "AP Summary Test",
+                "scoring_method": "ap",
+            },
+        )
         fmea_id = resp.json()["id"]
 
         # Add rows with different AP levels
-        _post(self.client, f"/api/fmea/{fmea_id}/rows/", {
-            "failure_mode": "Critical weld", "severity": 9, "occurrence": 6, "detection": 5,
-        })
-        _post(self.client, f"/api/fmea/{fmea_id}/rows/", {
-            "failure_mode": "Minor scratch", "severity": 2, "occurrence": 2, "detection": 2,
-        })
+        _post(
+            self.client,
+            f"/api/fmea/{fmea_id}/rows/",
+            {
+                "failure_mode": "Critical weld",
+                "severity": 9,
+                "occurrence": 6,
+                "detection": 5,
+            },
+        )
+        _post(
+            self.client,
+            f"/api/fmea/{fmea_id}/rows/",
+            {
+                "failure_mode": "Minor scratch",
+                "severity": 2,
+                "occurrence": 2,
+                "detection": 2,
+            },
+        )
 
         resp = self.client.get(f"/api/fmea/{fmea_id}/summary/")
         self.assertEqual(resp.status_code, 200)
@@ -170,13 +222,24 @@ class FMEAActionPriorityTest(TestCase):
         """rpn_summary does NOT include AP buckets when scoring_method=rpn."""
         user = _make_team_user("fmearpnonly@test.com")
         self.client.force_login(user)
-        resp = _post(self.client, "/api/fmea/create/", {
-            "title": "RPN Only Test",
-        })
+        resp = _post(
+            self.client,
+            "/api/fmea/create/",
+            {
+                "title": "RPN Only Test",
+            },
+        )
         fmea_id = resp.json()["id"]
-        _post(self.client, f"/api/fmea/{fmea_id}/rows/", {
-            "failure_mode": "Test", "severity": 5, "occurrence": 5, "detection": 5,
-        })
+        _post(
+            self.client,
+            f"/api/fmea/{fmea_id}/rows/",
+            {
+                "failure_mode": "Test",
+                "severity": 5,
+                "occurrence": 5,
+                "detection": 5,
+            },
+        )
         resp = self.client.get(f"/api/fmea/{fmea_id}/summary/")
         self.assertNotIn("action_priority_buckets", resp.json())
 
@@ -184,6 +247,7 @@ class FMEAActionPriorityTest(TestCase):
 # =============================================================================
 # D-007: Cpk-to-Occurrence Mapping
 # =============================================================================
+
 
 @SECURE_OFF
 class FMEASPCCpkMappingTest(TestCase):
@@ -219,16 +283,26 @@ class FMEASPCCpkMappingTest(TestCase):
         resp = _post(self.client, "/api/fmea/create/", {"title": "Cpk Test"})
         fmea_id = resp.json()["id"]
 
-        resp = _post(self.client, f"/api/fmea/{fmea_id}/rows/", {
-            "failure_mode": "Bore diameter",
-            "severity": 7, "occurrence": 8, "detection": 4,
-        })
+        resp = _post(
+            self.client,
+            f"/api/fmea/{fmea_id}/rows/",
+            {
+                "failure_mode": "Bore diameter",
+                "severity": 7,
+                "occurrence": 8,
+                "detection": 4,
+            },
+        )
         row_id = resp.json()["row"]["id"]
 
         # Cpk=1.33 → occurrence=3
-        resp = _post(self.client, f"/api/fmea/{fmea_id}/rows/{row_id}/spc-cpk-update/", {
-            "cpk": 1.33,
-        })
+        resp = _post(
+            self.client,
+            f"/api/fmea/{fmea_id}/rows/{row_id}/spc-cpk-update/",
+            {
+                "cpk": 1.33,
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertTrue(data["success"])
@@ -243,9 +317,16 @@ class FMEASPCCpkMappingTest(TestCase):
 
         resp = _post(self.client, "/api/fmea/create/", {"title": "Cpk Val Test"})
         fmea_id = resp.json()["id"]
-        resp = _post(self.client, f"/api/fmea/{fmea_id}/rows/", {
-            "failure_mode": "Test", "severity": 5, "occurrence": 5, "detection": 5,
-        })
+        resp = _post(
+            self.client,
+            f"/api/fmea/{fmea_id}/rows/",
+            {
+                "failure_mode": "Test",
+                "severity": 5,
+                "occurrence": 5,
+                "detection": 5,
+            },
+        )
         row_id = resp.json()["row"]["id"]
 
         # Missing cpk
@@ -261,6 +342,7 @@ class FMEASPCCpkMappingTest(TestCase):
 # D-012: RCA State Machine
 # =============================================================================
 
+
 @SECURE_OFF
 class RCAStateMachineTest(TestCase):
     """QMS-001 §4.2 — RCA state machine enforcement."""
@@ -270,10 +352,14 @@ class RCAStateMachineTest(TestCase):
         self.client.force_login(self.user)
 
     def _create_session(self):
-        resp = _post(self.client, "/api/rca/sessions/create/", {
-            "event": "Bearing failure on Line 3",
-            "title": "Line 3 Bearing",
-        })
+        resp = _post(
+            self.client,
+            "/api/rca/sessions/create/",
+            {
+                "event": "Bearing failure on Line 3",
+                "title": "Line 3 Bearing",
+            },
+        )
         self.assertEqual(resp.status_code, 201)
         return resp.json()["session"]["id"]
 
@@ -287,26 +373,38 @@ class RCAStateMachineTest(TestCase):
         self.assertEqual(resp.json()["session"]["status"], "investigating")
 
         # investigating → root_cause_identified (needs root_cause)
-        resp = _put(self.client, f"/api/rca/sessions/{sid}/update/", {
-            "root_cause": "Inadequate lubrication schedule",
-            "status": "root_cause_identified",
-        })
+        resp = _put(
+            self.client,
+            f"/api/rca/sessions/{sid}/update/",
+            {
+                "root_cause": "Inadequate lubrication schedule",
+                "status": "root_cause_identified",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["session"]["status"], "root_cause_identified")
 
         # root_cause_identified → verified (needs countermeasure)
-        resp = _put(self.client, f"/api/rca/sessions/{sid}/update/", {
-            "countermeasure": "Implement PM schedule with weekly lube checks",
-            "status": "verified",
-        })
+        resp = _put(
+            self.client,
+            f"/api/rca/sessions/{sid}/update/",
+            {
+                "countermeasure": "Implement PM schedule with weekly lube checks",
+                "status": "verified",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["session"]["status"], "verified")
 
         # verified → closed (needs evaluation)
-        resp = _put(self.client, f"/api/rca/sessions/{sid}/update/", {
-            "evaluation": "PM schedule effective — no recurrence in 30 days",
-            "status": "closed",
-        })
+        resp = _put(
+            self.client,
+            f"/api/rca/sessions/{sid}/update/",
+            {
+                "evaluation": "PM schedule effective — no recurrence in 30 days",
+                "status": "closed",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["session"]["status"], "closed")
 
@@ -342,15 +440,30 @@ class RCAStateMachineTest(TestCase):
 
         # Walk through full lifecycle
         _put(self.client, f"/api/rca/sessions/{sid}/update/", {"status": "investigating"})
-        _put(self.client, f"/api/rca/sessions/{sid}/update/", {
-            "root_cause": "Bad bearing", "status": "root_cause_identified",
-        })
-        _put(self.client, f"/api/rca/sessions/{sid}/update/", {
-            "countermeasure": "Replace bearing", "status": "verified",
-        })
-        _put(self.client, f"/api/rca/sessions/{sid}/update/", {
-            "evaluation": "Effective", "status": "closed",
-        })
+        _put(
+            self.client,
+            f"/api/rca/sessions/{sid}/update/",
+            {
+                "root_cause": "Bad bearing",
+                "status": "root_cause_identified",
+            },
+        )
+        _put(
+            self.client,
+            f"/api/rca/sessions/{sid}/update/",
+            {
+                "countermeasure": "Replace bearing",
+                "status": "verified",
+            },
+        )
+        _put(
+            self.client,
+            f"/api/rca/sessions/{sid}/update/",
+            {
+                "evaluation": "Effective",
+                "status": "closed",
+            },
+        )
 
         # Reopen without reason → 400
         resp = _put(self.client, f"/api/rca/sessions/{sid}/update/", {"status": "investigating"})
@@ -361,18 +474,26 @@ class RCAStateMachineTest(TestCase):
         self.assertIn("reopen_reason", error_msg)
 
         # Reopen with reason → 200
-        resp = _put(self.client, f"/api/rca/sessions/{sid}/update/", {
-            "status": "investigating",
-            "reopen_reason": "Failure recurred after 45 days",
-        })
+        resp = _put(
+            self.client,
+            f"/api/rca/sessions/{sid}/update/",
+            {
+                "status": "investigating",
+                "reopen_reason": "Failure recurred after 45 days",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["session"]["status"], "investigating")
 
     def test_create_always_draft(self):
         """New sessions always start as draft, even if status is passed."""
-        resp = _post(self.client, "/api/rca/sessions/create/", {
-            "event": "Test event",
-            "status": "closed",
-        })
+        resp = _post(
+            self.client,
+            "/api/rca/sessions/create/",
+            {
+                "event": "Test event",
+                "status": "closed",
+            },
+        )
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(resp.json()["session"]["status"], "draft")

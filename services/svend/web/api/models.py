@@ -4,7 +4,6 @@ import uuid
 
 from django.conf import settings
 from django.db import models
-from django.utils import timezone
 from django.utils.text import slugify
 
 
@@ -21,9 +20,7 @@ class BlogPost(models.Model):
     slug = models.SlugField(max_length=200, unique=True, blank=True)
     body = models.TextField(help_text="Markdown content")
     meta_description = models.CharField(max_length=160, blank=True)
-    status = models.CharField(
-        max_length=10, choices=Status.choices, default=Status.DRAFT, db_index=True
-    )
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT, db_index=True)
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -128,9 +125,7 @@ class WhitePaper(models.Model):
     body = models.TextField(blank=True, help_text="Full markdown content")
     meta_description = models.CharField(max_length=160, blank=True)
     topic = models.CharField(max_length=100, blank=True, db_index=True)
-    status = models.CharField(
-        max_length=10, choices=Status.choices, default=Status.DRAFT, db_index=True
-    )
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT, db_index=True)
     is_gated = models.BooleanField(default=True, db_column="gated", help_text="Require email to download")
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -217,7 +212,9 @@ class OnboardingSurvey(models.Model):
     biggest_challenge = models.TextField(blank=True)
 
     # Computed learning path
-    learning_path = models.CharField(max_length=40, blank=True)  # quality_engineer, analyst, beginner, researcher, manager
+    learning_path = models.CharField(
+        max_length=40, blank=True
+    )  # quality_engineer, analyst, beginner, researcher, manager
 
     # Feedback tracking
     helpful_emails = models.JSONField(default=list, blank=True)  # email IDs user found useful
@@ -268,7 +265,9 @@ class OnboardingEmail(models.Model):
         on_delete=models.CASCADE,
         related_name="onboarding_emails",
     )
-    email_key = models.CharField(max_length=40)  # e.g. "welcome", "getting_started", "tips_1", "learning_path", "checkin"
+    email_key = models.CharField(
+        max_length=40
+    )  # e.g. "welcome", "getting_started", "tips_1", "learning_path", "checkin"
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
     scheduled_for = models.DateTimeField(db_index=True)
     sent_at = models.DateTimeField(null=True, blank=True)
@@ -292,7 +291,10 @@ class EmailCampaign(models.Model):
     body_md = models.TextField()
     target = models.CharField(max_length=50)  # "all", "tier:free", "eric@example.com", etc.
     sent_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
     )
     recipient_count = models.IntegerField(default=0)
     is_test = models.BooleanField(default=False)
@@ -312,7 +314,10 @@ class EmailRecipient(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     campaign = models.ForeignKey(EmailCampaign, on_delete=models.CASCADE, related_name="recipients")
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
     )
     email = models.EmailField()
     sent_at = models.DateTimeField(auto_now_add=True)
@@ -650,10 +655,15 @@ class RoadmapItem(models.Model):
     area = models.CharField(max_length=20, choices=Area.choices, db_index=True)
     quarter = models.CharField(max_length=7, db_index=True)
     status = models.CharField(
-        max_length=15, choices=Status.choices, default=Status.PLANNED, db_index=True,
+        max_length=15,
+        choices=Status.choices,
+        default=Status.PLANNED,
+        db_index=True,
     )
     tier = models.CharField(
-        max_length=15, choices=Tier.choices, default=Tier.FREE,
+        max_length=15,
+        choices=Tier.choices,
+        default=Tier.FREE,
     )
     is_public = models.BooleanField(default=True, db_index=True)
     sort_order = models.IntegerField(default=0)
@@ -691,10 +701,16 @@ class PlanDocument(models.Model):
     title = models.CharField(max_length=200)
     body = models.TextField(blank=True)
     status = models.CharField(
-        max_length=10, choices=Status.choices, default=Status.DRAFT, db_index=True,
+        max_length=10,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        db_index=True,
     )
     category = models.CharField(
-        max_length=10, choices=Category.choices, default=Category.PLAN, db_index=True,
+        max_length=10,
+        choices=Category.choices,
+        default=Category.PLAN,
+        db_index=True,
     )
     change_request_ids = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -730,22 +746,24 @@ class Initiative(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     short_id = models.CharField(
-        max_length=10, unique=True, db_index=True, editable=False,
-        help_text="Human-readable ID: INIT-001, INIT-002, ..."
+        max_length=10,
+        unique=True,
+        db_index=True,
+        editable=False,
+        help_text="Human-readable ID: INIT-001, INIT-002, ...",
     )
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     status = models.CharField(
-        max_length=15, choices=Status.choices, default=Status.PLANNED, db_index=True,
+        max_length=15,
+        choices=Status.choices,
+        default=Status.PLANNED,
+        db_index=True,
     )
-    target_quarter = models.CharField(
-        max_length=7, blank=True,
-        help_text="Target quarter: Q1-2026, Q2-2026, etc."
-    )
+    target_quarter = models.CharField(max_length=7, blank=True, help_text="Target quarter: Q1-2026, Q2-2026, etc.")
     sort_order = models.IntegerField(default=0)
     notes = models.TextField(
-        blank=True,
-        help_text="Free-form notes. User notes prefixed with $ to distinguish from Claude's."
+        blank=True, help_text="Free-form notes. User notes prefixed with $ to distinguish from Claude's."
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -756,12 +774,7 @@ class Initiative(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.short_id:
-            last = (
-                Initiative.objects
-                .filter(short_id__startswith="INIT-")
-                .order_by("-short_id")
-                .first()
-            )
+            last = Initiative.objects.filter(short_id__startswith="INIT-").order_by("-short_id").first()
             seq = 1
             if last:
                 try:
@@ -810,60 +823,63 @@ class Feature(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     short_id = models.CharField(
-        max_length=10, unique=True, db_index=True, editable=False,
-        help_text="Human-readable ID: FEAT-001, FEAT-002, ..."
+        max_length=10,
+        unique=True,
+        db_index=True,
+        editable=False,
+        help_text="Human-readable ID: FEAT-001, FEAT-002, ...",
     )
 
     # Identity
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    acceptance_criteria = models.TextField(
-        blank=True,
-        help_text="What must be true for this feature to be complete"
-    )
+    acceptance_criteria = models.TextField(blank=True, help_text="What must be true for this feature to be complete")
 
     # Classification
     initiative = models.ForeignKey(
-        Initiative, on_delete=models.CASCADE, related_name="features",
+        Initiative,
+        on_delete=models.CASCADE,
+        related_name="features",
     )
     status = models.CharField(
-        max_length=15, choices=Status.choices, default=Status.BACKLOG, db_index=True,
+        max_length=15,
+        choices=Status.choices,
+        default=Status.BACKLOG,
+        db_index=True,
     )
     priority = models.CharField(
-        max_length=10, choices=Priority.choices, default=Priority.MEDIUM, db_index=True,
+        max_length=10,
+        choices=Priority.choices,
+        default=Priority.MEDIUM,
+        db_index=True,
     )
 
     # Standards & compliance
     iso_clause = models.CharField(
-        max_length=20, blank=True, db_index=True,
-        help_text="ISO 9001 clause (e.g., §7.5, §10.2)"
+        max_length=20, blank=True, db_index=True, help_text="ISO 9001 clause (e.g., §7.5, §10.2)"
     )
     standards = models.JSONField(
-        default=list, blank=True,
-        help_text="Standards this implements: ['SIG-001', 'QMS-001']"
+        default=list, blank=True, help_text="Standards this implements: ['SIG-001', 'QMS-001']"
     )
 
     # Dependencies (DAG)
     depends_on = models.ManyToManyField(
-        "self", symmetrical=False, related_name="blocks", blank=True,
+        "self",
+        symmetrical=False,
+        related_name="blocks",
+        blank=True,
     )
 
     # Cross-references
-    roadmap_item_id = models.UUIDField(
-        null=True, blank=True, db_index=True,
-        help_text="Public RoadmapItem UUID"
-    )
+    roadmap_item_id = models.UUIDField(null=True, blank=True, db_index=True, help_text="Public RoadmapItem UUID")
     change_request_ids = models.JSONField(
-        default=list, blank=True,
-        help_text="ChangeRequest UUIDs linked to this feature"
+        default=list, blank=True, help_text="ChangeRequest UUIDs linked to this feature"
     )
     legacy_id = models.CharField(
-        max_length=20, blank=True, db_index=True,
-        help_text="ID from master plan (e.g., E3-001)"
+        max_length=20, blank=True, db_index=True, help_text="ID from master plan (e.g., E3-001)"
     )
     notes = models.TextField(
-        blank=True,
-        help_text="Free-form notes. User notes prefixed with $ to distinguish from Claude's."
+        blank=True, help_text="Free-form notes. User notes prefixed with $ to distinguish from Claude's."
     )
 
     # Timestamps
@@ -882,12 +898,7 @@ class Feature(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.short_id:
-            last = (
-                Feature.objects
-                .filter(short_id__startswith="FEAT-")
-                .order_by("-short_id")
-                .first()
-            )
+            last = Feature.objects.filter(short_id__startswith="FEAT-").order_by("-short_id").first()
             seq = 1
             if last:
                 try:
@@ -940,8 +951,11 @@ class PlanTask(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     short_id = models.CharField(
-        max_length=10, unique=True, db_index=True, editable=False,
-        help_text="Human-readable ID: TASK-001, TASK-002, ..."
+        max_length=10,
+        unique=True,
+        db_index=True,
+        editable=False,
+        help_text="Human-readable ID: TASK-001, TASK-002, ...",
     )
 
     # Identity
@@ -950,20 +964,27 @@ class PlanTask(models.Model):
 
     # Classification
     feature = models.ForeignKey(
-        Feature, on_delete=models.CASCADE, related_name="tasks",
+        Feature,
+        on_delete=models.CASCADE,
+        related_name="tasks",
     )
     status = models.CharField(
-        max_length=15, choices=Status.choices, default=Status.TODO, db_index=True,
+        max_length=15,
+        choices=Status.choices,
+        default=Status.TODO,
+        db_index=True,
     )
     task_type = models.CharField(
-        max_length=15, choices=TaskType.choices, default=TaskType.MODEL, db_index=True,
+        max_length=15,
+        choices=TaskType.choices,
+        default=TaskType.MODEL,
+        db_index=True,
     )
     sort_order = models.IntegerField(default=0)
 
     # Execution link
     change_request_id = models.UUIDField(
-        null=True, blank=True, db_index=True,
-        help_text="ChangeRequest UUID (created when work begins)"
+        null=True, blank=True, db_index=True, help_text="ChangeRequest UUID (created when work begins)"
     )
 
     # Timestamps
@@ -980,12 +1001,7 @@ class PlanTask(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.short_id:
-            last = (
-                PlanTask.objects
-                .filter(short_id__startswith="TASK-")
-                .order_by("-short_id")
-                .first()
-            )
+            last = PlanTask.objects.filter(short_id__startswith="TASK-").order_by("-short_id").first()
             seq = 1
             if last:
                 try:

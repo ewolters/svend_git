@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 from django.utils import timezone
@@ -69,16 +69,16 @@ class BoundaryContext:
     correlation_id: UUID = field(default_factory=uuid4)
 
     # Optional fields
-    user_id: Optional[UUID] = None
-    request_ip: Optional[str] = None
-    user_agent: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = field(default_factory=dict)
+    user_id: UUID | None = None
+    request_ip: str | None = None
+    user_agent: str | None = None
+    metadata: dict[str, Any] | None = field(default_factory=dict)
 
     # Timestamp for tracking
     timestamp: datetime = field(default_factory=timezone.now)
 
     # Parent correlation for event chaining
-    parent_correlation_id: Optional[UUID] = None
+    parent_correlation_id: UUID | None = None
 
     def __post_init__(self):
         """Validate and normalize context after initialization."""
@@ -107,9 +107,9 @@ class BoundaryContext:
         cls,
         request,
         source: str,
-        tenant_id: Optional[UUID] = None,
-        correlation_id: Optional[UUID] = None,
-    ) -> "BoundaryContext":
+        tenant_id: UUID | None = None,
+        correlation_id: UUID | None = None,
+    ) -> BoundaryContext:
         """
         Create BoundaryContext from a Django REST Framework request.
 
@@ -170,14 +170,14 @@ class BoundaryContext:
         )
 
     @staticmethod
-    def _get_client_ip(request) -> Optional[str]:
+    def _get_client_ip(request) -> str | None:
         """Extract client IP from request, handling proxies."""
         x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
         if x_forwarded_for:
             return x_forwarded_for.split(",")[0].strip()
         return request.META.get("REMOTE_ADDR")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert context to dictionary for serialization.
 
@@ -196,7 +196,7 @@ class BoundaryContext:
             "parent_correlation_id": str(self.parent_correlation_id) if self.parent_correlation_id else None,
         }
 
-    def to_audit_payload(self) -> Dict[str, Any]:
+    def to_audit_payload(self) -> dict[str, Any]:
         """
         Convert context to AUD-001 compliant audit payload.
 
@@ -213,7 +213,7 @@ class BoundaryContext:
             "timestamp": self.timestamp.isoformat(),
         }
 
-    def to_event_payload(self) -> Dict[str, Any]:
+    def to_event_payload(self) -> dict[str, Any]:
         """
         Convert context to EVT-001 compliant event payload.
 
@@ -232,7 +232,7 @@ class BoundaryContext:
             payload["parent_correlation_id"] = str(self.parent_correlation_id)
         return payload
 
-    def with_metadata(self, **kwargs) -> "BoundaryContext":
+    def with_metadata(self, **kwargs) -> BoundaryContext:
         """
         Create a new context with additional metadata.
 
@@ -255,7 +255,7 @@ class BoundaryContext:
             parent_correlation_id=self.parent_correlation_id,
         )
 
-    def child_context(self, new_source: str) -> "BoundaryContext":
+    def child_context(self, new_source: str) -> BoundaryContext:
         """
         Create a child context for nested operations.
 

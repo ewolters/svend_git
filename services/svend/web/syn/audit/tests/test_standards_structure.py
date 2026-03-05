@@ -12,7 +12,6 @@ by the standards compliance runner.
 Compliance: DOC-001 (Documentation Structure), ISO 9001:2015 §7.5
 """
 
-import os
 import re
 from pathlib import Path
 
@@ -23,10 +22,35 @@ STANDARDS_DIR = Path(__file__).resolve().parents[6] / "docs" / "standards"
 
 # DOC-001 §5.3: Valid standard code prefixes
 VALID_PREFIXES = {
-    "DOC", "XRF", "API", "DAT", "SEC", "AUD", "LOG", "ERR",
-    "MOD", "OPS", "TST", "FE", "CMP", "CHG", "SCH", "BILL",
-    "SLA", "LLM", "QMS", "MAP", "STY", "DSW",
-    "STAT", "ARCH", "JS", "TRN", "RDM", "CACHE", "QUAL",
+    "DOC",
+    "XRF",
+    "API",
+    "DAT",
+    "SEC",
+    "AUD",
+    "LOG",
+    "ERR",
+    "MOD",
+    "OPS",
+    "TST",
+    "FE",
+    "CMP",
+    "CHG",
+    "SCH",
+    "BILL",
+    "SLA",
+    "LLM",
+    "QMS",
+    "MAP",
+    "STY",
+    "DSW",
+    "STAT",
+    "ARCH",
+    "JS",
+    "TRN",
+    "RDM",
+    "CACHE",
+    "QUAL",
 }
 
 # DOC-001 §1.3: Valid lifecycle statuses
@@ -43,11 +67,17 @@ CANONICAL_TITLES = {
 }
 
 FORBIDDEN_TITLES = {
-    "Introduction", "Purpose & Scope", "Purpose and Scope",
-    "References", "Dependencies",
-    "Definitions", "Glossary",
-    "Don'ts", "Forbidden Patterns",
-    "Success Criteria", "Done When",
+    "Introduction",
+    "Purpose & Scope",
+    "Purpose and Scope",
+    "References",
+    "Dependencies",
+    "Definitions",
+    "Glossary",
+    "Don'ts",
+    "Forbidden Patterns",
+    "Success Criteria",
+    "Done When",
     "Regulatory Mapping",
 }
 
@@ -69,7 +99,7 @@ def _get_all_standards():
 def _extract_sections(content):
     """Extract ## section headers with their titles and numbers."""
     sections = []
-    for match in re.finditer(r'^## \*\*(\d+)\. (.+?)\*\*', content, re.MULTILINE):
+    for match in re.finditer(r"^## \*\*(\d+)\. (.+?)\*\*", content, re.MULTILINE):
         sections.append((int(match.group(1)), match.group(2)))
     return sections
 
@@ -85,14 +115,12 @@ class StandardsDiscoveryTest(SimpleTestCase):
 
     def test_standards_directory_exists(self):
         """docs/standards/ directory exists."""
-        self.assertTrue(STANDARDS_DIR.exists(),
-                        f"Standards directory not found: {STANDARDS_DIR}")
+        self.assertTrue(STANDARDS_DIR.exists(), f"Standards directory not found: {STANDARDS_DIR}")
 
     def test_minimum_standards_count(self):
         """At least 15 standards exist (current: 17)."""
         standards = _get_all_standards()
-        self.assertGreaterEqual(len(standards), 15,
-                                f"Expected ≥15 standards, found {len(standards)}")
+        self.assertGreaterEqual(len(standards), 15, f"Expected ≥15 standards, found {len(standards)}")
 
     def test_foundation_standards_exist(self):
         """DOC-001 and XRF-001 foundation standards exist."""
@@ -105,18 +133,17 @@ class StandardCodeTest(SimpleTestCase):
 
     def test_all_filenames_match_code_pattern(self):
         """All .md filenames follow CODE-NNN.md pattern."""
-        pattern = re.compile(r'^[A-Z]{2,5}-\d{3}\.md$')
+        pattern = re.compile(r"^[A-Z]{2,5}-\d{3}\.md$")
         for path in _get_all_standards():
-            self.assertRegex(path.name, pattern,
-                             f"Invalid standard filename: {path.name}")
+            self.assertRegex(path.name, pattern, f"Invalid standard filename: {path.name}")
 
     def test_all_codes_use_valid_prefixes(self):
         """All standard codes use prefixes from DOC-001 §5.3."""
         for path in _get_all_standards():
             prefix = path.stem.split("-")[0]
-            self.assertIn(prefix, VALID_PREFIXES,
-                          f"Unknown prefix '{prefix}' in {path.name}. "
-                          f"Register it in DOC-001 §5.3.")
+            self.assertIn(
+                prefix, VALID_PREFIXES, f"Unknown prefix '{prefix}' in {path.name}. Register it in DOC-001 §5.3."
+            )
 
     def test_title_matches_filename(self):
         """First line title code matches filename."""
@@ -124,8 +151,7 @@ class StandardCodeTest(SimpleTestCase):
             content = path.read_text()
             first_line = content.strip().split("\n")[0]
             code = path.stem  # e.g. DOC-001
-            self.assertIn(code, first_line,
-                          f"{path.name}: title '{first_line}' doesn't contain code '{code}'")
+            self.assertIn(code, first_line, f"{path.name}: title '{first_line}' doesn't contain code '{code}'")
 
 
 class MetadataHeaderTest(SimpleTestCase):
@@ -135,60 +161,52 @@ class MetadataHeaderTest(SimpleTestCase):
         """Every standard has a **Version:** field."""
         for path in _get_all_standards():
             header = _extract_header(path.read_text())
-            self.assertIn("**Version:**", header,
-                          f"{path.name} missing Version field")
+            self.assertIn("**Version:**", header, f"{path.name} missing Version field")
 
     def test_all_standards_have_status(self):
         """Every standard has a **Status:** field."""
         for path in _get_all_standards():
             header = _extract_header(path.read_text())
-            self.assertIn("**Status:**", header,
-                          f"{path.name} missing Status field")
+            self.assertIn("**Status:**", header, f"{path.name} missing Status field")
 
     def test_all_statuses_valid(self):
         """All Status values are from the valid lifecycle set."""
         for path in _get_all_standards():
             header = _extract_header(path.read_text())
-            match = re.search(r'\*\*Status:\*\*\s+(\w+)', header)
+            match = re.search(r"\*\*Status:\*\*\s+(\w+)", header)
             self.assertIsNotNone(match, f"{path.name}: can't parse Status")
             status = match.group(1)
-            self.assertIn(status, VALID_STATUSES,
-                          f"{path.name}: invalid status '{status}'")
+            self.assertIn(status, VALID_STATUSES, f"{path.name}: invalid status '{status}'")
 
     def test_all_standards_have_date(self):
         """Every standard has a **Date:** field in YYYY-MM-DD format."""
         for path in _get_all_standards():
             header = _extract_header(path.read_text())
-            self.assertIn("**Date:**", header,
-                          f"{path.name} missing Date field")
-            match = re.search(r'\*\*Date:\*\*\s+(\d{4}-\d{2}-\d{2})', header)
-            self.assertIsNotNone(match,
-                                 f"{path.name}: Date not in YYYY-MM-DD format")
+            self.assertIn("**Date:**", header, f"{path.name} missing Date field")
+            match = re.search(r"\*\*Date:\*\*\s+(\d{4}-\d{2}-\d{2})", header)
+            self.assertIsNotNone(match, f"{path.name}: Date not in YYYY-MM-DD format")
 
     def test_all_standards_have_author(self):
         """Every standard has an **Author:** field."""
         for path in _get_all_standards():
             header = _extract_header(path.read_text())
-            self.assertIn("**Author:**", header,
-                          f"{path.name} missing Author field")
+            self.assertIn("**Author:**", header, f"{path.name} missing Author field")
 
     def test_all_standards_have_compliance(self):
         """Every standard has a **Compliance:** section."""
         for path in _get_all_standards():
             header = _extract_header(path.read_text())
-            self.assertIn("**Compliance:**", header,
-                          f"{path.name} missing Compliance field")
+            self.assertIn("**Compliance:**", header, f"{path.name} missing Compliance field")
 
     def test_version_format(self):
         """Version numbers follow MAJOR.MINOR or MAJOR.MINOR.PATCH format."""
-        pattern = re.compile(r'^\d+\.\d+(\.\d+)?$')
+        pattern = re.compile(r"^\d+\.\d+(\.\d+)?$")
         for path in _get_all_standards():
             header = _extract_header(path.read_text())
-            match = re.search(r'\*\*Version:\*\*\s+(\S+)', header)
+            match = re.search(r"\*\*Version:\*\*\s+(\S+)", header)
             self.assertIsNotNone(match, f"{path.name}: can't parse Version")
             version = match.group(1)
-            self.assertRegex(version, pattern,
-                             f"{path.name}: invalid version '{version}'")
+            self.assertRegex(version, pattern, f"{path.name}: invalid version '{version}'")
 
 
 class MandatorySectionTest(SimpleTestCase):
@@ -199,30 +217,28 @@ class MandatorySectionTest(SimpleTestCase):
         for path in _get_all_standards():
             sections = _extract_sections(path.read_text())
             sec_1 = [t for n, t in sections if n == 1]
-            self.assertTrue(len(sec_1) > 0,
-                            f"{path.name}: missing §1")
-            self.assertEqual(sec_1[0], "SCOPE AND PURPOSE",
-                             f"{path.name}: §1 is '{sec_1[0]}', expected 'SCOPE AND PURPOSE'")
+            self.assertTrue(len(sec_1) > 0, f"{path.name}: missing §1")
+            self.assertEqual(
+                sec_1[0], "SCOPE AND PURPOSE", f"{path.name}: §1 is '{sec_1[0]}', expected 'SCOPE AND PURPOSE'"
+            )
 
     def test_all_standards_have_references_section(self):
         """§2 is NORMATIVE REFERENCES in every standard."""
         for path in _get_all_standards():
             sections = _extract_sections(path.read_text())
             sec_2 = [t for n, t in sections if n == 2]
-            self.assertTrue(len(sec_2) > 0,
-                            f"{path.name}: missing §2")
-            self.assertEqual(sec_2[0], "NORMATIVE REFERENCES",
-                             f"{path.name}: §2 is '{sec_2[0]}', expected 'NORMATIVE REFERENCES'")
+            self.assertTrue(len(sec_2) > 0, f"{path.name}: missing §2")
+            self.assertEqual(
+                sec_2[0], "NORMATIVE REFERENCES", f"{path.name}: §2 is '{sec_2[0]}', expected 'NORMATIVE REFERENCES'"
+            )
 
     def test_all_standards_have_terminology_section(self):
         """§3 is TERMINOLOGY in every standard."""
         for path in _get_all_standards():
             sections = _extract_sections(path.read_text())
             sec_3 = [t for n, t in sections if n == 3]
-            self.assertTrue(len(sec_3) > 0,
-                            f"{path.name}: missing §3")
-            self.assertEqual(sec_3[0], "TERMINOLOGY",
-                             f"{path.name}: §3 is '{sec_3[0]}', expected 'TERMINOLOGY'")
+            self.assertTrue(len(sec_3) > 0, f"{path.name}: missing §3")
+            self.assertEqual(sec_3[0], "TERMINOLOGY", f"{path.name}: §3 is '{sec_3[0]}', expected 'TERMINOLOGY'")
 
     def test_all_standards_have_anti_patterns(self):
         """Third-to-last numbered section is ANTI-PATTERNS."""
@@ -231,9 +247,11 @@ class MandatorySectionTest(SimpleTestCase):
             if len(sections) < 4:
                 continue  # Skip malformed
             # Last 3 must be: ANTI-PATTERNS, ACCEPTANCE CRITERIA, COMPLIANCE MAPPING
-            self.assertEqual(sections[-3][1], "ANTI-PATTERNS",
-                             f"{path.name}: §{sections[-3][0]} is '{sections[-3][1]}', "
-                             f"expected 'ANTI-PATTERNS'")
+            self.assertEqual(
+                sections[-3][1],
+                "ANTI-PATTERNS",
+                f"{path.name}: §{sections[-3][0]} is '{sections[-3][1]}', expected 'ANTI-PATTERNS'",
+            )
 
     def test_all_standards_have_acceptance_criteria(self):
         """Second-to-last numbered section is ACCEPTANCE CRITERIA."""
@@ -241,9 +259,11 @@ class MandatorySectionTest(SimpleTestCase):
             sections = _extract_sections(path.read_text())
             if len(sections) < 4:
                 continue
-            self.assertEqual(sections[-2][1], "ACCEPTANCE CRITERIA",
-                             f"{path.name}: §{sections[-2][0]} is '{sections[-2][1]}', "
-                             f"expected 'ACCEPTANCE CRITERIA'")
+            self.assertEqual(
+                sections[-2][1],
+                "ACCEPTANCE CRITERIA",
+                f"{path.name}: §{sections[-2][0]} is '{sections[-2][1]}', expected 'ACCEPTANCE CRITERIA'",
+            )
 
     def test_all_standards_have_compliance_mapping(self):
         """Last numbered section is COMPLIANCE MAPPING."""
@@ -251,9 +271,11 @@ class MandatorySectionTest(SimpleTestCase):
             sections = _extract_sections(path.read_text())
             if len(sections) < 4:
                 continue
-            self.assertEqual(sections[-1][1], "COMPLIANCE MAPPING",
-                             f"{path.name}: §{sections[-1][0]} is '{sections[-1][1]}', "
-                             f"expected 'COMPLIANCE MAPPING'")
+            self.assertEqual(
+                sections[-1][1],
+                "COMPLIANCE MAPPING",
+                f"{path.name}: §{sections[-1][0]} is '{sections[-1][1]}', expected 'COMPLIANCE MAPPING'",
+            )
 
     def test_sections_numbered_sequentially(self):
         """Section numbers are sequential (1, 2, 3, ...)."""
@@ -261,8 +283,7 @@ class MandatorySectionTest(SimpleTestCase):
             sections = _extract_sections(path.read_text())
             numbers = [n for n, _ in sections]
             expected = list(range(1, len(numbers) + 1))
-            self.assertEqual(numbers, expected,
-                             f"{path.name}: non-sequential sections {numbers}")
+            self.assertEqual(numbers, expected, f"{path.name}: non-sequential sections {numbers}")
 
     def test_no_forbidden_section_titles(self):
         """No standard uses forbidden title variants."""
@@ -270,12 +291,8 @@ class MandatorySectionTest(SimpleTestCase):
             content = path.read_text()
             for forbidden in FORBIDDEN_TITLES:
                 # Only check in ## headers
-                matches = re.findall(
-                    rf'^## \*\*\d+\. {re.escape(forbidden)}\*\*',
-                    content, re.MULTILINE
-                )
-                self.assertEqual(len(matches), 0,
-                                 f"{path.name}: uses forbidden title '{forbidden}'")
+                matches = re.findall(rf"^## \*\*\d+\. {re.escape(forbidden)}\*\*", content, re.MULTILINE)
+                self.assertEqual(len(matches), 0, f"{path.name}: uses forbidden title '{forbidden}'")
 
 
 class RevisionHistoryTest(SimpleTestCase):
@@ -285,8 +302,7 @@ class RevisionHistoryTest(SimpleTestCase):
         """Every standard has a REVISION HISTORY section."""
         for path in _get_all_standards():
             content = path.read_text()
-            self.assertIn("REVISION HISTORY", content,
-                          f"{path.name} missing REVISION HISTORY")
+            self.assertIn("REVISION HISTORY", content, f"{path.name} missing REVISION HISTORY")
 
     def test_revision_history_has_table(self):
         """Revision history contains a markdown table."""
@@ -297,14 +313,13 @@ class RevisionHistoryTest(SimpleTestCase):
             if idx == -1:
                 continue
             after = content[idx:]
-            self.assertIn("| Version |", after,
-                          f"{path.name}: REVISION HISTORY missing table")
+            self.assertIn("| Version |", after, f"{path.name}: REVISION HISTORY missing table")
 
 
 class MachineReadableHooksTest(SimpleTestCase):
     """DOC-001 §7: Standards with domain sections have machine-readable hooks."""
 
-    HOOK_RE = re.compile(r'^<!--\s*(assert|impl|check|code|control|rule|table|test|sla):', re.MULTILINE)
+    HOOK_RE = re.compile(r"^<!--\s*(assert|impl|check|code|control|rule|table|test|sla):", re.MULTILINE)
 
     def test_domain_standards_have_assertions(self):
         """Standards with domain content (§4+) have at least one assert hook."""
@@ -314,10 +329,12 @@ class MachineReadableHooksTest(SimpleTestCase):
             if path.name in foundation:
                 continue
             content = path.read_text()
-            asserts = re.findall(r'<!-- assert:', content)
-            self.assertGreater(len(asserts), 0,
-                               f"{path.name}: no <!-- assert: --> hooks found. "
-                               f"DOC-001 §7 requires machine-readable assertions.")
+            asserts = re.findall(r"<!-- assert:", content)
+            self.assertGreater(
+                len(asserts),
+                0,
+                f"{path.name}: no <!-- assert: --> hooks found. DOC-001 §7 requires machine-readable assertions.",
+            )
 
     def test_assertions_have_impl_links(self):
         """Every assert hook is followed by at least one impl hook."""
@@ -327,13 +344,12 @@ class MachineReadableHooksTest(SimpleTestCase):
             for i, line in enumerate(lines):
                 if line.strip().startswith("<!-- assert:"):
                     # Look for impl in the next 5 lines
-                    following = "\n".join(lines[i+1:i+6])
-                    self.assertIn("<!-- impl:", following,
-                                  f"{path.name} line {i+1}: assert without impl link")
+                    following = "\n".join(lines[i + 1 : i + 6])
+                    self.assertIn("<!-- impl:", following, f"{path.name} line {i + 1}: assert without impl link")
 
     def test_hook_syntax_valid(self):
         """All hooks use correct <!-- keyword: value --> syntax."""
-        bad_hooks = re.compile(r'<!--\s*(assert|impl|check|code|control|rule|table|test|sla)\s*[^:]')
+        bad_hooks = re.compile(r"<!--\s*(assert|impl|check|code|control|rule|table|test|sla)\s*[^:]")
         for path in _get_all_standards():
             content = path.read_text()
             for match in bad_hooks.finditer(content):
@@ -348,7 +364,8 @@ class HookAttributeExtractionTest(SimpleTestCase):
 
     def test_assert_hook_has_check_attribute(self):
         """Assert hooks use | check=id to define check IDs."""
-        from syn.audit.standards import TAG_RE, ATTR_RE
+        from syn.audit.standards import ATTR_RE, TAG_RE
+
         line = "<!-- assert: Test claim | check=test-id -->"
         m = TAG_RE.match(line)
         self.assertIsNotNone(m)
@@ -357,7 +374,8 @@ class HookAttributeExtractionTest(SimpleTestCase):
 
     def test_check_hook_has_soc2_attribute(self):
         """Check hooks use | soc2=X for SOC 2 control mapping."""
-        from syn.audit.standards import TAG_RE, ATTR_RE
+        from syn.audit.standards import ATTR_RE, TAG_RE
+
         line = "<!-- check: aud-chain-integrity | soc2=CC7.2 | nist=AU-9 -->"
         m = TAG_RE.match(line)
         self.assertIsNotNone(m)
@@ -367,7 +385,8 @@ class HookAttributeExtractionTest(SimpleTestCase):
 
     def test_sla_hook_has_metric_attribute(self):
         """SLA hooks use | metric=X | target=Y | window=Z | severity=S."""
-        from syn.audit.standards import SLA_TAG_RE, ATTR_RE
+        from syn.audit.standards import ATTR_RE, SLA_TAG_RE
+
         line = "<!-- sla: Platform availability | metric=availability | target=99.9% | window=monthly | severity=critical -->"
         m = SLA_TAG_RE.match(line)
         self.assertIsNotNone(m, "SLA_TAG_RE failed to match SLA tag")
@@ -380,6 +399,7 @@ class HookAttributeExtractionTest(SimpleTestCase):
     def test_attr_re_extracts_multiple_attributes(self):
         """ATTR_RE extracts all pipe-separated attributes."""
         from syn.audit.standards import ATTR_RE
+
         value = "Some desc | metric=availability | target=99.9% | window=monthly | severity=critical | check=sla-avail"
         attrs = dict(ATTR_RE.findall(value))
         self.assertEqual(len(attrs), 5)
@@ -387,6 +407,7 @@ class HookAttributeExtractionTest(SimpleTestCase):
     def test_tag_re_matches_sla_type(self):
         """TAG_RE recognizes 'sla' as a valid hook type."""
         from syn.audit.standards import TAG_RE
+
         line = "<!-- sla: Platform availability | metric=availability -->"
         m = TAG_RE.match(line)
         self.assertIsNotNone(m)
@@ -399,66 +420,66 @@ class ParserContractTest(SimpleTestCase):
     def test_assertions_have_impl_links(self):
         """Parsed assertions include impl file paths."""
         from syn.audit.standards import parse_all_standards
+
         assertions = parse_all_standards()
         with_impls = [a for a in assertions if a.impls]
-        self.assertGreater(len(with_impls), 50,
-                           f"Only {len(with_impls)} assertions have impl links")
+        self.assertGreater(len(with_impls), 50, f"Only {len(with_impls)} assertions have impl links")
 
     def test_assertions_have_test_links(self):
         """Parsed assertions include test method paths."""
         from syn.audit.standards import parse_all_standards
+
         assertions = parse_all_standards()
         with_tests = [a for a in assertions if a.tests]
-        self.assertGreater(len(with_tests), 50,
-                           f"Only {len(with_tests)} assertions have test links")
+        self.assertGreater(len(with_tests), 50, f"Only {len(with_tests)} assertions have test links")
 
     def test_assertions_have_controls(self):
         """Some assertions have SOC 2/NIST control mappings."""
         from syn.audit.standards import parse_all_standards
+
         assertions = parse_all_standards()
         with_controls = [a for a in assertions if a.controls]
-        self.assertGreater(len(with_controls), 0,
-                           "No assertions have control mappings")
+        self.assertGreater(len(with_controls), 0, "No assertions have control mappings")
 
     def test_assertions_have_rule_classification(self):
         """Some assertions have mandatory/recommended rule classification."""
         from syn.audit.standards import parse_all_standards
+
         assertions = parse_all_standards()
         with_rules = [a for a in assertions if a.rule]
-        self.assertGreater(len(with_rules), 0,
-                           "No assertions have rule classification")
+        self.assertGreater(len(with_rules), 0, "No assertions have rule classification")
 
     def test_assertions_span_multiple_standards(self):
         """Assertions come from at least 15 different standards."""
         from syn.audit.standards import parse_all_standards
+
         assertions = parse_all_standards()
         standards = {a.standard for a in assertions}
-        self.assertGreaterEqual(len(standards), 15,
-                                f"Only {len(standards)} standards have assertions")
+        self.assertGreaterEqual(len(standards), 15, f"Only {len(standards)} standards have assertions")
 
     def test_code_correct_patterns_extracted(self):
         """Parser extracts <!-- code: correct --> blocks."""
         from syn.audit.standards import parse_all_standards
+
         assertions = parse_all_standards()
         with_correct = [a for a in assertions if a.code_correct]
-        self.assertGreater(len(with_correct), 0,
-                           "No assertions have code_correct patterns")
+        self.assertGreater(len(with_correct), 0, "No assertions have code_correct patterns")
 
     def test_code_prohibited_patterns_extracted(self):
         """Parser extracts <!-- code: prohibited --> blocks."""
         from syn.audit.standards import parse_all_standards
+
         assertions = parse_all_standards()
         with_prohibited = [a for a in assertions if a.code_prohibited]
-        self.assertGreater(len(with_prohibited), 0,
-                           "No assertions have code_prohibited patterns")
+        self.assertGreater(len(with_prohibited), 0, "No assertions have code_prohibited patterns")
 
     def test_section_numbers_populated(self):
         """Parsed assertions have section numbers like §4, §5.1."""
         from syn.audit.standards import parse_all_standards
+
         assertions = parse_all_standards()
         with_sections = [a for a in assertions if a.section]
-        self.assertGreater(len(with_sections), 100,
-                           f"Only {len(with_sections)} assertions have section numbers")
+        self.assertGreater(len(with_sections), 100, f"Only {len(with_sections)} assertions have section numbers")
 
 
 class SLAParserIntegrationTest(SimpleTestCase):
@@ -466,7 +487,8 @@ class SLAParserIntegrationTest(SimpleTestCase):
 
     def test_parse_sla_definitions_returns_objects(self):
         """parse_sla_definitions returns SLADefinition objects from SLA-001."""
-        from syn.audit.standards import parse_sla_definitions, SLADefinition
+        from syn.audit.standards import SLADefinition, parse_sla_definitions
+
         sla_path = STANDARDS_DIR / "SLA-001.md"
         if sla_path.exists():
             slas = parse_sla_definitions(sla_path)
@@ -476,14 +498,15 @@ class SLAParserIntegrationTest(SimpleTestCase):
     def test_parse_all_sla_definitions_deduplicates(self):
         """parse_all_sla_definitions returns unique SLAs by sla_id."""
         from syn.audit.standards import parse_all_sla_definitions
+
         slas = parse_all_sla_definitions()
         ids = [s.sla_id for s in slas]
-        self.assertEqual(len(ids), len(set(ids)),
-                         "Duplicate SLA IDs found")
+        self.assertEqual(len(ids), len(set(ids)), "Duplicate SLA IDs found")
 
     def test_sla_definitions_have_required_fields(self):
         """All parsed SLAs have metric, target, window, severity."""
         from syn.audit.standards import parse_all_sla_definitions
+
         slas = parse_all_sla_definitions()
         for sla in slas:
             self.assertTrue(sla.metric, f"SLA {sla.sla_id} missing metric")
@@ -493,8 +516,8 @@ class SLAParserIntegrationTest(SimpleTestCase):
 
     def test_sla_metric_values_valid(self):
         """All SLA metrics are from the valid set."""
-        from syn.audit.standards import parse_all_sla_definitions, VALID_METRICS
+        from syn.audit.standards import VALID_METRICS, parse_all_sla_definitions
+
         slas = parse_all_sla_definitions()
         for sla in slas:
-            self.assertIn(sla.metric, VALID_METRICS,
-                          f"SLA {sla.sla_id} has invalid metric '{sla.metric}'")
+            self.assertIn(sla.metric, VALID_METRICS, f"SLA {sla.sla_id} has invalid metric '{sla.metric}'")

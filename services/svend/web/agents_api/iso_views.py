@@ -13,42 +13,38 @@ import json
 import logging
 from datetime import date, timedelta
 
+from django.db import IntegrityError
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from django.db import IntegrityError
-
 from accounts.models import User
 from accounts.permissions import require_team
-from core.models import Project, Evidence, StudyAction
+from core.models import Evidence, Project, StudyAction
 from notifications.helpers import notify
 
 from .evidence_bridge import create_tool_evidence
-
 from .models import (
-    CAPAReport,
-    ElectronicSignature,
-    NonconformanceRecord,
-    NCRStatusChange,
-    InternalAudit,
-    AuditFinding,
+    FMEA,
     AuditChecklist,
-    TrainingRequirement,
-    TrainingRecord,
-    TrainingRecordChange,
-    QMSFieldChange,
-    ManagementReview,
+    AuditFinding,
+    CAPAReport,
     ControlledDocument,
     DocumentRevision,
     DocumentStatusChange,
+    ElectronicSignature,
+    InternalAudit,
+    ManagementReview,
+    NCRStatusChange,
+    NonconformanceRecord,
+    QMSFieldChange,
+    RCASession,
     SupplierRecord,
     SupplierStatusChange,
-    RCASession,
-    Report,
-    FMEA,
+    TrainingRecord,
+    TrainingRecordChange,
+    TrainingRequirement,
 )
-from .report_types import REPORT_TYPES
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +132,7 @@ def _ncr_evidence_hooks(ncr, data, user):
 # Dashboard overview
 # =========================================================================
 
+
 @require_team
 @require_http_methods(["GET"])
 def iso_dashboard(request):
@@ -178,7 +175,9 @@ def iso_dashboard(request):
         audits.filter(
             scheduled_date__gte=today,
             status__in=["planned", "in_progress"],
-        ).order_by("scheduled_date").values("id", "title", "scheduled_date", "status")[:3]
+        )
+        .order_by("scheduled_date")
+        .values("id", "title", "scheduled_date", "status")[:3]
     )
     for a in upcoming_audits:
         a["id"] = str(a["id"])
@@ -192,13 +191,20 @@ def iso_dashboard(request):
     compliance_rate = round(complete_records / total_records * 100) if total_records else 100
     gaps_count = all_records.exclude(status="complete").count()
     expiring_count = all_records.filter(
-        expires_at__isnull=False, expires_at__lte=thirty_days,
+        expires_at__isnull=False,
+        expires_at__lte=thirty_days,
     ).count()
 
     # ---- Last review ----
-    last_review = ManagementReview.objects.filter(
-        owner=user, status="complete",
-    ).order_by("-meeting_date").values("meeting_date").first()
+    last_review = (
+        ManagementReview.objects.filter(
+            owner=user,
+            status="complete",
+        )
+        .order_by("-meeting_date")
+        .values("meeting_date")
+        .first()
+    )
     last_review_data = None
     if last_review:
         days_ago = (today - last_review["meeting_date"]).days
@@ -256,41 +262,41 @@ def iso_dashboard(request):
             status = "planned"
         clause_coverage.append({"clause": clause_num, "name": clause_name, "status": status})
 
-    return JsonResponse({
-        "clause_coverage": clause_coverage,
-        "ncrs": {
-            "open": open_ncrs.count(),
-            "by_severity": by_severity,
-            "overdue_capas": overdue,
-            "trend": trend,
-        },
-        "upcoming_audits": upcoming_audits,
-        "training": {
-            "compliance_rate": compliance_rate,
-            "gaps_count": gaps_count,
-            "expiring_count": expiring_count,
-        },
-        "last_review": last_review_data,
-        "capa_due_soon": [
-            {"id": str(c[0]), "title": c[1], "due_date": str(c[2])}
-            for c in capa_due_soon
-        ],
-        "documents": {
-            "total": docs_qs.count(),
-            "approved": docs_qs.filter(status="approved").count(),
-            "review_due_soon": review_due_count,
-        },
-        "suppliers": {
-            "total": suppliers_qs.count(),
-            "approved": suppliers_qs.filter(status="approved").count(),
-            "eval_overdue": eval_overdue_count,
-        },
-    })
+    return JsonResponse(
+        {
+            "clause_coverage": clause_coverage,
+            "ncrs": {
+                "open": open_ncrs.count(),
+                "by_severity": by_severity,
+                "overdue_capas": overdue,
+                "trend": trend,
+            },
+            "upcoming_audits": upcoming_audits,
+            "training": {
+                "compliance_rate": compliance_rate,
+                "gaps_count": gaps_count,
+                "expiring_count": expiring_count,
+            },
+            "last_review": last_review_data,
+            "capa_due_soon": [{"id": str(c[0]), "title": c[1], "due_date": str(c[2])} for c in capa_due_soon],
+            "documents": {
+                "total": docs_qs.count(),
+                "approved": docs_qs.filter(status="approved").count(),
+                "review_due_soon": review_due_count,
+            },
+            "suppliers": {
+                "total": suppliers_qs.count(),
+                "approved": suppliers_qs.filter(status="approved").count(),
+                "eval_overdue": eval_overdue_count,
+            },
+        }
+    )
 
 
 # =========================================================================
 # NCR Tracker
 # =========================================================================
+
 
 @require_team
 @require_http_methods(["GET", "POST"])
@@ -314,9 +320,18 @@ def ncr_list_create(request):
         if iso_clause:
             ncrs = ncrs.filter(iso_clause__icontains=iso_clause)
         # Validate sort field
-        allowed_sorts = {"created_at", "-created_at", "severity", "-severity",
-                         "status", "-status", "capa_due_date", "-capa_due_date",
-                         "title", "-title"}
+        allowed_sorts = {
+            "created_at",
+            "-created_at",
+            "severity",
+            "-severity",
+            "status",
+            "-status",
+            "capa_due_date",
+            "-capa_due_date",
+            "title",
+            "-title",
+        }
         if sort in allowed_sorts:
             ncrs = ncrs.order_by(sort)
         return JsonResponse([n.to_dict() for n in ncrs[:100]], safe=False)
@@ -355,6 +370,7 @@ def ncr_list_create(request):
     file_ids = data.get("file_ids", [])
     if file_ids:
         from files.models import UserFile
+
         files = UserFile.objects.filter(id__in=file_ids, user=user)
         ncr.files.set(files)
 
@@ -436,9 +452,17 @@ def ncr_detail(request, ncr_id):
             ncr.closed_at = timezone.now()
 
     # Update other fields (with change logging)
-    ncr_fields = ["title", "description", "severity", "source",
-                   "iso_clause", "containment_action", "root_cause",
-                   "corrective_action", "verification_result"]
+    ncr_fields = [
+        "title",
+        "description",
+        "severity",
+        "source",
+        "iso_clause",
+        "containment_action",
+        "root_cause",
+        "corrective_action",
+        "verification_result",
+    ]
     _log_field_changes("ncr", ncr.id, ncr, data, ncr_fields, request.user)
     for field in ncr_fields:
         if field in data:
@@ -448,9 +472,11 @@ def ncr_detail(request, ncr_id):
         new_due = str(data["capa_due_date"]) if data["capa_due_date"] else ""
         if old_due != new_due:
             QMSFieldChange.objects.create(
-                record_type="ncr", record_id=ncr.id,
+                record_type="ncr",
+                record_id=ncr.id,
                 field_name="capa_due_date",
-                old_value=old_due, new_value=new_due,
+                old_value=old_due,
+                new_value=new_due,
                 changed_by=request.user,
             )
         ncr.capa_due_date = data["capa_due_date"] or None
@@ -494,6 +520,7 @@ def ncr_detail(request, ncr_id):
     # File attachments
     if "file_ids" in data:
         from files.models import UserFile
+
         files = UserFile.objects.filter(id__in=data["file_ids"], user=request.user)
         ncr.files.set(files)
     ncr.save()
@@ -511,10 +538,7 @@ def ncr_detail(request, ncr_id):
             source_tool="ncr",
             source_id=str(ncr.id),
             source_field="status_closed",
-            details=(
-                f"Resolution: {ncr.corrective_action or 'N/A'}\n"
-                f"Verification: {ncr.verification_result or 'N/A'}"
-            ),
+            details=(f"Resolution: {ncr.corrective_action or 'N/A'}\nVerification: {ncr.verification_result or 'N/A'}"),
             source_type="observation",
         )
 
@@ -532,17 +556,20 @@ def ncr_stats(request):
 
     # Average close time
     from django.db.models import Avg, F
-    avg_close = ncrs.filter(closed_at__isnull=False).aggregate(
-        avg_days=Avg(F("closed_at") - F("created_at"))
-    )["avg_days"]
+
+    avg_close = ncrs.filter(closed_at__isnull=False).aggregate(avg_days=Avg(F("closed_at") - F("created_at")))[
+        "avg_days"
+    ]
     avg_close_days = avg_close.days if avg_close else None
 
-    return JsonResponse({
-        "total": ncrs.count(),
-        "open": open_ncrs.count(),
-        "overdue_capas": overdue,
-        "avg_close_days": avg_close_days,
-    })
+    return JsonResponse(
+        {
+            "total": ncrs.count(),
+            "open": open_ncrs.count(),
+            "overdue_capas": overdue,
+            "avg_close_days": avg_close_days,
+        }
+    )
 
 
 @require_team
@@ -586,6 +613,7 @@ def ncr_files(request, ncr_id):
         return JsonResponse({"error": "file_id required"}, status=400)
 
     from files.models import UserFile
+
     try:
         uf = UserFile.objects.get(id=file_id, user=request.user)
     except UserFile.DoesNotExist:
@@ -602,6 +630,7 @@ def ncr_files(request, ncr_id):
 # =========================================================================
 # Internal Audit Scheduler
 # =========================================================================
+
 
 @require_team
 @require_http_methods(["GET", "POST"])
@@ -660,8 +689,7 @@ def audit_detail(request, audit_id):
                 status=400,
             )
 
-    audit_fields = ["title", "status", "lead_auditor", "iso_clauses",
-                     "departments", "scope", "summary"]
+    audit_fields = ["title", "status", "lead_auditor", "iso_clauses", "departments", "scope", "summary"]
     _log_field_changes("audit", audit.id, audit, data, audit_fields, request.user)
     for field in audit_fields:
         if field in data:
@@ -670,8 +698,10 @@ def audit_detail(request, audit_id):
         old_sd = str(audit.scheduled_date) if audit.scheduled_date else ""
         if old_sd != str(data["scheduled_date"]):
             QMSFieldChange.objects.create(
-                record_type="audit", record_id=audit.id,
-                field_name="scheduled_date", old_value=old_sd,
+                record_type="audit",
+                record_id=audit.id,
+                field_name="scheduled_date",
+                old_value=old_sd,
                 new_value=str(data["scheduled_date"]),
                 changed_by=request.user,
             )
@@ -737,6 +767,7 @@ def audit_finding_create(request, audit_id):
 # Audit Checklists
 # =========================================================================
 
+
 @require_team
 @require_http_methods(["GET", "POST"])
 def audit_checklist_list_create(request):
@@ -784,6 +815,7 @@ def audit_checklist_detail(request, checklist_id):
 # =========================================================================
 # Training Matrix
 # =========================================================================
+
 
 @require_team
 @require_http_methods(["GET", "POST"])
@@ -862,7 +894,8 @@ def training_record_files(request, record_id):
     """Attach or detach artifact files from a training record."""
     try:
         record = TrainingRecord.objects.get(
-            id=record_id, requirement__owner=request.user,
+            id=record_id,
+            requirement__owner=request.user,
         )
     except TrainingRecord.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
@@ -873,6 +906,7 @@ def training_record_files(request, record_id):
         return JsonResponse({"error": "file_id required"}, status=400)
 
     from files.models import UserFile
+
     try:
         uf = UserFile.objects.get(id=file_id, user=request.user)
     except UserFile.DoesNotExist:
@@ -920,7 +954,8 @@ def training_record_update(request, record_id):
     """Update or delete a training record."""
     try:
         record = TrainingRecord.objects.get(
-            id=record_id, requirement__owner=request.user,
+            id=record_id,
+            requirement__owner=request.user,
         )
     except TrainingRecord.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
@@ -951,14 +986,12 @@ def training_record_update(request, record_id):
         record.status = "complete"
         record.completed_at = timezone.now()
         record.expires_at = (
-            timezone.now() + timedelta(days=req.frequency_months * 30)
-            if req.frequency_months > 0 else None
+            timezone.now() + timedelta(days=req.frequency_months * 30) if req.frequency_months > 0 else None
         )
 
         log_change("status", old_status, "complete")
         log_change("completed_at", old_completed, record.completed_at.isoformat())
-        log_change("expires_at", old_expires,
-                    record.expires_at.isoformat() if record.expires_at else "")
+        log_change("expires_at", old_expires, record.expires_at.isoformat() if record.expires_at else "")
         record.save()
         return JsonResponse(record.to_dict())
 
@@ -996,6 +1029,7 @@ def training_record_update(request, record_id):
 # Management Review
 # =========================================================================
 
+
 @require_team
 @require_http_methods(["GET", "POST"])
 def review_list_create(request):
@@ -1015,9 +1049,14 @@ def review_list_create(request):
 
     # Prior actions from most recent completed review
     prior_actions = {}
-    last_review = ManagementReview.objects.filter(
-        owner=user, status="complete",
-    ).order_by("-meeting_date").first()
+    last_review = (
+        ManagementReview.objects.filter(
+            owner=user,
+            status="complete",
+        )
+        .order_by("-meeting_date")
+        .first()
+    )
     if last_review:
         prior_actions = last_review.outputs or {}
 
@@ -1037,7 +1076,8 @@ def review_list_create(request):
     # Audit summary
     completed_audits = audits.filter(status__in=["complete", "report_issued"])
     open_findings = AuditFinding.objects.filter(
-        audit__owner=user, status="open",
+        audit__owner=user,
+        status="open",
     ).count()
     audit_summary = {
         "completed": completed_audits.count(),
@@ -1099,6 +1139,7 @@ def review_detail(request, review_id):
 # Document Control (clause 7.5)
 # =========================================================================
 
+
 @require_team
 @require_http_methods(["GET", "POST"])
 def document_list_create(request):
@@ -1117,12 +1158,23 @@ def document_list_create(request):
             docs = docs.filter(category=category)
         if search:
             from django.db.models import Q
+
             docs = docs.filter(Q(title__icontains=search) | Q(document_number__icontains=search))
         allowed_sorts = {
-            "title", "-title", "document_number", "-document_number",
-            "status", "-status", "current_version", "-current_version",
-            "review_due_date", "-review_due_date", "created_at", "-created_at",
-            "updated_at", "-updated_at",
+            "title",
+            "-title",
+            "document_number",
+            "-document_number",
+            "status",
+            "-status",
+            "current_version",
+            "-current_version",
+            "review_due_date",
+            "-review_due_date",
+            "created_at",
+            "-created_at",
+            "updated_at",
+            "-updated_at",
         }
         if sort in allowed_sorts:
             docs = docs.order_by(sort)
@@ -1232,8 +1284,7 @@ def document_detail(request, doc_id):
         )
 
     # Update fields (skip status — handled above), with change logging
-    doc_fields = ["title", "document_number", "category", "iso_clause",
-                   "current_version", "content"]
+    doc_fields = ["title", "document_number", "category", "iso_clause", "current_version", "content"]
     _log_field_changes("document", doc.id, doc, data, doc_fields, request.user)
     for field in doc_fields:
         if field in data:
@@ -1245,9 +1296,12 @@ def document_detail(request, doc_id):
         new_ret = str(data["retention_years"])
         if old_ret != new_ret:
             QMSFieldChange.objects.create(
-                record_type="document", record_id=doc.id,
-                field_name="retention_years", old_value=old_ret,
-                new_value=new_ret, changed_by=request.user,
+                record_type="document",
+                record_id=doc.id,
+                field_name="retention_years",
+                old_value=old_ret,
+                new_value=new_ret,
+                changed_by=request.user,
             )
         doc.retention_years = data["retention_years"]
     if "approved_by_user" in data and not new_status:
@@ -1278,6 +1332,7 @@ def document_files(request, doc_id):
         return JsonResponse({"error": "file_id required"}, status=400)
 
     from files.models import UserFile
+
     try:
         uf = UserFile.objects.get(id=file_id, user=request.user)
     except UserFile.DoesNotExist:
@@ -1294,6 +1349,7 @@ def document_files(request, doc_id):
 # =========================================================================
 # Supplier Management (clause 8.4)
 # =========================================================================
+
 
 @require_team
 @require_http_methods(["GET", "POST"])
@@ -1313,13 +1369,21 @@ def supplier_list_create(request):
             suppliers = suppliers.filter(supplier_type=supplier_type)
         if search:
             from django.db.models import Q
+
             suppliers = suppliers.filter(Q(name__icontains=search) | Q(contact_name__icontains=search))
         allowed_sorts = {
-            "name", "-name", "status", "-status",
-            "quality_rating", "-quality_rating",
-            "next_evaluation_date", "-next_evaluation_date",
-            "last_evaluation_date", "-last_evaluation_date",
-            "created_at", "-created_at",
+            "name",
+            "-name",
+            "status",
+            "-status",
+            "quality_rating",
+            "-quality_rating",
+            "next_evaluation_date",
+            "-next_evaluation_date",
+            "last_evaluation_date",
+            "-last_evaluation_date",
+            "created_at",
+            "-created_at",
         }
         if sort in allowed_sorts:
             suppliers = suppliers.order_by(sort)
@@ -1385,9 +1449,17 @@ def supplier_detail(request, supplier_id):
 
     # Update other fields (skip fields already set during transition), with change logging
     transition_fields = {"notes", "quality_rating", "disqualification_reason"} if new_status else set()
-    supplier_fields = ["name", "supplier_type", "contact_name", "contact_email",
-                        "contact_phone", "products_services", "quality_rating", "notes",
-                        "disqualification_reason"]
+    supplier_fields = [
+        "name",
+        "supplier_type",
+        "contact_name",
+        "contact_email",
+        "contact_phone",
+        "products_services",
+        "quality_rating",
+        "notes",
+        "disqualification_reason",
+    ]
     non_transition = {f: data[f] for f in supplier_fields if f in data and f not in transition_fields}
     _log_field_changes("supplier", supplier.id, supplier, non_transition, list(non_transition.keys()), request.user)
     for field, val in non_transition.items():
@@ -1429,6 +1501,7 @@ def supplier_detail(request, supplier_id):
 # Study Output Actions (Phase 7) — QMS routing from Studies
 # =============================================================================
 
+
 def _get_study_for_action(request):
     """Validate and return the study (project) from request body."""
     try:
@@ -1462,7 +1535,7 @@ def _get_study_context(project):
     if rca:
         parts = []
         if rca.chain:
-            chain_str = "\n".join(f"{i+1}. {s.get('claim', '')}" for i, s in enumerate(rca.chain))
+            chain_str = "\n".join(f"{i + 1}. {s.get('claim', '')}" for i, s in enumerate(rca.chain))
             parts.append(f"**Causal Chain:**\n{chain_str}")
         parts.append(f"**Root Cause:** {rca.root_cause}")
         if rca.countermeasure:
@@ -1518,11 +1591,14 @@ def study_raise_capa(request):
 
     project.log_event("capa_raised", f"CAPA created: {capa.title}", user=request.user)
     logger.info("Study %s: raised CAPA %s", project.id, capa.id)
-    return JsonResponse({
-        "ok": True,
-        "action": "raise_capa",
-        "capa": capa.to_dict(),
-    }, status=201)
+    return JsonResponse(
+        {
+            "ok": True,
+            "action": "raise_capa",
+            "capa": capa.to_dict(),
+        },
+        status=201,
+    )
 
 
 @require_team
@@ -1567,11 +1643,14 @@ def study_schedule_audit(request):
 
     project.log_event("audit_scheduled", f"Verification audit scheduled: {audit.title}", user=request.user)
     logger.info("Study %s: scheduled verification audit %s", project.id, audit.id)
-    return JsonResponse({
-        "ok": True,
-        "action": "schedule_audit",
-        "audit": audit.to_dict(),
-    }, status=201)
+    return JsonResponse(
+        {
+            "ok": True,
+            "action": "schedule_audit",
+            "audit": audit.to_dict(),
+        },
+        status=201,
+    )
 
 
 @require_team
@@ -1617,11 +1696,14 @@ def study_request_doc_update(request):
 
     project.log_event("doc_update_requested", f"Document update requested: {title}", user=request.user)
     logger.info("Study %s: requested document update %s", project.id, doc.id)
-    return JsonResponse({
-        "ok": True,
-        "action": "request_doc_update",
-        "document": doc.to_dict(),
-    }, status=201)
+    return JsonResponse(
+        {
+            "ok": True,
+            "action": "request_doc_update",
+            "document": doc.to_dict(),
+        },
+        status=201,
+    )
 
 
 @require_team
@@ -1664,11 +1746,14 @@ def study_flag_training_gap(request):
 
     project.log_event("training_gap_flagged", f"Training gap: {name}", user=request.user)
     logger.info("Study %s: flagged training gap %s", project.id, req.id)
-    return JsonResponse({
-        "ok": True,
-        "action": "flag_training_gap",
-        "training": req.to_dict(),
-    }, status=201)
+    return JsonResponse(
+        {
+            "ok": True,
+            "action": "flag_training_gap",
+            "training": req.to_dict(),
+        },
+        status=201,
+    )
 
 
 @require_team
@@ -1708,12 +1793,15 @@ def study_flag_fmea_update(request):
 
     project.log_event("fmea_review_flagged", f"FMEA flagged for review: {fmea.title}", user=request.user)
     logger.info("Study %s: flagged FMEA %s for review", project.id, fmea.id)
-    return JsonResponse({
-        "ok": True,
-        "action": "flag_fmea_update",
-        "fmea_id": str(fmea.id),
-        "fmea_title": fmea.title,
-    }, status=201)
+    return JsonResponse(
+        {
+            "ok": True,
+            "action": "flag_fmea_update",
+            "fmea_id": str(fmea.id),
+            "fmea_title": fmea.title,
+        },
+        status=201,
+    )
 
 
 # =============================================================================
@@ -1746,6 +1834,7 @@ def _get_client_ip(request):
 def _resolve_tenant_id(user):
     """Get tenant_id for a user, or None for individual users."""
     from core.models import Membership
+
     m = Membership.objects.filter(user=user).first()
     return m.tenant_id if m else None
 
@@ -1855,7 +1944,10 @@ def signature_list_or_sign(request):
 
     logger.info(
         "E-Sig: %s signed %s/%s as %s",
-        user.email, document_type, document_id, meaning,
+        user.email,
+        document_type,
+        document_id,
+        meaning,
     )
 
     # NTF-001 §10.1 — notify document owner of new signature
@@ -1892,11 +1984,13 @@ def signature_verify(request, sig_id):
             return JsonResponse({"error": "Not found"}, status=404)
 
     is_valid = sig.verify_integrity()
-    return JsonResponse({
-        "id": str(sig.id),
-        "is_valid": is_valid,
-        "entry_hash": sig.entry_hash,
-    })
+    return JsonResponse(
+        {
+            "id": str(sig.id),
+            "is_valid": is_valid,
+            "entry_hash": sig.entry_hash,
+        }
+    )
 
 
 @require_team

@@ -2,13 +2,13 @@
 
 import json
 import logging
-from datetime import datetime, timedelta
 
 import numpy as np
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
+
 from .dsw.common import sanitize_for_json
 
 logger = logging.getLogger(__name__)
@@ -93,12 +93,12 @@ def holt_winters_forecast(prices, days=30, season_length=12, alpha=0.3, beta=0.1
     if seasonal == "multiplicative":
         # Multiplicative initialization
         level = np.mean(prices[:season_length])
-        trend = (np.mean(prices[season_length:2*season_length]) - np.mean(prices[:season_length])) / season_length
+        trend = (np.mean(prices[season_length : 2 * season_length]) - np.mean(prices[:season_length])) / season_length
         seasonals = [prices[i] / np.mean(prices[:season_length]) for i in range(season_length)]
     else:
         # Additive initialization
         level = np.mean(prices[:season_length])
-        trend = (np.mean(prices[season_length:2*season_length]) - np.mean(prices[:season_length])) / season_length
+        trend = (np.mean(prices[season_length : 2 * season_length]) - np.mean(prices[:season_length])) / season_length
         seasonals = [prices[i] - np.mean(prices[:season_length]) for i in range(season_length)]
 
     fitted = []
@@ -220,13 +220,15 @@ def forecast(request):
             }
 
         except ImportError:
-            return JsonResponse({
-                "error": "yfinance not available",
-                "suggestion": "Provide custom data in the 'data' field instead"
-            }, status=400)
-        except Exception as e:
+            return JsonResponse(
+                {"error": "yfinance not available", "suggestion": "Provide custom data in the 'data' field instead"},
+                status=400,
+            )
+        except Exception:
             logger.exception(f"Error fetching {symbol}")
-            return JsonResponse({"error": f"Unable to fetch data for {symbol}. Please verify the symbol and try again."}, status=400)
+            return JsonResponse(
+                {"error": f"Unable to fetch data for {symbol}. Please verify the symbol and try again."}, status=400
+            )
 
     elif custom_data:
         if not isinstance(custom_data, list) or len(custom_data) < 5:
@@ -258,8 +260,7 @@ def forecast(request):
     elif method == "exp_smooth":
         forecast_data = exponential_smoothing_forecast(prices, days)
         method_description = (
-            "Exponential Smoothing: Weights recent prices more heavily. "
-            "Good for data with no clear trend."
+            "Exponential Smoothing: Weights recent prices more heavily. Good for data with no clear trend."
         )
     elif method == "holt_winters":
         season_length = int(data.get("season_length", 12))
@@ -270,7 +271,9 @@ def forecast(request):
             f"seasonality (period={season_length}). Best for data with repeating patterns."
         )
     else:
-        return JsonResponse({"error": f"Unknown method: {method}. Use: random_walk, sma, exp_smooth, holt_winters"}, status=400)
+        return JsonResponse(
+            {"error": f"Unknown method: {method}. Use: random_walk, sma, exp_smooth, holt_winters"}, status=400
+        )
 
     if not forecast_data:
         return JsonResponse({"error": "Insufficient data for forecast"}, status=400)
@@ -286,25 +289,29 @@ def forecast(request):
     # Track usage
     request.user.increment_queries()
 
-    return JsonResponse(sanitize_for_json({
-        "disclaimer": DISCLAIMER,
-        "symbol_info": symbol_info,
-        "method": method,
-        "method_description": method_description,
-        "forecast_days": days,
-        "forecast": forecast_data,
-        "summary": {
-            "current_price": round(current, 2),
-            "forecast_median": round(final_median, 2),
-            "forecast_range_90": [round(final_low, 2), round(final_high, 2)],
-            "expected_change_pct": round(pct_change_median, 2),
-        },
-        "historical": {
-            "prices": prices[-60:],  # Last 60 days for charting
-            "high_52w": round(max(prices), 2),
-            "low_52w": round(min(prices), 2),
-        }
-    }))
+    return JsonResponse(
+        sanitize_for_json(
+            {
+                "disclaimer": DISCLAIMER,
+                "symbol_info": symbol_info,
+                "method": method,
+                "method_description": method_description,
+                "forecast_days": days,
+                "forecast": forecast_data,
+                "summary": {
+                    "current_price": round(current, 2),
+                    "forecast_median": round(final_median, 2),
+                    "forecast_range_90": [round(final_low, 2), round(final_high, 2)],
+                    "expected_change_pct": round(pct_change_median, 2),
+                },
+                "historical": {
+                    "prices": prices[-60:],  # Last 60 days for charting
+                    "high_52w": round(max(prices), 2),
+                    "low_52w": round(min(prices), 2),
+                },
+            }
+        )
+    )
 
 
 @require_http_methods(["GET"])
@@ -331,22 +338,26 @@ def quote(request):
         change = current - prev_close
         change_pct = (change / prev_close) * 100
 
-        return JsonResponse(sanitize_for_json({
-            "symbol": symbol,
-            "name": info.get("shortName", info.get("longName", symbol)),
-            "price": round(current, 2),
-            "change": round(change, 2),
-            "change_pct": round(change_pct, 2),
-            "currency": info.get("currency", "USD"),
-            "market_cap": info.get("marketCap"),
-            "volume": int(hist["Volume"].iloc[-1]) if "Volume" in hist else None,
-            "high_52w": info.get("fiftyTwoWeekHigh"),
-            "low_52w": info.get("fiftyTwoWeekLow"),
-            "disclaimer": "Data provided for informational purposes only. Not financial advice.",
-        }))
+        return JsonResponse(
+            sanitize_for_json(
+                {
+                    "symbol": symbol,
+                    "name": info.get("shortName", info.get("longName", symbol)),
+                    "price": round(current, 2),
+                    "change": round(change, 2),
+                    "change_pct": round(change_pct, 2),
+                    "currency": info.get("currency", "USD"),
+                    "market_cap": info.get("marketCap"),
+                    "volume": int(hist["Volume"].iloc[-1]) if "Volume" in hist else None,
+                    "high_52w": info.get("fiftyTwoWeekHigh"),
+                    "low_52w": info.get("fiftyTwoWeekLow"),
+                    "disclaimer": "Data provided for informational purposes only. Not financial advice.",
+                }
+            )
+        )
 
     except ImportError:
         return JsonResponse({"error": "yfinance not available"}, status=500)
-    except Exception as e:
+    except Exception:
         logger.exception(f"Error fetching quote for {symbol}")
         return JsonResponse({"error": "Unable to retrieve quote data. Please try again."}, status=500)

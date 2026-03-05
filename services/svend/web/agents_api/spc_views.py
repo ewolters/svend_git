@@ -11,18 +11,18 @@ Endpoints for:
 import json
 import logging
 import math
-import statistics
-import tempfile
 import os
+import tempfile
 
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated, require_auth
+
 from . import spc
-from .models import Problem
 from .dsw.common import sanitize_for_json
 from .dsw.standardize import standardize_output
+from .models import Problem
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,7 @@ def _cache_put(key: str, value: spc.ParsedDataset) -> None:
 # =============================================================================
 # Control Charts
 # =============================================================================
+
 
 @require_http_methods(["POST"])
 @gated
@@ -110,7 +111,10 @@ def control_chart(request):
         elif chart_type == "T-squared":
             # Hotelling's T² for multivariate data
             if not isinstance(data[0], list):
-                return JsonResponse({"error": "T-squared requires multivariate data (array of arrays, each row = [var1, var2, ...])"}, status=400)
+                return JsonResponse(
+                    {"error": "T-squared requires multivariate data (array of arrays, each row = [var1, var2, ...])"},
+                    status=400,
+                )
             result = spc.hotelling_t_squared_chart(data, usl=usl, lsl=lsl)
 
         else:
@@ -126,6 +130,7 @@ def control_chart(request):
                     f"{len(result.out_of_control)} points outside limits."
                 )
                 from .problem_views import write_context_file
+
                 problem.add_evidence(
                     summary=evidence_summary,
                     evidence_type="data_analysis",
@@ -139,27 +144,32 @@ def control_chart(request):
         fmea_update = None
         if fmea_row_id and not result.in_control:
             fmea_update = _spc_fmea_hook(
-                request.user, fmea_row_id,
+                request.user,
+                fmea_row_id,
                 ooc_count=len(result.out_of_control),
-                total_points=len(getattr(result, 'data_points', data)),
+                total_points=len(getattr(result, "data_points", data)),
             )
 
         # Phase 3: SPC → Evidence bridge (QMS-001 §11.4)
         evidence_created = None
         if project_id and not result.in_control:
             evidence_created = _spc_evidence_hook(
-                request.user, project_id, chart_type,
+                request.user,
+                project_id,
+                chart_type,
                 ooc_count=len(result.out_of_control),
-                total_points=len(getattr(result, 'data_points', data)),
-                cl=getattr(result, 'center_line', None),
-                ucl=getattr(result, 'ucl', None),
-                lcl=getattr(result, 'lcl', None),
+                total_points=len(getattr(result, "data_points", data)),
+                cl=getattr(result, "center_line", None),
+                ucl=getattr(result, "ucl", None),
+                lcl=getattr(result, "lcl", None),
             )
 
-        resp = sanitize_for_json({
-            "success": True,
-            "chart": result.to_dict(),
-        })
+        resp = sanitize_for_json(
+            {
+                "success": True,
+                "chart": result.to_dict(),
+            }
+        )
         if fmea_update:
             resp["fmea_update"] = fmea_update
         if evidence_created:
@@ -225,6 +235,7 @@ def recommend_chart(request):
                 f"(data_type={data_type}, subgroup_size={subgroup_size})"
             )
             from .problem_views import write_context_file
+
             evidence = problem.add_evidence(
                 summary=evidence_summary,
                 evidence_type="observation",
@@ -242,6 +253,7 @@ def recommend_chart(request):
 # =============================================================================
 # Process Capability
 # =============================================================================
+
 
 @require_http_methods(["POST"])
 @gated
@@ -295,6 +307,7 @@ def capability_study(request):
                     f"{result.interpretation}"
                 )
                 from .problem_views import write_context_file
+
                 problem.add_evidence(
                     summary=evidence_summary,
                     evidence_type="data_analysis",
@@ -321,8 +334,8 @@ def _build_capability_response(data, cap):
     Returns a dict in the same format as renderStatsOutput expects:
     {summary, plots, guide_observation, what_if_data}
     """
-    from scipy import stats as sp_stats
     import numpy as np
+    from scipy import stats as sp_stats
 
     mean = cap.mean
     sigma = cap.sigma_overall
@@ -338,18 +351,18 @@ def _build_capability_response(data, cap):
     summary += f"  Min:            {min(data):.4f}\n"
     summary += f"  Max:            {max(data):.4f}\n"
 
-    summary += f"\n<<COLOR:accent>>Capability Indices:<</COLOR>>\n"
+    summary += "\n<<COLOR:accent>>Capability Indices:<</COLOR>>\n"
     summary += f"  Cp:   {cap.cp:.3f}     Pp:   {cap.pp:.3f}\n"
     summary += f"  Cpk:  {cap.cpk:.3f}     Ppk:  {cap.ppk:.3f}\n"
 
     # Cpm (Taguchi) — only meaningful with a target that differs from midpoint
     if target is not None and sigma > 0:
-        cpm = (usl - lsl) / (6 * math.sqrt(sigma ** 2 + (mean - target) ** 2))
+        cpm = (usl - lsl) / (6 * math.sqrt(sigma**2 + (mean - target) ** 2))
         summary += f"  Cpm:  {cpm:.3f}   (Taguchi, target = {target})\n"
 
-    summary += f"\n<<COLOR:accent>>Expected Performance:<</COLOR>>\n"
-    z_lower = (mean - lsl) / sigma if sigma > 0 else float('inf')
-    z_upper = (usl - mean) / sigma if sigma > 0 else float('inf')
+    summary += "\n<<COLOR:accent>>Expected Performance:<</COLOR>>\n"
+    z_lower = (mean - lsl) / sigma if sigma > 0 else float("inf")
+    z_upper = (usl - mean) / sigma if sigma > 0 else float("inf")
     ppm_below = float(sp_stats.norm.cdf(-z_lower) * 1e6)
     ppm_above = float(sp_stats.norm.cdf(-z_upper) * 1e6)
     ppm_total = ppm_below + ppm_above
@@ -374,13 +387,18 @@ def _build_capability_response(data, cap):
 
     hist_traces = [
         {
-            "type": "histogram", "x": [float(v) for v in data],
-            "histnorm": "probability density", "name": "Observed",
+            "type": "histogram",
+            "x": [float(v) for v in data],
+            "histnorm": "probability density",
+            "name": "Observed",
             "marker": {"color": "rgba(74, 159, 110, 0.35)", "line": {"color": "#4a9f6e", "width": 1}},
         },
         {
-            "type": "scatter", "x": x_range.tolist(), "y": pdf_vals.tolist(),
-            "mode": "lines", "name": "Normal Fit",
+            "type": "scatter",
+            "x": x_range.tolist(),
+            "y": pdf_vals.tolist(),
+            "mode": "lines",
+            "name": "Normal Fit",
             "line": {"color": "#4a90d9", "width": 2.5},
         },
     ]
@@ -389,58 +407,114 @@ def _build_capability_response(data, cap):
     annotations_h = []
 
     # Mean line
-    shapes_h.append({
-        "type": "line", "x0": mean, "x1": mean, "y0": 0, "y1": 1, "yref": "paper",
-        "line": {"color": "#00b894", "width": 2},
-    })
-    annotations_h.append({
-        "x": mean, "y": 1.06, "yref": "paper", "text": "Mean",
-        "showarrow": False, "font": {"color": "#00b894", "size": 10},
-    })
+    shapes_h.append(
+        {
+            "type": "line",
+            "x0": mean,
+            "x1": mean,
+            "y0": 0,
+            "y1": 1,
+            "yref": "paper",
+            "line": {"color": "#00b894", "width": 2},
+        }
+    )
+    annotations_h.append(
+        {
+            "x": mean,
+            "y": 1.06,
+            "yref": "paper",
+            "text": "Mean",
+            "showarrow": False,
+            "font": {"color": "#00b894", "size": 10},
+        }
+    )
 
     # Target line
     if target is not None:
-        shapes_h.append({
-            "type": "line", "x0": target, "x1": target, "y0": 0, "y1": 1, "yref": "paper",
-            "line": {"color": "#e8c547", "dash": "dashdot", "width": 1.5},
-        })
-        annotations_h.append({
-            "x": target, "y": 1.06, "yref": "paper", "text": "Target",
-            "showarrow": False, "font": {"color": "#e8c547", "size": 10},
-        })
+        shapes_h.append(
+            {
+                "type": "line",
+                "x0": target,
+                "x1": target,
+                "y0": 0,
+                "y1": 1,
+                "yref": "paper",
+                "line": {"color": "#e8c547", "dash": "dashdot", "width": 1.5},
+            }
+        )
+        annotations_h.append(
+            {
+                "x": target,
+                "y": 1.06,
+                "yref": "paper",
+                "text": "Target",
+                "showarrow": False,
+                "font": {"color": "#e8c547", "size": 10},
+            }
+        )
 
     # LSL / USL lines
-    shapes_h.append({
-        "type": "line", "x0": lsl, "x1": lsl, "y0": 0, "y1": 1, "yref": "paper",
-        "line": {"color": "#e85747", "dash": "dash", "width": 2},
-    })
-    annotations_h.append({
-        "x": lsl, "y": 1.06, "yref": "paper", "text": "LSL",
-        "showarrow": False, "font": {"color": "#e85747", "size": 11},
-    })
-    shapes_h.append({
-        "type": "line", "x0": usl, "x1": usl, "y0": 0, "y1": 1, "yref": "paper",
-        "line": {"color": "#e85747", "dash": "dash", "width": 2},
-    })
-    annotations_h.append({
-        "x": usl, "y": 1.06, "yref": "paper", "text": "USL",
-        "showarrow": False, "font": {"color": "#e85747", "size": 11},
-    })
+    shapes_h.append(
+        {
+            "type": "line",
+            "x0": lsl,
+            "x1": lsl,
+            "y0": 0,
+            "y1": 1,
+            "yref": "paper",
+            "line": {"color": "#e85747", "dash": "dash", "width": 2},
+        }
+    )
+    annotations_h.append(
+        {
+            "x": lsl,
+            "y": 1.06,
+            "yref": "paper",
+            "text": "LSL",
+            "showarrow": False,
+            "font": {"color": "#e85747", "size": 11},
+        }
+    )
+    shapes_h.append(
+        {
+            "type": "line",
+            "x0": usl,
+            "x1": usl,
+            "y0": 0,
+            "y1": 1,
+            "yref": "paper",
+            "line": {"color": "#e85747", "dash": "dash", "width": 2},
+        }
+    )
+    annotations_h.append(
+        {
+            "x": usl,
+            "y": 1.06,
+            "yref": "paper",
+            "text": "USL",
+            "showarrow": False,
+            "font": {"color": "#e85747", "size": 11},
+        }
+    )
 
     plots = []
-    plots.append({
-        "title": "Capability Histogram",
-        "data": hist_traces,
-        "layout": {
-            "template": "plotly_dark", "height": 320,
-            "shapes": shapes_h, "annotations": annotations_h,
-            "showlegend": True,
-            "legend": {"x": 1, "xanchor": "right", "y": 1, "bgcolor": "rgba(0,0,0,0)"},
-            "margin": {"t": 40, "r": 20},
-            "xaxis": {"title": "Measurement"},
-            "yaxis": {"title": "Density"},
-        },
-    })
+    plots.append(
+        {
+            "title": "Capability Histogram",
+            "data": hist_traces,
+            "layout": {
+                "template": "plotly_dark",
+                "height": 320,
+                "shapes": shapes_h,
+                "annotations": annotations_h,
+                "showlegend": True,
+                "legend": {"x": 1, "xanchor": "right", "y": 1, "bgcolor": "rgba(0,0,0,0)"},
+                "margin": {"t": 40, "r": 20},
+                "xaxis": {"title": "Measurement"},
+                "yaxis": {"title": "Density"},
+            },
+        }
+    )
 
     # ── Plot 2: Process spread vs specs ─────────────────────────
     spread_lo = mean - 3 * std
@@ -449,14 +523,22 @@ def _build_capability_response(data, cap):
 
     spread_traces = [
         {
-            "type": "bar", "y": [""], "x": [usl - lsl], "base": [lsl],
-            "orientation": "h", "name": "Spec Range",
+            "type": "bar",
+            "y": [""],
+            "x": [usl - lsl],
+            "base": [lsl],
+            "orientation": "h",
+            "name": "Spec Range",
             "marker": {"color": "rgba(232, 87, 71, 0.15)", "line": {"color": "#e85747", "width": 1.5}},
             "width": [0.5],
         },
         {
-            "type": "bar", "y": [""], "x": [spread_hi - spread_lo], "base": [spread_lo],
-            "orientation": "h", "name": "Process \u00b13\u03c3",
+            "type": "bar",
+            "y": [""],
+            "x": [spread_hi - spread_lo],
+            "base": [spread_lo],
+            "orientation": "h",
+            "name": "Process \u00b13\u03c3",
             "marker": {"color": "rgba(74, 159, 110, 0.25)", "line": {"color": "#4a9f6e", "width": 1.5}},
             "width": [0.3],
         },
@@ -464,53 +546,100 @@ def _build_capability_response(data, cap):
 
     spread_shapes = []
     spread_annot = []
-    spread_shapes.append({
-        "type": "line", "x0": mean, "x1": mean, "y0": -0.3, "y1": 0.3,
-        "line": {"color": "#00b894", "width": 2.5},
-    })
-    spread_annot.append({
-        "x": mean, "y": 0.35, "text": f"\u03bc={mean:.2f}",
-        "showarrow": False, "font": {"color": "#00b894", "size": 10},
-    })
-    spread_annot.append({
-        "x": lsl, "y": -0.35, "text": f"LSL={lsl}",
-        "showarrow": False, "font": {"color": "#e85747", "size": 10},
-    })
-    spread_annot.append({
-        "x": usl, "y": -0.35, "text": f"USL={usl}",
-        "showarrow": False, "font": {"color": "#e85747", "size": 10},
-    })
-    spread_annot.append({
-        "x": spread_lo, "y": 0.35, "text": "-3\u03c3",
-        "showarrow": False, "font": {"color": "#4a9f6e", "size": 9},
-    })
-    spread_annot.append({
-        "x": spread_hi, "y": 0.35, "text": "+3\u03c3",
-        "showarrow": False, "font": {"color": "#4a9f6e", "size": 9},
-    })
+    spread_shapes.append(
+        {
+            "type": "line",
+            "x0": mean,
+            "x1": mean,
+            "y0": -0.3,
+            "y1": 0.3,
+            "line": {"color": "#00b894", "width": 2.5},
+        }
+    )
+    spread_annot.append(
+        {
+            "x": mean,
+            "y": 0.35,
+            "text": f"\u03bc={mean:.2f}",
+            "showarrow": False,
+            "font": {"color": "#00b894", "size": 10},
+        }
+    )
+    spread_annot.append(
+        {
+            "x": lsl,
+            "y": -0.35,
+            "text": f"LSL={lsl}",
+            "showarrow": False,
+            "font": {"color": "#e85747", "size": 10},
+        }
+    )
+    spread_annot.append(
+        {
+            "x": usl,
+            "y": -0.35,
+            "text": f"USL={usl}",
+            "showarrow": False,
+            "font": {"color": "#e85747", "size": 10},
+        }
+    )
+    spread_annot.append(
+        {
+            "x": spread_lo,
+            "y": 0.35,
+            "text": "-3\u03c3",
+            "showarrow": False,
+            "font": {"color": "#4a9f6e", "size": 9},
+        }
+    )
+    spread_annot.append(
+        {
+            "x": spread_hi,
+            "y": 0.35,
+            "text": "+3\u03c3",
+            "showarrow": False,
+            "font": {"color": "#4a9f6e", "size": 9},
+        }
+    )
     if target is not None:
-        spread_shapes.append({
-            "type": "line", "x0": target, "x1": target, "y0": -0.3, "y1": 0.3,
-            "line": {"color": "#e8c547", "dash": "dashdot", "width": 1.5},
-        })
-        spread_annot.append({
-            "x": target, "y": -0.35, "text": f"T={target}",
-            "showarrow": False, "font": {"color": "#e8c547", "size": 10},
-        })
+        spread_shapes.append(
+            {
+                "type": "line",
+                "x0": target,
+                "x1": target,
+                "y0": -0.3,
+                "y1": 0.3,
+                "line": {"color": "#e8c547", "dash": "dashdot", "width": 1.5},
+            }
+        )
+        spread_annot.append(
+            {
+                "x": target,
+                "y": -0.35,
+                "text": f"T={target}",
+                "showarrow": False,
+                "font": {"color": "#e8c547", "size": 10},
+            }
+        )
 
-    plots.append({
-        "title": "Process Spread vs Specification",
-        "data": spread_traces,
-        "layout": {
-            "template": "plotly_dark", "height": 180, "barmode": "overlay",
-            "shapes": spread_shapes, "annotations": spread_annot,
-            "showlegend": True,
-            "legend": {"x": 1, "xanchor": "right", "y": 1, "bgcolor": "rgba(0,0,0,0)"},
-            "xaxis": {"range": [min(lsl, spread_lo) - pad, max(usl, spread_hi) + pad], "title": "Measurement"},
-            "yaxis": {"visible": False, "range": [-0.5, 0.5]},
-            "margin": {"t": 35, "b": 45, "l": 20, "r": 20},
-        },
-    })
+    plots.append(
+        {
+            "title": "Process Spread vs Specification",
+            "data": spread_traces,
+            "layout": {
+                "template": "plotly_dark",
+                "height": 180,
+                "barmode": "overlay",
+                "shapes": spread_shapes,
+                "annotations": spread_annot,
+                "showlegend": True,
+                "legend": {"x": 1, "xanchor": "right", "y": 1, "bgcolor": "rgba(0,0,0,0)"},
+                "xaxis": {"range": [min(lsl, spread_lo) - pad, max(usl, spread_hi) + pad], "title": "Measurement"},
+                "yaxis": {"visible": False, "range": [-0.5, 0.5]},
+                "margin": {"t": 35, "b": 45, "l": 20, "r": 20},
+            },
+        }
+    )
 
     # ── Plot 3: Normal probability plot (Q-Q) ──────────────────
     sorted_data = np.sort(data_arr)
@@ -522,30 +651,37 @@ def _build_capability_response(data, cap):
     sw_stat, sw_p = sp_stats.shapiro(sw_data)
     normality_note = f"Shapiro-Wilk p = {sw_p:.4f}" + (" (normal)" if sw_p >= 0.05 else " (non-normal)")
 
-    plots.append({
-        "title": f"Normal Probability Plot  ({normality_note})",
-        "data": [
-            {
-                "type": "scatter", "x": theoretical_q.tolist(), "y": sorted_data.tolist(),
-                "mode": "markers", "name": "Data",
-                "marker": {"color": "#4a9f6e", "size": 5, "opacity": 0.7},
+    plots.append(
+        {
+            "title": f"Normal Probability Plot  ({normality_note})",
+            "data": [
+                {
+                    "type": "scatter",
+                    "x": theoretical_q.tolist(),
+                    "y": sorted_data.tolist(),
+                    "mode": "markers",
+                    "name": "Data",
+                    "marker": {"color": "#4a9f6e", "size": 5, "opacity": 0.7},
+                },
+                {
+                    "type": "scatter",
+                    "x": [float(theoretical_q.min()), float(theoretical_q.max())],
+                    "y": [float(theoretical_q.min()), float(theoretical_q.max())],
+                    "mode": "lines",
+                    "name": "Reference",
+                    "line": {"color": "#e85747", "dash": "dash", "width": 1.5},
+                },
+            ],
+            "layout": {
+                "template": "plotly_dark",
+                "height": 300,
+                "xaxis": {"title": "Theoretical Quantiles"},
+                "yaxis": {"title": "Observed"},
+                "showlegend": False,
+                "margin": {"t": 35},
             },
-            {
-                "type": "scatter",
-                "x": [float(theoretical_q.min()), float(theoretical_q.max())],
-                "y": [float(theoretical_q.min()), float(theoretical_q.max())],
-                "mode": "lines", "name": "Reference",
-                "line": {"color": "#e85747", "dash": "dash", "width": 1.5},
-            },
-        ],
-        "layout": {
-            "template": "plotly_dark", "height": 300,
-            "xaxis": {"title": "Theoretical Quantiles"},
-            "yaxis": {"title": "Observed"},
-            "showlegend": False,
-            "margin": {"t": 35},
-        },
-    })
+        }
+    )
 
     guide_obs = f"Process capability Cpk = {cap.cpk:.2f}. " + ("Capable." if cap.cpk >= 1.33 else "Needs improvement.")
 
@@ -570,6 +706,7 @@ def _build_capability_response(data, cap):
 # =============================================================================
 # Statistical Summary
 # =============================================================================
+
 
 @require_http_methods(["POST"])
 @gated
@@ -613,6 +750,7 @@ def statistical_summary(request):
                     f"median={summary_dict.get('median', 0):.4f}"
                 )
                 from .problem_views import write_context_file
+
                 evidence = problem.add_evidence(
                     summary=evidence_summary,
                     evidence_type="data_analysis",
@@ -641,6 +779,7 @@ def statistical_summary(request):
 # File Upload and Field Mapping
 # =============================================================================
 
+
 @require_http_methods(["POST"])
 @require_auth
 def upload_data(request):
@@ -656,15 +795,13 @@ def upload_data(request):
     filename = uploaded.name
 
     # Validate file type
-    ext = filename.lower().split('.')[-1]
-    if ext not in ['xlsx', 'xls', 'csv']:
-        return JsonResponse({
-            "error": "Unsupported file type. Please upload .xlsx, .xls, or .csv"
-        }, status=400)
+    ext = filename.lower().split(".")[-1]
+    if ext not in ["xlsx", "xls", "csv"]:
+        return JsonResponse({"error": "Unsupported file type. Please upload .xlsx, .xls, or .csv"}, status=400)
 
     try:
         # Save to temp file for parsing
-        with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{ext}') as tmp:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp:
             for chunk in uploaded.chunks():
                 tmp.write(chunk)
             tmp_path = tmp.name
@@ -676,26 +813,31 @@ def upload_data(request):
         os.unlink(tmp_path)
 
         if parsed.errors:
-            return JsonResponse({
-                "error": parsed.errors[0],
-                "errors": parsed.errors,
-            }, status=400)
+            return JsonResponse(
+                {
+                    "error": parsed.errors[0],
+                    "errors": parsed.errors,
+                },
+                status=400,
+            )
 
         # Cache the parsed data for subsequent analysis
         cache_key = f"{request.user.id}:{filename}"
         _cache_put(cache_key, parsed)
 
         # Return column info for field mapping
-        return JsonResponse({
-            "success": True,
-            "filename": filename,
-            "row_count": parsed.row_count,
-            "columns": [c.to_dict() for c in parsed.columns],
-            "preview": {col: vals for col, vals in parsed.data.items()},
-            "cache_key": cache_key,
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "filename": filename,
+                "row_count": parsed.row_count,
+                "columns": [c.to_dict() for c in parsed.columns],
+                "preview": {col: vals for col, vals in parsed.data.items()},
+                "cache_key": cache_key,
+            }
+        )
 
-    except Exception as e:
+    except Exception:
         logger.exception("File upload error")
         return JsonResponse({"error": "File upload failed. Please check file size and format."}, status=500)
 
@@ -728,9 +870,7 @@ def analyze_uploaded(request):
     if cache_key and not cache_key.startswith(f"{request.user.id}:"):
         return JsonResponse({"error": "Access denied"}, status=403)
     if not cache_key or cache_key not in _parsed_data_cache:
-        return JsonResponse({
-            "error": "Data not found. Please upload the file again."
-        }, status=400)
+        return JsonResponse({"error": "Data not found. Please upload the file again."}, status=400)
 
     parsed = _parsed_data_cache[cache_key]
 
@@ -929,7 +1069,9 @@ def gage_rr(request):
             meas_col = body.get("measurement_column")
 
             if not all([part_col, op_col, meas_col]):
-                return JsonResponse({"error": "part_column, operator_column, and measurement_column are required"}, status=400)
+                return JsonResponse(
+                    {"error": "part_column, operator_column, and measurement_column are required"}, status=400
+                )
 
             for col in [part_col, op_col, meas_col]:
                 if col not in parsed.data:
@@ -972,6 +1114,7 @@ def gage_rr(request):
                     f"{result.n_replicates} replicates."
                 )
                 from .problem_views import write_context_file
+
                 problem.add_evidence(
                     summary=evidence_summary,
                     evidence_type="data_analysis",
@@ -981,10 +1124,14 @@ def gage_rr(request):
             except Problem.DoesNotExist:
                 pass
 
-        return JsonResponse(sanitize_for_json({
-            "success": True,
-            "gage_rr": result.to_dict(),
-        }))
+        return JsonResponse(
+            sanitize_for_json(
+                {
+                    "success": True,
+                    "gage_rr": result.to_dict(),
+                }
+            )
+        )
 
     except ValueError as e:
         return JsonResponse({"error": str(e)}, status=400)
@@ -997,88 +1144,91 @@ def gage_rr(request):
 @require_auth
 def chart_types(request):
     """Get information about available control chart types."""
-    return JsonResponse({
-        "chart_types": [
-            {
-                "id": "I-MR",
-                "name": "Individuals & Moving Range",
-                "description": "For continuous data with subgroup size of 1",
-                "data_type": "continuous",
-                "subgroup_size": "1",
-                "use_when": "Each measurement is independent (e.g., batch process, daily readings)",
-            },
-            {
-                "id": "X-bar R",
-                "name": "X-bar and Range",
-                "description": "For continuous data with rational subgroups of 2-10",
-                "data_type": "continuous",
-                "subgroup_size": "2-10",
-                "use_when": "Multiple measurements per sample (e.g., 5 parts per hour)",
-            },
-            {
-                "id": "p",
-                "name": "p-Chart (Proportion)",
-                "description": "For proportion defective with varying sample sizes",
-                "data_type": "attribute",
-                "subgroup_size": "varies",
-                "use_when": "Counting defective items from samples of different sizes",
-            },
-            {
-                "id": "c",
-                "name": "c-Chart (Count)",
-                "description": "For count of defects in same-sized units",
-                "data_type": "attribute",
-                "subgroup_size": "constant",
-                "use_when": "Counting defects per unit (e.g., scratches per panel)",
-            },
-            {
-                "id": "T-squared",
-                "name": "Hotelling's T² (Multivariate)",
-                "description": "For multivariate continuous data (2+ characteristics per observation)",
-                "data_type": "continuous_multivariate",
-                "subgroup_size": "2+ variables",
-                "use_when": "Multiple interrelated measurements per sample (e.g., length & width, temp & pressure)",
-            },
-        ],
-        "capability_indices": [
-            {
-                "id": "cp",
-                "name": "Cp (Capability Index)",
-                "description": "Process potential - spec width / process width",
-                "interpretation": "Ignores centering. Cp=1 means 3σ = half spec width.",
-            },
-            {
-                "id": "cpk",
-                "name": "Cpk (Capability Index - Centered)",
-                "description": "Process capability accounting for centering",
-                "interpretation": "The key metric. Cpk ≥ 1.33 is typically required.",
-            },
-            {
-                "id": "pp",
-                "name": "Pp (Performance Index)",
-                "description": "Like Cp but uses overall (long-term) variation",
-                "interpretation": "Includes all sources of variation.",
-            },
-            {
-                "id": "ppk",
-                "name": "Ppk (Performance Index - Centered)",
-                "description": "Like Cpk but uses overall variation",
-                "interpretation": "Real-world performance including drift.",
-            },
-        ],
-        "sigma_levels": [
-            {"sigma": 2, "dpmo": 308537, "yield": "69.1%"},
-            {"sigma": 3, "dpmo": 66807, "yield": "93.3%"},
-            {"sigma": 4, "dpmo": 6210, "yield": "99.38%"},
-            {"sigma": 5, "dpmo": 233, "yield": "99.977%"},
-            {"sigma": 6, "dpmo": 3.4, "yield": "99.99966%"},
-        ],
-    })
+    return JsonResponse(
+        {
+            "chart_types": [
+                {
+                    "id": "I-MR",
+                    "name": "Individuals & Moving Range",
+                    "description": "For continuous data with subgroup size of 1",
+                    "data_type": "continuous",
+                    "subgroup_size": "1",
+                    "use_when": "Each measurement is independent (e.g., batch process, daily readings)",
+                },
+                {
+                    "id": "X-bar R",
+                    "name": "X-bar and Range",
+                    "description": "For continuous data with rational subgroups of 2-10",
+                    "data_type": "continuous",
+                    "subgroup_size": "2-10",
+                    "use_when": "Multiple measurements per sample (e.g., 5 parts per hour)",
+                },
+                {
+                    "id": "p",
+                    "name": "p-Chart (Proportion)",
+                    "description": "For proportion defective with varying sample sizes",
+                    "data_type": "attribute",
+                    "subgroup_size": "varies",
+                    "use_when": "Counting defective items from samples of different sizes",
+                },
+                {
+                    "id": "c",
+                    "name": "c-Chart (Count)",
+                    "description": "For count of defects in same-sized units",
+                    "data_type": "attribute",
+                    "subgroup_size": "constant",
+                    "use_when": "Counting defects per unit (e.g., scratches per panel)",
+                },
+                {
+                    "id": "T-squared",
+                    "name": "Hotelling's T² (Multivariate)",
+                    "description": "For multivariate continuous data (2+ characteristics per observation)",
+                    "data_type": "continuous_multivariate",
+                    "subgroup_size": "2+ variables",
+                    "use_when": "Multiple interrelated measurements per sample (e.g., length & width, temp & pressure)",
+                },
+            ],
+            "capability_indices": [
+                {
+                    "id": "cp",
+                    "name": "Cp (Capability Index)",
+                    "description": "Process potential - spec width / process width",
+                    "interpretation": "Ignores centering. Cp=1 means 3σ = half spec width.",
+                },
+                {
+                    "id": "cpk",
+                    "name": "Cpk (Capability Index - Centered)",
+                    "description": "Process capability accounting for centering",
+                    "interpretation": "The key metric. Cpk ≥ 1.33 is typically required.",
+                },
+                {
+                    "id": "pp",
+                    "name": "Pp (Performance Index)",
+                    "description": "Like Cp but uses overall (long-term) variation",
+                    "interpretation": "Includes all sources of variation.",
+                },
+                {
+                    "id": "ppk",
+                    "name": "Ppk (Performance Index - Centered)",
+                    "description": "Like Cpk but uses overall variation",
+                    "interpretation": "Real-world performance including drift.",
+                },
+            ],
+            "sigma_levels": [
+                {"sigma": 2, "dpmo": 308537, "yield": "69.1%"},
+                {"sigma": 3, "dpmo": 66807, "yield": "93.3%"},
+                {"sigma": 4, "dpmo": 6210, "yield": "99.38%"},
+                {"sigma": 5, "dpmo": 233, "yield": "99.977%"},
+                {"sigma": 6, "dpmo": 3.4, "yield": "99.99966%"},
+            ],
+        }
+    )
 
 
 # =============================================================================
 # Phase 3: SPC Closed-Loop Automation Hooks (QMS-001 §11.4)
 # =============================================================================
+
 
 def _spc_fmea_hook(user, fmea_row_id, ooc_count, total_points):
     """Auto-update FMEA occurrence score when SPC detects OOC.
@@ -1123,8 +1273,7 @@ def _spc_fmea_hook(user, fmea_row_id, ooc_count, total_points):
     row.occurrence = new_occ
     row.save()
 
-    logger.info("SPC FMEA hook: row %s occurrence %d→%d, RPN %d→%d",
-                fmea_row_id, old_occ, new_occ, old_rpn, row.rpn)
+    logger.info("SPC FMEA hook: row %s occurrence %d→%d, RPN %d→%d", fmea_row_id, old_occ, new_occ, old_rpn, row.rpn)
 
     return {
         "row_id": str(row.id),
@@ -1136,13 +1285,13 @@ def _spc_fmea_hook(user, fmea_row_id, ooc_count, total_points):
     }
 
 
-def _spc_evidence_hook(user, project_id, chart_type, ooc_count, total_points,
-                       cl=None, ucl=None, lcl=None):
+def _spc_evidence_hook(user, project_id, chart_type, ooc_count, total_points, cl=None, ucl=None, lcl=None):
     """Create Evidence entry when SPC detects OOC or low capability.
 
     Uses evidence_bridge for deduplication.
     """
     from core.models import Project
+
     from .evidence_bridge import create_tool_evidence
 
     try:
@@ -1151,10 +1300,7 @@ def _spc_evidence_hook(user, project_id, chart_type, ooc_count, total_points,
         logger.warning("SPC evidence hook: project %s not found", project_id)
         return None
 
-    summary = (
-        f"SPC OOC: {chart_type} detected {ooc_count} out-of-control points "
-        f"out of {total_points} total."
-    )
+    summary = f"SPC OOC: {chart_type} detected {ooc_count} out-of-control points out of {total_points} total."
     details = f"Chart type: {chart_type}\nOOC count: {ooc_count}\nTotal points: {total_points}"
     if cl is not None:
         details += f"\nCenter line: {cl}"

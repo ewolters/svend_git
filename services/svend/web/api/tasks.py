@@ -38,6 +38,7 @@ LEARNING_PATH_LABELS = {
     "beginner": "Getting Started",
 }
 
+
 # Email content keyed by email_key. Each returns (subject, body_html) given user + survey.
 def _email_welcome(user, survey):
     name = user.display_name or user.username
@@ -138,7 +139,11 @@ def _email_learning_path(user, survey):
         "quality_engineer": {
             "title": "Your Quality Engineering Path",
             "items": [
-                ("SPC Control Charts", "/app/spc/", "Monitor process stability with X-bar/R, I-MR, and attribute charts"),
+                (
+                    "SPC Control Charts",
+                    "/app/spc/",
+                    "Monitor process stability with X-bar/R, I-MR, and attribute charts",
+                ),
                 ("Capability Analysis", "/app/dsw/", "Calculate Cpk, Ppk, and process performance indices"),
                 ("Gage R&R", "/app/dsw/", "Validate your measurement systems"),
                 ("DOE", "/app/experimenter/", "Optimize processes with designed experiments"),
@@ -168,7 +173,11 @@ def _email_learning_path(user, survey):
                 ("Statistical Testing", "/app/dsw/", "Run the right test automatically based on your data"),
                 ("Visualization", "/app/dsw/", "Interactive charts and distribution plots"),
                 ("Process Monitoring", "/app/spc/", "Set up ongoing control charts"),
-                ("Calculators", "/app/calculators/", "Quick calculations for sample size, confidence intervals, and more"),
+                (
+                    "Calculators",
+                    "/app/calculators/",
+                    "Quick calculations for sample size, confidence intervals, and more",
+                ),
             ],
         },
         "student": {
@@ -186,7 +195,9 @@ def _email_learning_path(user, survey):
 
     items_html = ""
     for title, url, desc in path_data["items"]:
-        items_html += f'<li><a href="https://svend.ai{url}" style="color:#4a9f6e;font-weight:600;">{title}</a> — {desc}</li>\n'
+        items_html += (
+            f'<li><a href="https://svend.ai{url}" style="color:#4a9f6e;font-weight:600;">{title}</a> — {desc}</li>\n'
+        )
 
     return (
         f"{path_data['title']}",
@@ -242,12 +253,13 @@ EMAIL_BUILDERS = {
 
 def send_onboarding_email(payload, context):
     """Send a single onboarding drip email."""
-    from django.core.mail import send_mail
     from django.conf import settings as django_settings
-    from accounts.models import User
-    from api.models import OnboardingEmail, OnboardingSurvey
-    from api.internal_views import EMAIL_TEMPLATE
+    from django.core.mail import send_mail
+
     from accounts.constants import get_founder_availability
+    from accounts.models import User
+    from api.internal_views import EMAIL_TEMPLATE
+    from api.models import OnboardingEmail, OnboardingSurvey
 
     user_id = payload.get("user_id")
     email_key = payload.get("email_key")
@@ -262,9 +274,7 @@ def send_onboarding_email(payload, context):
         return {"error": "no_email"}
 
     if getattr(user, "is_email_opted_out", False):
-        OnboardingEmail.objects.filter(
-            user=user, email_key=email_key
-        ).update(status="skipped")
+        OnboardingEmail.objects.filter(user=user, email_key=email_key).update(status="skipped")
         return {"skipped": "opted_out"}
 
     # Get survey data
@@ -288,6 +298,7 @@ def send_onboarding_email(payload, context):
         body_html = body_html.replace("{remaining}", str(avail["remaining"]))
 
     from api.views import make_unsubscribe_url
+
     unsub_url = make_unsubscribe_url(user)
     full_html = EMAIL_TEMPLATE.format(body=body_html, unsub_url=unsub_url)
 
@@ -300,15 +311,11 @@ def send_onboarding_email(payload, context):
             html_message=full_html,
         )
         # Mark as sent
-        OnboardingEmail.objects.filter(
-            user=user, email_key=email_key
-        ).update(status="sent", sent_at=timezone.now())
+        OnboardingEmail.objects.filter(user=user, email_key=email_key).update(status="sent", sent_at=timezone.now())
         logger.info(f"Sent onboarding email '{email_key}' to {user.email}")
         return {"sent": True, "email_key": email_key}
     except Exception as e:
-        OnboardingEmail.objects.filter(
-            user=user, email_key=email_key
-        ).update(status="failed")
+        OnboardingEmail.objects.filter(user=user, email_key=email_key).update(status="failed")
         logger.error(f"Failed to send onboarding email '{email_key}' to {user.email}: {e}")
         return {"error": str(e)}
 
@@ -327,6 +334,7 @@ def process_onboarding_drip(payload, context):
     for email in due[:50]:  # batch cap
         try:
             from syn.sched.scheduler import schedule_task
+
             schedule_task(
                 name=f"onboarding_{email.email_key}_{email.user_id}",
                 func="api.send_onboarding_email",
@@ -348,6 +356,7 @@ def process_onboarding_drip(payload, context):
 # ---------------------------------------------------------------------------
 # Lifecycle email templates (for automation rules)
 # ---------------------------------------------------------------------------
+
 
 def _lifecycle_activation(user):
     """Quick start guide for users who signed up but haven't queried."""
@@ -448,9 +457,9 @@ def _lifecycle_feature_discovery(user, feature="doe"):
         f"Have you tried {f['title']}?",
         f"""<h2>Hey {name},</h2>
 <p>You're using Svend for analysis — great. But there's a feature you haven't tried yet that might be useful:</p>
-<h3>{f['title']}</h3>
-<p>{f['desc']}</p>
-<p><a href="{f['url']}" style="color:#4a9f6e;font-weight:600;">{f['cta']} &rarr;</a></p>
+<h3>{f["title"]}</h3>
+<p>{f["desc"]}</p>
+<p><a href="{f["url"]}" style="color:#4a9f6e;font-weight:600;">{f["cta"]} &rarr;</a></p>
 <p>-- Eric</p>""",
     )
 
@@ -504,6 +513,7 @@ LIFECYCLE_BUILDERS = {
 # Automation tasks
 # ---------------------------------------------------------------------------
 
+
 def _send_lifecycle_email(user, template_key, **kwargs):
     """Send a lifecycle email using the standard email infrastructure."""
     from django.conf import settings as django_settings
@@ -543,13 +553,16 @@ def _send_lifecycle_email(user, template_key, **kwargs):
 
     # Link rewriting for click tracking
     import re
+
     def _track_link(match):
         url = match.group(1)
         return f'href="https://svend.ai/api/email/click/{rcpt.id}/?url={url}"'
+
     tracked = re.sub(r'href="(https?://[^"]+)"', _track_link, body_html)
 
     # Tracking pixel + unsubscribe
     from api.views import make_unsubscribe_url
+
     pixel = f'<img src="https://svend.ai/api/email/open/{rcpt.id}/" width="1" height="1" style="display:none;" alt="">'
     unsub_url = make_unsubscribe_url(user)
     full_html = EMAIL_TEMPLATE.format(body=tracked + pixel, unsub_url=unsub_url)
@@ -589,54 +602,80 @@ def process_automations(payload, context):
             cutoff = now - timedelta(days=days)
             matched = set(
                 User.objects.filter(
-                    date_joined__lte=cutoff, total_queries=0,
-                    is_active=True, is_email_opted_out=False,
-                ).exclude(id__in=staff_ids).values_list("id", flat=True)
+                    date_joined__lte=cutoff,
+                    total_queries=0,
+                    is_active=True,
+                    is_email_opted_out=False,
+                )
+                .exclude(id__in=staff_ids)
+                .values_list("id", flat=True)
             )
         elif trigger_type == "inactive_days":
             days = cfg.get("days", 7)
             cutoff = now - timedelta(days=days)
             matched = set(
                 User.objects.filter(
-                    last_active_at__lte=cutoff, total_queries__gt=0,
-                    is_active=True, is_email_opted_out=False,
-                ).exclude(id__in=staff_ids).values_list("id", flat=True)
+                    last_active_at__lte=cutoff,
+                    total_queries__gt=0,
+                    is_active=True,
+                    is_email_opted_out=False,
+                )
+                .exclude(id__in=staff_ids)
+                .values_list("id", flat=True)
             )
         elif trigger_type == "query_limit_near":
             threshold_pct = cfg.get("threshold", 80)
-            for user in User.objects.filter(is_active=True, tier="free", is_email_opted_out=False).exclude(id__in=staff_ids):
+            for user in User.objects.filter(is_active=True, tier="free", is_email_opted_out=False).exclude(
+                id__in=staff_ids
+            ):
                 limit = TIER_LIMITS.get(user.tier, 5)
                 if limit > 0 and user.queries_today >= (limit * threshold_pct / 100):
                     matched.add(user.id)
         elif trigger_type == "churn_signal":
             sub_user_ids = Subscription.objects.filter(
-                is_cancel_at_period_end=True, status="active",
+                is_cancel_at_period_end=True,
+                status="active",
             ).values_list("user_id", flat=True)
             matched = set(
                 User.objects.filter(
-                    id__in=sub_user_ids, is_active=True, is_email_opted_out=False,
-                ).exclude(id__in=staff_ids).values_list("id", flat=True)
+                    id__in=sub_user_ids,
+                    is_active=True,
+                    is_email_opted_out=False,
+                )
+                .exclude(id__in=staff_ids)
+                .values_list("id", flat=True)
             )
         elif trigger_type == "milestone":
             threshold = cfg.get("count", 100)
             matched = set(
                 User.objects.filter(
-                    total_queries__gte=threshold, is_active=True, is_email_opted_out=False,
-                ).exclude(id__in=staff_ids).values_list("id", flat=True)
+                    total_queries__gte=threshold,
+                    is_active=True,
+                    is_email_opted_out=False,
+                )
+                .exclude(id__in=staff_ids)
+                .values_list("id", flat=True)
             )
         elif trigger_type == "feature_unused":
             feature = cfg.get("feature", "doe")
             days = cfg.get("days", 14)
             cutoff = now - timedelta(days=days)
             from chat.models import UsageLog
+
             paid_users = User.objects.filter(
                 tier__in=["founder", "pro", "team", "enterprise"],
-                is_active=True, is_email_opted_out=False,
+                is_active=True,
+                is_email_opted_out=False,
             ).exclude(id__in=staff_ids)
             for user in paid_users:
-                recent = UsageLog.objects.filter(
-                    user=user, date__gte=cutoff.date(),
-                ).order_by("-date").first()
+                recent = (
+                    UsageLog.objects.filter(
+                        user=user,
+                        date__gte=cutoff.date(),
+                    )
+                    .order_by("-date")
+                    .first()
+                )
                 if recent and recent.domain_counts:
                     if feature not in recent.domain_counts:
                         matched.add(user.id)
@@ -731,7 +770,7 @@ def evaluate_experiments(payload, context):
     concluded = 0
 
     for exp in experiments:
-        results = evaluate_experiment(exp)
+        evaluate_experiment(exp)
         evaluated += 1
         if exp.status == "concluded":
             concluded += 1
@@ -761,13 +800,15 @@ def claude_growth_review(payload, context):
     # Experiment results
     exp_data = []
     for exp in Experiment.objects.filter(status__in=["running", "concluded"]).order_by("-created_at")[:10]:
-        exp_data.append({
-            "name": exp.name,
-            "status": exp.status,
-            "type": exp.experiment_type,
-            "winner": exp.winner,
-            "results": exp.results,
-        })
+        exp_data.append(
+            {
+                "name": exp.name,
+                "status": exp.status,
+                "type": exp.experiment_type,
+                "winner": exp.winner,
+                "results": exp.results,
+            }
+        )
 
     # Automation fire rates
     now = timezone.now()
@@ -775,15 +816,15 @@ def claude_growth_review(payload, context):
     rule_stats = []
     for rule in AutomationRule.objects.filter(is_active=True):
         fires = AutomationLog.objects.filter(rule=rule, fired_at__gte=week_ago).count()
-        successes = AutomationLog.objects.filter(
-            rule=rule, fired_at__gte=week_ago, result="success"
-        ).count()
-        rule_stats.append({
-            "name": rule.name,
-            "trigger": rule.trigger,
-            "fires_this_week": fires,
-            "successes": successes,
-        })
+        successes = AutomationLog.objects.filter(rule=rule, fired_at__gte=week_ago, result="success").count()
+        rule_stats.append(
+            {
+                "name": rule.name,
+                "trigger": rule.trigger,
+                "fires_this_week": fires,
+                "successes": successes,
+            }
+        )
 
     # Email campaign stats
     campaign_stats = []
@@ -791,25 +832,30 @@ def claude_growth_review(payload, context):
         total = campaign.recipients.count()
         opened = campaign.recipients.filter(opened_at__isnull=False).count()
         clicked = campaign.recipients.filter(clicked_at__isnull=False).count()
-        campaign_stats.append({
-            "subject": campaign.subject,
-            "target": campaign.target,
-            "sent": total,
-            "opened": opened,
-            "clicked": clicked,
-        })
+        campaign_stats.append(
+            {
+                "subject": campaign.subject,
+                "target": campaign.target,
+                "sent": total,
+                "opened": opened,
+                "clicked": clicked,
+            }
+        )
 
     # Recent feedback
     from api.models import Feedback
+
     feedback_data = []
     for fb in Feedback.objects.filter(created_at__gte=week_ago).order_by("-created_at")[:20]:
-        feedback_data.append({
-            "category": fb.category,
-            "message": fb.message,
-            "page": fb.page,
-            "user_tier": fb.user.tier if fb.user else "unknown",
-            "status": fb.status,
-        })
+        feedback_data.append(
+            {
+                "category": fb.category,
+                "message": fb.message,
+                "page": fb.page,
+                "user_tier": fb.user.tier if fb.user else "unknown",
+                "status": fb.status,
+            }
+        )
 
     prompt_data = {
         "weekly_snapshot": snapshot,
@@ -850,6 +896,7 @@ For rule_tweak recommendations: {"rule_name": "...", "change": "..."}"""
 
     try:
         from django.conf import settings as django_settings
+
         client = anthropic.Anthropic(api_key=django_settings.ANTHROPIC_API_KEY)
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -916,15 +963,13 @@ def crm_send_one_email(payload, context):
 
     # Personalize placeholders
     subject = (
-        subject
-        .replace("{{name}}", lead.name)
+        subject.replace("{{name}}", lead.name)
         .replace("{{company}}", lead.company or "")
         .replace("{{role}}", lead.role or "")
         .replace("{{industry}}", lead.industry or "")
     )
     body_md = (
-        body_md
-        .replace("{{name}}", lead.name)
+        body_md.replace("{{name}}", lead.name)
         .replace("{{company}}", lead.company or "")
         .replace("{{role}}", lead.role or "")
         .replace("{{industry}}", lead.industry or "")
@@ -955,6 +1000,7 @@ def crm_send_one_email(payload, context):
     def _track_link(match):
         url = match.group(1)
         return f'href="https://svend.ai/api/email/click/{rcpt.id}/?url={url}"'
+
     body_html = re.sub(r'href="(https?://[^"]+)"', _track_link, body_html)
 
     # Tracking pixel

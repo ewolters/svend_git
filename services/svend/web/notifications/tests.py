@@ -28,6 +28,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from accounts.constants import Tier
+
 from .helpers import notify
 from .models import Notification, NotificationType
 from .tokens import NotificationToken
@@ -55,6 +56,7 @@ def _create_user(email="alice@test.com", username=None, tier=Tier.TEAM):
 
 
 # ── Model Tests ──────────────────────────────────────────────────────────
+
 
 @SECURE_OFF
 class NotificationModelTests(TestCase):
@@ -123,11 +125,15 @@ class NotificationModelTests(TestCase):
         self.assertTrue(n.is_read)
 
     def test_ordering(self):
-        n1 = Notification.objects.create(
-            recipient=self.user, notification_type="system", title="First",
+        Notification.objects.create(
+            recipient=self.user,
+            notification_type="system",
+            title="First",
         )
-        n2 = Notification.objects.create(
-            recipient=self.user, notification_type="system", title="Second",
+        Notification.objects.create(
+            recipient=self.user,
+            notification_type="system",
+            title="Second",
         )
         notifs = list(Notification.objects.filter(recipient=self.user))
         self.assertEqual(notifs[0].title, "Second")
@@ -135,6 +141,7 @@ class NotificationModelTests(TestCase):
 
 
 # ── Helper Tests ─────────────────────────────────────────────────────────
+
 
 @SECURE_OFF
 class NotifyHelperTests(TestCase):
@@ -161,9 +168,7 @@ class NotifyHelperTests(TestCase):
         self.user.save(update_fields=["preferences"])
         result = notify(self.user, "system", "Should be muted")
         self.assertIsNone(result)
-        self.assertEqual(
-            Notification.objects.filter(recipient=self.user).count(), 0
-        )
+        self.assertEqual(Notification.objects.filter(recipient=self.user).count(), 0)
 
     def test_notify_unmuted_type(self):
         self.user.preferences = {"notifications": {"muted_types": ["system"]}}
@@ -178,6 +183,7 @@ class NotifyHelperTests(TestCase):
 
 
 # ── API Tests ────────────────────────────────────────────────────────────
+
 
 @SECURE_OFF
 class NotificationListTests(TestCase):
@@ -265,9 +271,7 @@ class MarkReadTests(TestCase):
         resp = _post(self.client, "/api/notifications/read-all/")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["updated"], 3)
-        self.assertEqual(
-            Notification.objects.filter(recipient=self.user, is_read=False).count(), 0
-        )
+        self.assertEqual(Notification.objects.filter(recipient=self.user, is_read=False).count(), 0)
 
 
 @SECURE_OFF
@@ -315,6 +319,7 @@ class PreferencesTests(TestCase):
 
 # ── User Isolation Tests ─────────────────────────────────────────────────
 
+
 @SECURE_OFF
 class UserIsolationTests(TestCase):
     def setUp(self):
@@ -345,6 +350,7 @@ class UserIsolationTests(TestCase):
 
 # ── SSE Stream Tests ─────────────────────────────────────────────────────
 
+
 @SECURE_OFF
 class SSEStreamTests(TestCase):
     def setUp(self):
@@ -365,6 +371,7 @@ class SSEStreamTests(TestCase):
 
 
 # ── NotificationToken Model Tests (FEAT-002) ───────────────────────────
+
 
 @SECURE_OFF
 class NotificationTokenModelTests(TestCase):
@@ -439,6 +446,7 @@ class NotificationTokenModelTests(TestCase):
 
 # ── Token View Tests (FEAT-002) ─────────────────────────────────────────
 
+
 @SECURE_OFF
 class NotificationTokenViewTests(TestCase):
     def setUp(self):
@@ -490,6 +498,7 @@ class NotificationTokenViewTests(TestCase):
 
 # ── Email Scheduling Tests (FEAT-002) ───────────────────────────────────
 
+
 @SECURE_OFF
 class EmailSchedulingTests(TestCase):
     def setUp(self):
@@ -497,9 +506,7 @@ class EmailSchedulingTests(TestCase):
 
     @patch("syn.sched.scheduler.schedule_task")
     def test_notify_schedules_email_when_enabled(self, mock_schedule):
-        self.user.preferences = {
-            "notifications": {"email_enabled": True, "email_mode": "immediate"}
-        }
+        self.user.preferences = {"notifications": {"email_enabled": True, "email_mode": "immediate"}}
         self.user.save(update_fields=["preferences"])
         n = notify(self.user, "system", "Email test")
         self.assertIsNotNone(n)
@@ -516,9 +523,7 @@ class EmailSchedulingTests(TestCase):
 
     @patch("syn.sched.scheduler.schedule_task")
     def test_notify_skips_email_for_digest_mode(self, mock_schedule):
-        self.user.preferences = {
-            "notifications": {"email_enabled": True, "email_mode": "daily"}
-        }
+        self.user.preferences = {"notifications": {"email_enabled": True, "email_mode": "daily"}}
         self.user.save(update_fields=["preferences"])
         n = notify(self.user, "system", "Digest mode")
         self.assertIsNotNone(n)
@@ -526,9 +531,7 @@ class EmailSchedulingTests(TestCase):
 
     @patch("syn.sched.scheduler.schedule_task", side_effect=Exception("Scheduler down"))
     def test_email_failure_does_not_block_notification(self, mock_schedule):
-        self.user.preferences = {
-            "notifications": {"email_enabled": True, "email_mode": "immediate"}
-        }
+        self.user.preferences = {"notifications": {"email_enabled": True, "email_mode": "immediate"}}
         self.user.save(update_fields=["preferences"])
         n = notify(self.user, "system", "Should still create")
         self.assertIsNotNone(n)
@@ -536,9 +539,7 @@ class EmailSchedulingTests(TestCase):
 
     @patch("syn.sched.scheduler.schedule_task")
     def test_notify_skips_email_when_globally_opted_out(self, mock_schedule):
-        self.user.preferences = {
-            "notifications": {"email_enabled": True, "email_mode": "immediate"}
-        }
+        self.user.preferences = {"notifications": {"email_enabled": True, "email_mode": "immediate"}}
         self.user.is_email_opted_out = True
         self.user.save(update_fields=["preferences", "is_email_opted_out"])
         n = notify(self.user, "system", "Opted out")
@@ -547,6 +548,7 @@ class EmailSchedulingTests(TestCase):
 
 
 # ── Preferences: email_mode Tests (FEAT-002) ────────────────────────────
+
 
 @SECURE_OFF
 class PreferencesEmailModeTests(TestCase):
@@ -567,9 +569,7 @@ class PreferencesEmailModeTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["email_mode"], "daily")
         self.user.refresh_from_db()
-        self.assertEqual(
-            self.user.preferences["notifications"]["email_mode"], "daily"
-        )
+        self.assertEqual(self.user.preferences["notifications"]["email_mode"], "daily")
 
     def test_put_invalid_email_mode(self):
         resp = _put(
@@ -581,6 +581,7 @@ class PreferencesEmailModeTests(TestCase):
 
 
 # ── Per-Type Unsubscribe Tests (FEAT-002) ───────────────────────────────
+
 
 @SECURE_OFF
 class TypeUnsubscribeTests(TestCase):
@@ -609,12 +610,11 @@ class TypeUnsubscribeTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.user.refresh_from_db()
         # Should not duplicate
-        self.assertEqual(
-            self.user.preferences["notifications"]["muted_types"].count("system"), 1
-        )
+        self.assertEqual(self.user.preferences["notifications"]["muted_types"].count("system"), 1)
 
 
 # ── Task Handler Tests (FEAT-002) ──────────────────────────────────────
+
 
 @SECURE_OFF
 class TaskHandlerTests(TestCase):
@@ -635,12 +635,14 @@ class TaskHandlerTests(TestCase):
             notification=self.notif,
             action_type="acknowledge",
         )
-        result = send_notification_email_task({
-            "args": {
-                "notification_id": str(self.notif.id),
-                "token_id": str(tok.id),
+        result = send_notification_email_task(
+            {
+                "args": {
+                    "notification_id": str(self.notif.id),
+                    "token_id": str(tok.id),
+                }
             }
-        })
+        )
         self.assertTrue(result["sent"])
         mock_send.assert_called_once()
         tok.refresh_from_db()
@@ -655,12 +657,14 @@ class TaskHandlerTests(TestCase):
             notification=self.notif,
             action_type="acknowledge",
         )
-        result = send_notification_email_task({
-            "args": {
-                "notification_id": str(self.notif.id),
-                "token_id": str(tok.id),
+        result = send_notification_email_task(
+            {
+                "args": {
+                    "notification_id": str(self.notif.id),
+                    "token_id": str(tok.id),
+                }
             }
-        })
+        )
         self.assertFalse(result["sent"])
         tok.refresh_from_db()
         self.assertIsNotNone(tok.email_failed_at)
@@ -696,3 +700,6 @@ class TaskHandlerTests(TestCase):
         result = cleanup_expired_tokens({})
         self.assertEqual(result["deleted"], 0)
         self.assertEqual(NotificationToken.objects.count(), 1)
+
+    # Alias for compliance hook name
+    test_send_email_task_sends_mail = test_send_email_task_sends_and_updates

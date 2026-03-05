@@ -76,8 +76,9 @@ def _maybe_schedule_email(recipient, notification):
             return
 
         # Immediate mode — create token and schedule task
-        from .tokens import NotificationToken
         from syn.sched.scheduler import schedule_task
+
+        from .tokens import NotificationToken
 
         tok = NotificationToken.objects.create(
             user=recipient,

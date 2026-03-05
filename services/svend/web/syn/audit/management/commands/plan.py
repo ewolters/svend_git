@@ -17,13 +17,10 @@ Usage:
   python manage.py plan import-master-plan
 """
 
-import re
-
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
-from api.models import Initiative, Feature, PlanTask
-
+from api.models import Feature, Initiative, PlanTask
 
 # Feature table from NEXT_GEN_QMS_MASTER_PLAN.md
 MASTER_PLAN_PHASES = [
@@ -133,7 +130,12 @@ MASTER_PLAN_PHASES = [
             ("E8-004", "Dashboard calibration section — KPI cards + per-case result table", "CMP-001 §6", "high"),
             ("E8-005", "CAL enforcement type in DriftViolation model", "CHG-001 §8", "high"),
             ("E8-006", "Symbol-level impl hooks on existing STAT-001 assertions", "STAT-001 §4-§12", "medium"),
-            ("E8-007", "Calibration test suite — 5 tests covering pool, runner, reproducibility, drift", "TST-001 §9", "high"),
+            (
+                "E8-007",
+                "Calibration test suite — 5 tests covering pool, runner, reproducibility, drift",
+                "TST-001 §9",
+                "high",
+            ),
         ],
     },
     {
@@ -143,8 +145,18 @@ MASTER_PLAN_PHASES = [
         "features": [
             ("E9-001", "Analysis registry — 211 entries with metadata", "DSW-001", "critical"),
             ("E9-002", "Post-processing pipeline — standardize_output() in dispatch.py", "DSW-001", "critical"),
-            ("E9-003", "Chart standardization — apply_chart_defaults(), trace builders, SVEND_COLORS", "DSW-001", "critical"),
-            ("E9-004", "Frontend rendering — education (collapsible), narrative CSS, evidence badge", "DSW-001", "critical"),
+            (
+                "E9-003",
+                "Chart standardization — apply_chart_defaults(), trace builders, SVEND_COLORS",
+                "DSW-001",
+                "critical",
+            ),
+            (
+                "E9-004",
+                "Frontend rendering — education (collapsible), narrative CSS, evidence badge",
+                "DSW-001",
+                "critical",
+            ),
             ("E9-005", "Education content — hand-written for all 211 analyses", "DSW-001", "critical"),
             ("E9-006", "Bayesian shadow + evidence grade rollout — stats.py (~46 analyses)", "STAT-001", "high"),
             ("E9-007", "Shadow rollout — spc.py, ml.py, reliability.py, d_type.py", "STAT-001", "high"),
@@ -156,48 +168,48 @@ MASTER_PLAN_PHASES = [
 
 # Known dependencies from the master plan
 MASTER_PLAN_DEPS = {
-    "E3-002": ["E3-001"],       # Email notification depends on notification system
-    "E3-005": ["E3-004"],       # CAPA lifecycle depends on CAPA model
-    "E3-006": ["E3-004"],       # CAPA → RCA bridge depends on CAPA model
-    "E3-008": ["E3-007"],       # Management Review auto-populate depends on template
-    "E3-010": ["E3-004"],       # NCR trending depends on CAPA (NCR integration)
-    "E3-011": ["E3-004"],       # CoPQ depends on CAPA/NCR
-    "E3-012": ["E3-005"],       # Recurrence detection depends on CAPA lifecycle
-    "E4-002": ["E4-001"],       # DCN depends on document register
-    "E4-003": ["E4-001"],       # Review scheduling depends on document register
-    "E4-005": ["E4-001"],       # Master list depends on document register
-    "E4-007": ["E4-006"],       # Supplier CAPA depends on supplier scorecard
-    "E4-009": ["E4-008"],       # Incoming inspection depends on ASL
-    "E4-010": ["E4-008"],       # Supplier audit depends on ASL
-    "E4-011": ["E4-006"],       # Supplier portal depends on scorecard
-    "E4-012": ["E4-001"],       # Retention depends on document register
-    "E5-002": ["E5-001"],       # Learn integration depends on training matrix
-    "E5-003": ["E5-001"],       # Effectiveness tracking depends on training matrix
+    "E3-002": ["E3-001"],  # Email notification depends on notification system
+    "E3-005": ["E3-004"],  # CAPA lifecycle depends on CAPA model
+    "E3-006": ["E3-004"],  # CAPA → RCA bridge depends on CAPA model
+    "E3-008": ["E3-007"],  # Management Review auto-populate depends on template
+    "E3-010": ["E3-004"],  # NCR trending depends on CAPA (NCR integration)
+    "E3-011": ["E3-004"],  # CoPQ depends on CAPA/NCR
+    "E3-012": ["E3-005"],  # Recurrence detection depends on CAPA lifecycle
+    "E4-002": ["E4-001"],  # DCN depends on document register
+    "E4-003": ["E4-001"],  # Review scheduling depends on document register
+    "E4-005": ["E4-001"],  # Master list depends on document register
+    "E4-007": ["E4-006"],  # Supplier CAPA depends on supplier scorecard
+    "E4-009": ["E4-008"],  # Incoming inspection depends on ASL
+    "E4-010": ["E4-008"],  # Supplier audit depends on ASL
+    "E4-011": ["E4-006"],  # Supplier portal depends on scorecard
+    "E4-012": ["E4-001"],  # Retention depends on document register
+    "E5-002": ["E5-001"],  # Learn integration depends on training matrix
+    "E5-003": ["E5-001"],  # Effectiveness tracking depends on training matrix
     "E5-004": ["E5-001", "E3-005"],  # CAPA → training depends on both
-    "E5-006": ["E5-005"],       # Checklist builder depends on audit program
+    "E5-006": ["E5-005"],  # Checklist builder depends on audit program
     "E5-007": ["E5-005", "E3-005"],  # Audit → CAPA depends on both
-    "E5-008": ["E5-005"],       # LPA depends on audit program
-    "E5-010": ["E5-009"],       # Gage R&R link depends on calibration
-    "E5-011": ["E5-009"],       # Impact assessment depends on calibration
-    "E5-013": ["E5-012"],       # FMEA linkage depends on control plan
+    "E5-008": ["E5-005"],  # LPA depends on audit program
+    "E5-010": ["E5-009"],  # Gage R&R link depends on calibration
+    "E5-011": ["E5-009"],  # Impact assessment depends on calibration
+    "E5-013": ["E5-012"],  # FMEA linkage depends on control plan
     "E6-001": ["E3-001", "E3-004"],  # SPC → NCR depends on notifications + CAPA
-    "E6-002": ["E3-005"],       # AI root cause depends on CAPA lifecycle
-    "E6-003": ["E3-005"],       # Cross-FMEA depends on CAPA lifecycle
-    "E6-005": ["E3-004"],       # NL query depends on CAPA model existing
-    "E6-007": ["E3-008"],       # Auto-narrative depends on review auto-populate
-    "E6-008": ["E3-004"],       # Complaint depends on NCR
-    "E6-009": ["E4-001"],       # Change impact depends on doc control
-    "E6-010": ["E5-005"],       # Audit readiness depends on audit program
-    "E6-011": ["E4-006"],       # Supplier risk depends on scorecard
-    "E6-012": ["E3-011"],       # CoQ depends on CoPQ
+    "E6-002": ["E3-005"],  # AI root cause depends on CAPA lifecycle
+    "E6-003": ["E3-005"],  # Cross-FMEA depends on CAPA lifecycle
+    "E6-005": ["E3-004"],  # NL query depends on CAPA model existing
+    "E6-007": ["E3-008"],  # Auto-narrative depends on review auto-populate
+    "E6-008": ["E3-004"],  # Complaint depends on NCR
+    "E6-009": ["E4-001"],  # Change impact depends on doc control
+    "E6-010": ["E5-005"],  # Audit readiness depends on audit program
+    "E6-011": ["E4-006"],  # Supplier risk depends on scorecard
+    "E6-012": ["E3-011"],  # CoQ depends on CoPQ
     # Phase 9: DSW Output Standardization
-    "E9-002": ["E9-001"],       # Post-processor depends on registry
-    "E9-003": ["E9-002"],       # Chart defaults depends on post-processor
-    "E9-004": ["E9-002"],       # Frontend rendering depends on post-processor
-    "E9-005": ["E9-001"],       # Education content depends on registry
-    "E9-006": ["E9-001"],       # Shadow rollout depends on registry
-    "E9-007": ["E9-006"],       # Other module shadows depend on stats.py rollout
-    "E9-008": ["E9-004"],       # What-if depends on frontend rendering
+    "E9-002": ["E9-001"],  # Post-processor depends on registry
+    "E9-003": ["E9-002"],  # Chart defaults depends on post-processor
+    "E9-004": ["E9-002"],  # Frontend rendering depends on post-processor
+    "E9-005": ["E9-001"],  # Education content depends on registry
+    "E9-006": ["E9-001"],  # Shadow rollout depends on registry
+    "E9-007": ["E9-006"],  # Other module shadows depend on stats.py rollout
+    "E9-008": ["E9-004"],  # What-if depends on frontend rendering
     "E9-009": ["E9-002", "E9-005"],  # Standard update depends on pipeline + education
 }
 
@@ -284,9 +296,7 @@ class Command(BaseCommand):
             for i in qs:
                 feat_count = i.features.count()
                 pct = i.progress
-                self.stdout.write(
-                    f"  {i.short_id:<10} {i.title:<50} {i.status:<12} {pct:>3}%  {feat_count} features"
-                )
+                self.stdout.write(f"  {i.short_id:<10} {i.title:<50} {i.status:<12} {pct:>3}%  {feat_count} features")
             self.stdout.write(f"\n  {qs.count()} initiatives")
 
         elif item_type == "feat":
@@ -312,9 +322,7 @@ class Command(BaseCommand):
             self.stdout.write("")
             for t in qs:
                 cr = f"CR:{str(t.change_request_id)[:8]}" if t.change_request_id else ""
-                self.stdout.write(
-                    f"  {t.short_id:<10} {t.title:<55} {t.status:<14} {t.feature.short_id}  {cr}"
-                )
+                self.stdout.write(f"  {t.short_id:<10} {t.title:<55} {t.status:<14} {t.feature.short_id}  {cr}")
             self.stdout.write(f"\n  {qs.count()} tasks")
 
     # ─── show ────────────────────────────────────────────────────────────
@@ -347,7 +355,7 @@ class Command(BaseCommand):
         if i.description:
             self.stdout.write(f"\n  Description:\n    {i.description}")
         if i.notes:
-            self.stdout.write(f"\n  Notes:")
+            self.stdout.write("\n  Notes:")
             for line in i.notes.strip().split("\n"):
                 self.stdout.write(f"    {line}")
 
@@ -385,14 +393,14 @@ class Command(BaseCommand):
             self.stdout.write(f"\n  Acceptance Criteria:\n    {f.acceptance_criteria}")
 
         if f.notes:
-            self.stdout.write(f"\n  Notes:")
+            self.stdout.write("\n  Notes:")
             for line in f.notes.strip().split("\n"):
                 self.stdout.write(f"    {line}")
 
         # Dependencies
         deps = f.depends_on.all()
         if deps:
-            self.stdout.write(f"\n  Dependencies:")
+            self.stdout.write("\n  Dependencies:")
             for d in deps:
                 status_icon = "✓" if d.status == "completed" else "⚠"
                 self.stdout.write(f"    └── {d.short_id}  {d.title}  ({status_icon} {d.status})")
@@ -400,7 +408,7 @@ class Command(BaseCommand):
         # What this blocks
         blockers = f.blocks.all()
         if blockers:
-            self.stdout.write(f"\n  Blocks:")
+            self.stdout.write("\n  Blocks:")
             for b in blockers:
                 self.stdout.write(f"    ├── {b.short_id}  {b.title}")
 
@@ -466,9 +474,7 @@ class Command(BaseCommand):
         self.stdout.write("")
         for i in initiatives:
             pct = i.progress
-            self.stdout.write(
-                f"  {i.short_id}: {i.title}  [{i.status}, {pct}%]"
-            )
+            self.stdout.write(f"  {i.short_id}: {i.title}  [{i.status}, {pct}%]")
             features = i.features.all()
             for idx, f in enumerate(features):
                 is_last_feat = idx == len(features) - 1
@@ -485,9 +491,7 @@ class Command(BaseCommand):
                     if not is_last_feat:
                         tprefix = "│   └──" if is_last_task else "│   ├──"
                     marker = "✓" if t.status == "completed" else "○" if t.status == "in_progress" else "·"
-                    self.stdout.write(
-                        f"  {tprefix} {marker} {t.short_id}  {t.title:<45} {t.status}"
-                    )
+                    self.stdout.write(f"  {tprefix} {marker} {t.short_id}  {t.title:<45} {t.status}")
 
             # Summary
             total = features.count()
@@ -510,10 +514,9 @@ class Command(BaseCommand):
 
         # Search initiatives
         from django.db.models import Q
+
         inits = Initiative.objects.filter(
-            Q(title__icontains=query) |
-            Q(description__icontains=query) |
-            Q(short_id__icontains=query)
+            Q(title__icontains=query) | Q(description__icontains=query) | Q(short_id__icontains=query)
         )
         if inits:
             self.stdout.write("  Initiatives:")
@@ -522,32 +525,26 @@ class Command(BaseCommand):
 
         # Search features
         feats = Feature.objects.filter(
-            Q(title__icontains=query) |
-            Q(description__icontains=query) |
-            Q(short_id__icontains=query) |
-            Q(legacy_id__icontains=query) |
-            Q(iso_clause__icontains=query)
+            Q(title__icontains=query)
+            | Q(description__icontains=query)
+            | Q(short_id__icontains=query)
+            | Q(legacy_id__icontains=query)
+            | Q(iso_clause__icontains=query)
         ).select_related("initiative")
         if feats:
             self.stdout.write("  Features:")
             for f in feats:
                 legacy = f" ({f.legacy_id})" if f.legacy_id else ""
-                self.stdout.write(
-                    f"    {f.short_id}  {f.title:<50} {f.status}  {f.initiative.short_id}{legacy}"
-                )
+                self.stdout.write(f"    {f.short_id}  {f.title:<50} {f.status}  {f.initiative.short_id}{legacy}")
 
         # Search tasks
         tasks = PlanTask.objects.filter(
-            Q(title__icontains=query) |
-            Q(description__icontains=query) |
-            Q(short_id__icontains=query)
+            Q(title__icontains=query) | Q(description__icontains=query) | Q(short_id__icontains=query)
         ).select_related("feature")
         if tasks:
             self.stdout.write("  Tasks:")
             for t in tasks:
-                self.stdout.write(
-                    f"    {t.short_id}  {t.title:<50} {t.status}  {t.feature.short_id}"
-                )
+                self.stdout.write(f"    {t.short_id}  {t.title:<50} {t.status}  {t.feature.short_id}")
 
         total = inits.count() + feats.count() + tasks.count()
         if total == 0:
@@ -573,9 +570,7 @@ class Command(BaseCommand):
             for d in deps:
                 status_icon = "✓" if d.status == "completed" else "⚠"
                 pct = d.progress
-                self.stdout.write(
-                    f"    └── {d.short_id}  {d.title}  ({status_icon} {d.status} — {pct}%)"
-                )
+                self.stdout.write(f"    └── {d.short_id}  {d.title}  ({status_icon} {d.status} — {pct}%)")
         else:
             self.stdout.write("  depends_on: (none)")
 
@@ -592,7 +587,7 @@ class Command(BaseCommand):
             names = ", ".join(d.short_id for d in incomplete)
             self.stdout.write(f"\n  Status: BLOCKED — waiting on {names}")
         else:
-            self.stdout.write(f"\n  Status: READY — all dependencies satisfied")
+            self.stdout.write("\n  Status: READY — all dependencies satisfied")
         self.stdout.write("")
 
     # ─── blocked ─────────────────────────────────────────────────────────
@@ -603,12 +598,8 @@ class Command(BaseCommand):
         for f in Feature.objects.exclude(status__in=["completed", "cancelled", "deferred"]):
             if f.is_blocked:
                 incomplete = f.depends_on.exclude(status="completed")
-                dep_info = ", ".join(
-                    f"{d.short_id} ({d.progress}%)" for d in incomplete
-                )
-                self.stdout.write(
-                    f"  {f.short_id:<10} {f.title:<50} blocked by: {dep_info}"
-                )
+                dep_info = ", ".join(f"{d.short_id} ({d.progress}%)" for d in incomplete)
+                self.stdout.write(f"  {f.short_id:<10} {f.title:<50} blocked by: {dep_info}")
                 blocked_count += 1
 
         if blocked_count == 0:
@@ -707,7 +698,7 @@ class Command(BaseCommand):
             except Feature.DoesNotExist:
                 raise CommandError(f"Not found: {sid}")
         else:
-            raise CommandError(f"Notes supported on INIT-xxx and FEAT-xxx")
+            raise CommandError("Notes supported on INIT-xxx and FEAT-xxx")
 
         prefix = "$ " if is_user else ""
         timestamp = timezone.now().strftime("%Y-%m-%d")
@@ -768,7 +759,7 @@ class Command(BaseCommand):
             if i.target_quarter:
                 self.stdout.write(f"  Target: {i.target_quarter}")
             if i.notes:
-                self.stdout.write(f"  Notes:")
+                self.stdout.write("  Notes:")
                 for line in i.notes.strip().split("\n"):
                     self.stdout.write(f"    {line}")
 
@@ -782,17 +773,13 @@ class Command(BaseCommand):
                 self.stdout.write(f"\n  Ready to work ({len(unblocked)}):")
                 for f in unblocked:
                     marker = "○" if f.status == "in_progress" else "·"
-                    self.stdout.write(
-                        f"    {marker} {f.short_id}  {f.title:<50} {f.status}  P:{f.priority}"
-                    )
+                    self.stdout.write(f"    {marker} {f.short_id}  {f.title:<50} {f.status}  P:{f.priority}")
 
             if blocked:
                 self.stdout.write(f"\n  Blocked ({len(blocked)}):")
                 for f in blocked:
                     deps = ", ".join(d.short_id for d in f.depends_on.exclude(status="completed"))
-                    self.stdout.write(
-                        f"    ⚠ {f.short_id}  {f.title:<50} waiting: {deps}"
-                    )
+                    self.stdout.write(f"    ⚠ {f.short_id}  {f.title:<50} waiting: {deps}")
 
             if completed:
                 self.stdout.write(f"\n  Completed ({completed.count()}):")
@@ -804,7 +791,9 @@ class Command(BaseCommand):
         # Overall stats
         total_active_feats = Feature.objects.filter(initiative__status="active").count()
         total_completed = Feature.objects.filter(initiative__status="active", status="completed").count()
-        self.stdout.write(f"  Overall: {total_completed}/{total_active_feats} features completed across active initiatives\n")
+        self.stdout.write(
+            f"  Overall: {total_completed}/{total_active_feats} features completed across active initiatives\n"
+        )
 
     # ─── import-master-plan ──────────────────────────────────────────────
 

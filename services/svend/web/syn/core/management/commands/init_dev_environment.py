@@ -31,7 +31,7 @@ import string
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
-from django.db import connection, transaction
+from django.db import transaction
 
 User = get_user_model()
 
@@ -40,60 +40,23 @@ class Command(BaseCommand):
     help = "Initialize development environment with all required data (BOOT-001 / PROD-BOOT-005 compliant)"
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            "--skip-migrate",
-            action="store_true",
-            help="Skip running migrations"
-        )
-        parser.add_argument(
-            "--skip-apps",
-            action="store_true",
-            help="Skip loading app definitions"
-        )
-        parser.add_argument(
-            "--skip-tenant",
-            action="store_true",
-            help="Skip creating default tenant"
-        )
-        parser.add_argument(
-            "--skip-superuser",
-            action="store_true",
-            help="Skip creating superuser"
-        )
+        parser.add_argument("--skip-migrate", action="store_true", help="Skip running migrations")
+        parser.add_argument("--skip-apps", action="store_true", help="Skip loading app definitions")
+        parser.add_argument("--skip-tenant", action="store_true", help="Skip creating default tenant")
+        parser.add_argument("--skip-superuser", action="store_true", help="Skip creating superuser")
         parser.add_argument(
             "--tenant-only",
             action="store_true",
-            help="Only create tenant and initialize apps (skip migrations and app loading)"
+            help="Only create tenant and initialize apps (skip migrations and app loading)",
         )
+        parser.add_argument("--tenant-name", default="Default Organization", help="Name for the default tenant")
+        parser.add_argument("--tenant-domain", default="default.local", help="Domain for the default tenant")
+        parser.add_argument("--admin-username", default="admin", help="Username for the admin superuser")
+        parser.add_argument("--admin-email", default="admin@default.local", help="Email for the admin superuser")
         parser.add_argument(
-            "--tenant-name",
-            default="Default Organization",
-            help="Name for the default tenant"
+            "--admin-password", help="Password for the admin superuser (auto-generated if not provided)"
         )
-        parser.add_argument(
-            "--tenant-domain",
-            default="default.local",
-            help="Domain for the default tenant"
-        )
-        parser.add_argument(
-            "--admin-username",
-            default="admin",
-            help="Username for the admin superuser"
-        )
-        parser.add_argument(
-            "--admin-email",
-            default="admin@default.local",
-            help="Email for the admin superuser"
-        )
-        parser.add_argument(
-            "--admin-password",
-            help="Password for the admin superuser (auto-generated if not provided)"
-        )
-        parser.add_argument(
-            "--no-input",
-            action="store_true",
-            help="Run in non-interactive mode with defaults"
-        )
+        parser.add_argument("--no-input", action="store_true", help="Run in non-interactive mode with defaults")
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.HTTP_INFO("\n" + "=" * 60))
@@ -190,7 +153,9 @@ class Command(BaseCommand):
             new_apps = final_count - initial_count
 
             if new_apps > 0:
-                self.stdout.write(self.style.SUCCESS(f"     Loaded {new_apps} new app definitions (total: {final_count})"))
+                self.stdout.write(
+                    self.style.SUCCESS(f"     Loaded {new_apps} new app definitions (total: {final_count})")
+                )
             else:
                 self.stdout.write(f"     No new apps to load (existing: {final_count})")
 
@@ -235,7 +200,7 @@ class Command(BaseCommand):
         existing = User.objects.filter(username=username).first()
         if existing:
             # Ensure user is assigned to tenant
-            if str(getattr(existing, 'tenant_id', None)) != tenant_id:
+            if str(getattr(existing, "tenant_id", None)) != tenant_id:
                 existing.tenant_id = tenant_id
                 existing.save()
                 self.stdout.write(f"     Assigned existing user '{username}' to tenant")
@@ -301,7 +266,9 @@ class Command(BaseCommand):
             new_primitives = final_count - initial_count
 
             if new_primitives > 0:
-                self.stdout.write(self.style.SUCCESS(f"     Seeded {new_primitives} new primitives (total: {final_count})"))
+                self.stdout.write(
+                    self.style.SUCCESS(f"     Seeded {new_primitives} new primitives (total: {final_count})")
+                )
             else:
                 self.stdout.write(f"     No new primitives to seed (existing: {final_count})")
 
@@ -335,7 +302,7 @@ class Command(BaseCommand):
     def _generate_password(self, length=12):
         """Generate a simple but valid password for dev environments."""
         alphabet = string.ascii_letters + string.digits
-        return ''.join(secrets.choice(alphabet) for _ in range(length))
+        return "".join(secrets.choice(alphabet) for _ in range(length))
 
     def _print_summary(self, results):
         """Print initialization summary."""
@@ -345,8 +312,12 @@ class Command(BaseCommand):
 
         self.stdout.write(f"\n  Migrations: {'Applied' if results['migrations_applied'] else 'Skipped'}")
         self.stdout.write(f"  App Definitions: {results['apps_loaded']} loaded")
-        self.stdout.write(f"  Tenant: {'Created' if results['tenant_created'] else 'Existing'} (ID: {results['tenant_id']})")
-        self.stdout.write(f"  Superuser: {'Created' if results['superuser_created'] else 'Existing'} ({results['superuser_username']})")
+        self.stdout.write(
+            f"  Tenant: {'Created' if results['tenant_created'] else 'Existing'} (ID: {results['tenant_id']})"
+        )
+        self.stdout.write(
+            f"  Superuser: {'Created' if results['superuser_created'] else 'Existing'} ({results['superuser_username']})"
+        )
         self.stdout.write(f"  Installed Apps: {results['apps_installed']}")
         self.stdout.write(f"  Primitives: {results['primitives_seeded']} registered (PRM-001)")
         self.stdout.write(f"  Reflexes: {results['reflexes_seeded']} seeded (REF-001)")
@@ -355,6 +326,6 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f"\n  Generated Password: {results['password']}"))
             self.stdout.write(self.style.WARNING("  (Change this password after first login)"))
 
-        self.stdout.write(self.style.SUCCESS(f"\n  Server ready! Start with: python manage.py runserver"))
-        self.stdout.write(f"  Login at: http://localhost:8000/ui/login/")
+        self.stdout.write(self.style.SUCCESS("\n  Server ready! Start with: python manage.py runserver"))
+        self.stdout.write("  Login at: http://localhost:8000/ui/login/")
         self.stdout.write("")

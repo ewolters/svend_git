@@ -2,7 +2,6 @@
 
 from ._datasets import SHARED_DATASET  # noqa: F401
 
-
 DSW_OVERVIEW = {
     "id": "dsw-overview",
     "title": "DSW Architecture & Workflow",
@@ -13,7 +12,7 @@ DSW_OVERVIEW = {
             "Upload a sample CSV dataset",
             "Review the automatic validation report",
             "Select an analysis type and map your columns",
-            "Run the analysis and review the plain-language interpretation"
+            "Run the analysis and review the plain-language interpretation",
         ],
         "dsw_type": "stats:descriptive",
         "dsw_config": {},
@@ -82,10 +81,7 @@ DSW prevents common mistakes:
 - **Assumption violations:** Tests and warns automatically
 - **Misleading visualizations:** Uses appropriate defaults
 """,
-    "interactive": {
-        "type": "dsw_demo",
-        "config": {}
-    },
+    "interactive": {"type": "dsw_demo", "config": {}},
     "key_takeaways": [
         "DSW provides guardrails against common statistical mistakes",
         "Always review the validation report before trusting results",
@@ -96,14 +92,14 @@ DSW prevents common mistakes:
         {
             "question": "You upload a CSV with 12% missing values in the outcome column. DSW flags a warning. Should you proceed with analysis?",
             "answer": "Investigate first. 12% is above the 5% warning threshold. Check WHY values are missing — is it MCAR (safe to impute/drop), MAR (adjust), or MNAR (dangerous)? DSW's warning is a signal to clean data before analyzing, not to ignore.",
-            "hint": "The validation report tells you what to investigate, not what to ignore"
+            "hint": "The validation report tells you what to investigate, not what to ignore",
         },
         {
             "question": "DSW runs a t-test and reports p=0.02 but also flags 'assumption violation: non-normal distribution.' What should you do?",
             "answer": "Switch to a non-parametric alternative (Mann-Whitney U). The assumption violation warning means the t-test result may not be reliable. If n>30 per group, the t-test is fairly robust, but it's better practice to use the non-parametric test and compare results.",
-            "hint": "Guardrails exist for a reason — follow up on assumption warnings"
+            "hint": "Guardrails exist for a reason — follow up on assumption warnings",
         },
-    ]
+    ],
 }
 
 
@@ -118,7 +114,7 @@ BAYESIAN_AB_HANDS_ON = {
             "Set an uninformative prior (Beta(1,1))",
             "Run the analysis and check P(B > A)",
             "Switch to a skeptical prior that favors small effects",
-            "Compare posteriors and note how data overwhelms the prior"
+            "Compare posteriors and note how data overwhelms the prior",
         ],
         "dsw_type": "stats:descriptive",
         "dsw_config": {},
@@ -211,10 +207,7 @@ Try this in DSW:
 
 **Key learning:** Priors matter when data is limited. With lots of data, priors wash out.
 """,
-    "interactive": {
-        "type": "ab_analyzer",
-        "config": {}
-    },
+    "interactive": {"type": "ab_analyzer", "config": {}},
     "key_takeaways": [
         "Bayesian tests answer the question you actually care about",
         "P(B > A) is directly interpretable as probability of improvement",
@@ -226,14 +219,14 @@ Try this in DSW:
         {
             "question": "Your test shows P(B > A) = 78%. Should you ship variant B?",
             "answer": "It depends. 78% is suggestive but not conclusive. Consider: What's the expected lift? What's the expected loss if wrong? Is the change reversible? How costly is more data collection?",
-            "hint": "There's no universal threshold - it depends on context."
+            "hint": "There's no universal threshold - it depends on context.",
         },
         {
             "question": "Why might you use a skeptical prior?",
             "answer": "To require stronger evidence before believing in large effects. Most A/B tests show small effects; a skeptical prior encodes this expectation and protects against being fooled by noise.",
-            "hint": "Think about base rates of effect sizes in your domain."
-        }
-    ]
+            "hint": "Think about base rates of effect sizes in your domain.",
+        },
+    ],
 }
 
 
@@ -248,7 +241,7 @@ SPC_HANDS_ON = {
             "Create an I-MR chart for the diameter column",
             "Identify points outside the control limits",
             "Check for Western Electric rule violations",
-            "Calculate Cp and Cpk using spec limits of 25.00 +/- 0.15mm"
+            "Calculate Cp and Cpk using spec limits of 25.00 +/- 0.15mm",
         ],
         "dsw_type": "spc:imr",
         "dsw_config": {"var": "diameter_mm"},
@@ -343,10 +336,7 @@ Classical control charts use fixed limits and binary rules. But what if your con
 
 That's exactly what the **PBS (Probabilistic Bayesian SPC)** module does. After completing this section, head to **Module 11: PBS Mastery** to see the future of process monitoring.
 """,
-    "interactive": {
-        "type": "spc_demo",
-        "config": {}
-    },
+    "interactive": {"type": "spc_demo", "config": {}},
     "key_takeaways": [
         "Control charts separate common cause from special cause variation",
         "Control limits come from data, not specifications",
@@ -358,14 +348,14 @@ That's exactly what the **PBS (Probabilistic Bayesian SPC)** module does. After 
         {
             "question": "Your process has Cp = 1.5 but Cpk = 0.8. What's happening?",
             "answer": "The process spread is small enough to meet spec (Cp = 1.5 is good), but the process is not centered. It's shifted toward one spec limit. Centering the process would dramatically improve Cpk.",
-            "hint": "Cp ignores centering, Cpk accounts for it."
+            "hint": "Cp ignores centering, Cpk accounts for it.",
         },
         {
             "question": "A point just outside the control limit could be random chance. Why do we investigate anyway?",
             "answer": "Control limits are set at 3σ, so random chance outside limits should occur only 0.3% of the time. While false alarms happen, the cost of missing a real problem usually exceeds the cost of investigation.",
-            "hint": "What's the probability of a point beyond 3σ by chance?"
-        }
-    ]
+            "hint": "What's the probability of a point beyond 3σ by chance?",
+        },
+    ],
 }
 
 
@@ -380,7 +370,7 @@ REGRESSION_HANDS_ON = {
             "Fit the model and review the coefficient table",
             "Check the residual vs fitted plot for patterns",
             "Inspect VIF values for multicollinearity",
-            "Compare R-squared vs adjusted R-squared"
+            "Compare R-squared vs adjusted R-squared",
         ],
         "dsw_type": "stats:regression",
         "dsw_config": {"response": "diameter_mm", "predictors": ["weight_g", "roughness_ra"]},
@@ -531,14 +521,14 @@ In DSW, a typical workflow:
         {
             "question": "Your regression has R² = 0.85 but the residuals vs fitted plot shows a clear U-shape. What does this mean and what should you do?",
             "answer": "The U-shaped pattern indicates non-linearity—the true relationship isn't captured by your linear terms. Despite high R², the model is misspecified. You should try adding polynomial terms (X²), transforming variables (log, square root), or using a non-linear model.",
-            "hint": "High R² doesn't mean the model is correct if residuals show patterns."
+            "hint": "High R² doesn't mean the model is correct if residuals show patterns.",
         },
         {
             "question": "You're building a model to predict house prices. You have 'number of bedrooms' and 'square footage' as predictors. VIF for both is 4.5. Should you be concerned?",
             "answer": "VIF of 4.5 is worth noting but not alarming (rule of thumb: concern at >5, serious at >10). Bedrooms and square footage are naturally correlated, so some collinearity is expected. If your goal is prediction, keep both—the model still predicts well. If your goal is understanding the separate effect of each, consider keeping only one or using theory to guide interpretation.",
-            "hint": "What are the VIF thresholds for concern?"
-        }
-    ]
+            "hint": "What are the VIF thresholds for concern?",
+        },
+    ],
 }
 
 
@@ -552,7 +542,7 @@ DOE_HANDS_ON = {
             "Specify the number of factors and budget for runs",
             "Review the recommended design type",
             "Check the design resolution and what it can estimate",
-            "Generate the randomized run order"
+            "Generate the randomized run order",
         ],
         "dsw_type": "stats:descriptive",
         "dsw_config": {},
@@ -714,7 +704,7 @@ Before running an experiment, check that you have enough power to detect meaning
         {
             "question": "You have 6 factors to investigate. Budget allows 20 experimental runs. Your boss insists on testing all two-factor interactions. What design do you recommend and why?",
             "answer": "A 2^(6-1) fractional factorial with Resolution VI requires 32 runs — over budget. A 2^(6-2) Resolution IV design needs 16 runs but confounds 2-factor interactions with each other, violating the boss's requirement. The best option: a Definitive Screening Design (DSD) with 2(6)+1 = 13 runs. It estimates all main effects, all quadratic effects, and can identify some 2-factor interactions. Use the remaining 7 runs for replicate center points or confirmation runs. Alternatively, if the boss truly needs ALL 15 two-factor interactions estimated cleanly, push for 32-run Resolution VI — but explain the 20-run budget simply can't do it.",
-            "hint": "Count the 2-factor interactions: C(6,2) = 15. Any design estimating all 15 needs at least ~20 degrees of freedom"
+            "hint": "Count the 2-factor interactions: C(6,2) = 15. Any design estimating all 15 needs at least ~20 degrees of freedom",
         },
     ],
 }
@@ -730,7 +720,7 @@ NONPARAMETRIC_HANDS_ON = {
             "Run the Mann-Whitney U test",
             "Read the U statistic, p-value, and rank-biserial correlation",
             "Compare medians and decide if the groups differ",
-            "Try the Kruskal-Wallis test with three groups"
+            "Try the Kruskal-Wallis test with three groups",
         ],
         "dsw_type": "stats:mann_whitney",
         "dsw_config": {"var": "diameter_mm", "group_var": "shift"},
@@ -883,7 +873,7 @@ Returns pairwise comparisons that don't assume equal variances. More conservativ
         {
             "question": "You run Kruskal-Wallis on defect counts across 4 suppliers and get H=11.3, p=0.010. Dunn's post-hoc shows: A-B p=0.003, A-C p=0.42, A-D p=0.15, B-C p=0.08, B-D p=0.31, C-D p=0.89. Summarize the findings for your quality manager.",
             "answer": "The overall test confirms supplier differences exist (p=0.010). The key finding: Supplier A differs significantly from Supplier B (p=0.003), while Suppliers C and D are indistinguishable from each other and from A and B individually. Check the median defect counts: if A has lower median defects than B, Supplier A is the better performer. Practically: Suppliers C and D perform similarly, somewhere between A and B. Recommend: if A is best, investigate what A does differently. If A is worst, it may need corrective action or replacement.",
-            "hint": "Only A vs B is significant after multiple comparison adjustment"
+            "hint": "Only A vs B is significant after multiple comparison adjustment",
         },
     ],
 }
@@ -899,7 +889,7 @@ TIME_SERIES_HANDS_ON = {
             "Run decomposition with period=12 and additive model",
             "Examine the ACF/PACF of the residuals",
             "Fit an ARIMA model (auto or manual order)",
-            "Generate a 6-month forecast with prediction intervals"
+            "Generate a 6-month forecast with prediction intervals",
         ],
         "dsw_type": "stats:descriptive",
     },
@@ -1092,8 +1082,32 @@ The level with the most variation is where you should focus improvement efforts.
             "analysis_type": "decomposition",
             "description": "Try time series decomposition. Upload or enter time series data.",
             "sample_data": {
-                "values": [112, 118, 132, 129, 121, 135, 148, 148, 136, 119, 104, 118,
-                           115, 126, 141, 135, 125, 149, 170, 170, 158, 133, 114, 140],
+                "values": [
+                    112,
+                    118,
+                    132,
+                    129,
+                    121,
+                    135,
+                    148,
+                    148,
+                    136,
+                    119,
+                    104,
+                    118,
+                    115,
+                    126,
+                    141,
+                    135,
+                    125,
+                    149,
+                    170,
+                    170,
+                    158,
+                    133,
+                    114,
+                    140,
+                ],
                 "period": 12,
             },
         },
@@ -1110,9 +1124,7 @@ The level with the most variation is where you should focus improvement efforts.
         {
             "question": "Monthly sales data: decomposition shows strong seasonality (December peak). After fitting SARIMA(1,1,1)(1,1,1)12, the residual ACF shows a significant spike at lag 1. What should you adjust?",
             "answer": "The significant spike at lag 1 in residual ACF suggests the MA(1) term isn't fully capturing short-term correlation. Try SARIMA(1,1,2)(1,1,1)12 (increase non-seasonal MA from 1 to 2) or SARIMA(2,1,1)(1,1,1)12 (increase AR instead). Compare models using AIC — lower is better. If neither fixes the spike, check whether there's a level shift or outlier causing it. The seasonal terms (1,1,1)12 seem adequate since there are no seasonal-lag spikes.",
-            "hint": "Significant residual ACF at lag 1 means the non-seasonal component needs adjustment"
+            "hint": "Significant residual ACF at lag 1 means the non-seasonal component needs adjustment",
         },
     ],
 }
-
-

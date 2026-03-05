@@ -1,6 +1,7 @@
 """Triage API URL configuration."""
 
 from django.urls import path
+
 from . import triage_views
 
 urlpatterns = [

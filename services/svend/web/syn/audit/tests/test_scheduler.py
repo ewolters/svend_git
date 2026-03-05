@@ -30,16 +30,12 @@ from syn.sched.exceptions import (
 )
 from syn.sched.types import (
     CASCADE_BUDGET,
-    CircuitBreakerConfig,
-    CircuitState,
     CronSchedule,
-    IntervalSchedule,
     RetryConfig,
     RetryStrategy,
     TaskContext,
     TaskPriority,
     TaskState,
-    TenantQuota,
     get_cascade_limit,
 )
 
@@ -85,9 +81,7 @@ class SchedulerExceptionHierarchyTest(unittest.TestCase):
             codes.add(cls.code)
 
     def test_to_dict_serialization(self):
-        err = QuotaExceededError(
-            tenant_id=42, current_count=100, quota_limit=100
-        )
+        err = QuotaExceededError(tenant_id=42, current_count=100, quota_limit=100)
         d = err.to_dict()
         self.assertEqual(d["error"], "SCHED_QUOTA_EXCEEDED")
         self.assertEqual(d["details"]["tenant_id"], 42)
@@ -260,11 +254,13 @@ class UUIDPrimaryKeysTest(unittest.TestCase):
     def test_task_context_has_uuid_task_id(self):
         ctx = TaskContext()
         from uuid import UUID
+
         UUID(ctx.task_id)  # Validates as UUID
 
     def test_task_context_has_uuid_correlation_id(self):
         ctx = TaskContext()
         from uuid import UUID
+
         UUID(ctx.correlation_id)
 
 
@@ -312,9 +308,10 @@ class ScheduleModelTest(unittest.TestCase):
 
     def test_interval_calculate_next_run(self):
         """Interval schedule calculates next_run from last_run_at."""
+        from django.utils import timezone
+
         from syn.sched.models import Schedule
         from syn.sched.types import ScheduleType
-        from django.utils import timezone
 
         s = Schedule()
         s.schedule_type = ScheduleType.INTERVAL.value
@@ -328,9 +325,10 @@ class ScheduleModelTest(unittest.TestCase):
 
     def test_once_calculate_next_run_future(self):
         """ONCE schedule with future run_at returns that time."""
+        from django.utils import timezone
+
         from syn.sched.models import Schedule
         from syn.sched.types import ScheduleType
-        from django.utils import timezone
 
         future = timezone.now() + timedelta(hours=1)
         s = Schedule()
@@ -342,9 +340,10 @@ class ScheduleModelTest(unittest.TestCase):
 
     def test_once_calculate_next_run_past(self):
         """ONCE schedule with past run_at returns None."""
+        from django.utils import timezone
+
         from syn.sched.models import Schedule
         from syn.sched.types import ScheduleType
-        from django.utils import timezone
 
         past = timezone.now() - timedelta(hours=1)
         s = Schedule()
@@ -447,9 +446,9 @@ class CronCalculationTest(unittest.TestCase):
 
     def test_croniter_respects_timezone(self):
         """Cron calculation works with timezone-aware datetimes."""
+
         from syn.sched.models import Schedule
         from syn.sched.types import ScheduleType
-        from django.utils import timezone
 
         s = Schedule()
         s.schedule_type = ScheduleType.CRON.value
@@ -462,13 +461,14 @@ class CronCalculationTest(unittest.TestCase):
         result = s.calculate_next_run()
         self.assertIsNotNone(result)
         # Result should be timezone-aware or we handle it
-        self.assertTrue(hasattr(result, 'tzinfo'))
+        self.assertTrue(hasattr(result, "tzinfo"))
 
     def test_interval_schedule_from_last_run(self):
         """Interval schedule calculates from last_run_at when available."""
+        from django.utils import timezone
+
         from syn.sched.models import Schedule
         from syn.sched.types import ScheduleType
-        from django.utils import timezone
 
         s = Schedule()
         s.schedule_type = ScheduleType.INTERVAL.value
@@ -482,9 +482,10 @@ class CronCalculationTest(unittest.TestCase):
 
     def test_once_schedule_returns_none_after_run(self):
         """ONCE schedule returns None after its run_at has passed."""
+        from django.utils import timezone
+
         from syn.sched.models import Schedule
         from syn.sched.types import ScheduleType
-        from django.utils import timezone
 
         s = Schedule()
         s.schedule_type = ScheduleType.ONCE.value
@@ -500,6 +501,7 @@ class ManagementCommandTest(unittest.TestCase):
     def test_tempora_server_registered(self):
         """tempora_server is registered as a Django management command."""
         from django.core.management import get_commands
+
         commands = get_commands()
         self.assertIn("tempora_server", commands)
         self.assertEqual(commands["tempora_server"], "syn.sched")
@@ -507,6 +509,7 @@ class ManagementCommandTest(unittest.TestCase):
     def test_command_has_workers_arg(self):
         """tempora_server accepts --workers argument."""
         from django.core.management import load_command_class
+
         cmd = load_command_class("syn.sched", "tempora_server")
         parser = cmd.create_parser("manage.py", "tempora_server")
         # Parse with workers arg — should not raise
@@ -516,6 +519,7 @@ class ManagementCommandTest(unittest.TestCase):
     def test_command_has_single_node_arg(self):
         """tempora_server accepts --single-node flag."""
         from django.core.management import load_command_class
+
         cmd = load_command_class("syn.sched", "tempora_server")
         parser = cmd.create_parser("manage.py", "tempora_server")
         args = parser.parse_args(["--single-node"])

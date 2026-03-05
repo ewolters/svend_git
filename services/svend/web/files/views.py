@@ -8,9 +8,9 @@ from pathlib import Path
 from django.http import FileResponse, Http404
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes, parser_classes
-from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from .models import UserFile, UserQuota
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 def _safe_cd_filename(name: str) -> str:
     """Sanitize filename for Content-Disposition header (prevent header injection)."""
     name = name.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
-    return re.sub(r'[\x00-\x1f\x7f"\\]', '_', name) or "download"
+    return re.sub(r'[\x00-\x1f\x7f"\\]', "_", name) or "download"
 
 
 @api_view(["GET"])
@@ -53,27 +53,29 @@ def list_files(request):
     offset = int(request.query_params.get("offset", 0))
 
     total = queryset.count()
-    files = queryset[offset:offset + limit]
+    files = queryset[offset : offset + limit]
 
-    return Response({
-        "total": total,
-        "limit": limit,
-        "offset": offset,
-        "files": [
-            {
-                "id": str(f.id),
-                "name": f.original_name,
-                "type": f.file_type,
-                "mime_type": f.mime_type,
-                "size": f.size_bytes,
-                "folder": f.folder,
-                "url": f.url,
-                "created_at": f.created_at.isoformat(),
-                "is_public": f.is_public,
-            }
-            for f in files
-        ],
-    })
+    return Response(
+        {
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "files": [
+                {
+                    "id": str(f.id),
+                    "name": f.original_name,
+                    "type": f.file_type,
+                    "mime_type": f.mime_type,
+                    "size": f.size_bytes,
+                    "folder": f.folder,
+                    "url": f.url,
+                    "created_at": f.created_at.isoformat(),
+                    "is_public": f.is_public,
+                }
+                for f in files
+            ],
+        }
+    )
 
 
 @api_view(["POST"])
@@ -120,10 +122,30 @@ def upload_file(request):
         "application/x-msdownload",
     ]
     dangerous_extensions = [
-        ".exe", ".bat", ".cmd", ".sh", ".ps1", ".dll",
-        ".html", ".htm", ".svg", ".py", ".php", ".jsp",
-        ".zip", ".jar", ".msi", ".vbs", ".scr", ".com",
-        ".cpl", ".hta", ".inf", ".reg", ".ws", ".wsf",
+        ".exe",
+        ".bat",
+        ".cmd",
+        ".sh",
+        ".ps1",
+        ".dll",
+        ".html",
+        ".htm",
+        ".svg",
+        ".py",
+        ".php",
+        ".jsp",
+        ".zip",
+        ".jar",
+        ".msi",
+        ".vbs",
+        ".scr",
+        ".com",
+        ".cpl",
+        ".hta",
+        ".inf",
+        ".reg",
+        ".ws",
+        ".wsf",
     ]
 
     if mime_type in dangerous_types:
@@ -158,15 +180,18 @@ def upload_file(request):
 
     logger.info(f"File uploaded: {user.username}/{user_file.original_name} ({user_file.size_bytes} bytes)")
 
-    return Response({
-        "id": str(user_file.id),
-        "name": user_file.original_name,
-        "type": user_file.file_type,
-        "mime_type": user_file.mime_type,
-        "size": user_file.size_bytes,
-        "url": user_file.url,
-        "created_at": user_file.created_at.isoformat(),
-    }, status=status.HTTP_201_CREATED)
+    return Response(
+        {
+            "id": str(user_file.id),
+            "name": user_file.original_name,
+            "type": user_file.file_type,
+            "mime_type": user_file.mime_type,
+            "size": user_file.size_bytes,
+            "url": user_file.url,
+            "created_at": user_file.created_at.isoformat(),
+        },
+        status=status.HTTP_201_CREATED,
+    )
 
 
 @api_view(["GET", "DELETE", "PATCH"])
@@ -207,35 +232,39 @@ def file_detail(request, file_id):
 
         user_file.save()
 
-        return Response({
-            "id": str(user_file.id),
-            "name": user_file.original_name,
-            "folder": user_file.folder,
-            "description": user_file.description,
-            "tags": user_file.tags,
-            "is_public": user_file.is_public,
-        })
+        return Response(
+            {
+                "id": str(user_file.id),
+                "name": user_file.original_name,
+                "folder": user_file.folder,
+                "description": user_file.description,
+                "tags": user_file.tags,
+                "is_public": user_file.is_public,
+            }
+        )
 
     # GET - return file metadata
     user_file.accessed_at = timezone.now()
     user_file.save(update_fields=["accessed_at"])
 
-    return Response({
-        "id": str(user_file.id),
-        "name": user_file.original_name,
-        "type": user_file.file_type,
-        "mime_type": user_file.mime_type,
-        "size": user_file.size_bytes,
-        "folder": user_file.folder,
-        "description": user_file.description,
-        "tags": user_file.tags,
-        "url": user_file.url,
-        "checksum": user_file.checksum,
-        "is_public": user_file.is_public,
-        "share_token": user_file.share_token if user_file.is_public else None,
-        "created_at": user_file.created_at.isoformat(),
-        "accessed_at": user_file.accessed_at.isoformat() if user_file.accessed_at else None,
-    })
+    return Response(
+        {
+            "id": str(user_file.id),
+            "name": user_file.original_name,
+            "type": user_file.file_type,
+            "mime_type": user_file.mime_type,
+            "size": user_file.size_bytes,
+            "folder": user_file.folder,
+            "description": user_file.description,
+            "tags": user_file.tags,
+            "url": user_file.url,
+            "checksum": user_file.checksum,
+            "is_public": user_file.is_public,
+            "share_token": user_file.share_token if user_file.is_public else None,
+            "created_at": user_file.created_at.isoformat(),
+            "accessed_at": user_file.accessed_at.isoformat() if user_file.accessed_at else None,
+        }
+    )
 
 
 @api_view(["GET"])
@@ -295,14 +324,16 @@ def shared_file(request, share_token):
         response["Content-Disposition"] = f'attachment; filename="{_safe_cd_filename(user_file.original_name)}"'
         return response
 
-    return Response({
-        "id": str(user_file.id),
-        "name": user_file.original_name,
-        "type": user_file.file_type,
-        "mime_type": user_file.mime_type,
-        "size": user_file.size_bytes,
-        "created_at": user_file.created_at.isoformat(),
-    })
+    return Response(
+        {
+            "id": str(user_file.id),
+            "name": user_file.original_name,
+            "type": user_file.file_type,
+            "mime_type": user_file.mime_type,
+            "size": user_file.size_bytes,
+            "created_at": user_file.created_at.isoformat(),
+        }
+    )
 
 
 @api_view(["POST"])
@@ -324,10 +355,12 @@ def create_share_link(request, file_id):
     user_file.is_public = True
     user_file.save(update_fields=["is_public"])
 
-    return Response({
-        "share_token": token,
-        "url": f"/api/files/shared/{token}/",
-    })
+    return Response(
+        {
+            "share_token": token,
+            "url": f"/api/files/shared/{token}/",
+        }
+    )
 
 
 @api_view(["DELETE"])
@@ -358,16 +391,18 @@ def storage_quota(request):
     user = request.user
     quota = UserQuota.get_or_create_for_user(user)
 
-    return Response({
-        "quota_bytes": quota.quota_bytes,
-        "used_bytes": quota.used_bytes,
-        "remaining_bytes": quota.remaining_bytes,
-        "usage_percent": round(quota.usage_percent, 1),
-        "file_count": quota.file_count,
-        "max_files": quota.max_files,
-        "max_file_size_bytes": quota.max_file_size_bytes,
-        "tier": user.tier,
-    })
+    return Response(
+        {
+            "quota_bytes": quota.quota_bytes,
+            "used_bytes": quota.used_bytes,
+            "remaining_bytes": quota.remaining_bytes,
+            "usage_percent": round(quota.usage_percent, 1),
+            "file_count": quota.file_count,
+            "max_files": quota.max_files,
+            "max_file_size_bytes": quota.max_file_size_bytes,
+            "tier": user.tier,
+        }
+    )
 
 
 @api_view(["GET"])
@@ -376,13 +411,10 @@ def list_folders(request):
     """List user's folders."""
     user = request.user
 
-    folders = (
-        UserFile.objects.filter(user=user)
-        .exclude(folder="")
-        .values_list("folder", flat=True)
-        .distinct()
-    )
+    folders = UserFile.objects.filter(user=user).exclude(folder="").values_list("folder", flat=True).distinct()
 
-    return Response({
-        "folders": sorted(set(folders)),
-    })
+    return Response(
+        {
+            "folders": sorted(set(folders)),
+        }
+    )

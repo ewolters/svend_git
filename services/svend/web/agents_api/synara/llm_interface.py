@@ -17,16 +17,12 @@ This module bridges them.
 
 import json
 import logging
-from dataclasses import dataclass, field
-from typing import Optional, Callable, Any
-from datetime import datetime
+from dataclasses import dataclass
 
 from .kernel import (
-    HypothesisRegion,
     Evidence,
-    CausalGraph,
-    CausalLink,
     ExpansionSignal,
+    HypothesisRegion,
 )
 from .synara import Synara, UpdateResult
 
@@ -36,16 +32,18 @@ logger = logging.getLogger(__name__)
 @dataclass
 class LogicalIssue:
     """A logical issue detected in the causal graph."""
+
     issue_type: str  # "circular", "unsupported_leap", "missing_premise", "contradiction"
-    severity: str    # "error", "warning", "suggestion"
+    severity: str  # "error", "warning", "suggestion"
     description: str
     involved_hypotheses: list[str]
-    suggested_fix: Optional[str] = None
+    suggested_fix: str | None = None
 
 
 @dataclass
 class GraphAnalysis:
     """LLM analysis of the causal graph."""
+
     issues: list[LogicalIssue]
     strengths: list[str]
     gaps: list[str]
@@ -81,10 +79,9 @@ class SynaraLLMInterface:
 
         Used when expansion signal indicates incomplete causal surface.
         """
-        existing_hypotheses = "\n".join([
-            f"- {h.description} (P={h.posterior:.2f})"
-            for h in self.synara.get_all_hypotheses()
-        ])
+        existing_hypotheses = "\n".join(
+            [f"- {h.description} (P={h.posterior:.2f})" for h in self.synara.get_all_hypotheses()]
+        )
 
         return f"""An evidence observation does not fit any existing hypothesis well.
 
@@ -145,9 +142,7 @@ Format as JSON:
 
         links_desc = []
         for link in self.synara.graph.links:
-            links_desc.append(
-                f"{link.from_id} → {link.to_id}: {link.mechanism} (strength={link.strength})"
-            )
+            links_desc.append(f"{link.from_id} → {link.to_id}: {link.mechanism} (strength={link.strength})")
 
         evidence_desc = []
         for e in self.synara.graph.evidence[-10:]:  # Last 10
@@ -205,10 +200,7 @@ Format response as JSON:
         Explains what the evidence means for the hypothesis space.
         """
         top_hypotheses = self.synara.get_competing_hypotheses(threshold=0.15)
-        top_desc = "\n".join([
-            f"- {h.description}: P={h.posterior:.3f}"
-            for h in top_hypotheses[:5]
-        ])
+        top_desc = "\n".join([f"- {h.description}: P={h.posterior:.3f}" for h in top_hypotheses[:5]])
 
         return f"""New evidence was added. Please interpret its implications.
 
@@ -225,7 +217,7 @@ BELIEF CHANGES:
 CURRENT TOP HYPOTHESES:
 {top_desc}
 
-{'EXPANSION SIGNAL: ' + update_result.expansion_signal.message if update_result.expansion_signal else ''}
+{"EXPANSION SIGNAL: " + update_result.expansion_signal.message if update_result.expansion_signal else ""}
 
 Please provide:
 1. A plain-language interpretation of what this evidence means
@@ -258,11 +250,11 @@ Keep response concise (2-3 paragraphs)."""
         return f"""Document the current state of this causal analysis.
 
 MOST LIKELY CAUSE:
-{top_hypothesis.description if top_hypothesis else 'None identified'}
+{top_hypothesis.description if top_hypothesis else "None identified"}
 Probability: {top_hypothesis.posterior:.1%} if top_hypothesis else 'N/A'
 
 COMPETING HYPOTHESES:
-{chr(10).join([f'- {h.description} ({h.posterior:.1%})' for h in competing[:5]])}
+{chr(10).join([f"- {h.description} ({h.posterior:.1%})" for h in competing[:5]])}
 
 EVIDENCE CONSIDERED:
 {len(self.synara.graph.evidence)} pieces of evidence
@@ -270,7 +262,7 @@ EVIDENCE CONSIDERED:
 UNRESOLVED ISSUES:
 {len(pending_expansions)} expansion signals (incomplete causal surface)
 
-FORMAT: {format_instructions.get(format_type, format_instructions['summary'])}
+FORMAT: {format_instructions.get(format_type, format_instructions["summary"])}
 
 Include:
 1. What we know with confidence
@@ -309,13 +301,15 @@ Include:
         """Parse LLM validation response into structured analysis."""
         issues = []
         for issue_data in response.get("issues", []):
-            issues.append(LogicalIssue(
-                issue_type=issue_data.get("issue_type", "unknown"),
-                severity=issue_data.get("severity", "warning"),
-                description=issue_data.get("description", ""),
-                involved_hypotheses=issue_data.get("involved_hypotheses", []),
-                suggested_fix=issue_data.get("suggested_fix"),
-            ))
+            issues.append(
+                LogicalIssue(
+                    issue_type=issue_data.get("issue_type", "unknown"),
+                    severity=issue_data.get("severity", "warning"),
+                    description=issue_data.get("description", ""),
+                    involved_hypotheses=issue_data.get("involved_hypotheses", []),
+                    suggested_fix=issue_data.get("suggested_fix"),
+                )
+            )
 
         return GraphAnalysis(
             issues=issues,
@@ -344,7 +338,9 @@ Include:
                 "id": top.id,
                 "description": top.description,
                 "posterior": top.posterior,
-            } if top else None,
+            }
+            if top
+            else None,
             "competing_count": len(competing),
             "pending_expansions": len(pending),
             "last_update": self.synara.update_history[-1].to_dict() if self.synara.update_history else None,
@@ -369,7 +365,7 @@ Include:
     # =========================================================================
 
     @staticmethod
-    def _call_llm(user, prompt: str, system: str = None, max_tokens: int = 4096) -> Optional[str]:
+    def _call_llm(user, prompt: str, system: str = None, max_tokens: int = 4096) -> str | None:
         """Call LLM via LLMManager. Returns response text or None."""
         from agents_api.llm_manager import LLMManager
 
@@ -390,7 +386,7 @@ Include:
         return None
 
     @staticmethod
-    def _extract_json(text: str) -> Optional[dict]:
+    def _extract_json(text: str) -> dict | None:
         """Extract JSON from LLM response text (handles markdown code blocks)."""
         if not text:
             return None
@@ -401,30 +397,31 @@ Include:
             pass
         # Try extracting from ```json ... ``` blocks
         import re
-        match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', text, re.DOTALL)
+
+        match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL)
         if match:
             try:
                 return json.loads(match.group(1))
             except json.JSONDecodeError:
                 pass
         # Try finding first { ... } block
-        brace_start = text.find('{')
+        brace_start = text.find("{")
         if brace_start >= 0:
             depth = 0
             for i in range(brace_start, len(text)):
-                if text[i] == '{':
+                if text[i] == "{":
                     depth += 1
-                elif text[i] == '}':
+                elif text[i] == "}":
                     depth -= 1
                     if depth == 0:
                         try:
-                            return json.loads(text[brace_start:i + 1])
+                            return json.loads(text[brace_start : i + 1])
                         except json.JSONDecodeError:
                             break
         logger.warning("Could not extract JSON from LLM response")
         return None
 
-    def validate_graph_llm(self, user) -> Optional[GraphAnalysis]:
+    def validate_graph_llm(self, user) -> GraphAnalysis | None:
         """Call LLM to validate the causal graph. Returns structured analysis."""
         prompt = self.generate_validation_prompt()
         raw = self._call_llm(user, prompt)
@@ -434,7 +431,9 @@ Include:
         return None
 
     def generate_hypotheses_llm(
-        self, user, expansion_signal: ExpansionSignal,
+        self,
+        user,
+        expansion_signal: ExpansionSignal,
     ) -> list[HypothesisRegion]:
         """Call LLM to generate hypotheses from expansion signal."""
         prompt = self.generate_hypothesis_prompt(expansion_signal)
@@ -445,15 +444,20 @@ Include:
         return []
 
     def interpret_evidence_llm(
-        self, user, evidence: Evidence, update_result: UpdateResult,
-    ) -> Optional[str]:
+        self,
+        user,
+        evidence: Evidence,
+        update_result: UpdateResult,
+    ) -> str | None:
         """Call LLM to interpret evidence update. Returns plain text."""
         prompt = self.generate_evidence_interpretation_prompt(evidence, update_result)
         return self._call_llm(user, prompt, max_tokens=1024)
 
     def document_findings_llm(
-        self, user, format_type: str = "summary",
-    ) -> Optional[str]:
+        self,
+        user,
+        format_type: str = "summary",
+    ) -> str | None:
         """Call LLM to document findings. Returns formatted text."""
         prompt = self.generate_documentation_prompt(format_type)
         return self._call_llm(user, prompt, max_tokens=4096)

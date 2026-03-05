@@ -8,10 +8,10 @@ Tasks are registered with syn.sched for async execution.
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
-from django.utils import timezone
 from django.conf import settings
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,8 @@ RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 # Task Handlers
 # =============================================================================
 
-def generate_data_task_async(payload: Dict[str, Any], context: Any = None) -> dict:
+
+def generate_data_task_async(payload: dict[str, Any], context: Any = None) -> dict:
     """
     Handler for async data generation.
 
@@ -53,7 +54,7 @@ def _generate_data(job_id: str) -> dict:
     Called by both sync (generate_data_task) and async
     (generate_data_task_async) entry points.
     """
-    from forge.models import Job, JobStatus, DataType, UsageLog
+    from forge.models import DataType, Job
 
     try:
         job = Job.objects.get(job_id=job_id)
@@ -81,6 +82,7 @@ def _generate_data(job_id: str) -> dict:
 
         # Run quality validation
         from forge.quality import validate_records
+
         quality_report = validate_records(records, job.schema_def, job.quality_level)
 
         # Format output
@@ -144,6 +146,7 @@ def generate_text(job) -> dict:
         llm = None
         try:
             from agents_api.views import get_shared_llm
+
             llm = get_shared_llm()
             if llm:
                 logger.info("Using Svend's Qwen LLM for text generation")
@@ -171,6 +174,7 @@ def format_output(records: list, output_format: str) -> str:
     elif output_format == "csv":
         import csv
         import io
+
         if not records:
             return ""
         output = io.StringIO()

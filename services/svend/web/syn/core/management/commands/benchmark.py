@@ -10,11 +10,10 @@ Usage:
 
 import time
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 from django.db import connection
-from django.utils import timezone
 
 
 class BenchmarkResult:
@@ -26,7 +25,7 @@ class BenchmarkResult:
         self.total_time = 0.0
         self.min_time = float("inf")
         self.max_time = 0.0
-        self.times: List[float] = []
+        self.times: list[float] = []
 
     def add_result(self, duration: float):
         """Add a benchmark result."""
@@ -57,7 +56,7 @@ class BenchmarkResult:
         """Operations per second."""
         return self.iterations / self.total_time if self.total_time > 0 else 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "name": self.name,
@@ -133,7 +132,7 @@ class Command(BaseCommand):
         if output_file:
             self.save_results(results, output_file)
 
-    def benchmark_database(self, iterations: int, verbose: bool) -> Dict[str, Any]:
+    def benchmark_database(self, iterations: int, verbose: bool) -> dict[str, Any]:
         """Benchmark database operations."""
         self.stdout.write(self.style.HTTP_INFO("\n📊 Database Benchmarks"))
         self.stdout.write("-" * 60)
@@ -151,7 +150,7 @@ class Command(BaseCommand):
             result.add_result(duration)
         results["simple_query"] = result.to_dict()
         if verbose:
-            self.stdout.write(f"  Simple SELECT: {result.avg_time*1000:.2f}ms avg")
+            self.stdout.write(f"  Simple SELECT: {result.avg_time * 1000:.2f}ms avg")
 
         # Multiple rows query
         result = BenchmarkResult("SELECT 100 rows")
@@ -164,7 +163,7 @@ class Command(BaseCommand):
             result.add_result(duration)
         results["select_100_rows"] = result.to_dict()
         if verbose:
-            self.stdout.write(f"  SELECT 100 rows: {result.avg_time*1000:.2f}ms avg")
+            self.stdout.write(f"  SELECT 100 rows: {result.avg_time * 1000:.2f}ms avg")
 
         # Transaction
         result = BenchmarkResult("Transaction (BEGIN/COMMIT)")
@@ -178,12 +177,12 @@ class Command(BaseCommand):
             result.add_result(duration)
         results["transaction"] = result.to_dict()
         if verbose:
-            self.stdout.write(f"  Transaction: {result.avg_time*1000:.2f}ms avg")
+            self.stdout.write(f"  Transaction: {result.avg_time * 1000:.2f}ms avg")
 
         self.stdout.write(self.style.SUCCESS("  ✓ Database benchmarks complete"))
         return results
 
-    def benchmark_orm(self, iterations: int, verbose: bool) -> Dict[str, Any]:
+    def benchmark_orm(self, iterations: int, verbose: bool) -> dict[str, Any]:
         """Benchmark Django ORM operations."""
         self.stdout.write(self.style.HTTP_INFO("\n📦 ORM Benchmarks"))
         self.stdout.write("-" * 60)
@@ -199,34 +198,34 @@ class Command(BaseCommand):
             result = BenchmarkResult("ORM count()")
             for _ in range(iterations):
                 start = time.perf_counter()
-                count = User.objects.count()
+                User.objects.count()
                 duration = time.perf_counter() - start
                 result.add_result(duration)
             results["orm_count"] = result.to_dict()
             if verbose:
-                self.stdout.write(f"  ORM count(): {result.avg_time*1000:.2f}ms avg")
+                self.stdout.write(f"  ORM count(): {result.avg_time * 1000:.2f}ms avg")
 
             # Exists query
             result = BenchmarkResult("ORM exists()")
             for _ in range(iterations):
                 start = time.perf_counter()
-                exists = User.objects.filter(is_active=True).exists()
+                User.objects.filter(is_active=True).exists()
                 duration = time.perf_counter() - start
                 result.add_result(duration)
             results["orm_exists"] = result.to_dict()
             if verbose:
-                self.stdout.write(f"  ORM exists(): {result.avg_time*1000:.2f}ms avg")
+                self.stdout.write(f"  ORM exists(): {result.avg_time * 1000:.2f}ms avg")
 
             # Filter query
             result = BenchmarkResult("ORM filter()")
             for _ in range(iterations):
                 start = time.perf_counter()
-                users = list(User.objects.filter(is_active=True)[:10])
+                list(User.objects.filter(is_active=True)[:10])
                 duration = time.perf_counter() - start
                 result.add_result(duration)
             results["orm_filter"] = result.to_dict()
             if verbose:
-                self.stdout.write(f"  ORM filter(): {result.avg_time*1000:.2f}ms avg")
+                self.stdout.write(f"  ORM filter(): {result.avg_time * 1000:.2f}ms avg")
 
             self.stdout.write(self.style.SUCCESS("  ✓ ORM benchmarks complete"))
         except Exception as e:
@@ -234,7 +233,7 @@ class Command(BaseCommand):
 
         return results
 
-    def benchmark_cache(self, iterations: int, verbose: bool) -> Dict[str, Any]:
+    def benchmark_cache(self, iterations: int, verbose: bool) -> dict[str, Any]:
         """Benchmark cache operations."""
         self.stdout.write(self.style.HTTP_INFO("\n💾 Cache Benchmarks"))
         self.stdout.write("-" * 60)
@@ -253,30 +252,30 @@ class Command(BaseCommand):
                 result.add_result(duration)
             results["cache_set"] = result.to_dict()
             if verbose:
-                self.stdout.write(f"  Cache set(): {result.avg_time*1000:.2f}ms avg")
+                self.stdout.write(f"  Cache set(): {result.avg_time * 1000:.2f}ms avg")
 
             # Cache get (hit)
             cache.set("benchmark_key", "benchmark_value", timeout=60)
             result = BenchmarkResult("Cache get() [hit]")
             for _ in range(iterations):
                 start = time.perf_counter()
-                value = cache.get("benchmark_key")
+                cache.get("benchmark_key")
                 duration = time.perf_counter() - start
                 result.add_result(duration)
             results["cache_get_hit"] = result.to_dict()
             if verbose:
-                self.stdout.write(f"  Cache get() [hit]: {result.avg_time*1000:.2f}ms avg")
+                self.stdout.write(f"  Cache get() [hit]: {result.avg_time * 1000:.2f}ms avg")
 
             # Cache get (miss)
             result = BenchmarkResult("Cache get() [miss]")
             for _ in range(iterations):
                 start = time.perf_counter()
-                value = cache.get(f"nonexistent_key_{_}")
+                cache.get(f"nonexistent_key_{_}")
                 duration = time.perf_counter() - start
                 result.add_result(duration)
             results["cache_get_miss"] = result.to_dict()
             if verbose:
-                self.stdout.write(f"  Cache get() [miss]: {result.avg_time*1000:.2f}ms avg")
+                self.stdout.write(f"  Cache get() [miss]: {result.avg_time * 1000:.2f}ms avg")
 
             # Cache delete
             result = BenchmarkResult("Cache delete()")
@@ -288,7 +287,7 @@ class Command(BaseCommand):
                 result.add_result(duration)
             results["cache_delete"] = result.to_dict()
             if verbose:
-                self.stdout.write(f"  Cache delete(): {result.avg_time*1000:.2f}ms avg")
+                self.stdout.write(f"  Cache delete(): {result.avg_time * 1000:.2f}ms avg")
 
             # Cleanup
             for i in range(iterations):
@@ -300,7 +299,7 @@ class Command(BaseCommand):
 
         return results
 
-    def display_results(self, results: Dict[str, Dict[str, Any]]):
+    def display_results(self, results: dict[str, dict[str, Any]]):
         """Display benchmark results."""
         self.stdout.write(self.style.SUCCESS("\n" + "=" * 60))
         self.stdout.write(self.style.SUCCESS("Benchmark Results Summary"))
@@ -321,10 +320,10 @@ class Command(BaseCommand):
                 ops_per_sec = benchmark_data["ops_per_second"]
 
                 self.stdout.write(
-                    f"{benchmark_data['name']:<30} " f"{avg_ms:<12.3f} " f"{median_ms:<12.3f} " f"{ops_per_sec:<12.0f}"
+                    f"{benchmark_data['name']:<30} {avg_ms:<12.3f} {median_ms:<12.3f} {ops_per_sec:<12.0f}"
                 )
 
-    def save_results(self, results: Dict[str, Any], output_file: str):
+    def save_results(self, results: dict[str, Any], output_file: str):
         """Save results to JSON file."""
         import json
 

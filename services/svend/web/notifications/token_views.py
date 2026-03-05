@@ -9,7 +9,6 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from .models import Notification
 from .tokens import NotificationToken
 
 
@@ -25,15 +24,18 @@ def notification_token_view(request, token):
 
     if not tok.is_valid:
         return JsonResponse(
-            {"error": "Token expired or already used"}, status=410,
+            {"error": "Token expired or already used"},
+            status=410,
         )
 
     if request.method == "GET":
         notif = tok.notification
-        return JsonResponse({
-            "token": tok.to_dict(),
-            "notification": notif.to_dict(),
-        })
+        return JsonResponse(
+            {
+                "token": tok.to_dict(),
+                "notification": notif.to_dict(),
+            }
+        )
 
     # POST — execute the scoped action and mark used
     tok.use()

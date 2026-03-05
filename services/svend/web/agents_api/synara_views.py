@@ -22,14 +22,12 @@ from django.views.decorators.http import require_http_methods
 from accounts.permissions import gated_paid
 
 from .synara import (
-    Synara,
     HypothesisRegion,
-    Evidence,
-    CausalLink,
+    Synara,
 )
-from .synara.llm_interface import SynaraLLMInterface
 from .synara.dsl import DSLParser, format_hypothesis
-from .synara.logic_engine import LogicEngine, validate_hypothesis, parse_and_evaluate
+from .synara.llm_interface import SynaraLLMInterface
+from .synara.logic_engine import parse_and_evaluate, validate_hypothesis
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +44,7 @@ def _resolve_project(workbench_id: str, user=None):
     Returns the Project or None. Filters by user when provided to prevent IDOR.
     """
     from core.models import Project
+
     from .models import Problem
 
     # Build user filter
@@ -118,15 +117,14 @@ def _require_project(workbench_id: str, user=None):
     """
     project = _resolve_project(workbench_id, user=user)
     if not project:
-        return None, JsonResponse({
-            "error": "No study loaded. Create or select a study first."
-        }, status=400)
+        return None, JsonResponse({"error": "No study loaded. Create or select a study first."}, status=400)
     return project, None
 
 
 # =============================================================================
 # Hypothesis Management
 # =============================================================================
+
 
 @require_http_methods(["POST"])
 @gated_paid
@@ -167,10 +165,12 @@ def add_hypothesis(request, workbench_id: str):
     if not save_synara(workbench_id, synara, user=request.user):
         return JsonResponse({"error": "Failed to persist hypothesis."}, status=500)
 
-    return JsonResponse({
-        "success": True,
-        "hypothesis": h.to_dict(),
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "hypothesis": h.to_dict(),
+        }
+    )
 
 
 @require_http_methods(["GET"])
@@ -181,10 +181,12 @@ def get_hypotheses(request, workbench_id: str):
     synara = get_synara(workbench_id, user=request.user)
     hypotheses = synara.get_all_hypotheses()
 
-    return JsonResponse({
-        "hypotheses": [h.to_dict() for h in hypotheses],
-        "count": len(hypotheses),
-    })
+    return JsonResponse(
+        {
+            "hypotheses": [h.to_dict() for h in hypotheses],
+            "count": len(hypotheses),
+        }
+    )
 
 
 @require_http_methods(["DELETE"])
@@ -206,6 +208,7 @@ def delete_hypothesis(request, workbench_id: str, hypothesis_id: str):
 # =============================================================================
 # Causal Links
 # =============================================================================
+
 
 @require_http_methods(["POST"])
 @gated_paid
@@ -249,10 +252,12 @@ def add_link(request, workbench_id: str):
     if not save_synara(workbench_id, synara, user=request.user):
         return JsonResponse({"error": "Failed to persist link."}, status=500)
 
-    return JsonResponse({
-        "success": True,
-        "link": link.to_dict(),
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "link": link.to_dict(),
+        }
+    )
 
 
 @require_http_methods(["GET"])
@@ -262,15 +267,18 @@ def get_links(request, workbench_id: str):
 
     synara = get_synara(workbench_id, user=request.user)
 
-    return JsonResponse({
-        "links": [link.to_dict() for link in synara.graph.links],
-        "count": len(synara.graph.links),
-    })
+    return JsonResponse(
+        {
+            "links": [link.to_dict() for link in synara.graph.links],
+            "count": len(synara.graph.links),
+        }
+    )
 
 
 # =============================================================================
 # Evidence & Belief Update
 # =============================================================================
+
 
 @require_http_methods(["POST"])
 @gated_paid
@@ -315,11 +323,13 @@ def add_evidence(request, workbench_id: str):
     if not save_synara(workbench_id, synara, user=request.user):
         return JsonResponse({"error": "Failed to persist evidence."}, status=500)
 
-    return JsonResponse({
-        "success": True,
-        "update": result.to_dict(),
-        "expansion_signal": result.expansion_signal.to_dict() if result.expansion_signal else None,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "update": result.to_dict(),
+            "expansion_signal": result.expansion_signal.to_dict() if result.expansion_signal else None,
+        }
+    )
 
 
 @require_http_methods(["GET"])
@@ -329,10 +339,12 @@ def get_evidence(request, workbench_id: str):
 
     synara = get_synara(workbench_id, user=request.user)
 
-    return JsonResponse({
-        "evidence": [e.to_dict() for e in synara.graph.evidence],
-        "count": len(synara.graph.evidence),
-    })
+    return JsonResponse(
+        {
+            "evidence": [e.to_dict() for e in synara.graph.evidence],
+            "count": len(synara.graph.evidence),
+        }
+    )
 
 
 @require_http_methods(["DELETE"])
@@ -370,10 +382,7 @@ def delete_link(request, workbench_id: str):
     synara = get_synara(workbench_id, user=request.user)
 
     original_len = len(synara.graph.links)
-    synara.graph.links = [
-        lnk for lnk in synara.graph.links
-        if not (lnk.from_id == from_id and lnk.to_id == to_id)
-    ]
+    synara.graph.links = [lnk for lnk in synara.graph.links if not (lnk.from_id == from_id and lnk.to_id == to_id)]
 
     if len(synara.graph.links) == original_len:
         return JsonResponse({"error": "Link not found"}, status=404)
@@ -387,6 +396,7 @@ def delete_link(request, workbench_id: str):
 # Expansion Signals
 # =============================================================================
 
+
 @require_http_methods(["GET"])
 @gated_paid
 def get_expansions(request, workbench_id: str):
@@ -395,10 +405,12 @@ def get_expansions(request, workbench_id: str):
     synara = get_synara(workbench_id, user=request.user)
     pending = synara.get_pending_expansions()
 
-    return JsonResponse({
-        "expansions": [s.to_dict() for s in pending],
-        "count": len(pending),
-    })
+    return JsonResponse(
+        {
+            "expansions": [s.to_dict() for s in pending],
+            "count": len(pending),
+        }
+    )
 
 
 @require_http_methods(["POST"])
@@ -450,10 +462,12 @@ def resolve_expansion(request, workbench_id: str, signal_id: str):
     if success:
         if not save_synara(workbench_id, synara, user=request.user):
             return JsonResponse({"error": "Failed to persist expansion resolution."}, status=500)
-        return JsonResponse({
-            "success": True,
-            "new_hypothesis": new_h.to_dict() if new_h else None,
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "new_hypothesis": new_h.to_dict() if new_h else None,
+            }
+        )
     else:
         return JsonResponse({"error": "Signal not found"}, status=404)
 
@@ -461,6 +475,7 @@ def resolve_expansion(request, workbench_id: str, signal_id: str):
 # =============================================================================
 # Analysis & Queries
 # =============================================================================
+
 
 @require_http_methods(["GET"])
 @gated_paid
@@ -474,13 +489,15 @@ def get_belief_state(request, workbench_id: str):
     competing = synara.get_competing_hypotheses()
     pending = synara.get_pending_expansions()
 
-    return JsonResponse({
-        "summary": interface.get_state_summary(),
-        "top_hypothesis": top.to_dict() if top else None,
-        "competing_hypotheses": [h.to_dict() for h in competing],
-        "pending_expansions": len(pending),
-        "total_evidence": len(synara.graph.evidence),
-    })
+    return JsonResponse(
+        {
+            "summary": interface.get_state_summary(),
+            "top_hypothesis": top.to_dict() if top else None,
+            "competing_hypotheses": [h.to_dict() for h in competing],
+            "pending_expansions": len(pending),
+            "total_evidence": len(synara.graph.evidence),
+        }
+    )
 
 
 @require_http_methods(["GET"])
@@ -502,16 +519,19 @@ def get_causal_chains(request, workbench_id: str, hypothesis_id: str):
     synara = get_synara(workbench_id, user=request.user)
     chains = synara.get_causal_chains_to(hypothesis_id)
 
-    return JsonResponse({
-        "hypothesis_id": hypothesis_id,
-        "chains": chains,
-        "count": len(chains),
-    })
+    return JsonResponse(
+        {
+            "hypothesis_id": hypothesis_id,
+            "chains": chains,
+            "count": len(chains),
+        }
+    )
 
 
 # =============================================================================
 # LLM Integration Prompts
 # =============================================================================
+
 
 @require_http_methods(["GET"])
 @gated_paid
@@ -521,10 +541,12 @@ def get_validation_prompt(request, workbench_id: str):
     synara = get_synara(workbench_id, user=request.user)
     interface = SynaraLLMInterface(synara)
 
-    return JsonResponse({
-        "prompt": interface.generate_validation_prompt(),
-        "context": interface.format_for_context(),
-    })
+    return JsonResponse(
+        {
+            "prompt": interface.generate_validation_prompt(),
+            "context": interface.format_for_context(),
+        }
+    )
 
 
 @require_http_methods(["GET"])
@@ -534,19 +556,18 @@ def get_hypothesis_prompt(request, workbench_id: str, signal_id: str):
 
     synara = get_synara(workbench_id, user=request.user)
 
-    signal = next(
-        (s for s in synara.expansion_signals if s.id == signal_id),
-        None
-    )
+    signal = next((s for s in synara.expansion_signals if s.id == signal_id), None)
     if not signal:
         return JsonResponse({"error": "Signal not found"}, status=404)
 
     interface = SynaraLLMInterface(synara)
 
-    return JsonResponse({
-        "prompt": interface.generate_hypothesis_prompt(signal),
-        "context": interface.format_for_context(),
-    })
+    return JsonResponse(
+        {
+            "prompt": interface.generate_hypothesis_prompt(signal),
+            "context": interface.format_for_context(),
+        }
+    )
 
 
 @require_http_methods(["POST"])
@@ -568,24 +589,27 @@ def apply_validation_result(request, workbench_id: str):
 
     analysis = interface.parse_validation_response(body)
 
-    return JsonResponse({
-        "success": True,
-        "issues_count": len(analysis.issues),
-        "issues": [
-            {
-                "type": i.issue_type,
-                "severity": i.severity,
-                "description": i.description,
-            }
-            for i in analysis.issues
-        ],
-        "summary": analysis.summary,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "issues_count": len(analysis.issues),
+            "issues": [
+                {
+                    "type": i.issue_type,
+                    "severity": i.severity,
+                    "description": i.description,
+                }
+                for i in analysis.issues
+            ],
+            "summary": analysis.summary,
+        }
+    )
 
 
 # =============================================================================
 # LLM-Powered Endpoints (Server-Side API Calls)
 # =============================================================================
+
 
 @require_http_methods(["POST"])
 @gated_paid
@@ -602,29 +626,34 @@ def llm_validate(request, workbench_id: str):
 
     analysis = interface.validate_graph_llm(user=request.user)
     if analysis is None:
-        return JsonResponse({
-            "error": "LLM unavailable — check ANTHROPIC_API_KEY",
-            "fallback_prompt": interface.generate_validation_prompt(),
-        }, status=503)
-
-    return JsonResponse({
-        "success": True,
-        "issues": [
+        return JsonResponse(
             {
-                "type": i.issue_type,
-                "severity": i.severity,
-                "description": i.description,
-                "involved_hypotheses": i.involved_hypotheses,
-                "suggested_fix": i.suggested_fix,
-            }
-            for i in analysis.issues
-        ],
-        "strengths": analysis.strengths,
-        "gaps": analysis.gaps,
-        "suggested_hypotheses": analysis.suggested_hypotheses,
-        "suggested_evidence": analysis.suggested_evidence,
-        "summary": analysis.summary,
-    })
+                "error": "LLM unavailable — check ANTHROPIC_API_KEY",
+                "fallback_prompt": interface.generate_validation_prompt(),
+            },
+            status=503,
+        )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "issues": [
+                {
+                    "type": i.issue_type,
+                    "severity": i.severity,
+                    "description": i.description,
+                    "involved_hypotheses": i.involved_hypotheses,
+                    "suggested_fix": i.suggested_fix,
+                }
+                for i in analysis.issues
+            ],
+            "strengths": analysis.strengths,
+            "gaps": analysis.gaps,
+            "suggested_hypotheses": analysis.suggested_hypotheses,
+            "suggested_evidence": analysis.suggested_evidence,
+            "summary": analysis.summary,
+        }
+    )
 
 
 @require_http_methods(["POST"])
@@ -642,10 +671,7 @@ def llm_generate_hypotheses(request, workbench_id: str, signal_id: str):
 
     synara = get_synara(workbench_id, user=request.user)
 
-    signal = next(
-        (s for s in synara.expansion_signals if s.id == signal_id),
-        None
-    )
+    signal = next((s for s in synara.expansion_signals if s.id == signal_id), None)
     if not signal:
         return JsonResponse({"error": "Signal not found"}, status=404)
 
@@ -656,19 +682,24 @@ def llm_generate_hypotheses(request, workbench_id: str, signal_id: str):
     )
 
     if not hypotheses:
-        return JsonResponse({
-            "error": "LLM unavailable or returned no hypotheses",
-            "fallback_prompt": interface.generate_hypothesis_prompt(signal),
-        }, status=503)
+        return JsonResponse(
+            {
+                "error": "LLM unavailable or returned no hypotheses",
+                "fallback_prompt": interface.generate_hypothesis_prompt(signal),
+            },
+            status=503,
+        )
 
     if not save_synara(workbench_id, synara, user=request.user):
         return JsonResponse({"error": "Failed to persist generated hypotheses."}, status=500)
 
-    return JsonResponse({
-        "success": True,
-        "hypotheses": [h.to_dict() for h in hypotheses],
-        "count": len(hypotheses),
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "hypotheses": [h.to_dict() for h in hypotheses],
+            "count": len(hypotheses),
+        }
+    )
 
 
 @require_http_methods(["POST"])
@@ -717,18 +748,21 @@ def llm_interpret_evidence(request, workbench_id: str):
     )
 
     if interpretation is None:
-        return JsonResponse({
-            "error": "LLM unavailable",
-            "fallback_prompt": interface.generate_evidence_interpretation_prompt(
-                evidence, update_result
-            ),
-        }, status=503)
+        return JsonResponse(
+            {
+                "error": "LLM unavailable",
+                "fallback_prompt": interface.generate_evidence_interpretation_prompt(evidence, update_result),
+            },
+            status=503,
+        )
 
-    return JsonResponse({
-        "success": True,
-        "evidence_id": evidence.id,
-        "interpretation": interpretation,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "evidence_id": evidence.id,
+            "interpretation": interpretation,
+        }
+    )
 
 
 @require_http_methods(["POST"])
@@ -759,21 +793,27 @@ def llm_document(request, workbench_id: str):
     )
 
     if document is None:
-        return JsonResponse({
-            "error": "LLM unavailable",
-            "fallback_prompt": interface.generate_documentation_prompt(format_type),
-        }, status=503)
+        return JsonResponse(
+            {
+                "error": "LLM unavailable",
+                "fallback_prompt": interface.generate_documentation_prompt(format_type),
+            },
+            status=503,
+        )
 
-    return JsonResponse({
-        "success": True,
-        "format": format_type,
-        "document": document,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "format": format_type,
+            "document": document,
+        }
+    )
 
 
 # =============================================================================
 # Serialization
 # =============================================================================
+
 
 @require_http_methods(["GET"])
 @gated_paid
@@ -807,16 +847,19 @@ def import_synara(request, workbench_id: str):
     if not save_synara(workbench_id, synara, user=request.user):
         return JsonResponse({"error": "Failed to persist imported state."}, status=500)
 
-    return JsonResponse({
-        "success": True,
-        "hypothesis_count": len(synara.graph.hypotheses),
-        "evidence_count": len(synara.graph.evidence),
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "hypothesis_count": len(synara.graph.hypotheses),
+            "evidence_count": len(synara.graph.evidence),
+        }
+    )
 
 
 # =============================================================================
 # DSL: Formal Hypothesis Language
 # =============================================================================
+
 
 @require_http_methods(["POST"])
 @gated_paid
@@ -844,15 +887,17 @@ def parse_hypothesis_dsl(request, workbench_id: str):
     parser = DSLParser()
     hypothesis = parser.parse(text)
 
-    return JsonResponse({
-        "success": True,
-        "hypothesis": hypothesis.to_dict(),
-        "formatted": {
-            "natural": format_hypothesis(hypothesis, "natural"),
-            "formal": format_hypothesis(hypothesis, "formal"),
-            "code": format_hypothesis(hypothesis, "code"),
-        },
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "hypothesis": hypothesis.to_dict(),
+            "formatted": {
+                "natural": format_hypothesis(hypothesis, "natural"),
+                "formal": format_hypothesis(hypothesis, "formal"),
+                "code": format_hypothesis(hypothesis, "code"),
+            },
+        }
+    )
 
 
 @require_http_methods(["POST"])
@@ -880,10 +925,12 @@ def validate_hypothesis_dsl(request, workbench_id: str):
 
     result = validate_hypothesis(text)
 
-    return JsonResponse({
-        "success": True,
-        **result,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            **result,
+        }
+    )
 
 
 @require_http_methods(["POST"])
@@ -923,11 +970,13 @@ def evaluate_hypothesis_dsl(request, workbench_id: str):
 
     evaluation = parse_and_evaluate(text, data, variable_context)
 
-    return JsonResponse({
-        "success": True,
-        "evaluation": evaluation.to_dict(),
-        "hypothesis": evaluation.hypothesis.to_dict(),
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "evaluation": evaluation.to_dict(),
+            "hypothesis": evaluation.hypothesis.to_dict(),
+        }
+    )
 
 
 @require_http_methods(["POST"])
@@ -966,11 +1015,14 @@ def add_formal_hypothesis(request, workbench_id: str):
     # Parse and validate
     validation = validate_hypothesis(text)
     if not validation["valid"]:
-        return JsonResponse({
-            "success": False,
-            "error": "Invalid hypothesis",
-            "fallacies": validation["fallacies"],
-        }, status=400)
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Invalid hypothesis",
+                "fallacies": validation["fallacies"],
+            },
+            status=400,
+        )
 
     synara = get_synara(workbench_id, user=request.user)
 
@@ -987,15 +1039,17 @@ def add_formal_hypothesis(request, workbench_id: str):
     if not save_synara(workbench_id, synara, user=request.user):
         return JsonResponse({"error": "Failed to persist formal hypothesis."}, status=500)
 
-    return JsonResponse({
-        "success": True,
-        "hypothesis": h.to_dict(),
-        "parsed": validation["hypothesis"],
-        "formatted": {
-            "natural": format_hypothesis(DSLParser().parse(text), "natural"),
-            "formal": format_hypothesis(DSLParser().parse(text), "formal"),
-        },
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "hypothesis": h.to_dict(),
+            "parsed": validation["hypothesis"],
+            "formatted": {
+                "natural": format_hypothesis(DSLParser().parse(text), "natural"),
+                "formal": format_hypothesis(DSLParser().parse(text), "formal"),
+            },
+        }
+    )
 
 
 @require_http_methods(["POST"])
@@ -1065,9 +1119,11 @@ def evaluate_workbench_hypothesis(request, workbench_id: str, hypothesis_id: str
         if not save_synara(workbench_id, synara, user=request.user):
             return JsonResponse({"error": "Failed to persist evaluation results."}, status=500)
 
-    return JsonResponse({
-        "success": True,
-        "evaluation": evaluation.to_dict(),
-        "belief_update": result.to_dict() if result else None,
-        "hypothesis_posterior": synara.graph.hypotheses[hypothesis_id].posterior,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "evaluation": evaluation.to_dict(),
+            "belief_update": result.to_dict() if result else None,
+            "hypothesis_posterior": synara.graph.hypotheses[hypothesis_id].posterior,
+        }
+    )

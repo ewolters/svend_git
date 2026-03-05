@@ -747,6 +747,312 @@ class HealthPing(models.Model):
         return f"[{self.timestamp}] {status} ({self.response_time_ms}ms)"
 
 
+# ---------------------------------------------------------------------------
+# Incident Response Models (INC-001)
+# ---------------------------------------------------------------------------
+
+
+class Incident(models.Model):
+    """
+    Production incident record with lifecycle tracking and SLA measurement.
+
+    Tracks incidents from detection through resolution and post-mortem with
+    immutable IncidentLog entries at each state transition.
+
+    Standard: INC-001 §3-§5
+    Compliance: SOC 2 CC7.1 (Incident Detection), CC7.4 (Incident Response)
+    """
+
+    SEVERITY_CHOICES = [
+        ("critical", "Critical"),
+        ("high", "High"),
+        ("medium", "Medium"),
+        ("low", "Low"),
+    ]
+
+    STATUS_CHOICES = [
+        ("detected", "Detected"),
+        ("acknowledged", "Acknowledged"),
+        ("investigating", "Investigating"),
+        ("mitigating", "Mitigating"),
+        ("resolved", "Resolved"),
+        ("post_mortem", "Post-Mortem"),
+        ("closed", "Closed"),
+    ]
+
+    CATEGORY_CHOICES = [
+        ("outage", "Outage"),
+        ("degradation", "Degradation"),
+        ("security", "Security"),
+        ("data", "Data Integrity"),
+        ("dependency", "Dependency"),
+        ("other", "Other"),
+    ]
+
+    # ========== Identity ==========
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    title = models.CharField(
+        max_length=255,
+        help_text="Short description of the incident"
+    )
+
+    description = models.TextField(
+        help_text="Detailed description of the incident and its impact"
+    )
+
+    # ========== Classification ==========
+
+    severity = models.CharField(
+        max_length=10,
+        choices=SEVERITY_CHOICES,
+        db_index=True,
+        help_text="Incident severity (INC-001 §3.1)"
+    )
+
+    status = models.CharField(
+        max_length=15,
+        choices=STATUS_CHOICES,
+        default="detected",
+        db_index=True,
+        help_text="Current lifecycle state (INC-001 §5.1)"
+    )
+
+    category = models.CharField(
+        max_length=15,
+        choices=CATEGORY_CHOICES,
+        default="other",
+        help_text="Incident category (INC-001 §3.2)"
+    )
+
+    # ========== Lifecycle Timestamps (INC-001 §5.3) ==========
+
+    detected_at = models.DateTimeField(
+        default=timezone.now,
+        help_text="When the incident was detected"
+    )
+
+    acknowledged_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="When staff acknowledged the incident"
+    )
+
+    investigating_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="When investigation began"
+    )
+
+    mitigating_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="When mitigation/fix began"
+    )
+
+    resolved_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="When the incident was resolved"
+    )
+
+    closed_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="When post-mortem was completed and incident closed"
+    )
+
+    # ========== Actors ==========
+
+    reported_by = models.CharField(
+        max_length=255,
+        default="system",
+        help_text="Who or what reported the incident"
+    )
+
+    assigned_to = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Staff member assigned to the incident"
+    )
+
+    # ========== Linking ==========
+
+    change_request = models.ForeignKey(
+        "ChangeRequest",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="incidents",
+        help_text="Remediation ChangeRequest (INC-001 §8.3)"
+    )
+
+    correlation_id = models.UUIDField(
+        null=True, blank=True, db_index=True,
+        help_text="Correlation ID for audit trail linkage"
+    )
+
+    # ========== Resolution ==========
+
+    root_cause = models.TextField(
+        blank=True, default="",
+        help_text="Root cause analysis (INC-001 §8.2)"
+    )
+
+    resolution_summary = models.TextField(
+        blank=True, default="",
+        help_text="How the incident was resolved"
+    )
+
+    post_mortem_notes = models.TextField(
+        blank=True, default="",
+        help_text="Post-mortem analysis, lessons learned, prevention measures"
+    )
+
+    class Meta:
+        db_table = "syn_audit_incident"
+        ordering = ["-detected_at"]
+        indexes = [
+            models.Index(fields=["severity", "status"], name="inc_sev_status"),
+            models.Index(fields=["-detected_at"], name="inc_detected"),
+        ]
+        verbose_name = "Incident"
+        verbose_name_plural = "Incidents"
+
+    def __str__(self):
+        return f"[{self.severity.upper()}] {self.title} ({self.status})"
+
+    # ========== SLA Properties (INC-001 §6) ==========
+
+    @property
+    def ack_elapsed_hours(self):
+        """Hours between detection and acknowledgement (or now if not yet acked)."""
+        if not self.acknowledged_at:
+            return (timezone.now() - self.detected_at).total_seconds() / 3600
+        return (self.acknowledged_at - self.detected_at).total_seconds() / 3600
+
+    @property
+    def resolution_elapsed_hours(self):
+        """Hours between detection and resolution (or now if not yet resolved)."""
+        if not self.resolved_at:
+            return (timezone.now() - self.detected_at).total_seconds() / 3600
+        return (self.resolved_at - self.detected_at).total_seconds() / 3600
+
+    @property
+    def is_ack_sla_breached(self):
+        """True if ack SLA target exceeded for this severity (SLA-001 §8)."""
+        targets = {"critical": 1, "high": 1, "medium": 4, "low": 8}
+        return self.ack_elapsed_hours > targets.get(self.severity, 8)
+
+    @property
+    def is_resolution_sla_breached(self):
+        """True if resolution SLA target exceeded for this severity (SLA-001 §8)."""
+        targets = {"critical": 8, "high": 24, "medium": 72, "low": 168}
+        return self.resolution_elapsed_hours > targets.get(self.severity, 168)
+
+
+class IncidentLog(models.Model):
+    """
+    Immutable log entry recording a state transition or event in an incident's lifecycle.
+
+    Every Incident state transition, escalation, and comment creates an IncidentLog
+    entry forming an auditable chain.
+
+    Standard: INC-001 §5.2
+    Compliance: SOC 2 CC7.4 (Incident Response)
+    """
+
+    ACTION_CHOICES = [
+        ("detected", "Detected"),
+        ("acknowledged", "Acknowledged"),
+        ("investigating", "Investigating"),
+        ("mitigating", "Mitigating"),
+        ("resolved", "Resolved"),
+        ("post_mortem", "Post-Mortem"),
+        ("closed", "Closed"),
+        ("escalated", "Escalated"),
+        ("comment", "Comment"),
+        ("reassigned", "Reassigned"),
+        ("severity_changed", "Severity Changed"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    incident = models.ForeignKey(
+        Incident,
+        on_delete=models.CASCADE,
+        related_name="logs",
+        help_text="The incident this log entry belongs to"
+    )
+
+    timestamp = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        help_text="When this log entry was created"
+    )
+
+    actor = models.CharField(
+        max_length=255,
+        help_text="Who or what created this log entry"
+    )
+
+    action = models.CharField(
+        max_length=20,
+        choices=ACTION_CHOICES,
+        db_index=True,
+        help_text="Type of action being logged"
+    )
+
+    from_state = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="Previous state of the incident"
+    )
+
+    to_state = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="New state of the incident"
+    )
+
+    details = models.JSONField(
+        default=dict,
+        help_text="Structured details: severity change, CR link, etc."
+    )
+
+    message = models.TextField(
+        blank=True,
+        help_text="Human-readable description of what happened"
+    )
+
+    class Meta:
+        db_table = "syn_audit_incident_log"
+        ordering = ["timestamp"]
+        indexes = [
+            models.Index(fields=["incident", "timestamp"], name="inclog_incident_time"),
+            models.Index(fields=["action", "-timestamp"], name="inclog_action_time"),
+        ]
+        verbose_name = "Incident Log"
+        verbose_name_plural = "Incident Logs"
+        default_permissions = ("add", "view")  # Immutable — no change/delete
+
+    def __str__(self):
+        return f"[{self.timestamp}] {self.action}: {self.message[:80]}" if self.message else f"[{self.timestamp}] {self.action}"
+
+    def save(self, *args, **kwargs):
+        """Enforce immutability — prevent updates to existing log entries."""
+        if self.pk and IncidentLog.objects.filter(pk=self.pk).exists():
+            raise ValidationError(
+                "Incident log entries are immutable and cannot be modified. "
+                "Create a new entry instead. INC-001 §5.2 violation."
+            )
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        """Block deletion — incident logs are audit records."""
+        raise ValueError(
+            "Incident log entries cannot be deleted. "
+            "INC-001 §5.2 / SOC 2 CC7.4 violation: incident audit trail must be preserved."
+        )
+
+
 class ComplianceReport(models.Model):
     """
     Monthly aggregate compliance report.

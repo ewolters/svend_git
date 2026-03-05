@@ -42,24 +42,24 @@ The temporal reflex system creates a feedback loop where:
 This is Synara's "temporal cortex" - adaptive timing intelligence.
 """
 
-from .policy import (
-    TemporalPolicy,
-    TemporalPolicyRule,
-    TemporalAction,
-    TemporalTrigger,
-    TriggerType,
-    ActionType,
-)
-from .reflex import (
-    TemporalReflex,
-    ReflexOutcome,
-    ReflexState,
-    CompensatingTask,
-)
 from .controller import (
     TemporalController,
     TemporalControllerConfig,
     TemporalMetrics,
+)
+from .policy import (
+    ActionType,
+    TemporalAction,
+    TemporalPolicy,
+    TemporalPolicyRule,
+    TemporalTrigger,
+    TriggerType,
+)
+from .reflex import (
+    CompensatingTask,
+    ReflexOutcome,
+    ReflexState,
+    TemporalReflex,
 )
 
 __all__ = [

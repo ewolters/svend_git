@@ -24,10 +24,9 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
-from django.db.models import Avg, Count, Max, Min, Q, Sum
-from django.db.models.functions import TruncHour
+from django.db.models import Count
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -35,6 +34,7 @@ logger = logging.getLogger(__name__)
 
 class WorkerState(Enum):
     """Worker health states."""
+
     ALIVE = "alive"
     BUSY = "busy"
     IDLE = "idle"
@@ -50,6 +50,7 @@ class QueueMetrics:
 
     Standard: SCH-005 §2.1
     """
+
     queue_name: str
     depth: int = 0
     pending: int = 0
@@ -61,7 +62,7 @@ class QueueMetrics:
     oldest_task_age_seconds: float = 0.0
     throughput_per_minute: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "queue_name": self.queue_name,
             "depth": self.depth,
@@ -83,19 +84,20 @@ class WorkerMetrics:
 
     Standard: SCH-005 §2.2
     """
+
     worker_id: str
     state: WorkerState = WorkerState.ALIVE
     resource_class: str = "mixed"
-    current_task_id: Optional[str] = None
-    current_task_name: Optional[str] = None
+    current_task_id: str | None = None
+    current_task_name: str | None = None
     tasks_completed: int = 0
     tasks_failed: int = 0
     uptime_seconds: float = 0.0
-    last_heartbeat: Optional[datetime] = None
+    last_heartbeat: datetime | None = None
     memory_mb: float = 0.0
     cpu_percent: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "worker_id": self.worker_id,
             "state": self.state.value,
@@ -118,6 +120,7 @@ class TaskTypeMetrics:
 
     Standard: SCH-005 §2.3
     """
+
     task_name: str
     total_executions: int = 0
     successful_executions: int = 0
@@ -127,11 +130,11 @@ class TaskTypeMetrics:
     p50_duration_ms: float = 0.0
     p95_duration_ms: float = 0.0
     p99_duration_ms: float = 0.0
-    last_execution: Optional[datetime] = None
-    last_success: Optional[datetime] = None
-    last_failure: Optional[datetime] = None
+    last_execution: datetime | None = None
+    last_success: datetime | None = None
+    last_failure: datetime | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_name": self.task_name,
             "total_executions": self.total_executions,
@@ -155,20 +158,21 @@ class ScheduleMetrics:
 
     Standard: SCH-005 §2.4
     """
+
     schedule_id: str
     name: str
     task_name: str
     enabled: bool = True
     schedule_type: str = "cron"
     expression: str = ""
-    last_run_at: Optional[datetime] = None
-    next_run_at: Optional[datetime] = None
+    last_run_at: datetime | None = None
+    next_run_at: datetime | None = None
     run_count: int = 0
     failure_count: int = 0
     last_status: str = "unknown"
     avg_duration_ms: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "schedule_id": self.schedule_id,
             "name": self.name,
@@ -192,18 +196,19 @@ class CircuitMetrics:
 
     Standard: SCH-005 §2.5
     """
+
     service_name: str
     state: str = "closed"
     failure_count: int = 0
     success_count: int = 0
-    last_failure: Optional[datetime] = None
-    last_success: Optional[datetime] = None
-    opened_at: Optional[datetime] = None
-    half_open_at: Optional[datetime] = None
+    last_failure: datetime | None = None
+    last_success: datetime | None = None
+    opened_at: datetime | None = None
+    half_open_at: datetime | None = None
     failure_rate: float = 0.0
     consecutive_failures: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "service_name": self.service_name,
             "state": self.state,
@@ -225,6 +230,7 @@ class DLQMetrics:
 
     Standard: SCH-005 §2.6
     """
+
     total_entries: int = 0
     pending_entries: int = 0
     resolved_entries: int = 0
@@ -232,11 +238,11 @@ class DLQMetrics:
     discarded_entries: int = 0
     growth_rate_per_hour: float = 0.0
     oldest_entry_age_hours: float = 0.0
-    entries_by_task: Dict[str, int] = field(default_factory=dict)
-    entries_by_error_type: Dict[str, int] = field(default_factory=dict)
+    entries_by_task: dict[str, int] = field(default_factory=dict)
+    entries_by_error_type: dict[str, int] = field(default_factory=dict)
     avg_resolution_time_hours: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_entries": self.total_entries,
             "pending_entries": self.pending_entries,
@@ -258,6 +264,7 @@ class ResourceClassMetrics:
 
     Standard: SCH-005 §2.7
     """
+
     resource_class: str
     active_workers: int = 0
     max_workers: int = 0
@@ -268,7 +275,7 @@ class ResourceClassMetrics:
     memory_used_mb: float = 0.0
     memory_limit_mb: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "resource_class": self.resource_class,
             "active_workers": self.active_workers,
@@ -289,21 +296,22 @@ class ThrottleMetrics:
 
     Standard: SCH-005 §2.8
     """
+
     current_level: str = "NONE"
     level_value: float = 0.0
     confidence_penalty: float = 0.0
     is_emergency: bool = False
-    emergency_reason: Optional[str] = None
+    emergency_reason: str | None = None
     paused_schedules: bool = False
     skip_low_priority: bool = False
     skip_batch_tasks: bool = False
     decisions_total: int = 0
     decisions_allowed: int = 0
     decisions_denied: int = 0
-    time_at_level: Dict[str, float] = field(default_factory=dict)
+    time_at_level: dict[str, float] = field(default_factory=dict)
     level_changes_last_hour: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "current_level": self.current_level,
             "level_value": self.level_value,
@@ -328,6 +336,7 @@ class DashboardMetrics:
 
     Standard: SCH-005 §2
     """
+
     collected_at: datetime = field(default_factory=timezone.now)
 
     # Summary metrics
@@ -338,12 +347,12 @@ class DashboardMetrics:
     overall_success_rate: float = 0.0
 
     # Component metrics
-    queues: List[QueueMetrics] = field(default_factory=list)
-    workers: List[WorkerMetrics] = field(default_factory=list)
-    task_types: List[TaskTypeMetrics] = field(default_factory=list)
-    schedules: List[ScheduleMetrics] = field(default_factory=list)
-    circuits: List[CircuitMetrics] = field(default_factory=list)
-    resource_classes: List[ResourceClassMetrics] = field(default_factory=list)
+    queues: list[QueueMetrics] = field(default_factory=list)
+    workers: list[WorkerMetrics] = field(default_factory=list)
+    task_types: list[TaskTypeMetrics] = field(default_factory=list)
+    schedules: list[ScheduleMetrics] = field(default_factory=list)
+    circuits: list[CircuitMetrics] = field(default_factory=list)
+    resource_classes: list[ResourceClassMetrics] = field(default_factory=list)
     dlq: DLQMetrics = field(default_factory=DLQMetrics)
     throttle: ThrottleMetrics = field(default_factory=ThrottleMetrics)
 
@@ -355,7 +364,7 @@ class DashboardMetrics:
     circuits_open: int = 0
     circuits_total: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "collected_at": self.collected_at.isoformat(),
             "summary": {
@@ -409,7 +418,7 @@ class SchedulerMetricsCollector:
 
     def __init__(
         self,
-        scheduler: Optional[Any] = None,
+        scheduler: Any | None = None,
         lookback_hours: int = 24,
     ):
         """
@@ -463,9 +472,7 @@ class SchedulerMetricsCollector:
                 state__in=[TaskState.PENDING.value, TaskState.SCHEDULED.value, TaskState.RETRYING.value]
             ).count()
 
-            metrics.total_running_tasks = CognitiveTask.objects.filter(
-                state=TaskState.RUNNING.value
-            ).count()
+            metrics.total_running_tasks = CognitiveTask.objects.filter(state=TaskState.RUNNING.value).count()
 
             # Today's stats
             metrics.total_completed_today = CognitiveTask.objects.filter(
@@ -522,15 +529,18 @@ class SchedulerMetricsCollector:
                 qm.throughput_per_minute = qm.completed_last_hour / 60.0
 
                 # Oldest task age
-                oldest = queue_tasks.filter(
-                    state__in=[TaskState.PENDING.value, TaskState.SCHEDULED.value]
-                ).order_by('created_at').first()
+                oldest = (
+                    queue_tasks.filter(state__in=[TaskState.PENDING.value, TaskState.SCHEDULED.value])
+                    .order_by("created_at")
+                    .first()
+                )
 
                 if oldest:
                     qm.oldest_task_age_seconds = (now - oldest.created_at).total_seconds()
 
                 # Average wait time (from created to started for recently completed)
                 from syn.sched.models import TaskExecution
+
                 recent_executions = TaskExecution.objects.filter(
                     task__queue=queue_name,
                     started_at__gte=one_hour_ago,
@@ -555,7 +565,7 @@ class SchedulerMetricsCollector:
             if not self._scheduler:
                 return
 
-            for worker in getattr(self._scheduler, '_workers', []):
+            for worker in getattr(self._scheduler, "_workers", []):
                 wm = WorkerMetrics(worker_id=worker.worker_id)
 
                 # State determination
@@ -585,14 +595,13 @@ class SchedulerMetricsCollector:
         """Collect per-task-type metrics."""
         try:
             from syn.sched.models import CognitiveTask, TaskExecution
-            from syn.sched.types import TaskState
 
             lookback = timezone.now() - timedelta(hours=self._lookback_hours)
 
             # Get distinct task names with recent activity
-            task_names = CognitiveTask.objects.filter(
-                created_at__gte=lookback
-            ).values_list('task_name', flat=True).distinct()
+            task_names = (
+                CognitiveTask.objects.filter(created_at__gte=lookback).values_list("task_name", flat=True).distinct()
+            )
 
             for task_name in task_names[:50]:  # Limit to top 50
                 ttm = TaskTypeMetrics(task_name=task_name)
@@ -613,7 +622,7 @@ class SchedulerMetricsCollector:
                 # Duration stats
                 successful = executions.filter(is_success=True, duration_ms__isnull=False)
                 if successful.exists():
-                    durations = list(successful.values_list('duration_ms', flat=True))
+                    durations = list(successful.values_list("duration_ms", flat=True))
                     durations.sort()
 
                     ttm.avg_duration_ms = sum(durations) / len(durations)
@@ -622,15 +631,15 @@ class SchedulerMetricsCollector:
                     ttm.p99_duration_ms = durations[int(len(durations) * 0.99)]
 
                 # Last timestamps
-                last_exec = executions.order_by('-completed_at').first()
+                last_exec = executions.order_by("-completed_at").first()
                 if last_exec:
                     ttm.last_execution = last_exec.completed_at
 
-                last_success = executions.filter(is_success=True).order_by('-completed_at').first()
+                last_success = executions.filter(is_success=True).order_by("-completed_at").first()
                 if last_success:
                     ttm.last_success = last_success.completed_at
 
-                last_failure = executions.filter(is_success=False).order_by('-completed_at').first()
+                last_failure = executions.filter(is_success=False).order_by("-completed_at").first()
                 if last_failure:
                     ttm.last_failure = last_failure.completed_at
 
@@ -655,19 +664,22 @@ class SchedulerMetricsCollector:
                     last_run_at=schedule.last_run_at,
                     next_run_at=schedule.next_run_at,
                     run_count=schedule.run_count,
-                    failure_count=getattr(schedule, 'failure_count', 0),
+                    failure_count=getattr(schedule, "failure_count", 0),
                 )
 
                 # Determine last status
                 if schedule.last_run_at:
                     from syn.sched.models import CognitiveTask
-                    from syn.sched.types import TaskState
 
-                    recent_task = CognitiveTask.objects.filter(
-                        task_name=schedule.task_name,
-                        created_at__gte=schedule.last_run_at - timedelta(seconds=10),
-                        created_at__lte=schedule.last_run_at + timedelta(seconds=10),
-                    ).order_by('-created_at').first()
+                    recent_task = (
+                        CognitiveTask.objects.filter(
+                            task_name=schedule.task_name,
+                            created_at__gte=schedule.last_run_at - timedelta(seconds=10),
+                            created_at__lte=schedule.last_run_at + timedelta(seconds=10),
+                        )
+                        .order_by("-created_at")
+                        .first()
+                    )
 
                     if recent_task:
                         sm.last_status = recent_task.state
@@ -722,7 +734,7 @@ class SchedulerMetricsCollector:
                 )
 
                 # Get active count from scheduler
-                if self._scheduler and hasattr(self._scheduler, 'backpressure'):
+                if self._scheduler and hasattr(self._scheduler, "backpressure"):
                     health = self._scheduler.backpressure.get_health_metrics() if self._scheduler.backpressure else None
                     if health:
                         rcm.utilization = health.worker_utilization
@@ -751,24 +763,17 @@ class SchedulerMetricsCollector:
             dlq.growth_rate_per_hour = float(recent_entries)
 
             # Oldest entry
-            oldest = DeadLetterEntry.objects.filter(status="pending").order_by('created_at').first()
+            oldest = DeadLetterEntry.objects.filter(status="pending").order_by("created_at").first()
             if oldest:
                 dlq.oldest_entry_age_hours = (timezone.now() - oldest.created_at).total_seconds() / 3600
 
             # By task name
-            by_task = DeadLetterEntry.objects.values('task_name').annotate(
-                count=Count('id')
-            ).order_by('-count')[:10]
-            dlq.entries_by_task = {item['task_name']: item['count'] for item in by_task}
+            by_task = DeadLetterEntry.objects.values("task_name").annotate(count=Count("id")).order_by("-count")[:10]
+            dlq.entries_by_task = {item["task_name"]: item["count"] for item in by_task}
 
             # By error type
-            by_error = DeadLetterEntry.objects.values('error_type').annotate(
-                count=Count('id')
-            ).order_by('-count')[:10]
-            dlq.entries_by_error_type = {
-                item['error_type'] or 'unknown': item['count']
-                for item in by_error
-            }
+            by_error = DeadLetterEntry.objects.values("error_type").annotate(count=Count("id")).order_by("-count")[:10]
+            dlq.entries_by_error_type = {item["error_type"] or "unknown": item["count"] for item in by_error}
 
             metrics.dlq = dlq
 
@@ -781,7 +786,7 @@ class SchedulerMetricsCollector:
             if not self._scheduler:
                 return
 
-            bp = getattr(self._scheduler, '_backpressure', None)
+            bp = getattr(self._scheduler, "_backpressure", None)
             if not bp:
                 return
 
@@ -820,7 +825,7 @@ class SchedulerMetricsCollector:
             # Scheduler state
             if self._scheduler:
                 metrics.scheduler_running = self._scheduler.is_running
-                bp = getattr(self._scheduler, '_backpressure', None)
+                bp = getattr(self._scheduler, "_backpressure", None)
                 metrics.backpressure_running = bp.is_running if bp else False
 
             # Worker health
@@ -832,27 +837,27 @@ class SchedulerMetricsCollector:
 
             # Circuit health
             metrics.circuits_total = len(metrics.circuits)
-            metrics.circuits_open = sum(1 for c in metrics.circuits if c.state in ['open', 'half_open'])
+            metrics.circuits_open = sum(1 for c in metrics.circuits if c.state in ["open", "half_open"])
 
         except Exception as e:
             logger.debug(f"[DASHBOARD] Health indicators error: {e}")
 
     # Convenience methods for specific queries
 
-    def get_queue_depths(self) -> Dict[str, int]:
+    def get_queue_depths(self) -> dict[str, int]:
         """Get current queue depths."""
         metrics = self.collect()
         return {q.queue_name: q.depth for q in metrics.queues}
 
     def get_throttle_level(self) -> str:
         """Get current throttle level."""
-        if self._scheduler and hasattr(self._scheduler, '_backpressure'):
+        if self._scheduler and hasattr(self._scheduler, "_backpressure"):
             bp = self._scheduler._backpressure
             if bp:
                 return bp.get_current_level().name
         return "UNKNOWN"
 
-    def get_dlq_summary(self) -> Dict[str, int]:
+    def get_dlq_summary(self) -> dict[str, int]:
         """Get DLQ summary counts."""
         metrics = self.collect()
         return {
@@ -861,7 +866,7 @@ class SchedulerMetricsCollector:
             "resolved": metrics.dlq.resolved_entries,
         }
 
-    def get_worker_status(self) -> Dict[str, int]:
+    def get_worker_status(self) -> dict[str, int]:
         """Get worker status counts."""
         metrics = self.collect()
         return {

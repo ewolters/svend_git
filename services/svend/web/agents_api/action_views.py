@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
+
 from .models import ActionItem
 
 
@@ -21,8 +22,7 @@ def update_action_item(request, action_id):
     item = get_object_or_404(ActionItem, id=action_id, project__user=request.user)
     data = json.loads(request.body)
 
-    for field in ["title", "description", "owner_name", "status",
-                  "start_date", "end_date", "due_date"]:
+    for field in ["title", "description", "owner_name", "status", "start_date", "end_date", "due_date"]:
         if field in data:
             setattr(item, field, data[field])
 
@@ -33,7 +33,8 @@ def update_action_item(request, action_id):
     if "depends_on_id" in data:
         if data["depends_on_id"]:
             item.depends_on = ActionItem.objects.filter(
-                id=data["depends_on_id"], project=item.project,
+                id=data["depends_on_id"],
+                project=item.project,
             ).first()
         else:
             item.depends_on = None

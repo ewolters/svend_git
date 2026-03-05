@@ -10,8 +10,9 @@ All probability updates use core.bayesian.BayesianUpdater.
 """
 
 import uuid
+
 from django.conf import settings
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from core.bayesian import BayesianUpdater, get_updater
@@ -278,15 +279,17 @@ class Hypothesis(models.Model):
             confidence=confidence,
         )
 
-        self.probability_history.append({
-            "probability": result.posterior_probability,
-            "previous": result.prior_probability,
-            "evidence_id": str(evidence_link.evidence.id),
-            "likelihood_ratio": lr,
-            "adjusted_lr": result.adjusted_likelihood_ratio,
-            "strength": result.strength.value,
-            "timestamp": timezone.now().isoformat(),
-        })
+        self.probability_history.append(
+            {
+                "probability": result.posterior_probability,
+                "previous": result.prior_probability,
+                "evidence_id": str(evidence_link.evidence.id),
+                "likelihood_ratio": lr,
+                "adjusted_lr": result.adjusted_likelihood_ratio,
+                "strength": result.strength.value,
+                "timestamp": timezone.now().isoformat(),
+            }
+        )
 
         self.current_probability = result.posterior_probability
         self._check_status_thresholds()
@@ -304,10 +307,7 @@ class Hypothesis(models.Model):
 
         updater = get_updater()
 
-        evidence_items = [
-            (link.likelihood_ratio, link.evidence.confidence)
-            for link in self.evidence_links.all()
-        ]
+        evidence_items = [(link.likelihood_ratio, link.evidence.confidence) for link in self.evidence_links.all()]
 
         result = updater.update_multiple(
             prior=self.prior_probability,
@@ -315,13 +315,15 @@ class Hypothesis(models.Model):
         )
 
         self.current_probability = result.posterior_probability
-        self.probability_history.append({
-            "probability": result.posterior_probability,
-            "reason": "recalculated",
-            "cumulative_lr": result.likelihood_ratio,
-            "evidence_count": len(evidence_items),
-            "timestamp": timezone.now().isoformat(),
-        })
+        self.probability_history.append(
+            {
+                "probability": result.posterior_probability,
+                "reason": "recalculated",
+                "cumulative_lr": result.likelihood_ratio,
+                "evidence_count": len(evidence_items),
+                "timestamp": timezone.now().isoformat(),
+            }
+        )
         self._check_status_thresholds()
         self.save()
 

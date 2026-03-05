@@ -12,7 +12,7 @@ Version:      1.0.0
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +140,6 @@ SCHEDULER_EVENTS = {
             "tenant_id": "uuid",
         },
     },
-
     # ==========================================================================
     # Retry Events (SCH-002 §retry_strategies)
     # ==========================================================================
@@ -175,7 +174,6 @@ SCHEDULER_EVENTS = {
             "tenant_id": "uuid",
         },
     },
-
     # ==========================================================================
     # Dead Letter Queue Events (SCH-002 §dlq_handling)
     # ==========================================================================
@@ -235,7 +233,6 @@ SCHEDULER_EVENTS = {
             "tenant_id": "uuid",
         },
     },
-
     # ==========================================================================
     # Circuit Breaker Events (SCH-002 §circuit_breaker)
     # ==========================================================================
@@ -285,7 +282,6 @@ SCHEDULER_EVENTS = {
             "correlation_id": "uuid",
         },
     },
-
     # ==========================================================================
     # Schedule Events (SCH-001 §temporal_patterns)
     # ==========================================================================
@@ -380,7 +376,6 @@ SCHEDULER_EVENTS = {
             "tenant_id": "uuid",
         },
     },
-
     # ==========================================================================
     # Cascade Events (SCH-002 §reflex_throttling)
     # ==========================================================================
@@ -436,7 +431,6 @@ SCHEDULER_EVENTS = {
             "tenant_id": "uuid",
         },
     },
-
     # ==========================================================================
     # Worker Events (SCH-001 §worker_pool)
     # ==========================================================================
@@ -489,7 +483,6 @@ SCHEDULER_EVENTS = {
             "queue_depth": "integer",
         },
     },
-
     # ==========================================================================
     # Quota Events (SCH-002 §resource_quotas)
     # ==========================================================================
@@ -531,7 +524,6 @@ SCHEDULER_EVENTS = {
             "correlation_id": "uuid",
         },
     },
-
     # ==========================================================================
     # Scheduler System Events
     # ==========================================================================
@@ -579,12 +571,12 @@ SCHEDULER_EVENTS = {
 
 def emit_scheduler_event(
     event_name: str,
-    payload: Dict[str, Any],
-    correlation_id: Optional[str] = None,
-    tenant_id: Optional[str] = None,
-    parent_correlation_id: Optional[str] = None,
+    payload: dict[str, Any],
+    correlation_id: str | None = None,
+    tenant_id: str | None = None,
+    parent_correlation_id: str | None = None,
     validate: bool = True,
-) -> Optional[str]:
+) -> str | None:
     """
     Emit a scheduler event through the kernel event system.
 
@@ -639,7 +631,7 @@ def emit_scheduler_event(
 # =============================================================================
 
 
-def build_task_created_payload(task) -> Dict[str, Any]:
+def build_task_created_payload(task) -> dict[str, Any]:
     """Build payload for scheduler.task.created event."""
     return {
         "task_id": str(task.id),
@@ -652,7 +644,7 @@ def build_task_created_payload(task) -> Dict[str, Any]:
     }
 
 
-def build_task_started_payload(task, worker_id: str, attempt_number: int) -> Dict[str, Any]:
+def build_task_started_payload(task, worker_id: str, attempt_number: int) -> dict[str, Any]:
     """Build payload for scheduler.task.started event."""
     return {
         "task_id": str(task.id),
@@ -668,7 +660,7 @@ def build_task_completed_payload(
     task,
     duration_ms: int,
     attempt_number: int,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build payload for scheduler.task.completed event."""
     return {
         "task_id": str(task.id),
@@ -686,7 +678,7 @@ def build_task_failed_payload(
     error_message: str,
     attempt_number: int,
     will_retry: bool,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build payload for scheduler.task.failed event."""
     return {
         "task_id": str(task.id),
@@ -703,7 +695,7 @@ def build_task_failed_payload(
 def build_retry_scheduled_payload(
     task,
     retry_delay_seconds: int,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build payload for scheduler.retry.scheduled event."""
     return {
         "task_id": str(task.id),
@@ -718,7 +710,7 @@ def build_retry_scheduled_payload(
     }
 
 
-def build_dlq_enqueued_payload(dlq_entry) -> Dict[str, Any]:
+def build_dlq_enqueued_payload(dlq_entry) -> dict[str, Any]:
     """Build payload for scheduler.dlq.enqueued event."""
     return {
         "dlq_id": str(dlq_entry.id),
@@ -731,7 +723,7 @@ def build_dlq_enqueued_payload(dlq_entry) -> Dict[str, Any]:
     }
 
 
-def build_circuit_opened_payload(circuit, last_error: str = "") -> Dict[str, Any]:
+def build_circuit_opened_payload(circuit, last_error: str = "") -> dict[str, Any]:
     """Build payload for scheduler.circuit.opened event."""
     return {
         "service_name": circuit.service_name,
@@ -744,7 +736,7 @@ def build_circuit_opened_payload(circuit, last_error: str = "") -> Dict[str, Any
 def build_circuit_closed_payload(
     circuit,
     recovery_duration_seconds: int,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build payload for scheduler.circuit.closed event."""
     return {
         "service_name": circuit.service_name,
@@ -753,7 +745,7 @@ def build_circuit_closed_payload(
     }
 
 
-def build_schedule_triggered_payload(schedule, task) -> Dict[str, Any]:
+def build_schedule_triggered_payload(schedule, task) -> dict[str, Any]:
     """Build payload for scheduler.schedule.triggered event."""
     return {
         "schedule_id": schedule.schedule_id,
@@ -767,7 +759,7 @@ def build_schedule_triggered_payload(schedule, task) -> Dict[str, Any]:
 def build_cascade_child_payload(
     parent_task,
     child_task,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build payload for scheduler.cascade.child_created event."""
     return {
         "parent_task_id": str(parent_task.id),
@@ -784,7 +776,7 @@ def build_quota_exceeded_payload(
     current_value: int,
     limit: int,
     action_taken: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build payload for scheduler.quota.exceeded event."""
     return {
         "tenant_id": tenant_id,
@@ -802,7 +794,7 @@ def build_worker_heartbeat_payload(
     failed_tasks: int,
     memory_mb: float,
     cpu_percent: float,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build payload for scheduler.worker.heartbeat event."""
     return {
         "worker_id": worker_id,

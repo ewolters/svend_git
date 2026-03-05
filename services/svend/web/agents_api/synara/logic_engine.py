@@ -11,30 +11,42 @@ The engine:
 4. Escalates to LLM when ambiguity detected
 """
 
-from dataclasses import dataclass, field
-from typing import Optional, Union, Any, Callable
+from collections.abc import Callable
+from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 from .dsl import (
-    Hypothesis, Expression, Variable, Literal, Comparison, LogicalExpr,
-    Implication, Quantified, DomainCondition, Quantifier, ComparisonOp, LogicalOp,
+    Comparison,
+    ComparisonOp,
     DSLParser,
+    Expression,
+    Hypothesis,
+    Implication,
+    Literal,
+    LogicalExpr,
+    LogicalOp,
+    Quantified,
+    Quantifier,
+    Variable,
 )
 
 
 class EvaluationResult(Enum):
     """Result of evaluating a hypothesis."""
-    SUPPORTED = "supported"           # Evidence supports hypothesis
-    REFUTED = "refuted"               # Evidence contradicts hypothesis
-    UNDETERMINED = "undetermined"     # Insufficient evidence
-    PARTIAL = "partial"               # Some conditions met, others not
-    ERROR = "error"                   # Evaluation failed
+
+    SUPPORTED = "supported"  # Evidence supports hypothesis
+    REFUTED = "refuted"  # Evidence contradicts hypothesis
+    UNDETERMINED = "undetermined"  # Insufficient evidence
+    PARTIAL = "partial"  # Some conditions met, others not
+    ERROR = "error"  # Evaluation failed
 
 
 class FallacyType(Enum):
     """Types of logical fallacies detected."""
+
     AFFIRMING_CONSEQUENT = "affirming_consequent"  # P→Q, Q ∴ P
-    DENYING_ANTECEDENT = "denying_antecedent"      # P→Q, ¬P ∴ ¬Q
+    DENYING_ANTECEDENT = "denying_antecedent"  # P→Q, ¬P ∴ ¬Q
     CIRCULAR_REASONING = "circular_reasoning"
     FALSE_DICHOTOMY = "false_dichotomy"
     HASTY_GENERALIZATION = "hasty_generalization"
@@ -45,16 +57,18 @@ class FallacyType(Enum):
 @dataclass
 class Fallacy:
     """A detected logical fallacy."""
+
     type: FallacyType
     description: str
     location: str  # Which part of hypothesis
     severity: str  # "error", "warning"
-    suggestion: Optional[str] = None
+    suggestion: str | None = None
 
 
 @dataclass
 class EvaluationEvidence:
     """Evidence from evaluation."""
+
     row_indices: list[int]
     matching_count: int
     total_count: int
@@ -64,6 +78,7 @@ class EvaluationEvidence:
 @dataclass
 class HypothesisEvaluation:
     """Complete evaluation result for a hypothesis."""
+
     hypothesis: Hypothesis
     result: EvaluationResult
     confidence: float  # 0.0 - 1.0
@@ -72,7 +87,7 @@ class HypothesisEvaluation:
     fallacies: list[Fallacy]
     explanation: str
     needs_llm_review: bool = False
-    llm_review_reason: Optional[str] = None
+    llm_review_reason: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -89,8 +104,7 @@ class HypothesisEvaluation:
                 "samples": self.refuting_evidence.sample_values[:5],
             },
             "fallacies": [
-                {"type": f.type.value, "description": f.description, "severity": f.severity}
-                for f in self.fallacies
+                {"type": f.type.value, "description": f.description, "severity": f.severity} for f in self.fallacies
             ],
             "explanation": self.explanation,
             "needs_llm_review": self.needs_llm_review,
@@ -125,12 +139,14 @@ class LogicEngine:
 
         # Check parse errors
         for error in hypothesis.parse_errors:
-            fallacies.append(Fallacy(
-                type=FallacyType.UNFALSIFIABLE,
-                description=error,
-                location="parse",
-                severity="error",
-            ))
+            fallacies.append(
+                Fallacy(
+                    type=FallacyType.UNFALSIFIABLE,
+                    description=error,
+                    location="parse",
+                    severity="error",
+                )
+            )
 
         # Check structure
         fallacies.extend(self._check_structure(hypothesis.ast))
@@ -144,7 +160,7 @@ class LogicEngine:
         self,
         hypothesis: Hypothesis,
         data: list[dict],
-        variable_context: Optional[dict[str, str]] = None,
+        variable_context: dict[str, str] | None = None,
     ) -> HypothesisEvaluation:
         """
         Evaluate hypothesis against dataset.
@@ -173,9 +189,7 @@ class LogicEngine:
 
         # Evaluate based on AST type
         try:
-            result, support_idx, refute_idx = self._evaluate_ast(
-                hypothesis.ast, data, resolver
-            )
+            result, support_idx, refute_idx = self._evaluate_ast(hypothesis.ast, data, resolver)
         except Exception as e:
             return HypothesisEvaluation(
                 hypothesis=hypothesis,
@@ -210,9 +224,7 @@ class LogicEngine:
         explanation = self._generate_explanation(result, hypothesis, supporting, refuting)
 
         # Check if LLM review needed
-        needs_review, review_reason = self._check_needs_review(
-            result, confidence, fallacies, hypothesis
-        )
+        needs_review, review_reason = self._check_needs_review(result, confidence, fallacies, hypothesis)
 
         return HypothesisEvaluation(
             hypothesis=hypothesis,
@@ -228,6 +240,7 @@ class LogicEngine:
 
     def _build_resolver(self, context: dict[str, str]) -> Callable[[str, dict], Any]:
         """Build a variable resolver function."""
+
         def resolve(var_name: str, row: dict) -> Any:
             # First check context mapping
             col_name = context.get(var_name, var_name)
@@ -238,6 +251,7 @@ class LogicEngine:
                 if key.lower() == col_name.lower():
                     return row[key]
             return None
+
         return resolve
 
     def _evaluate_ast(
@@ -399,7 +413,7 @@ class LogicEngine:
 
     def _evaluate_body(
         self,
-        node: Union[Comparison, LogicalExpr, Implication],
+        node: Comparison | LogicalExpr | Implication,
         row: dict,
         resolver: Callable,
     ) -> bool:
@@ -416,7 +430,7 @@ class LogicEngine:
 
     def _evaluate_condition(
         self,
-        node: Union[Comparison, LogicalExpr],
+        node: Comparison | LogicalExpr,
         row: dict,
         resolver: Callable,
     ) -> bool:
@@ -474,7 +488,7 @@ class LogicEngine:
 
     def _resolve_value(
         self,
-        node: Union[Variable, Literal],
+        node: Variable | Literal,
         row: dict,
         resolver: Callable,
     ) -> Any:
@@ -519,10 +533,7 @@ class LogicEngine:
         total = supporting.total_count
 
         if result == EvaluationResult.SUPPORTED:
-            return (
-                f"Hypothesis supported: {supporting.matching_count}/{total} "
-                f"observations consistent with claim."
-            )
+            return f"Hypothesis supported: {supporting.matching_count}/{total} observations consistent with claim."
 
         elif result == EvaluationResult.REFUTED:
             return (
@@ -542,7 +553,7 @@ class LogicEngine:
         confidence: float,
         fallacies: list[Fallacy],
         hypothesis: Hypothesis,
-    ) -> tuple[bool, Optional[str]]:
+    ) -> tuple[bool, str | None]:
         """Check if LLM review is needed."""
         # Low confidence
         if confidence < 0.6:
@@ -565,23 +576,22 @@ class LogicEngine:
 
         # Check for nested implications (complex logic that may be unclear)
         if self._has_nested_implications(ast):
-            fallacies.append(Fallacy(
-                type=FallacyType.CIRCULAR_REASONING,
-                description="Nested implications may create circular or unclear logic",
-                location="structure",
-                severity="warning",
-                suggestion="Consider breaking into separate, simpler hypotheses",
-            ))
+            fallacies.append(
+                Fallacy(
+                    type=FallacyType.CIRCULAR_REASONING,
+                    description="Nested implications may create circular or unclear logic",
+                    location="structure",
+                    severity="warning",
+                    suggestion="Consider breaking into separate, simpler hypotheses",
+                )
+            )
 
         return fallacies
 
     def _has_nested_implications(self, ast: Expression) -> bool:
         """Check for nested implications."""
         if isinstance(ast, Implication):
-            return (
-                isinstance(ast.antecedent, Implication) or
-                isinstance(ast.consequent, Implication)
-            )
+            return isinstance(ast.antecedent, Implication) or isinstance(ast.consequent, Implication)
         elif isinstance(ast, LogicalExpr):
             return any(self._has_nested_implications(op) for op in ast.operands)
         elif isinstance(ast, Quantified):
@@ -620,17 +630,19 @@ class LogicEngine:
             # in another implication, warn about directionality
             shared = consequent_vars & antecedent_vars
             if shared:
-                fallacies.append(Fallacy(
-                    type=FallacyType.AFFIRMING_CONSEQUENT,
-                    description=(
-                        f"Variables {shared} appear as both consequent and antecedent "
-                        f"across implications — risk of affirming the consequent "
-                        f"(P→Q, Q ∴ P is invalid)"
-                    ),
-                    location="implication chain",
-                    severity="warning",
-                    suggestion="Verify causal direction: does the consequent truly cause the antecedent?",
-                ))
+                fallacies.append(
+                    Fallacy(
+                        type=FallacyType.AFFIRMING_CONSEQUENT,
+                        description=(
+                            f"Variables {shared} appear as both consequent and antecedent "
+                            f"across implications — risk of affirming the consequent "
+                            f"(P→Q, Q ∴ P is invalid)"
+                        ),
+                        location="implication chain",
+                        severity="warning",
+                        suggestion="Verify causal direction: does the consequent truly cause the antecedent?",
+                    )
+                )
 
         # --- 2. Denying the antecedent ---
         # Detectable when an implication's antecedent is negated elsewhere.
@@ -638,16 +650,17 @@ class LogicEngine:
         for imp in implications:
             # Check if the antecedent is explicitly negated in the AST
             if self._contains_negation_of(ast, imp.antecedent):
-                fallacies.append(Fallacy(
-                    type=FallacyType.DENYING_ANTECEDENT,
-                    description=(
-                        f"The antecedent of an implication is negated — "
-                        f"'if P then Q; not P' does not entail 'not Q'"
-                    ),
-                    location="implication + negation",
-                    severity="warning",
-                    suggestion="The consequent may still be true for other reasons.",
-                ))
+                fallacies.append(
+                    Fallacy(
+                        type=FallacyType.DENYING_ANTECEDENT,
+                        description=(
+                            "The antecedent of an implication is negated — 'if P then Q; not P' does not entail 'not Q'"
+                        ),
+                        location="implication + negation",
+                        severity="warning",
+                        suggestion="The consequent may still be true for other reasons.",
+                    )
+                )
 
         # --- 3. False dichotomy ---
         # Detected when a hypothesis uses only = comparisons on what looks
@@ -656,68 +669,73 @@ class LogicEngine:
         for expr in logical_exprs:
             if expr.op == LogicalOp.XOR and len(expr.operands) == 2:
                 # Binary XOR — might be a false dichotomy
-                fallacies.append(Fallacy(
-                    type=FallacyType.FALSE_DICHOTOMY,
-                    description=(
-                        "XOR with exactly 2 options — there may be additional "
-                        "possibilities not considered"
-                    ),
-                    location="logical expression",
-                    severity="warning",
-                    suggestion="Consider whether a third option exists.",
-                ))
+                fallacies.append(
+                    Fallacy(
+                        type=FallacyType.FALSE_DICHOTOMY,
+                        description=(
+                            "XOR with exactly 2 options — there may be additional possibilities not considered"
+                        ),
+                        location="logical expression",
+                        severity="warning",
+                        suggestion="Consider whether a third option exists.",
+                    )
+                )
 
         # Check for "NEVER X AND NEVER NOT-X" pattern (exhaustive negation)
-        never_quants = [q for q in quantifieds
-                        if q.quantifier in (Quantifier.NEVER, Quantifier.NONE)]
+        never_quants = [q for q in quantifieds if q.quantifier in (Quantifier.NEVER, Quantifier.NONE)]
         if len(never_quants) >= 2:
             # Check if two NEVER quantifiers cover complementary conditions
             # on the same variable
             for i, q1 in enumerate(never_quants):
                 q1_vars = self._get_variables(q1.body)
-                for q2 in never_quants[i + 1:]:
+                for q2 in never_quants[i + 1 :]:
                     q2_vars = self._get_variables(q2.body)
                     if q1_vars & q2_vars:
-                        fallacies.append(Fallacy(
-                            type=FallacyType.FALSE_DICHOTOMY,
-                            description=(
-                                f"Multiple NEVER constraints on overlapping "
-                                f"variables {q1_vars & q2_vars} — may create "
-                                f"an impossible condition (false dichotomy)"
-                            ),
-                            location="quantifier pair",
-                            severity="warning",
-                            suggestion="Check if these constraints can be simultaneously satisfied.",
-                        ))
+                        fallacies.append(
+                            Fallacy(
+                                type=FallacyType.FALSE_DICHOTOMY,
+                                description=(
+                                    f"Multiple NEVER constraints on overlapping "
+                                    f"variables {q1_vars & q2_vars} — may create "
+                                    f"an impossible condition (false dichotomy)"
+                                ),
+                                location="quantifier pair",
+                                severity="warning",
+                                suggestion="Check if these constraints can be simultaneously satisfied.",
+                            )
+                        )
 
         # --- 4. Hasty generalization ---
         # Universal quantifier without domain restriction on a bare comparison
         for q in quantifieds:
-            if q.quantifier in (Quantifier.ALWAYS, Quantifier.NEVER,
-                                Quantifier.ALL, Quantifier.NONE):
+            if q.quantifier in (Quantifier.ALWAYS, Quantifier.NEVER, Quantifier.ALL, Quantifier.NONE):
                 if q.domain is None and isinstance(q.body, Comparison):
-                    fallacies.append(Fallacy(
-                        type=FallacyType.HASTY_GENERALIZATION,
-                        description=(
-                            f"Universal claim ({q.quantifier.value.upper()}) "
-                            f"without domain restriction (WHEN clause) — "
-                            f"may not hold across all conditions"
-                        ),
-                        location="quantifier",
-                        severity="warning",
-                        suggestion="Add a WHEN clause to restrict the domain.",
-                    ))
+                    fallacies.append(
+                        Fallacy(
+                            type=FallacyType.HASTY_GENERALIZATION,
+                            description=(
+                                f"Universal claim ({q.quantifier.value.upper()}) "
+                                f"without domain restriction (WHEN clause) — "
+                                f"may not hold across all conditions"
+                            ),
+                            location="quantifier",
+                            severity="warning",
+                            suggestion="Add a WHEN clause to restrict the domain.",
+                        )
+                    )
 
         # --- 5. Overgeneralization: nested quantifiers ---
         for q in quantifieds:
             if isinstance(q.body, Quantified):
-                fallacies.append(Fallacy(
-                    type=FallacyType.OVERGENERALIZATION,
-                    description="Nested quantifiers detected — hypothesis may be overly general",
-                    location="nested quantifier",
-                    severity="warning",
-                    suggestion="Consider splitting into separate, simpler hypotheses.",
-                ))
+                fallacies.append(
+                    Fallacy(
+                        type=FallacyType.OVERGENERALIZATION,
+                        description="Nested quantifiers detected — hypothesis may be overly general",
+                        location="nested quantifier",
+                        severity="warning",
+                        suggestion="Consider splitting into separate, simpler hypotheses.",
+                    )
+                )
 
         return fallacies
 
@@ -770,8 +788,9 @@ class LogicEngine:
         if isinstance(ast, LogicalExpr):
             return any(self._contains_negation_of(op, target) for op in ast.operands)
         elif isinstance(ast, Implication):
-            return (self._contains_negation_of(ast.antecedent, target) or
-                    self._contains_negation_of(ast.consequent, target))
+            return self._contains_negation_of(ast.antecedent, target) or self._contains_negation_of(
+                ast.consequent, target
+            )
         elif isinstance(ast, Quantified):
             return self._contains_negation_of(ast.body, target)
         return False
@@ -781,10 +800,11 @@ class LogicEngine:
 # Convenience Functions
 # =============================================================================
 
+
 def parse_and_evaluate(
     hypothesis_text: str,
     data: list[dict],
-    variable_context: Optional[dict[str, str]] = None,
+    variable_context: dict[str, str] | None = None,
 ) -> HypothesisEvaluation:
     """
     Convenience function to parse and evaluate in one step.

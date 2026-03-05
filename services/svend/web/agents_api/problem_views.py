@@ -5,7 +5,6 @@ CRUD operations for problem sessions - the core of the Decision Science Workbenc
 
 import json
 import logging
-import os
 from datetime import datetime
 from pathlib import Path
 
@@ -14,6 +13,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated, require_auth
+
 from .models import Problem
 
 logger = logging.getLogger(__name__)
@@ -25,6 +25,7 @@ CONTEXT_DIR = Path(settings.BASE_DIR).parent / "shared_context" / "problems"
 # =============================================================================
 # Context File Management
 # =============================================================================
+
 
 def get_context_path(problem_id: str, user_id: int) -> Path:
     """Get the path to a problem's context file."""
@@ -47,7 +48,6 @@ def write_context_file(problem: Problem) -> Path:
         "title": problem.title,
         "status": problem.status,
         "last_updated": datetime.now().isoformat(),
-
         # Methodology tracking
         "methodology": {
             "type": problem.methodology,
@@ -55,7 +55,6 @@ def write_context_file(problem: Problem) -> Path:
             "phase_history": problem.phase_history,
             "guidance": problem.get_phase_guidance() if problem.dmaic_phase else None,
         },
-
         # The Effect (what we're trying to understand)
         "effect": {
             "description": problem.effect_description,
@@ -63,7 +62,6 @@ def write_context_file(problem: Problem) -> Path:
             "first_observed": problem.effect_first_observed,
             "confidence": problem.effect_confidence,
         },
-
         # Decision context
         "context": {
             "domain": problem.domain,
@@ -73,35 +71,29 @@ def write_context_file(problem: Problem) -> Path:
             "can_experiment": problem.can_experiment,
             "available_data": problem.available_data,
         },
-
         # Current hypotheses with probabilities (Phase 2: core FKs)
         "hypotheses": problem.get_hypotheses(),
-
         # Evidence gathered (Phase 2: core FKs)
         "evidence": problem.get_evidence(),
-
         # What we've ruled out (Phase 2: core FKs)
         "dead_ends": problem.get_dead_ends(),
-
         # Current understanding
         "understanding": {
             "probable_causes": problem.get_probable_causes(),
             "key_uncertainties": problem.key_uncertainties,
             "recommended_next_steps": problem.recommended_next_steps,
         },
-
         # Cognitive bias warnings
         "bias_warnings": problem.bias_warnings,
-
         # Interview state (if any)
-        "interview": problem.interview_state if hasattr(problem, 'interview_state') else None,
-
+        "interview": problem.interview_state if hasattr(problem, "interview_state") else None,
         # Resolution (if resolved)
         "resolution": {
             "summary": problem.resolution_summary,
             "confidence": problem.resolution_confidence,
-        } if problem.status == "resolved" else None,
-
+        }
+        if problem.status == "resolved"
+        else None,
         # For agent handoff
         "agent_context": {
             "source": "problem_session",
@@ -113,7 +105,7 @@ def write_context_file(problem: Problem) -> Path:
         },
     }
 
-    with open(context_path, 'w') as f:
+    with open(context_path, "w") as f:
         json.dump(context, f, indent=2, default=str)
 
     logger.info(f"Updated context file for problem {problem.id}")
@@ -167,12 +159,10 @@ def problem_to_dict(problem: Problem) -> dict:
         "id": str(problem.id),
         "title": problem.title,
         "status": problem.status,
-
         # Methodology
         "methodology": problem.methodology,
         "dmaic_phase": problem.dmaic_phase,
         "phase_history": problem.phase_history,
-
         # Effect
         "effect": {
             "description": problem.effect_description,
@@ -180,7 +170,6 @@ def problem_to_dict(problem: Problem) -> dict:
             "first_observed": problem.effect_first_observed,
             "confidence": problem.effect_confidence,
         },
-
         # Context
         "context": {
             "domain": problem.domain,
@@ -190,26 +179,23 @@ def problem_to_dict(problem: Problem) -> dict:
             "can_experiment": problem.can_experiment,
             "available_data": problem.available_data,
         },
-
         # Living state (Phase 2: read from core.Project FKs when available)
         "hypotheses": problem.get_hypotheses(),
         "evidence": problem.get_evidence(),
         "dead_ends": problem.get_dead_ends(),
-
         # Understanding
         "probable_causes": problem.get_probable_causes(),
         "key_uncertainties": problem.key_uncertainties,
         "recommended_next_steps": problem.recommended_next_steps,
-
         # Bias warnings
         "bias_warnings": problem.bias_warnings,
-
         # Resolution
         "resolution": {
             "summary": problem.resolution_summary,
             "confidence": problem.resolution_confidence,
-        } if problem.status == "resolved" else None,
-
+        }
+        if problem.status == "resolved"
+        else None,
         # Meta
         "created_at": problem.created_at.isoformat(),
         "updated_at": problem.updated_at.isoformat(),
@@ -235,21 +221,25 @@ def problems_list(request):
         if status_filter:
             problems = problems.filter(status=status_filter)
 
-        return JsonResponse({
-            "problems": [
-                {
-                    "id": str(p.id),
-                    "title": p.title,
-                    "status": p.status,
-                    "effect_summary": p.effect_description[:100] + "..." if len(p.effect_description) > 100 else p.effect_description,
-                    "hypothesis_count": p.get_hypothesis_count(),
-                    "evidence_count": p.get_evidence_count(),
-                    "top_cause": p.get_probable_causes()[0] if p.get_probable_causes() else None,
-                    "updated_at": p.updated_at.isoformat(),
-                }
-                for p in problems
-            ]
-        })
+        return JsonResponse(
+            {
+                "problems": [
+                    {
+                        "id": str(p.id),
+                        "title": p.title,
+                        "status": p.status,
+                        "effect_summary": p.effect_description[:100] + "..."
+                        if len(p.effect_description) > 100
+                        else p.effect_description,
+                        "hypothesis_count": p.get_hypothesis_count(),
+                        "evidence_count": p.get_evidence_count(),
+                        "top_cause": p.get_probable_causes()[0] if p.get_probable_causes() else None,
+                        "updated_at": p.updated_at.isoformat(),
+                    }
+                    for p in problems
+                ]
+            }
+        )
 
     # POST - create new problem
     try:
@@ -311,11 +301,13 @@ def problems_list(request):
     # Write initial context file
     write_context_file(problem)
 
-    return JsonResponse({
-        "id": str(problem.id),
-        "success": True,
-        "bias_warnings": problem.bias_warnings,
-    })
+    return JsonResponse(
+        {
+            "id": str(problem.id),
+            "success": True,
+            "bias_warnings": problem.bias_warnings,
+        }
+    )
 
 
 @require_http_methods(["GET", "PATCH", "DELETE"])
@@ -343,10 +335,20 @@ def problem_detail(request, problem_id):
 
     # Update allowed fields
     updatable = [
-        "title", "status", "effect_description", "effect_magnitude",
-        "effect_first_observed", "effect_confidence", "domain",
-        "stakeholders", "constraints", "prior_beliefs", "can_experiment",
-        "available_data", "key_uncertainties", "recommended_next_steps",
+        "title",
+        "status",
+        "effect_description",
+        "effect_magnitude",
+        "effect_first_observed",
+        "effect_confidence",
+        "domain",
+        "stakeholders",
+        "constraints",
+        "prior_beliefs",
+        "can_experiment",
+        "available_data",
+        "key_uncertainties",
+        "recommended_next_steps",
     ]
 
     for field in updatable:
@@ -390,10 +392,12 @@ def add_hypothesis(request, problem_id):
 
     write_context_file(problem)
 
-    return JsonResponse({
-        "success": True,
-        "hypothesis": hypothesis,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "hypothesis": hypothesis,
+        }
+    )
 
 
 @require_http_methods(["POST"])
@@ -432,12 +436,14 @@ def add_evidence(request, problem_id):
     problem.update_understanding()
     write_context_file(problem)
 
-    return JsonResponse({
-        "success": True,
-        "evidence": evidence,
-        "updated_hypotheses": problem.get_hypotheses(),
-        "probable_causes": problem.get_probable_causes(),
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "evidence": evidence,
+            "updated_hypotheses": problem.get_hypotheses(),
+            "probable_causes": problem.get_probable_causes(),
+        }
+    )
 
 
 @require_http_methods(["POST"])
@@ -472,11 +478,13 @@ def reject_hypothesis(request, problem_id, hypothesis_id):
 
     write_context_file(problem)
 
-    return JsonResponse({
-        "success": True,
-        "dead_ends": problem.get_dead_ends(),
-        "probable_causes": problem.get_probable_causes(),
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "dead_ends": problem.get_dead_ends(),
+            "probable_causes": problem.get_probable_causes(),
+        }
+    )
 
 
 @require_http_methods(["POST"])
@@ -515,14 +523,16 @@ def resolve_problem(request, problem_id):
 
     write_context_file(problem)
 
-    return JsonResponse({
-        "success": True,
-        "status": problem.status,
-        "resolution": {
-            "summary": problem.resolution_summary,
-            "confidence": problem.resolution_confidence,
-        },
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "status": problem.status,
+            "resolution": {
+                "summary": problem.resolution_summary,
+                "confidence": problem.resolution_confidence,
+            },
+        }
+    )
 
 
 @require_http_methods(["POST"])
@@ -551,16 +561,16 @@ PROBLEM: {problem.title}
 
 EFFECT OBSERVED:
 {problem.effect_description}
-Magnitude: {problem.effect_magnitude or 'Not specified'}
-First observed: {problem.effect_first_observed or 'Not specified'}
+Magnitude: {problem.effect_magnitude or "Not specified"}
+First observed: {problem.effect_first_observed or "Not specified"}
 
 CONTEXT:
-Domain: {problem.domain or 'Not specified'}
-Available data: {problem.available_data or 'None specified'}
-Can experiment: {'Yes' if problem.can_experiment else 'No'}
+Domain: {problem.domain or "Not specified"}
+Available data: {problem.available_data or "None specified"}
+Can experiment: {"Yes" if problem.can_experiment else "No"}
 
 EXISTING HYPOTHESES:
-{json.dumps(problem.get_hypotheses(), indent=2) if problem.get_hypotheses() else 'None yet'}
+{json.dumps(problem.get_hypotheses(), indent=2) if problem.get_hypotheses() else "None yet"}
 
 Generate hypotheses as a JSON array:
 [
@@ -574,7 +584,8 @@ Focus on testable, specific causes. Vary the probabilities based on how likely e
 
         # Parse response
         import re
-        match = re.search(r'\[.*\]', response, re.DOTALL)
+
+        match = re.search(r"\[.*\]", response, re.DOTALL)
         if match:
             hypotheses_data = json.loads(match.group())
 
@@ -594,11 +605,13 @@ Focus on testable, specific causes. Vary the probabilities based on how likely e
 
             write_context_file(problem)
 
-            return JsonResponse({
-                "success": True,
-                "generated": added,
-                "all_hypotheses": problem.get_hypotheses(),
-            })
+            return JsonResponse(
+                {
+                    "success": True,
+                    "generated": added,
+                    "all_hypotheses": problem.get_hypotheses(),
+                }
+            )
 
         return JsonResponse({"error": "Failed to parse LLM response"}, status=500)
 
@@ -610,6 +623,7 @@ Focus on testable, specific causes. Vary the probabilities based on how likely e
 # =============================================================================
 # Interview Endpoints
 # =============================================================================
+
 
 @require_http_methods(["POST"])
 @gated
@@ -637,15 +651,17 @@ def start_interview(request, problem_id):
     elif problem.interview_state and not data.get("fresh", False):
         # Saved state exists - ask user if they want to resume
         saved = problem.interview_state
-        return JsonResponse({
-            "success": True,
-            "has_saved_progress": True,
-            "saved_progress": {
-                "answered": len(saved.get("answers", {})),
-                "current_section": saved.get("current_section", 0) + 1,
-            },
-            "message": "You have saved interview progress. Resume or start fresh?",
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "has_saved_progress": True,
+                "saved_progress": {
+                    "answered": len(saved.get("answers", {})),
+                    "current_section": saved.get("current_section", 0) + 1,
+                },
+                "message": "You have saved interview progress. Resume or start fresh?",
+            }
+        )
     else:
         # Start fresh
         clear_interview_session(str(problem_id))
@@ -658,18 +674,22 @@ def start_interview(request, problem_id):
     section = guide.get_current_section()
     progress = guide.get_progress()
 
-    return JsonResponse({
-        "success": True,
-        "interview_started": True,
-        "resumed": resume,
-        "section": {
-            "id": section.id,
-            "title": section.title,
-            "description": section.description,
-        } if section else None,
-        "question": _format_question(question) if question else None,
-        "progress": progress,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "interview_started": True,
+            "resumed": resume,
+            "section": {
+                "id": section.id,
+                "title": section.title,
+                "description": section.description,
+            }
+            if section
+            else None,
+            "question": _format_question(question) if question else None,
+            "progress": progress,
+        }
+    )
 
 
 @require_http_methods(["POST"])
@@ -697,11 +717,14 @@ def interview_answer(request, problem_id):
     success, message, next_question = guide.submit_answer(answer)
 
     if not success:
-        return JsonResponse({
-            "success": False,
-            "error": message,
-            "question": _format_question(guide.get_current_question()),
-        }, status=400)
+        return JsonResponse(
+            {
+                "success": False,
+                "error": message,
+                "question": _format_question(guide.get_current_question()),
+            },
+            status=400,
+        )
 
     # Save progress after each answer
     problem.interview_state = guide.save_state()
@@ -710,7 +733,7 @@ def interview_answer(request, problem_id):
     # Check if interview is complete
     if guide.is_complete():
         # Synthesize results and update problem
-        result = guide.synthesize()
+        guide.synthesize()
         brief = guide.get_brief()
 
         # Update problem with interview results
@@ -721,40 +744,46 @@ def interview_answer(request, problem_id):
         problem.interview_state = None
         problem.save(update_fields=["interview_state"])
 
-        return JsonResponse({
-            "success": True,
-            "complete": True,
-            "message": "Interview complete!",
-            "brief": brief.to_dict(),
-            "bias_warnings": [
-                {
-                    "type": b["type"],
-                    "description": b["description"],
-                    "suggestion": b["suggestion"],
-                }
-                for b in brief.detected_biases
-            ],
-            "recommended_agent": brief.recommended_agent,
-            "recommended_action": brief.recommended_action,
-            "routing_reasoning": brief.routing_reasoning,
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "complete": True,
+                "message": "Interview complete!",
+                "brief": brief.to_dict(),
+                "bias_warnings": [
+                    {
+                        "type": b["type"],
+                        "description": b["description"],
+                        "suggestion": b["suggestion"],
+                    }
+                    for b in brief.detected_biases
+                ],
+                "recommended_agent": brief.recommended_agent,
+                "recommended_action": brief.recommended_action,
+                "routing_reasoning": brief.routing_reasoning,
+            }
+        )
 
     # Return next question
     section = guide.get_current_section()
     progress = guide.get_progress()
 
-    return JsonResponse({
-        "success": True,
-        "complete": False,
-        "section": {
-            "id": section.id,
-            "title": section.title,
-            "description": section.description,
-        } if section else None,
-        "question": _format_question(next_question) if next_question else None,
-        "progress": progress,
-        "bias_count": len(guide.bias_warnings),
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "complete": False,
+            "section": {
+                "id": section.id,
+                "title": section.title,
+                "description": section.description,
+            }
+            if section
+            else None,
+            "question": _format_question(next_question) if next_question else None,
+            "progress": progress,
+            "bias_count": len(guide.bias_warnings),
+        }
+    )
 
 
 @require_http_methods(["POST"])
@@ -772,10 +801,13 @@ def interview_skip(request, problem_id):
     success, message, next_question = guide.skip_question()
 
     if not success:
-        return JsonResponse({
-            "success": False,
-            "error": message,
-        }, status=400)
+        return JsonResponse(
+            {
+                "success": False,
+                "error": message,
+            },
+            status=400,
+        )
 
     # Save progress
     problem.interview_state = guide.save_state()
@@ -784,16 +816,20 @@ def interview_skip(request, problem_id):
     section = guide.get_current_section()
     progress = guide.get_progress()
 
-    return JsonResponse({
-        "success": True,
-        "section": {
-            "id": section.id,
-            "title": section.title,
-            "description": section.description,
-        } if section else None,
-        "question": _format_question(next_question) if next_question else None,
-        "progress": progress,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "section": {
+                "id": section.id,
+                "title": section.title,
+                "description": section.description,
+            }
+            if section
+            else None,
+            "question": _format_question(next_question) if next_question else None,
+            "progress": progress,
+        }
+    )
 
 
 @require_http_methods(["POST"])
@@ -807,10 +843,13 @@ def interview_save(request, problem_id):
         return JsonResponse({"error": "Problem not found"}, status=404)
 
     if str(problem_id) not in _interview_sessions:
-        return JsonResponse({
-            "success": False,
-            "error": "No active interview session to save",
-        }, status=400)
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "No active interview session to save",
+            },
+            status=400,
+        )
 
     guide = _interview_sessions[str(problem_id)]
 
@@ -823,11 +862,13 @@ def interview_save(request, problem_id):
 
     progress = guide.get_progress()
 
-    return JsonResponse({
-        "success": True,
-        "message": "Interview progress saved. You can resume later.",
-        "progress": progress,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Interview progress saved. You can resume later.",
+            "progress": progress,
+        }
+    )
 
 
 @require_http_methods(["GET"])
@@ -847,39 +888,47 @@ def interview_status(request, problem_id):
         section = guide.get_current_section()
         progress = guide.get_progress()
 
-        return JsonResponse({
-            "active": True,
-            "complete": guide.is_complete(),
-            "has_saved_progress": False,
-            "section": {
-                "id": section.id,
-                "title": section.title,
-                "description": section.description,
-            } if section else None,
-            "question": _format_question(question) if question else None,
-            "progress": progress,
-            "bias_count": len(guide.bias_warnings),
-        })
+        return JsonResponse(
+            {
+                "active": True,
+                "complete": guide.is_complete(),
+                "has_saved_progress": False,
+                "section": {
+                    "id": section.id,
+                    "title": section.title,
+                    "description": section.description,
+                }
+                if section
+                else None,
+                "question": _format_question(question) if question else None,
+                "progress": progress,
+                "bias_count": len(guide.bias_warnings),
+            }
+        )
 
     # Check for saved progress
     if problem.interview_state:
         saved = problem.interview_state
-        return JsonResponse({
-            "active": False,
-            "has_saved_progress": True,
-            "saved_progress": {
-                "answered": len(saved.get("answers", {})),
-                "current_section": saved.get("current_section", 0) + 1,
-                "bias_count": len(saved.get("bias_warnings", [])),
-            },
-            "message": "You have saved interview progress that can be resumed.",
-        })
+        return JsonResponse(
+            {
+                "active": False,
+                "has_saved_progress": True,
+                "saved_progress": {
+                    "answered": len(saved.get("answers", {})),
+                    "current_section": saved.get("current_section", 0) + 1,
+                    "bias_count": len(saved.get("bias_warnings", [])),
+                },
+                "message": "You have saved interview progress that can be resumed.",
+            }
+        )
 
-    return JsonResponse({
-        "active": False,
-        "has_saved_progress": False,
-        "message": "No active interview session",
-    })
+    return JsonResponse(
+        {
+            "active": False,
+            "has_saved_progress": False,
+            "message": "No active interview session",
+        }
+    )
 
 
 @require_http_methods(["GET"])
@@ -899,15 +948,18 @@ def get_context_file(request, problem_id):
         write_context_file(problem)
         context = read_context_file(str(problem_id), request.user.id)
 
-    return JsonResponse({
-        "success": True,
-        "context": context,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "context": context,
+        }
+    )
 
 
 # =============================================================================
 # Helper Functions
 # =============================================================================
+
 
 def _format_question(question) -> dict | None:
     """Format a question object for JSON response."""
@@ -955,10 +1007,12 @@ def _apply_interview_to_problem(problem: Problem, guide, brief):
     if answers.get("initial_lean"):
         if not problem.prior_beliefs:
             problem.prior_beliefs = []
-        problem.prior_beliefs.append({
-            "belief": answers["initial_lean"],
-            "confidence": answers.get("confidence", 5),
-        })
+        problem.prior_beliefs.append(
+            {
+                "belief": answers["initial_lean"],
+                "confidence": answers.get("confidence", 5),
+            }
+        )
 
     # Add key uncertainties from data gaps
     if brief.data_gaps:
@@ -966,25 +1020,29 @@ def _apply_interview_to_problem(problem: Problem, guide, brief):
 
     # Add recommended next steps
     if brief.recommended_action:
-        problem.recommended_next_steps = [{
-            "action": brief.recommended_action,
-            "agent": brief.recommended_agent,
-            "reasoning": brief.routing_reasoning,
-        }]
+        problem.recommended_next_steps = [
+            {
+                "action": brief.recommended_action,
+                "agent": brief.recommended_agent,
+                "reasoning": brief.routing_reasoning,
+            }
+        ]
 
     # Add bias warnings from interview
     if brief.detected_biases:
         existing_types = {b.get("type") for b in problem.bias_warnings}
         for bias in brief.detected_biases:
             if bias["type"] not in existing_types:
-                problem.bias_warnings.append({
-                    "type": bias["type"],
-                    "description": bias["description"],
-                    "evidence": bias.get("evidence", ""),
-                    "suggestion": bias["suggestion"],
-                    "timestamp": datetime.now().isoformat(),
-                    "source": "interview",
-                })
+                problem.bias_warnings.append(
+                    {
+                        "type": bias["type"],
+                        "description": bias["description"],
+                        "evidence": bias.get("evidence", ""),
+                        "suggestion": bias["suggestion"],
+                        "timestamp": datetime.now().isoformat(),
+                        "source": "interview",
+                    }
+                )
 
     problem.save()
     write_context_file(problem)
@@ -993,6 +1051,7 @@ def _apply_interview_to_problem(problem: Problem, guide, brief):
 # =============================================================================
 # Methodology & Phase Management
 # =============================================================================
+
 
 @require_http_methods(["POST"])
 @gated
@@ -1013,19 +1072,19 @@ def set_methodology(request, problem_id):
     valid_methodologies = ["none", "dmaic", "doe", "pdca", "a3"]
 
     if methodology not in valid_methodologies:
-        return JsonResponse({
-            "error": f"Invalid methodology. Choose from: {valid_methodologies}"
-        }, status=400)
+        return JsonResponse({"error": f"Invalid methodology. Choose from: {valid_methodologies}"}, status=400)
 
     problem.set_methodology(methodology)
     write_context_file(problem)
 
-    return JsonResponse({
-        "success": True,
-        "methodology": problem.methodology,
-        "dmaic_phase": problem.dmaic_phase,
-        "phase_guidance": problem.get_phase_guidance() if problem.dmaic_phase else None,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "methodology": problem.methodology,
+            "dmaic_phase": problem.dmaic_phase,
+            "phase_guidance": problem.get_phase_guidance() if problem.dmaic_phase else None,
+        }
+    )
 
 
 @require_http_methods(["POST"])
@@ -1039,9 +1098,7 @@ def advance_phase(request, problem_id):
         return JsonResponse({"error": "Problem not found"}, status=404)
 
     if problem.methodology != "dmaic":
-        return JsonResponse({
-            "error": "Problem is not using DMAIC methodology"
-        }, status=400)
+        return JsonResponse({"error": "Problem is not using DMAIC methodology"}, status=400)
 
     try:
         data = json.loads(request.body)
@@ -1055,21 +1112,26 @@ def advance_phase(request, problem_id):
     next_phase = guidance.get("next_phase")
 
     if not next_phase:
-        return JsonResponse({
-            "error": "Already at final phase (Control)",
-            "current_phase": problem.dmaic_phase,
-        }, status=400)
+        return JsonResponse(
+            {
+                "error": "Already at final phase (Control)",
+                "current_phase": problem.dmaic_phase,
+            },
+            status=400,
+        )
 
     problem.advance_phase(next_phase, notes)
     write_context_file(problem)
 
-    return JsonResponse({
-        "success": True,
-        "previous_phase": guidance.get("focus", ""),
-        "current_phase": problem.dmaic_phase,
-        "phase_guidance": problem.get_phase_guidance(),
-        "phase_history": problem.phase_history,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "previous_phase": guidance.get("focus", ""),
+            "current_phase": problem.dmaic_phase,
+            "phase_guidance": problem.get_phase_guidance(),
+            "phase_history": problem.phase_history,
+        }
+    )
 
 
 @require_http_methods(["GET"])
@@ -1082,16 +1144,18 @@ def get_phase_guidance(request, problem_id):
     except Problem.DoesNotExist:
         return JsonResponse({"error": "Problem not found"}, status=404)
 
-    return JsonResponse({
-        "methodology": problem.methodology,
-        "current_phase": problem.dmaic_phase,
-        "guidance": problem.get_phase_guidance() if problem.dmaic_phase else None,
-        "phase_history": problem.phase_history,
-        "methodologies_available": [
-            {"id": "none", "name": "None/General", "description": "No specific methodology"},
-            {"id": "dmaic", "name": "Six Sigma DMAIC", "description": "Define, Measure, Analyze, Improve, Control"},
-            {"id": "doe", "name": "Design of Experiments", "description": "Structured experimentation approach"},
-            {"id": "pdca", "name": "Plan-Do-Check-Act", "description": "Continuous improvement cycle"},
-            {"id": "a3", "name": "A3 Problem Solving", "description": "Toyota-style structured problem solving"},
-        ],
-    })
+    return JsonResponse(
+        {
+            "methodology": problem.methodology,
+            "current_phase": problem.dmaic_phase,
+            "guidance": problem.get_phase_guidance() if problem.dmaic_phase else None,
+            "phase_history": problem.phase_history,
+            "methodologies_available": [
+                {"id": "none", "name": "None/General", "description": "No specific methodology"},
+                {"id": "dmaic", "name": "Six Sigma DMAIC", "description": "Define, Measure, Analyze, Improve, Control"},
+                {"id": "doe", "name": "Design of Experiments", "description": "Structured experimentation approach"},
+                {"id": "pdca", "name": "Plan-Do-Check-Act", "description": "Continuous improvement cycle"},
+                {"id": "a3", "name": "A3 Problem Solving", "description": "Toyota-style structured problem solving"},
+            ],
+        }
+    )

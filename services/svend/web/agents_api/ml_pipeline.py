@@ -42,7 +42,7 @@ def triage_clean_df(df, config=None):
     Returns:
         (cleaned_df, cleaning_summary) tuple where cleaning_summary is a dict
     """
-    from scrub import DataCleaner, CleaningConfig
+    from scrub import CleaningConfig, DataCleaner
 
     config = config or {}
     cleaning_config = CleaningConfig(
@@ -155,7 +155,7 @@ def _infer_forge_schema(df):
                     "precision": 2,
                 },
             }
-        elif dtype == bool or (series.nunique() == 2 and set(series.unique()) <= {True, False, 0, 1}):
+        elif dtype is bool or (series.nunique() == 2 and set(series.unique()) <= {True, False}):
             schema[col] = {
                 "type": "bool",
                 "constraints": {
@@ -177,7 +177,7 @@ def _infer_forge_schema(df):
                 "type": "string",
                 "constraints": {
                     "min_length": 3,
-                    "max_length": min(int(series.str.len().max()) if dtype == object else 50, 100),
+                    "max_length": min(int(series.str.len().max()) if dtype is object else 50, 100),
                 },
             }
 
@@ -197,15 +197,13 @@ def train_with_recipe(df, target, config=None):
     Returns:
         (model, metrics, importances, task, X_test, y_test, y_pred, recipe)
     """
-    from .dsw.common import _clean_for_ml, _auto_train
+    from .dsw.common import _auto_train, _clean_for_ml
 
     config = config or {}
 
     X, y, label_map = _clean_for_ml(df, target)
 
-    model, metrics, importances, task, X_test, y_test, y_pred = _auto_train(
-        X, y, task=config.get("task_type")
-    )
+    model, metrics, importances, task, X_test, y_test, y_pred = _auto_train(X, y, task=config.get("task_type"))
 
     recipe = {
         "features": list(X.columns),

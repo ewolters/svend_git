@@ -10,14 +10,12 @@ analysis code can use directly.
 CR: 5528303a — INIT-009 / E9-003
 """
 
-from .common import SVEND_COLORS, COLOR_GOOD, COLOR_BAD, COLOR_WARNING, \
-    COLOR_INFO, COLOR_NEUTRAL, COLOR_REFERENCE, _rgba
-
+from .common import COLOR_BAD, COLOR_GOOD, COLOR_NEUTRAL, COLOR_REFERENCE, SVEND_COLORS, _rgba
 
 # ── Standard layout constants ──────────────────────────────────────────────
 
 CHART_HEIGHT = 300
-CHART_HEIGHT_MULTI = 350       # multi-panel / subplots
+CHART_HEIGHT_MULTI = 350  # multi-panel / subplots
 CHART_MARGINS = {"l": 60, "r": 20, "t": 40, "b": 60}
 CHART_FONT = {"family": "Inter, system-ui, sans-serif", "size": 12}
 LEGEND_DEFAULTS = {
@@ -118,6 +116,7 @@ def _apply_trace_colors(trace, index):
 
 
 # ── Trace builders ─────────────────────────────────────────────────────────
+
 
 def histogram_trace(x, name=None, color_index=0, **kwargs):
     """Pre-styled histogram trace."""
@@ -227,8 +226,7 @@ def heatmap_trace(z, x=None, y=None, colorscale=None, **kwargs):
     return trace
 
 
-def control_chart_trace(x, y, ucl, lcl, cl=None, name="Observations",
-                        color_index=0, **kwargs):
+def control_chart_trace(x, y, ucl, lcl, cl=None, name="Observations", color_index=0, **kwargs):
     """Pre-styled control chart (observation line + control limits).
 
     Returns a list of traces: [observations, UCL, LCL, optional CL].
@@ -263,14 +261,16 @@ def control_chart_trace(x, y, ucl, lcl, cl=None, name="Observations",
         },
     ]
     if cl is not None:
-        traces.append({
-            "type": "scatter",
-            "x": x_list,
-            "y": cl if isinstance(cl, list) else [cl] * len(x_list),
-            "mode": "lines",
-            "name": "CL",
-            "line": {"color": COLOR_REFERENCE, "width": 1, "dash": "dot"},
-        })
+        traces.append(
+            {
+                "type": "scatter",
+                "x": x_list,
+                "y": cl if isinstance(cl, list) else [cl] * len(x_list),
+                "mode": "lines",
+                "name": "CL",
+                "line": {"color": COLOR_REFERENCE, "width": 1, "dash": "dot"},
+            }
+        )
     return traces
 
 
@@ -279,15 +279,21 @@ def reference_line(value, orientation="h", name="Reference", **kwargs):
     if orientation == "h":
         shape = {
             "type": "line",
-            "x0": 0, "x1": 1, "xref": "paper",
-            "y0": value, "y1": value,
+            "x0": 0,
+            "x1": 1,
+            "xref": "paper",
+            "y0": value,
+            "y1": value,
             "line": {"color": COLOR_REFERENCE, "width": 1.5, "dash": "dash"},
         }
     else:
         shape = {
             "type": "line",
-            "y0": 0, "y1": 1, "yref": "paper",
-            "x0": value, "x1": value,
+            "y0": 0,
+            "y1": 1,
+            "yref": "paper",
+            "x0": value,
+            "x1": value,
             "line": {"color": COLOR_REFERENCE, "width": 1.5, "dash": "dash"},
         }
     shape.update(kwargs)

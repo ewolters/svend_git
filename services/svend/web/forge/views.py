@@ -3,7 +3,6 @@
 import hashlib
 import logging
 import re
-import secrets
 from datetime import timedelta
 
 from django.db.models import Sum
@@ -13,16 +12,13 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from .models import APIKey, Job, JobStatus, DataType, QualityLevel, UsageLog, SchemaTemplate
 from accounts.constants import Tier
+
+from .models import APIKey, DataType, Job, JobStatus, SchemaTemplate
 from .serializers import (
     GenerateRequestSerializer,
-    GenerateResponseSerializer,
     JobSerializer,
-    JobResultSerializer,
     SchemaTemplateSerializer,
-    UsageSummarySerializer,
-    UsageResponseSerializer,
 )
 from .tasks import generate_data_task
 
@@ -32,6 +28,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # API Key Authentication
 # =============================================================================
+
 
 def get_api_key(request) -> APIKey | None:
     """Extract and validate API key from request."""
@@ -57,6 +54,7 @@ def get_api_key(request) -> APIKey | None:
 
 def require_api_key(view_func):
     """Decorator to require valid API key OR authenticated session."""
+
     def wrapper(request, *args, **kwargs):
         # First try API key
         api_key = get_api_key(request)
@@ -69,10 +67,8 @@ def require_api_key(view_func):
             request.api_key = None  # No API key, but user is authenticated
             return view_func(request, *args, **kwargs)
 
-        return Response(
-            {"error": "Invalid or missing API key"},
-            status=status.HTTP_401_UNAUTHORIZED
-        )
+        return Response({"error": "Invalid or missing API key"}, status=status.HTTP_401_UNAUTHORIZED)
+
     return wrapper
 
 
@@ -80,15 +76,18 @@ def require_api_key(view_func):
 # Health
 # =============================================================================
 
+
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def health(request):
     """Health check."""
-    return Response({
-        "status": "healthy",
-        "service": "forge",
-        "version": "1.0.0",
-    })
+    return Response(
+        {
+            "status": "healthy",
+            "service": "forge",
+            "version": "1.0.0",
+        }
+    )
 
 
 # =============================================================================
@@ -105,7 +104,7 @@ TIER_LIMITS = {
 }
 
 PRICE_TABULAR_PER_1K = 100  # $1 per 1000 records (in cents)
-PRICE_TEXT_PER_1K = 500     # $5 per 1000 records
+PRICE_TEXT_PER_1K = 500  # $5 per 1000 records
 PREMIUM_MULTIPLIER = 2.0
 
 
@@ -160,10 +159,7 @@ def generate(request):
             schema_def = template.schema_def
             domain = template.domain
         except SchemaTemplate.DoesNotExist:
-            return Response(
-                {"error": f"Template not found: {data['template']}"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": f"Template not found: {data['template']}"}, status=status.HTTP_400_BAD_REQUEST)
     else:
         schema_def = data["schema"]
         domain = data.get("domain", "")
@@ -181,16 +177,19 @@ def generate(request):
         tier_limit = TIER_LIMITS.get(api_key.tier, TIER_LIMITS[Tier.FREE])
     else:
         # Session-authenticated user — use their subscription tier
-        user_tier = getattr(request.user, 'tier', Tier.FREE)
+        user_tier = getattr(request.user, "tier", Tier.FREE)
         tier_limit = TIER_LIMITS.get(user_tier, TIER_LIMITS[Tier.FREE])
         now = timezone.now()
         period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        current_usage = Job.objects.filter(
-            user=request.user,
-            api_key__isnull=True,
-            created_at__gte=period_start,
-            status__in=[JobStatus.COMPLETED, JobStatus.PROCESSING, JobStatus.QUEUED],
-        ).aggregate(total=Sum("record_count"))["total"] or 0
+        current_usage = (
+            Job.objects.filter(
+                user=request.user,
+                api_key__isnull=True,
+                created_at__gte=period_start,
+                status__in=[JobStatus.COMPLETED, JobStatus.PROCESSING, JobStatus.QUEUED],
+            ).aggregate(total=Sum("record_count"))["total"]
+            or 0
+        )
 
     if current_usage + data["record_count"] > tier_limit:
         return Response(
@@ -199,7 +198,7 @@ def generate(request):
                 "current_usage": current_usage,
                 "tier_limit": tier_limit,
             },
-            status=status.HTTP_402_PAYMENT_REQUIRED
+            status=status.HTTP_402_PAYMENT_REQUIRED,
         )
 
     # Create job
@@ -236,6 +235,7 @@ def generate(request):
 
     # Queue larger jobs with syn.sched
     from syn.sched.scheduler import schedule_task
+
     task_id = schedule_task(
         name=f"forge.generate.{job.job_id}",
         func="forge.tasks.generate_data_task",
@@ -252,7 +252,7 @@ def generate(request):
             "estimated_cost_cents": cost_cents,
             "message": "Job queued for processing.",
         },
-        status=status.HTTP_202_ACCEPTED
+        status=status.HTTP_202_ACCEPTED,
     )
 
 
@@ -291,23 +291,22 @@ def job_result(request, job_id):
         return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if job.status != JobStatus.COMPLETED:
-        return Response(
-            {"error": f"Job not completed. Status: {job.status}"},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": f"Job not completed. Status: {job.status}"}, status=status.HTTP_400_BAD_REQUEST)
 
     # Generate download URL
     expires_at = timezone.now() + timedelta(hours=24)
     download_url = f"/api/forge/download/{job_id}"
 
-    return Response({
-        "job_id": job.job_id,
-        "download_url": download_url,
-        "expires_at": expires_at,
-        "size_bytes": job.result_size_bytes or 0,
-        "record_count": job.records_generated or job.record_count,
-        "output_format": job.output_format,
-    })
+    return Response(
+        {
+            "job_id": job.job_id,
+            "download_url": download_url,
+            "expires_at": expires_at,
+            "size_bytes": job.result_size_bytes or 0,
+            "record_count": job.records_generated or job.record_count,
+            "output_format": job.output_format,
+        }
+    )
 
 
 @api_view(["GET"])
@@ -328,10 +327,7 @@ def download(request, job_id):
         return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if job.status != JobStatus.COMPLETED:
-        return Response(
-            {"error": f"Job not completed. Status: {job.status}"},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": f"Job not completed. Status: {job.status}"}, status=status.HTTP_400_BAD_REQUEST)
 
     # Get content from storage
     # Alpha: Local storage via job.result_path
@@ -339,13 +335,11 @@ def download(request, job_id):
 
     try:
         from forge.storage import get_job_content
+
         content = get_job_content(job)
     except Exception as e:
         logger.error(f"Failed to retrieve job content: {e}")
-        return Response(
-            {"error": "Failed to retrieve data"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        return Response({"error": "Failed to retrieve data"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     content_type = {
         "json": "application/json",
@@ -354,7 +348,7 @@ def download(request, job_id):
     }.get(job.output_format, "application/octet-stream")
 
     response = HttpResponse(content, content_type=content_type)
-    safe_fmt = re.sub(r'[^\w]', '', job.output_format) or 'dat'
+    safe_fmt = re.sub(r"[^\w]", "", job.output_format) or "dat"
     response["Content-Disposition"] = f'attachment; filename="forge_{job_id}.{safe_fmt}"'
     return response
 
@@ -362,6 +356,7 @@ def download(request, job_id):
 # =============================================================================
 # Schemas
 # =============================================================================
+
 
 @api_view(["GET"])
 @require_api_key
@@ -375,6 +370,7 @@ def list_schemas(request):
 # =============================================================================
 # Usage
 # =============================================================================
+
 
 @api_view(["GET"])
 @require_api_key
@@ -408,17 +404,19 @@ def usage(request):
 
     tier_limit = TIER_LIMITS.get(api_key.tier, TIER_LIMITS[Tier.FREE])
 
-    return Response({
-        "current_period": {
-            "period_start": period_start,
-            "period_end": period_end,
-            "total_records": total_records,
-            "total_cost_cents": total_cost,
-            "jobs_completed": jobs_completed,
-            "jobs_failed": jobs_failed,
-            "records_by_type": records_by_type,
-        },
-        "tier": api_key.tier,
-        "tier_limit": tier_limit,
-        "records_remaining": max(0, tier_limit - total_records),
-    })
+    return Response(
+        {
+            "current_period": {
+                "period_start": period_start,
+                "period_end": period_end,
+                "total_records": total_records,
+                "total_cost_cents": total_cost,
+                "jobs_completed": jobs_completed,
+                "jobs_failed": jobs_failed,
+                "records_by_type": records_by_type,
+            },
+            "tier": api_key.tier,
+            "tier_limit": tier_limit,
+            "records_remaining": max(0, tier_limit - total_records),
+        }
+    )

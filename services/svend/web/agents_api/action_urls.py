@@ -4,6 +4,7 @@ Works for action items from any source (hoshin, a3, rca, fmea).
 """
 
 from django.urls import path
+
 from . import action_views
 
 urlpatterns = [

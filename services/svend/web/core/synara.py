@@ -8,9 +8,8 @@ Synara handles:
 - Information gain calculation for experiment suggestions
 """
 
-import math
 import logging
-from typing import Optional
+import math
 from dataclasses import dataclass
 
 from django.db import transaction
@@ -21,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class UpdateResult:
     """Result of applying evidence to a hypothesis."""
+
     hypothesis_id: str
     prior_probability: float
     posterior_probability: float
@@ -28,12 +28,13 @@ class UpdateResult:
     adjusted_lr: float  # After confidence adjustment
     evidence_id: str
     status_changed: bool
-    new_status: Optional[str] = None
+    new_status: str | None = None
 
 
 @dataclass
 class ConsistencyIssue:
     """A logical consistency issue found in the knowledge graph."""
+
     issue_type: str  # "contradiction", "circular", "unsupported", "fallacy"
     severity: str  # "error", "warning", "info"
     description: str
@@ -85,13 +86,12 @@ class Synara:
         This means low-confidence evidence moves LR toward 1 (neutral).
         """
         from django.utils import timezone
-        from .models import EvidenceLink
 
         hypothesis = evidence_link.hypothesis
         evidence = evidence_link.evidence
 
         prior_prob = hypothesis.current_probability
-        prior_odds = prior_prob / (1 - prior_prob) if prior_prob < 1 else float('inf')
+        prior_odds = prior_prob / (1 - prior_prob) if prior_prob < 1 else float("inf")
 
         # Get likelihood ratio and adjust for confidence
         lr = evidence_link.likelihood_ratio
@@ -106,15 +106,17 @@ class Synara:
         posterior_prob = max(0.01, min(0.99, posterior_prob))
 
         # Record in history
-        hypothesis.probability_history.append({
-            "probability": posterior_prob,
-            "previous": prior_prob,
-            "evidence_id": str(evidence.id),
-            "likelihood_ratio": lr,
-            "adjusted_lr": adjusted_lr,
-            "confidence": confidence,
-            "timestamp": timezone.now().isoformat(),
-        })
+        hypothesis.probability_history.append(
+            {
+                "probability": posterior_prob,
+                "previous": prior_prob,
+                "evidence_id": str(evidence.id),
+                "likelihood_ratio": lr,
+                "adjusted_lr": adjusted_lr,
+                "confidence": confidence,
+                "timestamp": timezone.now().isoformat(),
+            }
+        )
 
         old_status = hypothesis.status
         hypothesis.current_probability = posterior_prob
@@ -160,11 +162,13 @@ class Synara:
         new_prob = max(0.01, min(0.99, new_prob))
 
         hypothesis.current_probability = new_prob
-        hypothesis.probability_history.append({
-            "probability": new_prob,
-            "reason": "recalculated",
-            "timestamp": timezone.now().isoformat(),
-        })
+        hypothesis.probability_history.append(
+            {
+                "probability": new_prob,
+                "reason": "recalculated",
+                "timestamp": timezone.now().isoformat(),
+            }
+        )
         hypothesis._check_status_thresholds()
         hypothesis.save()
 
@@ -190,13 +194,15 @@ class Synara:
             results["hypotheses_updated"] += 1
 
             if hypothesis.status != old_status:
-                results["status_changes"].append({
-                    "hypothesis_id": str(hypothesis.id),
-                    "old_status": old_status,
-                    "new_status": hypothesis.status,
-                    "old_probability": old_prob,
-                    "new_probability": hypothesis.current_probability,
-                })
+                results["status_changes"].append(
+                    {
+                        "hypothesis_id": str(hypothesis.id),
+                        "old_status": old_status,
+                        "new_status": hypothesis.status,
+                        "old_probability": old_prob,
+                        "new_probability": hypothesis.current_probability,
+                    }
+                )
 
         return results
 
@@ -332,7 +338,6 @@ class Synara:
         - Unsupported causal claims
         - Logical fallacies
         """
-        from .models import Relationship
 
         issues = []
 
@@ -353,24 +358,28 @@ class Synara:
             if contradictions:
                 source = next(r.source for r in relationships if str(r.source_id) == src)
                 target = next(r.target for r in relationships if str(r.target_id) == tgt)
-                issues.append(ConsistencyIssue(
-                    issue_type="contradiction",
-                    severity="error",
-                    description=f"Contradicting relationships between '{source.name}' and '{target.name}': {contradictions}",
-                    entities_involved=[src, tgt],
-                    suggestions=["Remove one of the contradicting relationships"],
-                ))
+                issues.append(
+                    ConsistencyIssue(
+                        issue_type="contradiction",
+                        severity="error",
+                        description=f"Contradicting relationships between '{source.name}' and '{target.name}': {contradictions}",
+                        entities_involved=[src, tgt],
+                        suggestions=["Remove one of the contradicting relationships"],
+                    )
+                )
 
         # Check for circular causation
         circular = self._find_circular_causation(relationships)
         for cycle in circular:
-            issues.append(ConsistencyIssue(
-                issue_type="circular",
-                severity="warning",
-                description=f"Circular causation detected: {' → '.join(cycle)}",
-                entities_involved=cycle,
-                suggestions=["Review causal chain for feedback loops vs actual circularity"],
-            ))
+            issues.append(
+                ConsistencyIssue(
+                    issue_type="circular",
+                    severity="warning",
+                    description=f"Circular causation detected: {' → '.join(cycle)}",
+                    entities_involved=cycle,
+                    suggestions=["Review causal chain for feedback loops vs actual circularity"],
+                )
+            )
 
         return issues
 
@@ -393,7 +402,6 @@ class Synara:
 
     def _find_circular_causation(self, relationships) -> list:
         """Find circular causal chains using DFS."""
-        from .models import Relationship
 
         # Build graph of causal relationships only
         causal_types = {"causes", "enables", "triggers", "influences"}

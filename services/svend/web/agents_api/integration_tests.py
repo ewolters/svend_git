@@ -10,10 +10,7 @@ Tests the integration surfaces between modules:
 - Project Hub (cross-tool aggregation)
 """
 
-import io
 import uuid
-from datetime import timedelta
-from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -32,9 +29,7 @@ SECURE_OFF = override_settings(
 
 def _make_user(email, tier=Tier.FREE, password="testpass123!", **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(
-        username=username, email=email, password=password, **kwargs
-    )
+    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -42,21 +37,29 @@ def _make_user(email, tier=Tier.FREE, password="testpass123!", **kwargs):
 
 def _create_project(client, title="Test Project"):
     """Helper: create a project via API, return response data."""
-    res = client.post("/api/core/projects/", {
-        "title": title,
-        "problem_statement": "Does X cause Y?",
-        "domain": "manufacturing",
-        "methodology": "dmaic",
-    }, format="json")
+    res = client.post(
+        "/api/core/projects/",
+        {
+            "title": title,
+            "problem_statement": "Does X cause Y?",
+            "domain": "manufacturing",
+            "methodology": "dmaic",
+        },
+        format="json",
+    )
     return res
 
 
 def _create_hypothesis(client, project_id, statement="If X then Y"):
     """Helper: create hypothesis via API, return response data."""
-    res = client.post(f"/api/core/projects/{project_id}/hypotheses/", {
-        "statement": statement,
-        "prior_probability": 0.5,
-    }, format="json")
+    res = client.post(
+        f"/api/core/projects/{project_id}/hypotheses/",
+        {
+            "statement": statement,
+            "prior_probability": 0.5,
+        },
+        format="json",
+    )
     return res
 
 
@@ -95,28 +98,37 @@ class ProjectHypothesisEvidencePipelineTest(TestCase):
         hyp = _create_hypothesis(self.client, proj["id"]).json()
 
         # Create evidence linked to hypothesis
-        res = self.client.post(f"/api/core/projects/{proj['id']}/evidence/", {
-            "summary": "Observation shows X correlates with Y",
-            "source_type": "observation",
-            "confidence": 0.8,
-            "hypothesis_ids": [hyp["id"]],
-            "likelihood_ratios": {hyp["id"]: 2.0},
-        }, format="json")
+        res = self.client.post(
+            f"/api/core/projects/{proj['id']}/evidence/",
+            {
+                "summary": "Observation shows X correlates with Y",
+                "source_type": "observation",
+                "confidence": 0.8,
+                "hypothesis_ids": [hyp["id"]],
+                "likelihood_ratios": {hyp["id"]: 2.0},
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 201)
 
     def test_evidence_link_created(self):
         """Evidence linked to hypothesis creates EvidenceLink record."""
         from core.models import EvidenceLink
+
         proj = _create_project(self.client).json()
         hyp = _create_hypothesis(self.client, proj["id"]).json()
 
-        self.client.post(f"/api/core/projects/{proj['id']}/evidence/", {
-            "summary": "Strong evidence for X",
-            "source_type": "analysis",
-            "confidence": 0.9,
-            "hypothesis_ids": [hyp["id"]],
-            "likelihood_ratios": {hyp["id"]: 3.0},
-        }, format="json")
+        self.client.post(
+            f"/api/core/projects/{proj['id']}/evidence/",
+            {
+                "summary": "Strong evidence for X",
+                "source_type": "analysis",
+                "confidence": 0.9,
+                "hypothesis_ids": [hyp["id"]],
+                "likelihood_ratios": {hyp["id"]: 3.0},
+            },
+            format="json",
+        )
 
         links = EvidenceLink.objects.filter(hypothesis_id=hyp["id"])
         self.assertEqual(links.count(), 1)
@@ -124,17 +136,20 @@ class ProjectHypothesisEvidencePipelineTest(TestCase):
 
     def test_link_evidence_with_bayesian_update(self):
         """Linking evidence with apply=True triggers Bayesian probability update."""
-        from core.models import Hypothesis
 
         proj = _create_project(self.client).json()
         hyp = _create_hypothesis(self.client, proj["id"]).json()
 
         # Create evidence (evidence_list now correctly sets project FK)
-        ev_res = self.client.post(f"/api/core/projects/{proj['id']}/evidence/", {
-            "summary": "Supporting observation",
-            "source_type": "observation",
-            "confidence": 0.85,
-        }, format="json")
+        ev_res = self.client.post(
+            f"/api/core/projects/{proj['id']}/evidence/",
+            {
+                "summary": "Supporting observation",
+                "source_type": "observation",
+                "confidence": 0.85,
+            },
+            format="json",
+        )
         evidence = ev_res.json()
 
         # Link with Bayesian update (LR > 1 = supports)
@@ -164,14 +179,18 @@ class ProjectHypothesisEvidencePipelineTest(TestCase):
         hyp = _create_hypothesis(self.client, proj["id"]).json()
 
         # Use evidence_from_code which correctly links evidence to project
-        res = self.client.post("/api/core/evidence/from-code/", {
-            "project_id": proj["id"],
-            "hypothesis_ids": [hyp["id"]],
-            "summary": "Strong supporting evidence",
-            "source_type": "simulation",
-            "confidence": 0.9,
-            "likelihood_ratios": {str(hyp["id"]): 3.0},
-        }, format="json")
+        res = self.client.post(
+            "/api/core/evidence/from-code/",
+            {
+                "project_id": proj["id"],
+                "hypothesis_ids": [hyp["id"]],
+                "summary": "Strong supporting evidence",
+                "source_type": "simulation",
+                "confidence": 0.9,
+                "likelihood_ratios": {str(hyp["id"]): 3.0},
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 201)
 
         # Check posterior > prior after supporting evidence
@@ -204,9 +223,7 @@ class ProjectHypothesisEvidencePipelineTest(TestCase):
         hyp = _create_hypothesis(self.client, proj_a["id"]).json()
 
         # Try to get hypothesis from wrong project
-        res = self.client.get(
-            f"/api/core/projects/{proj_b['id']}/hypotheses/{hyp['id']}/"
-        )
+        res = self.client.get(f"/api/core/projects/{proj_b['id']}/hypotheses/{hyp['id']}/")
         self.assertEqual(res.status_code, 404)
 
     def test_project_advance_phase(self):
@@ -249,18 +266,22 @@ class EvidenceFromCodeTest(TestCase):
         proj = _create_project(self.client).json()
         hyp = _create_hypothesis(self.client, proj["id"]).json()
 
-        res = self.client.post("/api/core/evidence/from-code/", {
-            "project_id": proj["id"],
-            "hypothesis_ids": [hyp["id"]],
-            "summary": "Simulation confirms X→Y relationship",
-            "source_type": "simulation",
-            "code": "import numpy as np\n# simulation code here",
-            "p_value": 0.02,
-            "effect_size": 0.8,
-            "sample_size": 100,
-            "confidence": 0.9,
-            "likelihood_ratios": {str(hyp["id"]): 2.5},
-        }, format="json")
+        res = self.client.post(
+            "/api/core/evidence/from-code/",
+            {
+                "project_id": proj["id"],
+                "hypothesis_ids": [hyp["id"]],
+                "summary": "Simulation confirms X→Y relationship",
+                "source_type": "simulation",
+                "code": "import numpy as np\n# simulation code here",
+                "p_value": 0.02,
+                "effect_size": 0.8,
+                "sample_size": 100,
+                "confidence": 0.9,
+                "likelihood_ratios": {str(hyp["id"]): 2.5},
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 201)
         data = res.json()
         self.assertIn("evidence", data)
@@ -275,31 +296,43 @@ class EvidenceFromCodeTest(TestCase):
         """Can create evidence without linking to any hypothesis."""
         proj = _create_project(self.client).json()
 
-        res = self.client.post("/api/core/evidence/from-code/", {
-            "project_id": proj["id"],
-            "summary": "General observation from code",
-            "confidence": 0.7,
-        }, format="json")
+        res = self.client.post(
+            "/api/core/evidence/from-code/",
+            {
+                "project_id": proj["id"],
+                "summary": "General observation from code",
+                "confidence": 0.7,
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 201)
         self.assertEqual(len(res.json()["links"]), 0)
 
     def test_evidence_from_code_missing_project(self):
-        res = self.client.post("/api/core/evidence/from-code/", {
-            "project_id": str(uuid.uuid4()),
-            "summary": "Test",
-        }, format="json")
+        res = self.client.post(
+            "/api/core/evidence/from-code/",
+            {
+                "project_id": str(uuid.uuid4()),
+                "summary": "Test",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 404)
 
     def test_evidence_from_code_skips_invalid_hypothesis(self):
         """Invalid hypothesis IDs are silently skipped."""
         proj = _create_project(self.client).json()
 
-        res = self.client.post("/api/core/evidence/from-code/", {
-            "project_id": proj["id"],
-            "hypothesis_ids": [str(uuid.uuid4())],
-            "summary": "Test with bad hypothesis",
-            "confidence": 0.8,
-        }, format="json")
+        res = self.client.post(
+            "/api/core/evidence/from-code/",
+            {
+                "project_id": proj["id"],
+                "hypothesis_ids": [str(uuid.uuid4())],
+                "summary": "Test with bad hypothesis",
+                "confidence": 0.8,
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 201)
         self.assertEqual(len(res.json()["links"]), 0)
 
@@ -323,16 +356,20 @@ class EvidenceFromAnalysisTest(TestCase):
         proj = _create_project(self.client).json()
         hyp = _create_hypothesis(self.client, proj["id"]).json()
 
-        res = self.client.post("/api/core/evidence/from-analysis/", {
-            "project_id": proj["id"],
-            "hypothesis_ids": [hyp["id"]],
-            "summary": "Regression shows significant effect",
-            "analysis_type": "regression",
-            "results": {"r2": 0.92, "coefficients": [1.2, -0.5]},
-            "metrics": {"p_value": 0.01, "effect_size": 0.85, "sample_size": 50},
-            "confidence": 0.95,
-            "likelihood_ratios": {str(hyp["id"]): 4.0},
-        }, format="json")
+        res = self.client.post(
+            "/api/core/evidence/from-analysis/",
+            {
+                "project_id": proj["id"],
+                "hypothesis_ids": [hyp["id"]],
+                "summary": "Regression shows significant effect",
+                "analysis_type": "regression",
+                "results": {"r2": 0.92, "coefficients": [1.2, -0.5]},
+                "metrics": {"p_value": 0.01, "effect_size": 0.85, "sample_size": 50},
+                "confidence": 0.95,
+                "likelihood_ratios": {str(hyp["id"]): 4.0},
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 201)
         data = res.json()
         self.assertEqual(len(data["links"]), 1)
@@ -348,12 +385,16 @@ class EvidenceFromAnalysisTest(TestCase):
         # Free users can still create projects
         proj = proj_res.json()
 
-        res = client.post("/api/core/evidence/from-analysis/", {
-            "project_id": proj["id"],
-            "summary": "Test",
-            "analysis_type": "regression",
-            "results": {"r2": 0.5},
-        }, format="json")
+        res = client.post(
+            "/api/core/evidence/from-analysis/",
+            {
+                "project_id": proj["id"],
+                "summary": "Test",
+                "analysis_type": "regression",
+                "results": {"r2": 0.5},
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 403)
 
 
@@ -379,14 +420,18 @@ class KnowledgeGraphTest(TestCase):
         self.assertEqual(data["entity_count"], 0)
 
     def test_create_entity(self):
-        res = self.client.post("/api/core/graph/entities/", {
-            "name": "Temperature",
-            "entity_type": "variable",
-            "description": "Process temperature in °C",
-            "unit": "°C",
-            "typical_min": 100,
-            "typical_max": 200,
-        }, format="json")
+        res = self.client.post(
+            "/api/core/graph/entities/",
+            {
+                "name": "Temperature",
+                "entity_type": "variable",
+                "description": "Process temperature in °C",
+                "unit": "°C",
+                "typical_min": 100,
+                "typical_max": 200,
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 201)
         data = res.json()
         self.assertEqual(data["name"], "Temperature")
@@ -395,30 +440,49 @@ class KnowledgeGraphTest(TestCase):
 
     def test_create_relationship(self):
         # Create two entities first
-        e1 = self.client.post("/api/core/graph/entities/", {
-            "name": "Temperature", "entity_type": "variable",
-        }, format="json").json()
-        e2 = self.client.post("/api/core/graph/entities/", {
-            "name": "Yield", "entity_type": "variable",
-        }, format="json").json()
+        e1 = self.client.post(
+            "/api/core/graph/entities/",
+            {
+                "name": "Temperature",
+                "entity_type": "variable",
+            },
+            format="json",
+        ).json()
+        e2 = self.client.post(
+            "/api/core/graph/entities/",
+            {
+                "name": "Yield",
+                "entity_type": "variable",
+            },
+            format="json",
+        ).json()
 
         # Create relationship
-        res = self.client.post("/api/core/graph/relationships/", {
-            "source": e1["id"],
-            "target": e2["id"],
-            "relation_type": "causes",
-            "strength": 0.8,
-            "confidence": 0.9,
-        }, format="json")
+        res = self.client.post(
+            "/api/core/graph/relationships/",
+            {
+                "source": e1["id"],
+                "target": e2["id"],
+                "relation_type": "causes",
+                "strength": 0.8,
+                "confidence": 0.9,
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 201)
         data = res.json()
         self.assertEqual(data["relation_type"], "causes")
 
     def test_graph_isolation_between_users(self):
         """User B cannot see User A's entities."""
-        self.client.post("/api/core/graph/entities/", {
-            "name": "Secret Variable", "entity_type": "variable",
-        }, format="json")
+        self.client.post(
+            "/api/core/graph/entities/",
+            {
+                "name": "Secret Variable",
+                "entity_type": "variable",
+            },
+            format="json",
+        )
 
         user_b = _make_user("graphb@example.com", Tier.PRO)
         client_b = APIClient()
@@ -436,21 +500,38 @@ class KnowledgeGraphTest(TestCase):
         self.assertIn("issues", res.json())
 
     def test_entity_detail_update(self):
-        e = self.client.post("/api/core/graph/entities/", {
-            "name": "Pressure", "entity_type": "variable", "unit": "psi",
-        }, format="json").json()
+        e = self.client.post(
+            "/api/core/graph/entities/",
+            {
+                "name": "Pressure",
+                "entity_type": "variable",
+                "unit": "psi",
+            },
+            format="json",
+        ).json()
 
-        res = self.client.put(f"/api/core/graph/entities/{e['id']}/", {
-            "name": "Pressure Updated", "entity_type": "variable", "unit": "bar",
-        }, format="json")
+        res = self.client.put(
+            f"/api/core/graph/entities/{e['id']}/",
+            {
+                "name": "Pressure Updated",
+                "entity_type": "variable",
+                "unit": "bar",
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["name"], "Pressure Updated")
         self.assertEqual(res.json()["unit"], "bar")
 
     def test_entity_delete(self):
-        e = self.client.post("/api/core/graph/entities/", {
-            "name": "Temp", "entity_type": "variable",
-        }, format="json").json()
+        e = self.client.post(
+            "/api/core/graph/entities/",
+            {
+                "name": "Temp",
+                "entity_type": "variable",
+            },
+            format="json",
+        ).json()
 
         res = self.client.delete(f"/api/core/graph/entities/{e['id']}/")
         self.assertEqual(res.status_code, 204)
@@ -475,10 +556,12 @@ class FileUploadTest(TestCase):
         self.client.force_authenticate(self.user)
         # Clear cached Fernet instance so override_settings takes effect
         import core.encryption
+
         core.encryption._fernet_instance = None
 
     def tearDown(self):
         import core.encryption
+
         core.encryption._fernet_instance = None
 
     def test_upload_csv(self):
@@ -553,28 +636,40 @@ class FMEAHypothesisLinkTest(TestCase):
         self.client.force_login(self.user)
 
     def test_create_fmea(self):
-        res = self.client.post("/api/fmea/create/", {
-            "title": "Process FMEA",
-            "fmea_type": "process",
-        }, content_type="application/json")
+        res = self.client.post(
+            "/api/fmea/create/",
+            {
+                "title": "Process FMEA",
+                "fmea_type": "process",
+            },
+            content_type="application/json",
+        )
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertIn("id", data)
 
     def test_add_fmea_row(self):
-        fmea = self.client.post("/api/fmea/create/", {
-            "title": "Test FMEA",
-            "fmea_type": "process",
-        }, content_type="application/json").json()
+        fmea = self.client.post(
+            "/api/fmea/create/",
+            {
+                "title": "Test FMEA",
+                "fmea_type": "process",
+            },
+            content_type="application/json",
+        ).json()
 
-        res = self.client.post(f"/api/fmea/{fmea['id']}/rows/", {
-            "failure_mode": "Overheating",
-            "effect": "Product degradation",
-            "cause": "Cooling system failure",
-            "severity": 8,
-            "occurrence": 4,
-            "detection": 6,
-        }, content_type="application/json")
+        res = self.client.post(
+            f"/api/fmea/{fmea['id']}/rows/",
+            {
+                "failure_mode": "Overheating",
+                "effect": "Product degradation",
+                "cause": "Cooling system failure",
+                "severity": 8,
+                "occurrence": 4,
+                "detection": 6,
+            },
+            content_type="application/json",
+        )
         self.assertEqual(res.status_code, 200)
         data = res.json()["row"]
         self.assertEqual(data["failure_mode"], "Overheating")
@@ -591,21 +686,29 @@ class FMEAHypothesisLinkTest(TestCase):
         hyp = _create_hypothesis(drf_client, proj["id"], "Cooling failure causes defects").json()
 
         # Create FMEA with project link
-        fmea_res = self.client.post("/api/fmea/create/", {
-            "title": "FMEA for Project",
-            "fmea_type": "process",
-            "project_id": str(proj["id"]),
-        }, content_type="application/json").json()
+        fmea_res = self.client.post(
+            "/api/fmea/create/",
+            {
+                "title": "FMEA for Project",
+                "fmea_type": "process",
+                "project_id": str(proj["id"]),
+            },
+            content_type="application/json",
+        ).json()
 
         # Add row — response is {"success": true, "row": {...}}
-        row_res = self.client.post(f"/api/fmea/{fmea_res['id']}/rows/", {
-            "failure_mode": "Cooling failure",
-            "effect": "Overheating",
-            "cause": "Blocked coolant lines",
-            "severity": 9,
-            "occurrence": 5,
-            "detection": 7,
-        }, content_type="application/json").json()
+        row_res = self.client.post(
+            f"/api/fmea/{fmea_res['id']}/rows/",
+            {
+                "failure_mode": "Cooling failure",
+                "effect": "Overheating",
+                "cause": "Blocked coolant lines",
+                "severity": 9,
+                "occurrence": 5,
+                "detection": 7,
+            },
+            content_type="application/json",
+        ).json()
         row_id = row_res["row"]["id"]
 
         # Link to hypothesis
@@ -631,20 +734,29 @@ class FMEAHypothesisLinkTest(TestCase):
         self.assertEqual(str(link.hypothesis_id), hyp["id"])
 
     def test_fmea_rpn_summary(self):
-        fmea = self.client.post("/api/fmea/create/", {
-            "title": "RPN Test", "fmea_type": "process",
-        }, content_type="application/json").json()
+        fmea = self.client.post(
+            "/api/fmea/create/",
+            {
+                "title": "RPN Test",
+                "fmea_type": "process",
+            },
+            content_type="application/json",
+        ).json()
 
         # Add rows with different RPNs
         for s, o, d in [(9, 8, 7), (3, 2, 1), (5, 5, 5)]:
-            self.client.post(f"/api/fmea/{fmea['id']}/rows/", {
-                "failure_mode": f"Failure S{s}",
-                "effect": "Effect",
-                "cause": "Cause",
-                "severity": s,
-                "occurrence": o,
-                "detection": d,
-            }, content_type="application/json")
+            self.client.post(
+                f"/api/fmea/{fmea['id']}/rows/",
+                {
+                    "failure_mode": f"Failure S{s}",
+                    "effect": "Effect",
+                    "cause": "Cause",
+                    "severity": s,
+                    "occurrence": o,
+                    "detection": d,
+                },
+                content_type="application/json",
+            )
 
         res = self.client.get(f"/api/fmea/{fmea['id']}/summary/")
         self.assertEqual(res.status_code, 200)
@@ -691,11 +803,15 @@ class ProjectHubTest(TestCase):
         hyp = _create_hypothesis(self.client, proj["id"]).json()
 
         # Add evidence
-        self.client.post(f"/api/core/projects/{proj['id']}/evidence/", {
-            "summary": "Test evidence",
-            "source_type": "observation",
-            "hypothesis_ids": [hyp["id"]],
-        }, format="json")
+        self.client.post(
+            f"/api/core/projects/{proj['id']}/evidence/",
+            {
+                "summary": "Test evidence",
+                "source_type": "observation",
+                "hypothesis_ids": [hyp["id"]],
+            },
+            format="json",
+        )
 
         res = self.client.get(f"/api/core/projects/{proj['id']}/hub/")
         data = res.json()
@@ -712,7 +828,8 @@ class TenantProjectIsolationTest(TestCase):
     """Test that tenant projects are properly isolated and shared."""
 
     def setUp(self):
-        from core.models import Tenant, Membership
+        from core.models import Membership, Tenant
+
         self.client = APIClient()
         self.owner = _make_user("owner@example.com", Tier.TEAM)
         self.member = _make_user("member@example.com", Tier.TEAM)
@@ -720,12 +837,18 @@ class TenantProjectIsolationTest(TestCase):
 
         self.tenant = Tenant.objects.create(name="Test Org", slug="test-org", plan="team")
         Membership.objects.create(
-            tenant=self.tenant, user=self.owner, role="owner",
-            is_active=True, joined_at=timezone.now(),
+            tenant=self.tenant,
+            user=self.owner,
+            role="owner",
+            is_active=True,
+            joined_at=timezone.now(),
         )
         Membership.objects.create(
-            tenant=self.tenant, user=self.member, role="member",
-            is_active=True, joined_at=timezone.now(),
+            tenant=self.tenant,
+            user=self.member,
+            role="member",
+            is_active=True,
+            joined_at=timezone.now(),
         )
 
     def test_personal_project_not_shared(self):
@@ -780,11 +903,15 @@ class DatasetTest(TestCase):
     def test_create_dataset(self):
         proj = _create_project(self.client).json()
 
-        res = self.client.post(f"/api/core/projects/{proj['id']}/datasets/", {
-            "name": "Experiment Data",
-            "description": "Measurements from run 1",
-            "data": {"columns": ["x", "y"], "rows": [[1, 2], [3, 4]]},
-        }, format="json")
+        res = self.client.post(
+            f"/api/core/projects/{proj['id']}/datasets/",
+            {
+                "name": "Experiment Data",
+                "description": "Measurements from run 1",
+                "data": {"columns": ["x", "y"], "rows": [[1, 2], [3, 4]]},
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 201)
         data = res.json()
         self.assertEqual(data["name"], "Experiment Data")
@@ -794,10 +921,14 @@ class DatasetTest(TestCase):
 
         # Create two datasets
         for name in ["Dataset A", "Dataset B"]:
-            self.client.post(f"/api/core/projects/{proj['id']}/datasets/", {
-                "name": name,
-                "data": {"rows": [[1]]},
-            }, format="json")
+            self.client.post(
+                f"/api/core/projects/{proj['id']}/datasets/",
+                {
+                    "name": name,
+                    "data": {"rows": [[1]]},
+                },
+                format="json",
+            )
 
         res = self.client.get(f"/api/core/projects/{proj['id']}/datasets/")
         self.assertEqual(res.status_code, 200)
@@ -822,17 +953,21 @@ class ExperimentDesignTest(TestCase):
         proj = _create_project(self.client).json()
         hyp = _create_hypothesis(self.client, proj["id"]).json()
 
-        res = self.client.post(f"/api/core/projects/{proj['id']}/designs/", {
-            "name": "Full Factorial",
-            "description": "2^3 design for temperature/pressure/speed",
-            "design_type": "full_factorial",
-            "hypothesis": hyp["id"],
-            "factors": [
-                {"name": "Temperature", "levels": [100, 200]},
-                {"name": "Pressure", "levels": [1, 5]},
-                {"name": "Speed", "levels": [10, 20]},
-            ],
-        }, format="json")
+        res = self.client.post(
+            f"/api/core/projects/{proj['id']}/designs/",
+            {
+                "name": "Full Factorial",
+                "description": "2^3 design for temperature/pressure/speed",
+                "design_type": "full_factorial",
+                "hypothesis": hyp["id"],
+                "factors": [
+                    {"name": "Temperature", "levels": [100, 200]},
+                    {"name": "Pressure", "levels": [1, 5]},
+                    {"name": "Speed", "levels": [10, 20]},
+                ],
+            },
+            format="json",
+        )
         self.assertEqual(res.status_code, 201)
         data = res.json()
         self.assertEqual(data["name"], "Full Factorial")
@@ -842,10 +977,14 @@ class ExperimentDesignTest(TestCase):
     def test_list_experiment_designs(self):
         proj = _create_project(self.client).json()
 
-        self.client.post(f"/api/core/projects/{proj['id']}/designs/", {
-            "name": "Design 1",
-            "design_type": "full_factorial",
-        }, format="json")
+        self.client.post(
+            f"/api/core/projects/{proj['id']}/designs/",
+            {
+                "name": "Design 1",
+                "design_type": "full_factorial",
+            },
+            format="json",
+        )
 
         res = self.client.get(f"/api/core/projects/{proj['id']}/designs/")
         self.assertEqual(res.status_code, 200)

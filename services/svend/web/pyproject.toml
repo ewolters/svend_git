@@ -20,6 +20,7 @@ dependencies = [
     "tiktoken>=0.5",
     "tempora-scheduler",  # Distributed task scheduling (github.com/ewolters/tempora)
     "cryptography>=41.0",
+    "dj-database-url>=2.1",
     # Synara infrastructure dependencies
     "PyJWT>=2.8",               # JWT validation (tenant middleware)
     "structlog>=24.2",          # Structured logging
@@ -38,9 +39,23 @@ prod = [
 ]
 
 [tool.ruff]
-line-length = 100
+# STY-001 §9.1, INIT-010 FEAT-078
+line-length = 120
 target-version = "py310"
+exclude = [
+    "migrations",
+    "static",
+    "staticfiles",
+    "node_modules",
+    ".venv",
+    "__pycache__",
+]
 
 [tool.ruff.lint]
-select = ["E", "W", "F", "I", "B", "UP"]
-ignore = ["E501"]
+select = ["E", "F", "W", "I"]
+ignore = [
+    "E501",   # line too long — handled by line-length setting
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["syn", "api", "core", "accounts", "agents_api", "forge", "chat", "workbench", "files", "svend"]

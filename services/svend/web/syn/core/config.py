@@ -16,14 +16,12 @@ Features:
 - Secrets classification
 """
 
-import os
 from enum import Enum
 from functools import lru_cache
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
 
 # =============================================================================
 # ENUMS (CONFIG-001 §5, §7)
@@ -182,7 +180,7 @@ class DatabaseSettings(BaseSettings):
     )
 
     # Connection URL alternative
-    url: Optional[str] = Field(
+    url: str | None = Field(
         default=None,
         alias="DATABASE_URL",
         description="Full connection URL (alternative to individual fields)",
@@ -196,7 +194,7 @@ class DatabaseSettings(BaseSettings):
     )
 
     @property
-    def as_django_config(self) -> Dict[str, Any]:
+    def as_django_config(self) -> dict[str, Any]:
         """Convert to Django DATABASES config format."""
         if self.url:
             import dj_database_url
@@ -337,7 +335,7 @@ class ObservabilitySettings(BaseSettings):
     )
 
     # OpenTelemetry
-    otel_endpoint: Optional[str] = Field(
+    otel_endpoint: str | None = Field(
         default=None,
         alias="OTEL_EXPORTER_OTLP_ENDPOINT",
         description="OpenTelemetry collector endpoint",
@@ -349,7 +347,7 @@ class ObservabilitySettings(BaseSettings):
     )
 
     # OPA
-    opa_url: Optional[str] = Field(
+    opa_url: str | None = Field(
         default=None,
         alias="OPA_URL",
         description="Open Policy Agent URL",
@@ -451,7 +449,7 @@ class SynaraSettings(BaseSettings):
     # Note: These are lazy-loaded to avoid validation errors when not all vars are set
 
     @property
-    def allowed_hosts_list(self) -> List[str]:
+    def allowed_hosts_list(self) -> list[str]:
         """Parse allowed hosts as list."""
         return [h.strip() for h in self.django_allowed_hosts.split(",") if h.strip()]
 
@@ -493,7 +491,7 @@ class SynaraSettings(BaseSettings):
 # =============================================================================
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> SynaraSettings:
     """
     Get cached settings instance.
@@ -536,7 +534,7 @@ def validate_settings() -> None:
 # =============================================================================
 
 
-def check_anti_patterns() -> List[str]:
+def check_anti_patterns() -> list[str]:
     """
     Check for configuration anti-patterns per CONFIG-001 §10.
 

@@ -10,8 +10,14 @@ from django.db import models
 from core.encryption import EncryptedCharField, hash_token
 
 from .constants import (
-    Tier, Industry, Role, ExperienceLevel, OrganizationSize,
-    get_daily_limit, has_feature, is_paid_tier,
+    ExperienceLevel,
+    Industry,
+    OrganizationSize,
+    Role,
+    Tier,
+    get_daily_limit,
+    has_feature,
+    is_paid_tier,
 )
 
 
@@ -281,9 +287,9 @@ class User(AbstractUser):
         # Reset daily counter if needed
         if self.queries_reset_at is None or self.queries_reset_at < timezone.now():
             self.queries_today = 0
-            self.queries_reset_at = timezone.now().replace(
-                hour=0, minute=0, second=0, microsecond=0
-            ) + timedelta(days=1)
+            self.queries_reset_at = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(
+                days=1
+            )
             self.save(update_fields=["queries_today", "queries_reset_at"])
 
         return self.queries_today < self.daily_limit
@@ -291,6 +297,7 @@ class User(AbstractUser):
     def increment_queries(self):
         """Increment query count atomically."""
         from django.db.models import F
+
         type(self).objects.filter(pk=self.pk).update(
             queries_today=F("queries_today") + 1,
             total_queries=F("total_queries") + 1,
@@ -313,8 +320,8 @@ class User(AbstractUser):
 
     def send_verification_email(self):
         """Send verification email to user."""
-        from django.core.mail import send_mail
         from django.conf import settings as django_settings
+        from django.core.mail import send_mail
 
         if not self.email:
             return False
@@ -359,6 +366,8 @@ If you didn't create this account, you can ignore this email.
             self.is_email_verified = True
             self.email_verification_token = ""
             self.email_verification_token_sent_at = None
-            self.save(update_fields=["is_email_verified", "email_verification_token", "email_verification_token_sent_at"])
+            self.save(
+                update_fields=["is_email_verified", "email_verification_token", "email_verification_token_sent_at"]
+            )
             return True
         return False

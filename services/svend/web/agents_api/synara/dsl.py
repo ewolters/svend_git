@@ -17,22 +17,24 @@ The DSL produces an AST that the logic engine evaluates against data.
 
 import re
 from dataclasses import dataclass, field
-from typing import Optional, Union, Any
 from enum import Enum
+from typing import Union
 
 
 class Quantifier(Enum):
     """Quantifiers define scope of hypothesis."""
-    ALWAYS = "always"       # ∀x: P(x)
-    NEVER = "never"         # ∀x: ¬P(x)
-    SOMETIMES = "sometimes" # ∃x: P(x)
-    ALL = "all"             # ∀x ∈ S: P(x)
-    NONE = "none"           # ∀x ∈ S: ¬P(x)
-    SOME = "some"           # ∃x ∈ S: P(x)
+
+    ALWAYS = "always"  # ∀x: P(x)
+    NEVER = "never"  # ∀x: ¬P(x)
+    SOMETIMES = "sometimes"  # ∃x: P(x)
+    ALL = "all"  # ∀x ∈ S: P(x)
+    NONE = "none"  # ∀x ∈ S: ¬P(x)
+    SOME = "some"  # ∃x ∈ S: P(x)
 
 
 class LogicalOp(Enum):
     """Logical operators."""
+
     AND = "and"
     OR = "or"
     XOR = "xor"
@@ -42,6 +44,7 @@ class LogicalOp(Enum):
 
 class ComparisonOp(Enum):
     """Comparison operators."""
+
     GT = ">"
     LT = "<"
     GTE = ">="
@@ -54,9 +57,11 @@ class ComparisonOp(Enum):
 # AST Nodes
 # =============================================================================
 
+
 @dataclass
 class Variable:
     """Reference to a data column: [column_name]"""
+
     name: str
 
     def __repr__(self):
@@ -66,7 +71,8 @@ class Variable:
 @dataclass
 class Literal:
     """A literal value: number or string."""
-    value: Union[int, float, str, bool]
+
+    value: int | float | str | bool
 
     def __repr__(self):
         if isinstance(self.value, str):
@@ -77,6 +83,7 @@ class Literal:
 @dataclass
 class Comparison:
     """A comparison expression: [x] > 10"""
+
     left: Union[Variable, Literal, "Expression"]
     op: ComparisonOp
     right: Union[Variable, Literal, "Expression"]
@@ -88,6 +95,7 @@ class Comparison:
 @dataclass
 class LogicalExpr:
     """A logical expression combining other expressions."""
+
     op: LogicalOp
     operands: list[Union["Comparison", "LogicalExpr", "Quantified"]]
 
@@ -100,8 +108,9 @@ class LogicalExpr:
 @dataclass
 class Implication:
     """An implication: if P then Q"""
-    antecedent: Union[Comparison, LogicalExpr]
-    consequent: Union[Comparison, LogicalExpr]
+
+    antecedent: Comparison | LogicalExpr
+    consequent: Comparison | LogicalExpr
 
     def __repr__(self):
         return f"(IF {self.antecedent} THEN {self.consequent})"
@@ -110,7 +119,8 @@ class Implication:
 @dataclass
 class DomainCondition:
     """A domain restriction: WHEN [shift] = "night" """
-    condition: Union[Comparison, LogicalExpr]
+
+    condition: Comparison | LogicalExpr
 
     def __repr__(self):
         return f"WHEN {self.condition}"
@@ -119,10 +129,11 @@ class DomainCondition:
 @dataclass
 class Quantified:
     """A quantified hypothesis."""
+
     quantifier: Quantifier
-    body: Union[Comparison, LogicalExpr, Implication]
-    domain: Optional[DomainCondition] = None
-    over: Optional[Variable] = None  # For ALL/NONE/SOME: the variable quantified over
+    body: Comparison | LogicalExpr | Implication
+    domain: DomainCondition | None = None
+    over: Variable | None = None  # For ALL/NONE/SOME: the variable quantified over
 
     def __repr__(self):
         parts = [self.quantifier.name]
@@ -141,6 +152,7 @@ Expression = Union[Comparison, LogicalExpr, Implication, Quantified]
 @dataclass
 class Hypothesis:
     """A complete parsed hypothesis."""
+
     raw: str
     ast: Expression
     variables: list[str]
@@ -204,6 +216,7 @@ class Hypothesis:
 # =============================================================================
 # Parser
 # =============================================================================
+
 
 class DSLParser:
     """
@@ -286,7 +299,7 @@ class DSLParser:
     def _tokenize(self, text: str) -> list[str]:
         """Tokenize the input string."""
         # Pattern for tokens: variables, strings, numbers, operators, keywords
-        pattern = r'''
+        pattern = r"""
             \[[^\]]+\]           |  # Variable: [name]
             "[^"]*"              |  # String: "value"
             '[^']*'              |  # String: 'value'
@@ -295,17 +308,17 @@ class DSLParser:
             [><=]                |  # Single-char operators
             \(|\)                |  # Parentheses
             \w+                     # Keywords/identifiers
-        '''
+        """
         tokens = re.findall(pattern, text, re.VERBOSE | re.IGNORECASE)
         return [t.strip() for t in tokens if t.strip()]
 
-    def _current(self) -> Optional[str]:
+    def _current(self) -> str | None:
         """Get current token."""
         if self.pos < len(self.tokens):
             return self.tokens[self.pos]
         return None
 
-    def _advance(self) -> Optional[str]:
+    def _advance(self) -> str | None:
         """Advance and return current token."""
         token = self._current()
         self.pos += 1
@@ -374,13 +387,13 @@ class DSLParser:
         consequent = self._parse_logical_expr()
         return Implication(antecedent=antecedent, consequent=consequent)
 
-    def _parse_logical_expr_or_implication(self) -> Union[LogicalExpr, Implication, Comparison]:
+    def _parse_logical_expr_or_implication(self) -> LogicalExpr | Implication | Comparison:
         """Parse either logical expression or implication."""
         if self._current() and self._current().lower() == "if":
             return self._parse_implication()
         return self._parse_logical_expr()
 
-    def _parse_logical_expr(self) -> Union[LogicalExpr, Comparison]:
+    def _parse_logical_expr(self) -> LogicalExpr | Comparison:
         """Parse logical expression: comparison ((AND|OR|XOR) comparison)*"""
         left = self._parse_comparison_or_group()
 
@@ -398,7 +411,7 @@ class DSLParser:
 
         return left
 
-    def _parse_comparison_or_group(self) -> Union[Comparison, LogicalExpr]:
+    def _parse_comparison_or_group(self) -> Comparison | LogicalExpr:
         """Parse comparison or parenthesized group."""
         if self._current() == "(":
             self._advance()  # consume '('
@@ -431,7 +444,7 @@ class DSLParser:
 
         return Comparison(left=left, op=op, right=right)
 
-    def _parse_term(self) -> Union[Variable, Literal]:
+    def _parse_term(self) -> Variable | Literal:
         """Parse term: variable or literal."""
         token = self._current()
         if not token:
@@ -510,6 +523,7 @@ class DSLParser:
 # =============================================================================
 # Pretty Printer
 # =============================================================================
+
 
 def format_hypothesis(hypothesis: Hypothesis, style: str = "natural") -> str:
     """

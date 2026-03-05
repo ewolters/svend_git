@@ -13,7 +13,7 @@ Version:      1.1.0
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)
@@ -24,16 +24,35 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 # Fields that should always be redacted in event payloads
-SENSITIVE_FIELD_PATTERNS: Set[str] = {
-    "password", "secret", "token", "api_key", "apikey",
-    "ssn", "social_security", "credit_card", "card_number",
-    "cvv", "pin", "private_key", "secret_key",
+SENSITIVE_FIELD_PATTERNS: set[str] = {
+    "password",
+    "secret",
+    "token",
+    "api_key",
+    "apikey",
+    "ssn",
+    "social_security",
+    "credit_card",
+    "card_number",
+    "cvv",
+    "pin",
+    "private_key",
+    "secret_key",
 }
 
 # Fields that contain PII and need masking
-PII_FIELD_PATTERNS: Set[str] = {
-    "email", "phone", "address", "name", "first_name", "last_name",
-    "dob", "date_of_birth", "ssn", "license", "passport",
+PII_FIELD_PATTERNS: set[str] = {
+    "email",
+    "phone",
+    "address",
+    "name",
+    "first_name",
+    "last_name",
+    "dob",
+    "date_of_birth",
+    "ssn",
+    "license",
+    "passport",
 }
 
 
@@ -53,11 +72,10 @@ def _is_pii_field(field_name: str) -> bool:
 # AUDIT EVENTS CATALOG (AUD-001 §8)
 # =============================================================================
 
-AUDIT_EVENTS: Dict[str, Dict[str, Any]] = {
+AUDIT_EVENTS: dict[str, dict[str, Any]] = {
     # =========================================================================
     # SYSLOG ENTRY EVENTS
     # =========================================================================
-
     "audit.entry.created": {
         "description": "New audit log entry created in hash chain",
         "category": "audit",
@@ -79,7 +97,6 @@ AUDIT_EVENTS: Dict[str, Dict[str, Any]] = {
             "required": ["entry_id", "tenant_id", "event_name", "actor"],
         },
     },
-
     "audit.entry.genesis_created": {
         "description": "Genesis (first) entry created for tenant chain",
         "category": "audit",
@@ -96,11 +113,9 @@ AUDIT_EVENTS: Dict[str, Dict[str, Any]] = {
             "required": ["entry_id", "tenant_id", "current_hash"],
         },
     },
-
     # =========================================================================
     # INTEGRITY EVENTS
     # =========================================================================
-
     "audit.integrity.violation_detected": {
         "description": "Audit log integrity violation detected",
         "category": "audit",
@@ -124,7 +139,6 @@ AUDIT_EVENTS: Dict[str, Dict[str, Any]] = {
             "required": ["violation_id", "tenant_id", "violation_type"],
         },
     },
-
     "audit.integrity.chain_verified": {
         "description": "Audit log chain integrity verified",
         "category": "audit",
@@ -144,7 +158,6 @@ AUDIT_EVENTS: Dict[str, Dict[str, Any]] = {
             "required": ["tenant_id", "total_entries", "is_valid"],
         },
     },
-
     "audit.integrity.chain_verification_failed": {
         "description": "Audit log chain verification failed",
         "category": "audit",
@@ -164,7 +177,6 @@ AUDIT_EVENTS: Dict[str, Dict[str, Any]] = {
             "required": ["tenant_id", "violations_count"],
         },
     },
-
     "audit.integrity.violation_resolved": {
         "description": "Audit integrity violation resolved",
         "category": "audit",
@@ -184,11 +196,9 @@ AUDIT_EVENTS: Dict[str, Dict[str, Any]] = {
             "required": ["violation_id", "tenant_id", "resolved_by"],
         },
     },
-
     # =========================================================================
     # DRIFT VIOLATION EVENTS (DRF-001 §7)
     # =========================================================================
-
     "audit.drift.violation_detected": {
         "description": "Architectural drift violation detected",
         "category": "audit",
@@ -215,7 +225,6 @@ AUDIT_EVENTS: Dict[str, Dict[str, Any]] = {
             "required": ["drift_id", "enforcement_check", "severity", "file_path", "violation_message"],
         },
     },
-
     "audit.drift.remediation_available": {
         "description": "Automated remediation available for drift violation",
         "category": "audit",
@@ -234,7 +243,6 @@ AUDIT_EVENTS: Dict[str, Dict[str, Any]] = {
             "required": ["drift_id", "auto_fix_safe"],
         },
     },
-
     "audit.drift.sla_breached": {
         "description": "Drift violation remediation SLA breached",
         "category": "audit",
@@ -256,7 +264,6 @@ AUDIT_EVENTS: Dict[str, Dict[str, Any]] = {
             "required": ["drift_id", "enforcement_check", "remediation_due_at"],
         },
     },
-
     "audit.drift.governance_escalated": {
         "description": "Drift violation escalated to governance layer",
         "category": "audit",
@@ -277,7 +284,6 @@ AUDIT_EVENTS: Dict[str, Dict[str, Any]] = {
             "required": ["drift_id", "enforcement_check", "severity"],
         },
     },
-
     "audit.drift.resolved": {
         "description": "Drift violation resolved",
         "category": "audit",
@@ -299,11 +305,9 @@ AUDIT_EVENTS: Dict[str, Dict[str, Any]] = {
             "required": ["drift_id", "resolved_by"],
         },
     },
-
     # =========================================================================
     # GOVERNANCE INTEGRATION EVENTS
     # =========================================================================
-
     "governance.audit_integrity_violation": {
         "description": "Audit integrity violation reported to governance",
         "category": "governance",
@@ -324,7 +328,6 @@ AUDIT_EVENTS: Dict[str, Dict[str, Any]] = {
             "required": ["violation_id", "tenant_id", "violation_type"],
         },
     },
-
     "governance.drift_alert": {
         "description": "Drift violation alert sent to governance",
         "category": "governance",
@@ -345,11 +348,9 @@ AUDIT_EVENTS: Dict[str, Dict[str, Any]] = {
             "required": ["drift_id", "enforcement_check", "severity", "alert_reason"],
         },
     },
-
     # =========================================================================
     # AUDIT TRAIL QUERY EVENTS
     # =========================================================================
-
     "audit.trail.queried": {
         "description": "Audit trail query executed",
         "category": "audit",
@@ -368,7 +369,6 @@ AUDIT_EVENTS: Dict[str, Dict[str, Any]] = {
             "required": ["tenant_id", "actor", "results_count"],
         },
     },
-
     "audit.trail.export_requested": {
         "description": "Audit trail export requested",
         "category": "audit",
@@ -389,11 +389,9 @@ AUDIT_EVENTS: Dict[str, Dict[str, Any]] = {
             "required": ["tenant_id", "actor", "export_format"],
         },
     },
-
     # =========================================================================
     # RETENTION EVENTS
     # =========================================================================
-
     "audit.retention.policy_applied": {
         "description": "Audit log retention policy applied",
         "category": "audit",
@@ -422,10 +420,10 @@ AUDIT_EVENTS: Dict[str, Dict[str, Any]] = {
 
 
 def redact_event_payload(
-    payload: Dict[str, Any],
+    payload: dict[str, Any],
     depth: int = 0,
     max_depth: int = 10,
-) -> tuple[Dict[str, Any], int, List[str]]:
+) -> tuple[dict[str, Any], int, list[str]]:
     """
     Redact sensitive fields from an event payload.
 
@@ -447,7 +445,7 @@ def redact_event_payload(
 
     redacted = {}
     redaction_count = 0
-    sensitivity_tags: List[str] = []
+    sensitivity_tags: list[str] = []
 
     for key, value in payload.items():
         # Skip internal metadata fields
@@ -486,9 +484,7 @@ def redact_event_payload(
 
         # Recursively process nested dicts
         if isinstance(value, dict):
-            nested_redacted, nested_count, nested_tags = redact_event_payload(
-                value, depth + 1, max_depth
-            )
+            nested_redacted, nested_count, nested_tags = redact_event_payload(value, depth + 1, max_depth)
             redacted[key] = nested_redacted
             redaction_count += nested_count
             for tag in nested_tags:
@@ -501,9 +497,7 @@ def redact_event_payload(
             redacted_list = []
             for item in value:
                 if isinstance(item, dict):
-                    nested_redacted, nested_count, nested_tags = redact_event_payload(
-                        item, depth + 1, max_depth
-                    )
+                    nested_redacted, nested_count, nested_tags = redact_event_payload(item, depth + 1, max_depth)
                     redacted_list.append(nested_redacted)
                     redaction_count += nested_count
                     for tag in nested_tags:
@@ -527,10 +521,10 @@ def redact_event_payload(
 
 def emit_audit_event(
     event_name: str,
-    payload: Dict[str, Any],
-    correlation_id: Optional[str] = None,
-    tenant_id: Optional[str] = None,
-    actor_id: Optional[str] = None,
+    payload: dict[str, Any],
+    correlation_id: str | None = None,
+    tenant_id: str | None = None,
+    actor_id: str | None = None,
     skip_redaction: bool = False,
 ) -> bool:
     """
@@ -574,7 +568,7 @@ def emit_audit_event(
 
         # POL-002 §7: Apply redaction to event payload
         redaction_count = 0
-        sensitivity_tags: List[str] = []
+        sensitivity_tags: list[str] = []
 
         if not skip_redaction:
             payload, redaction_count, sensitivity_tags = redact_event_payload(payload)
@@ -606,10 +600,7 @@ def emit_audit_event(
         # Publish event
         Cortex.publish(event_name, enriched_payload)
 
-        logger.info(
-            f"[AUDIT EVENTS] Emitted {event_name}: "
-            f"correlation_id={final_correlation_id}"
-        )
+        logger.info(f"[AUDIT EVENTS] Emitted {event_name}: correlation_id={final_correlation_id}")
         return True
 
     except ImportError:
@@ -625,7 +616,7 @@ def emit_audit_event(
 # =============================================================================
 
 
-def build_entry_created_payload(entry) -> Dict[str, Any]:
+def build_entry_created_payload(entry) -> dict[str, Any]:
     """Build payload for audit.entry.created event."""
     return {
         "entry_id": entry.id,
@@ -639,7 +630,7 @@ def build_entry_created_payload(entry) -> Dict[str, Any]:
     }
 
 
-def build_genesis_created_payload(entry) -> Dict[str, Any]:
+def build_genesis_created_payload(entry) -> dict[str, Any]:
     """Build payload for audit.entry.genesis_created event."""
     return {
         "entry_id": entry.id,
@@ -650,8 +641,8 @@ def build_genesis_created_payload(entry) -> Dict[str, Any]:
 
 def build_integrity_violation_payload(
     violation,
-    correlation_id: Optional[str] = None,
-) -> Dict[str, Any]:
+    correlation_id: str | None = None,
+) -> dict[str, Any]:
     """Build payload for audit.integrity.violation_detected event."""
     return {
         "violation_id": str(violation.id),
@@ -667,10 +658,10 @@ def build_chain_verified_payload(
     tenant_id: str,
     total_entries: int,
     is_valid: bool,
-    genesis_valid: Optional[bool] = None,
-    verification_duration_ms: Optional[float] = None,
-    correlation_id: Optional[str] = None,
-) -> Dict[str, Any]:
+    genesis_valid: bool | None = None,
+    verification_duration_ms: float | None = None,
+    correlation_id: str | None = None,
+) -> dict[str, Any]:
     """Build payload for audit.integrity.chain_verified event."""
     return {
         "tenant_id": tenant_id,
@@ -687,8 +678,8 @@ def build_chain_verification_failed_payload(
     total_entries: int,
     violations_count: int,
     violation_types: list,
-    correlation_id: Optional[str] = None,
-) -> Dict[str, Any]:
+    correlation_id: str | None = None,
+) -> dict[str, Any]:
     """Build payload for audit.integrity.chain_verification_failed event."""
     return {
         "tenant_id": tenant_id,
@@ -702,8 +693,8 @@ def build_chain_verification_failed_payload(
 def build_violation_resolved_payload(
     violation,
     resolved_by: str,
-    correlation_id: Optional[str] = None,
-) -> Dict[str, Any]:
+    correlation_id: str | None = None,
+) -> dict[str, Any]:
     """Build payload for audit.integrity.violation_resolved event."""
     return {
         "violation_id": str(violation.id),
@@ -714,7 +705,7 @@ def build_violation_resolved_payload(
     }
 
 
-def build_drift_violation_payload(drift) -> Dict[str, Any]:
+def build_drift_violation_payload(drift) -> dict[str, Any]:
     """Build payload for audit.drift.violation_detected event."""
     return {
         "drift_id": str(drift.id),
@@ -734,8 +725,8 @@ def build_drift_violation_payload(drift) -> Dict[str, Any]:
 
 def build_drift_remediation_available_payload(
     drift,
-    correlation_id: Optional[str] = None,
-) -> Dict[str, Any]:
+    correlation_id: str | None = None,
+) -> dict[str, Any]:
     """Build payload for audit.drift.remediation_available event."""
     return {
         "drift_id": str(drift.id),
@@ -749,8 +740,8 @@ def build_drift_remediation_available_payload(
 def build_drift_sla_breached_payload(
     drift,
     hours_overdue: float,
-    correlation_id: Optional[str] = None,
-) -> Dict[str, Any]:
+    correlation_id: str | None = None,
+) -> dict[str, Any]:
     """Build payload for audit.drift.sla_breached event."""
     return {
         "drift_id": str(drift.id),
@@ -765,8 +756,8 @@ def build_drift_sla_breached_payload(
 
 def build_drift_governance_escalated_payload(
     drift,
-    correlation_id: Optional[str] = None,
-) -> Dict[str, Any]:
+    correlation_id: str | None = None,
+) -> dict[str, Any]:
     """Build payload for audit.drift.governance_escalated event."""
     return {
         "drift_id": str(drift.id),
@@ -782,8 +773,8 @@ def build_drift_resolved_payload(
     drift,
     resolved_by: str,
     resolution_duration_hours: float,
-    correlation_id: Optional[str] = None,
-) -> Dict[str, Any]:
+    correlation_id: str | None = None,
+) -> dict[str, Any]:
     """Build payload for audit.drift.resolved event."""
     return {
         "drift_id": str(drift.id),
@@ -800,8 +791,8 @@ def build_drift_resolved_payload(
 def build_governance_integrity_violation_payload(
     violation,
     requires_investigation: bool = True,
-    correlation_id: Optional[str] = None,
-) -> Dict[str, Any]:
+    correlation_id: str | None = None,
+) -> dict[str, Any]:
     """Build payload for governance.audit_integrity_violation event."""
     return {
         "violation_id": str(violation.id),
@@ -816,8 +807,8 @@ def build_governance_integrity_violation_payload(
 def build_governance_drift_alert_payload(
     drift,
     alert_reason: str,
-    correlation_id: Optional[str] = None,
-) -> Dict[str, Any]:
+    correlation_id: str | None = None,
+) -> dict[str, Any]:
     """Build payload for governance.drift_alert event."""
     return {
         "drift_id": str(drift.id),
@@ -834,8 +825,8 @@ def build_trail_queried_payload(
     actor: str,
     query_params: dict,
     results_count: int,
-    correlation_id: Optional[str] = None,
-) -> Dict[str, Any]:
+    correlation_id: str | None = None,
+) -> dict[str, Any]:
     """Build payload for audit.trail.queried event."""
     return {
         "correlation_id": correlation_id or str(uuid4()),
@@ -853,8 +844,8 @@ def build_trail_export_payload(
     date_range_start=None,
     date_range_end=None,
     entries_count: int = 0,
-    correlation_id: Optional[str] = None,
-) -> Dict[str, Any]:
+    correlation_id: str | None = None,
+) -> dict[str, Any]:
     """Build payload for audit.trail.export_requested event."""
     return {
         "correlation_id": correlation_id or str(uuid4()),
@@ -873,8 +864,8 @@ def build_retention_policy_payload(
     entries_archived: int = 0,
     entries_deleted: int = 0,
     retention_days: int = 0,
-    correlation_id: Optional[str] = None,
-) -> Dict[str, Any]:
+    correlation_id: str | None = None,
+) -> dict[str, Any]:
     """Build payload for audit.retention.policy_applied event."""
     return {
         "correlation_id": correlation_id or str(uuid4()),

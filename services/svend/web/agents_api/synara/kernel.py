@@ -8,9 +8,8 @@ CausalGraph: DAG of hypothesis regions
 ExpansionSignal: Indicates incomplete causal surface
 """
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Optional, Any
 from uuid import uuid4
 
 
@@ -31,6 +30,7 @@ class HypothesisRegion:
     Each hypothesis may itself be a conjunction of latent causes:
         hᵢ = c₁ ∧ c₂ ∧ c₃
     """
+
     id: str
     description: str
 
@@ -115,6 +115,7 @@ class Evidence:
 
     P(h | e) ∝ P(e | h) × P(h)
     """
+
     id: str
 
     # What was observed
@@ -135,7 +136,7 @@ class Evidence:
     weakens: list[str] = field(default_factory=list)  # hypothesis IDs
 
     # Raw data associated with this evidence (optional)
-    data: Optional[dict] = None
+    data: dict | None = None
 
     # Metadata
     timestamp: datetime = field(default_factory=datetime.utcnow)
@@ -165,8 +166,9 @@ class CausalLink:
 
     Where each link has a conditional probability P(to | from).
     """
+
     from_id: str  # Source hypothesis
-    to_id: str    # Target hypothesis
+    to_id: str  # Target hypothesis
 
     # How does the cause produce the effect?
     mechanism: str = ""  # e.g., "temperature rise → viscosity drop"
@@ -202,6 +204,7 @@ class CausalGraph:
 
     Belief propagates through this graph when evidence is added.
     """
+
     hypotheses: dict[str, HypothesisRegion] = field(default_factory=dict)
     links: list[CausalLink] = field(default_factory=list)
     evidence: list[Evidence] = field(default_factory=list)
@@ -312,6 +315,7 @@ class ExpansionSignal:
     1. Missing disjunct: need to add h_new to H
     2. Missing conjunct: need to expand existing h with new premises
     """
+
     # Required fields first (no defaults)
     triggering_evidence: str  # Evidence ID
     event: str
@@ -337,7 +341,7 @@ class ExpansionSignal:
 
     # Status
     resolved: bool = False
-    resolution: Optional[str] = None  # "new_hypothesis", "expanded_hypothesis", "dismissed"
+    resolution: str | None = None  # "new_hypothesis", "expanded_hypothesis", "dismissed"
 
     # Metadata
     timestamp: datetime = field(default_factory=datetime.utcnow)

@@ -1,0 +1,9 @@
+# Pre-commit hooks — STY-001 §9.2, TST-001 §10.4, INIT-010 FEAT-077
+# Advisory development-time quality gate (not authoritative — see compliance runner)
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.4
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-zero]
+      - id: ruff-format

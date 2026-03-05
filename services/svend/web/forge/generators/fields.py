@@ -1,7 +1,6 @@
 """Field generators for different data types."""
 
 import random
-import re
 import string
 import uuid
 from abc import ABC, abstractmethod
@@ -65,9 +64,40 @@ class StringGenerator(FieldGenerator):
 
     def _generate_product_name(self) -> str:
         """Generate realistic product names."""
-        adjectives = ["Premium", "Classic", "Modern", "Pro", "Ultra", "Smart", "Compact", "Deluxe", "Essential", "Advanced"]
-        products = ["Headphones", "Speaker", "Charger", "Mouse", "Keyboard", "Monitor", "Lamp", "Chair", "Desk", "Backpack",
-                   "Watch", "Camera", "Tablet", "Phone Case", "Cable", "Stand", "Hub", "Dock", "Mat", "Organizer"]
+        adjectives = [
+            "Premium",
+            "Classic",
+            "Modern",
+            "Pro",
+            "Ultra",
+            "Smart",
+            "Compact",
+            "Deluxe",
+            "Essential",
+            "Advanced",
+        ]
+        products = [
+            "Headphones",
+            "Speaker",
+            "Charger",
+            "Mouse",
+            "Keyboard",
+            "Monitor",
+            "Lamp",
+            "Chair",
+            "Desk",
+            "Backpack",
+            "Watch",
+            "Camera",
+            "Tablet",
+            "Phone Case",
+            "Cable",
+            "Stand",
+            "Hub",
+            "Dock",
+            "Mat",
+            "Organizer",
+        ]
         return f"{random.choice(adjectives)} {random.choice(products)}"
 
     def _generate_from_pattern(self) -> str:
@@ -78,18 +108,18 @@ class StringGenerator(FieldGenerator):
         pattern = self.pattern or ""
 
         while i < len(pattern):
-            if pattern[i:i + 5] == "[A-Z]":
+            if pattern[i : i + 5] == "[A-Z]":
                 result.append(random.choice(string.ascii_uppercase))
                 i += 5
-            elif pattern[i:i + 5] == "[a-z]":
+            elif pattern[i : i + 5] == "[a-z]":
                 result.append(random.choice(string.ascii_lowercase))
                 i += 5
-            elif pattern[i:i + 5] == "[0-9]":
+            elif pattern[i : i + 5] == "[0-9]":
                 result.append(random.choice(string.digits))
                 i += 5
             elif pattern[i] == "{" and "}" in pattern[i:]:
                 end = pattern.index("}", i)
-                count = int(pattern[i + 1:end])
+                count = int(pattern[i + 1 : end])
                 if result:
                     result[-1] = result[-1] * count
                 i = end + 1
@@ -222,7 +252,18 @@ class TextGenerator(FieldGenerator):
         "Experience {adj} quality at an affordable price. Great for {user}s of all levels.",
     ]
 
-    ADJECTIVES = ["premium", "modern", "elegant", "professional", "versatile", "innovative", "reliable", "compact", "lightweight", "durable"]
+    ADJECTIVES = [
+        "premium",
+        "modern",
+        "elegant",
+        "professional",
+        "versatile",
+        "innovative",
+        "reliable",
+        "compact",
+        "lightweight",
+        "durable",
+    ]
     USERS = ["professional", "enthusiast", "beginner", "home user", "traveler", "student", "creator"]
 
     def __init__(
@@ -287,23 +328,59 @@ class ProductNameGenerator(FieldGenerator):
     """Generate realistic product names."""
 
     ADJECTIVES = [
-        "Premium", "Classic", "Modern", "Elegant", "Professional",
-        "Essential", "Deluxe", "Ultra", "Smart", "Compact",
-        "Portable", "Wireless", "Advanced", "Basic", "Pro",
+        "Premium",
+        "Classic",
+        "Modern",
+        "Elegant",
+        "Professional",
+        "Essential",
+        "Deluxe",
+        "Ultra",
+        "Smart",
+        "Compact",
+        "Portable",
+        "Wireless",
+        "Advanced",
+        "Basic",
+        "Pro",
     ]
 
     PRODUCTS = {
         "electronics": [
-            "Headphones", "Speaker", "Charger", "Cable", "Mouse",
-            "Keyboard", "Monitor", "Laptop Stand", "Webcam", "Microphone",
+            "Headphones",
+            "Speaker",
+            "Charger",
+            "Cable",
+            "Mouse",
+            "Keyboard",
+            "Monitor",
+            "Laptop Stand",
+            "Webcam",
+            "Microphone",
         ],
         "clothing": [
-            "T-Shirt", "Hoodie", "Jacket", "Jeans", "Dress",
-            "Sweater", "Pants", "Shorts", "Skirt", "Blazer",
+            "T-Shirt",
+            "Hoodie",
+            "Jacket",
+            "Jeans",
+            "Dress",
+            "Sweater",
+            "Pants",
+            "Shorts",
+            "Skirt",
+            "Blazer",
         ],
         "home": [
-            "Lamp", "Pillow", "Blanket", "Rug", "Vase",
-            "Frame", "Clock", "Mirror", "Shelf", "Organizer",
+            "Lamp",
+            "Pillow",
+            "Blanket",
+            "Rug",
+            "Vase",
+            "Frame",
+            "Clock",
+            "Mirror",
+            "Shelf",
+            "Organizer",
         ],
     }
 
@@ -324,18 +401,30 @@ class ReviewTextGenerator(FieldGenerator):
     """Generate realistic product review text."""
 
     POSITIVE_STARTERS = [
-        "Love this product!", "Exactly what I needed.", "Great quality!",
-        "Highly recommend.", "Best purchase ever.", "Exceeded expectations.",
+        "Love this product!",
+        "Exactly what I needed.",
+        "Great quality!",
+        "Highly recommend.",
+        "Best purchase ever.",
+        "Exceeded expectations.",
     ]
 
     NEGATIVE_STARTERS = [
-        "Not what I expected.", "Disappointed with this.", "Could be better.",
-        "Quality issues.", "Not worth the price.", "Would not recommend.",
+        "Not what I expected.",
+        "Disappointed with this.",
+        "Could be better.",
+        "Quality issues.",
+        "Not worth the price.",
+        "Would not recommend.",
     ]
 
     NEUTRAL_STARTERS = [
-        "It's okay.", "Decent product.", "Works as described.",
-        "Nothing special.", "Average quality.", "Does the job.",
+        "It's okay.",
+        "Decent product.",
+        "Works as described.",
+        "Nothing special.",
+        "Average quality.",
+        "Does the job.",
     ]
 
     def __init__(self, sentiment: str | None = None):

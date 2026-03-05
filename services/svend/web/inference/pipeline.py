@@ -13,9 +13,9 @@ Thompson sampling selects mode based on query signature.
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
 from functools import lru_cache
 from pathlib import Path
+from typing import Any, Optional
 
 from django.conf import settings
 
@@ -28,7 +28,7 @@ class InferenceResult:
 
     # Mode selection
     selected_mode: str = ""
-    mode_scores: Dict[str, float] = field(default_factory=dict)
+    mode_scores: dict[str, float] = field(default_factory=dict)
 
     # Query analysis
     query_type: str = ""
@@ -41,10 +41,10 @@ class InferenceResult:
     # Execution (EXECUTIVE mode)
     success: bool = False
     code: str = ""
-    execution_outputs: List[str] = field(default_factory=list)
-    execution_errors: List[str] = field(default_factory=list)
-    visualizations: List[str] = field(default_factory=list)
-    tools_used: List[str] = field(default_factory=list)
+    execution_outputs: list[str] = field(default_factory=list)
+    execution_errors: list[str] = field(default_factory=list)
+    visualizations: list[str] = field(default_factory=list)
+    tools_used: list[str] = field(default_factory=list)
 
     # Timing
     inference_time_ms: float = 0.0
@@ -54,8 +54,8 @@ class InferenceResult:
     block_reason: str = ""
     domain: str = ""
     difficulty: float = 0.0
-    reasoning_trace: List = field(default_factory=list)
-    tool_calls: List = field(default_factory=list)
+    reasoning_trace: list = field(default_factory=list)
+    tool_calls: list = field(default_factory=list)
     verified: bool = False
     verification_confidence: float = 0.0
     final_answer: Any = None
@@ -100,19 +100,19 @@ class CognitionPipelineManager:
             return
 
         try:
-            from cognition_qwen import CognitionPipeline, CognitionMode
+            from cognition_qwen import CognitionPipeline
 
-            workspace = Path(getattr(settings, 'KJERNE_PATH', '.')) / 'cognition_workspace'
+            workspace = Path(getattr(settings, "KJERNE_PATH", ".")) / "cognition_workspace"
 
             self._pipeline = CognitionPipeline(
                 workspace=workspace,
                 base_model="Qwen/Qwen2.5-Coder-14B-Instruct",  # Use Coder as base
-                enable_execution=True
+                enable_execution=True,
             )
 
             # Pre-load the model
             logger.info("Loading Qwen-Coder model...")
-            self._pipeline.lora_manager.load_base_model(quantize=True, model_type='coder')
+            self._pipeline.lora_manager.load_base_model(quantize=True, model_type="coder")
 
             self._initialized = True
             logger.info("Cognition Pipeline initialized successfully")
@@ -120,6 +120,7 @@ class CognitionPipelineManager:
         except Exception as e:
             logger.error(f"Failed to initialize Cognition pipeline: {e}")
             import traceback
+
             traceback.print_exc()
             raise
 
@@ -151,11 +152,7 @@ class CognitionPipelineManager:
                 force_mode = mode_map.get(mode.lower())
 
             # Run through pipeline
-            trace = self.pipeline.process(
-                query=text,
-                force_mode=force_mode,
-                use_thompson=(mode == "auto")
-            )
+            trace = self.pipeline.process(query=text, force_mode=force_mode, use_thompson=(mode == "auto"))
 
             inference_time_ms = (time.time() - start_time) * 1000
 
@@ -206,6 +203,7 @@ class CognitionPipelineManager:
         except Exception as e:
             logger.error(f"Cognition pipeline error: {e}")
             import traceback
+
             traceback.print_exc()
             inference_time_ms = (time.time() - start_time) * 1000
             return InferenceResult(

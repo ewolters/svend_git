@@ -27,11 +27,11 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 from django.utils import timezone
 
-from .health import HealthMetrics, HealthStatus
+from .health import HealthMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ class ThrottleLevel(Enum):
             return float("inf")  # Infinite delay = stop
 
     @classmethod
-    def from_value(cls, value: float) -> "ThrottleLevel":
+    def from_value(cls, value: float) -> ThrottleLevel:
         """Get throttle level from numeric value."""
         if value >= 1.0:
             return cls.CRITICAL
@@ -105,13 +105,13 @@ class ThrottleDecision:
     allow: bool
 
     # Reasons for throttling
-    reasons: List[str] = field(default_factory=list)
+    reasons: list[str] = field(default_factory=list)
 
     # Specific restrictions
     skip_low_priority: bool = False
     skip_batch_tasks: bool = False
     pause_schedules: bool = False
-    pause_specific_tasks: Set[str] = field(default_factory=set)
+    pause_specific_tasks: set[str] = field(default_factory=set)
 
     # Suggested delay for schedules (seconds)
     schedule_delay_seconds: float = 0.0
@@ -123,9 +123,9 @@ class ThrottleDecision:
     decided_at: datetime = field(default_factory=timezone.now)
 
     # Contributing metrics
-    contributing_metrics: Dict[str, Any] = field(default_factory=dict)
+    contributing_metrics: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "level": self.level.name,
@@ -157,10 +157,10 @@ class ThrottleRule:
     threshold: float  # Threshold value
     comparison: str  # "gt", "gte", "lt", "lte", "eq"
     throttle_level: ThrottleLevel
-    actions: List[str] = field(default_factory=list)  # Additional actions
+    actions: list[str] = field(default_factory=list)  # Additional actions
     enabled: bool = True
 
-    def evaluate(self, metrics: HealthMetrics) -> Optional[Tuple[bool, str]]:
+    def evaluate(self, metrics: HealthMetrics) -> tuple[bool, str] | None:
         """Evaluate rule against metrics. Returns (triggered, reason)."""
         if not self.enabled:
             return None
@@ -188,7 +188,7 @@ class ThrottleRule:
 
         return (False, "")
 
-    def _get_metric_value(self, metrics: HealthMetrics) -> Optional[float]:
+    def _get_metric_value(self, metrics: HealthMetrics) -> float | None:
         """Extract metric value from HealthMetrics."""
         metric_map = {
             "queue_depth": metrics.queue_depth,
@@ -211,7 +211,7 @@ class ThrottleRule:
 
 
 # Default throttle rules (SCH-004 §3.4)
-DEFAULT_THROTTLE_RULES: List[ThrottleRule] = [
+DEFAULT_THROTTLE_RULES: list[ThrottleRule] = [
     # Queue depth rules
     ThrottleRule(
         name="queue_light",
@@ -240,7 +240,6 @@ DEFAULT_THROTTLE_RULES: List[ThrottleRule] = [
         throttle_level=ThrottleLevel.HEAVY,
         actions=["skip_batch", "skip_low_priority", "pause_schedules"],
     ),
-
     # DLQ rules
     ThrottleRule(
         name="dlq_growing",
@@ -269,7 +268,6 @@ DEFAULT_THROTTLE_RULES: List[ThrottleRule] = [
         throttle_level=ThrottleLevel.HEAVY,
         actions=["confidence_penalty:0.3", "pause_failing_tasks", "pause_schedules"],
     ),
-
     # Governance rules
     ThrottleRule(
         name="governance_denying",
@@ -289,7 +287,6 @@ DEFAULT_THROTTLE_RULES: List[ThrottleRule] = [
         throttle_level=ThrottleLevel.HEAVY,
         actions=["confidence_penalty:0.4", "pause_schedules"],
     ),
-
     # Circuit breaker rules
     ThrottleRule(
         name="circuits_opening",
@@ -309,7 +306,6 @@ DEFAULT_THROTTLE_RULES: List[ThrottleRule] = [
         throttle_level=ThrottleLevel.HEAVY,
         actions=["skip_circuit_open_tasks", "pause_schedules"],
     ),
-
     # Worker utilization rules
     ThrottleRule(
         name="workers_saturated",
@@ -320,7 +316,6 @@ DEFAULT_THROTTLE_RULES: List[ThrottleRule] = [
         throttle_level=ThrottleLevel.MODERATE,
         actions=["skip_batch", "delay_schedules:2.0"],
     ),
-
     # Latency rules
     ThrottleRule(
         name="latency_increasing",
@@ -361,7 +356,7 @@ class ThrottlePolicy:
 
     def __init__(
         self,
-        rules: Optional[List[ThrottleRule]] = None,
+        rules: list[ThrottleRule] | None = None,
         default_level: ThrottleLevel = ThrottleLevel.NONE,
     ):
         """
@@ -375,14 +370,14 @@ class ThrottlePolicy:
         self._default_level = default_level
 
         # Task-specific pause tracking
-        self._paused_tasks: Set[str] = set()
-        self._pause_until: Dict[str, datetime] = {}
+        self._paused_tasks: set[str] = set()
+        self._pause_until: dict[str, datetime] = {}
 
     def evaluate(
         self,
         metrics: HealthMetrics,
-        task_name: Optional[str] = None,
-        priority: Optional[int] = None,
+        task_name: str | None = None,
+        priority: int | None = None,
         is_batch: bool = False,
     ) -> ThrottleDecision:
         """
@@ -403,7 +398,7 @@ class ThrottlePolicy:
         )
 
         # Evaluate all rules
-        triggered_rules: List[Tuple[ThrottleRule, str]] = []
+        triggered_rules: list[tuple[ThrottleRule, str]] = []
         for rule in self._rules:
             result = rule.evaluate(metrics)
             if result and result[0]:
@@ -462,7 +457,7 @@ class ThrottlePolicy:
 
         return decision
 
-    def _apply_actions(self, decision: ThrottleDecision, actions: List[str]) -> None:
+    def _apply_actions(self, decision: ThrottleDecision, actions: list[str]) -> None:
         """Apply rule actions to decision."""
         for action in actions:
             if action == "skip_batch":
@@ -511,7 +506,7 @@ class ThrottlePolicy:
         self._pause_until.pop(task_name, None)
         logger.info(f"[THROTTLE] Unpaused task {task_name}")
 
-    def get_paused_tasks(self) -> Set[str]:
+    def get_paused_tasks(self) -> set[str]:
         """Get set of currently paused tasks."""
         # Clean expired pauses
         now = timezone.now()
@@ -540,6 +535,6 @@ class ThrottlePolicy:
                 return True
         return False
 
-    def get_rules(self) -> List[ThrottleRule]:
+    def get_rules(self) -> list[ThrottleRule]:
         """Get all throttle rules."""
         return self._rules.copy()

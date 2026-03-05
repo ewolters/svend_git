@@ -14,7 +14,6 @@ from django.db.models.functions import TruncDate, TruncHour
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
-
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import BasePermission, IsAdminUser
 from rest_framework.response import Response
@@ -28,7 +27,10 @@ from api.models import (
     BlogView,
     CRMLead,
     EmailCampaign,
+    Experiment,
+    ExperimentAssignment,
     Feature,
+    Feedback,
     Initiative,
     OutreachEnrollment,
     OutreachSequence,
@@ -38,9 +40,6 @@ from api.models import (
     SiteVisit,
     WhitePaper,
     WhitePaperDownload,
-    Experiment,
-    ExperimentAssignment,
-    Feedback,
 )
 from chat.models import EventLog, TraceLog, UsageLog
 
@@ -81,6 +80,7 @@ class IsInternalUser(BasePermission):
 # Helpers — staff exclusion
 # ---------------------------------------------------------------------------
 
+
 def _get_days(request):
     try:
         return min(int(request.GET.get("days", 30)), 365)
@@ -114,9 +114,7 @@ def _resolve_recipients(target):
     elif target.startswith("inactive:"):
         days = int(target.split(":", 1)[1].rstrip("d"))
         cutoff = now - timedelta(days=days)
-        return base.filter(
-            Q(last_active_at__lt=cutoff) | Q(last_active_at__isnull=True)
-        ), None
+        return base.filter(Q(last_active_at__lt=cutoff) | Q(last_active_at__isnull=True)), None
     elif target == "has_queries":
         return base.filter(total_queries__gt=0), None
     elif target == "no_queries":
@@ -149,16 +147,20 @@ def _markdown_to_html(text):
 
     # Fenced code blocks — stash before processing
     code_blocks = []
+
     def _stash_code(m):
         code_blocks.append(m.group(1))
         return f"\x00CODE{len(code_blocks) - 1}\x00"
+
     text = re.sub(r"```(?:\w*)\n([\s\S]*?)```", _stash_code, text)
 
     # Inline code — stash to protect from other processing
     inline_codes = []
+
     def _stash_inline(m):
         inline_codes.append(m.group(1))
         return f"\x00INLINE{len(inline_codes) - 1}\x00"
+
     text = re.sub(r"`([^`]+)`", _stash_inline, text)
 
     # Process line by line
@@ -268,16 +270,13 @@ def _markdown_to_html(text):
 
 def _staff_ids():
     """Staff + internal user UUIDs for TraceLog filtering (uses UUIDField, not FK)."""
-    return list(
-        User.objects.filter(
-            Q(is_staff=True) | Q(username__in=INTERNAL_USERNAMES)
-        ).values_list("id", flat=True)
-    )
+    return list(User.objects.filter(Q(is_staff=True) | Q(username__in=INTERNAL_USERNAMES)).values_list("id", flat=True))
 
 
 # ---------------------------------------------------------------------------
 # Page view
 # ---------------------------------------------------------------------------
+
 
 @never_cache
 @user_passes_test(can_access_internal, login_url="/login/")
@@ -289,10 +288,11 @@ def dashboard_view(request):
 # API: Overview KPIs
 # ---------------------------------------------------------------------------
 
+
 @api_view(["GET"])
 @permission_classes([IsInternalUser])
 def api_overview(request):
-    days = _get_days(request)
+    _get_days(request)
     now = timezone.now()
     today = now.date()
     customers = _customers()
@@ -320,9 +320,7 @@ def api_overview(request):
         .aggregate(avg=Avg("total_time_ms"))["avg"]
     )
 
-    mrr = sum(
-        customers.filter(tier=t).count() * p for t, p in TIER_PRICES.items()
-    )
+    mrr = sum(customers.filter(tier=t).count() * p for t, p in TIER_PRICES.items())
 
     paid = customers.filter(tier__in=PAID_TIERS).count()
     conversion = round(paid / total_users * 100, 1) if total_users else 0
@@ -330,24 +328,21 @@ def api_overview(request):
     # Week-over-week changes: compare last 7d vs preceding 7d
     week_ago = today - timedelta(days=7)
     two_weeks_ago = today - timedelta(days=14)
-    usage_base = (
-        UsageLog.objects.exclude(user__is_staff=True)
-        .exclude(user__username__in=INTERNAL_USERNAMES)
-    )
+    usage_base = UsageLog.objects.exclude(user__is_staff=True).exclude(user__username__in=INTERNAL_USERNAMES)
     this_week = usage_base.filter(date__gt=week_ago, date__lte=today).aggregate(
-        requests=Sum("request_count"), errors=Sum("error_count"),
+        requests=Sum("request_count"),
+        errors=Sum("error_count"),
     )
     last_week = usage_base.filter(date__gt=two_weeks_ago, date__lte=week_ago).aggregate(
-        requests=Sum("request_count"), errors=Sum("error_count"),
+        requests=Sum("request_count"),
+        errors=Sum("error_count"),
     )
     active_this_week = customers.filter(last_active_at__date__gt=week_ago).count()
     active_last_week = customers.filter(
         last_active_at__date__gt=two_weeks_ago, last_active_at__date__lte=week_ago
     ).count()
     signups_this_week = customers.filter(date_joined__date__gt=week_ago).count()
-    signups_last_week = customers.filter(
-        date_joined__date__gt=two_weeks_ago, date_joined__date__lte=week_ago
-    ).count()
+    signups_last_week = customers.filter(date_joined__date__gt=two_weeks_ago, date_joined__date__lte=week_ago).count()
 
     def _wow(current, previous):
         if not previous:
@@ -361,21 +356,24 @@ def api_overview(request):
         "errors": _wow(this_week["errors"] or 0, last_week["errors"] or 0),
     }
 
-    return Response({
-        "total_users": total_users,
-        "active_today": active_today,
-        "requests_today": day_usage["requests"] or 0,
-        "errors_today": day_usage["errors"] or 0,
-        "avg_latency_ms": round(avg_latency, 1) if avg_latency else None,
-        "mrr": mrr,
-        "conversion_rate": conversion,
-        "changes": changes,
-    })
+    return Response(
+        {
+            "total_users": total_users,
+            "active_today": active_today,
+            "requests_today": day_usage["requests"] or 0,
+            "errors_today": day_usage["errors"] or 0,
+            "avg_latency_ms": round(avg_latency, 1) if avg_latency else None,
+            "mrr": mrr,
+            "conversion_rate": conversion,
+            "changes": changes,
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # API: Users
 # ---------------------------------------------------------------------------
+
 
 @api_view(["GET"])
 @permission_classes([IsInternalUser])
@@ -392,31 +390,14 @@ def api_users(request):
         .order_by("date")
     )
 
-    tiers = (
-        customers.values("tier")
-        .annotate(count=Count("id"))
-        .order_by("tier")
-    )
+    tiers = customers.values("tier").annotate(count=Count("id")).order_by("tier")
 
-    industries = (
-        customers.exclude(industry="")
-        .values("industry")
-        .annotate(count=Count("id"))
-        .order_by("-count")
-    )
+    industries = customers.exclude(industry="").values("industry").annotate(count=Count("id")).order_by("-count")
 
-    roles = (
-        customers.exclude(role="")
-        .values("role")
-        .annotate(count=Count("id"))
-        .order_by("-count")
-    )
+    roles = customers.exclude(role="").values("role").annotate(count=Count("id")).order_by("-count")
 
     experience = (
-        customers.exclude(experience_level="")
-        .values("experience_level")
-        .annotate(count=Count("id"))
-        .order_by("-count")
+        customers.exclude(experience_level="").values("experience_level").annotate(count=Count("id")).order_by("-count")
     )
 
     active_trend = (
@@ -438,40 +419,45 @@ def api_users(request):
         days_inactive = (now - u.last_active_at).days if u.last_active_at else 999
         if days_inactive < 14:
             continue
-        at_risk.append({
-            "username": u.username,
-            "tier": u.tier,
-            "days_inactive": days_inactive,
-            "total_queries": u.total_queries,
-            "email": u.email,
-        })
+        at_risk.append(
+            {
+                "username": u.username,
+                "tier": u.tier,
+                "days_inactive": days_inactive,
+                "total_queries": u.total_queries,
+                "email": u.email,
+            }
+        )
         if len(at_risk) >= 10:
             break
 
-    return Response({
-        "signups": [{"date": str(s["date"]), "count": s["count"]} for s in signups],
-        "tiers": list(tiers),
-        "industries": list(industries),
-        "roles": list(roles),
-        "experience": list(experience),
-        "active_trend": [{"date": str(a["date"]), "count": a["count"]} for a in active_trend],
-        "verification_rate": round(verified / total * 100, 1) if total else 0,
-        "verified_count": verified,
-        "total_count": total,
-        "churn_risk": at_risk,
-    })
+    return Response(
+        {
+            "signups": [{"date": str(s["date"]), "count": s["count"]} for s in signups],
+            "tiers": list(tiers),
+            "industries": list(industries),
+            "roles": list(roles),
+            "experience": list(experience),
+            "active_trend": [{"date": str(a["date"]), "count": a["count"]} for a in active_trend],
+            "verification_rate": round(verified / total * 100, 1) if total else 0,
+            "verified_count": verified,
+            "total_count": total,
+            "churn_risk": at_risk,
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # API: DSW Analytics (replaces dead Usage tab — UsageLog has 0 records)
 # ---------------------------------------------------------------------------
 
+
 @api_view(["GET"])
 @permission_classes([IsInternalUser])
 def api_dsw_analytics(request):
     """DSW analysis volume, type popularity, and top users."""
-    from syn.log.models import RequestMetric
     from agents_api.models import DSWResult
+    from syn.log.models import RequestMetric
 
     days = _get_days(request)
     since = timezone.now().date() - timedelta(days=days)
@@ -491,18 +477,10 @@ def api_dsw_analytics(request):
 
     # Analysis type popularity from DSWResult
     results = DSWResult.objects.filter(created_at__date__gte=since)
-    type_counts = (
-        results.values("result_type")
-        .annotate(count=Count("id"))
-        .order_by("-count")[:20]
-    )
+    type_counts = results.values("result_type").annotate(count=Count("id")).order_by("-count")[:20]
 
     # Endpoint popularity from RequestMetric path_pattern
-    endpoint_counts = (
-        dsw_metrics.values("path_pattern")
-        .annotate(count=Sum("request_count"))
-        .order_by("-count")[:15]
-    )
+    endpoint_counts = dsw_metrics.values("path_pattern").annotate(count=Sum("request_count")).order_by("-count")[:15]
 
     # Top users (non-staff)
     top_users = (
@@ -513,55 +491,41 @@ def api_dsw_analytics(request):
         .order_by("-count")[:10]
     )
 
-    return Response({
-        "daily_volume": [
-            {"date": str(d["day"]), "requests": d["requests"] or 0, "errors": d["errors"] or 0}
-            for d in daily_volume
-        ],
-        "type_popularity": [
-            {"type": d["result_type"] or "unknown", "count": d["count"]}
-            for d in type_counts
-        ],
-        "endpoint_popularity": [
-            {"endpoint": d["path_pattern"], "count": d["count"] or 0}
-            for d in endpoint_counts
-        ],
-        "top_users": [
-            {"user": d["user__username"], "count": d["count"]}
-            for d in top_users
-        ],
-    })
+    return Response(
+        {
+            "daily_volume": [
+                {"date": str(d["day"]), "requests": d["requests"] or 0, "errors": d["errors"] or 0}
+                for d in daily_volume
+            ],
+            "type_popularity": [{"type": d["result_type"] or "unknown", "count": d["count"]} for d in type_counts],
+            "endpoint_popularity": [{"endpoint": d["path_pattern"], "count": d["count"] or 0} for d in endpoint_counts],
+            "top_users": [{"user": d["user__username"], "count": d["count"]} for d in top_users],
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # API: Hypothesis Health
 # ---------------------------------------------------------------------------
 
+
 @api_view(["GET"])
 @permission_classes([IsInternalUser])
 def api_hypothesis_health(request):
     """Project/hypothesis status distribution, evidence coverage, orphan detection."""
-    from core.models import Project, Hypothesis, Evidence, EvidenceLink
+    from core.models import Evidence, EvidenceLink, Hypothesis, Project
 
-    project_status = list(
-        Project.objects.values("status").annotate(count=Count("id")).order_by("-count")
-    )
+    project_status = list(Project.objects.values("status").annotate(count=Count("id")).order_by("-count"))
 
-    hyp_status = list(
-        Hypothesis.objects.values("status").annotate(count=Count("id")).order_by("-count")
-    )
+    hyp_status = list(Hypothesis.objects.values("status").annotate(count=Count("id")).order_by("-count"))
 
-    ev_sources = list(
-        Evidence.objects.values("source_type").annotate(count=Count("id")).order_by("-count")
-    )
+    ev_sources = list(Evidence.objects.values("source_type").annotate(count=Count("id")).order_by("-count"))
 
     total_hyp = Hypothesis.objects.count()
     linked_hyp = EvidenceLink.objects.values("hypothesis").distinct().count()
     orphan_count = total_hyp - linked_hyp
 
-    link_directions = list(
-        EvidenceLink.objects.values("direction").annotate(count=Count("id")).order_by("-count")
-    )
+    link_directions = list(EvidenceLink.objects.values("direction").annotate(count=Count("id")).order_by("-count"))
 
     recent_projects = list(
         Project.objects.annotate(hyp_count=Count("hypotheses"))
@@ -569,37 +533,40 @@ def api_hypothesis_health(request):
         .values("id", "title", "status", "hyp_count", "updated_at")
     )
 
-    return Response({
-        "project_status": [{"status": d["status"], "count": d["count"]} for d in project_status],
-        "hypothesis_status": [{"status": d["status"], "count": d["count"]} for d in hyp_status],
-        "evidence_sources": [{"source": d["source_type"], "count": d["count"]} for d in ev_sources],
-        "orphan_hypotheses": orphan_count,
-        "total_hypotheses": total_hyp,
-        "total_projects": Project.objects.count(),
-        "total_evidence": Evidence.objects.count(),
-        "link_directions": [{"direction": d["direction"], "count": d["count"]} for d in link_directions],
-        "recent_projects": [
-            {
-                "id": str(d["id"]),
-                "title": d["title"] or "(untitled)",
-                "status": d["status"],
-                "hypotheses": d["hyp_count"],
-                "updated": str(d["updated_at"].date()) if d["updated_at"] else "",
-            }
-            for d in recent_projects
-        ],
-    })
+    return Response(
+        {
+            "project_status": [{"status": d["status"], "count": d["count"]} for d in project_status],
+            "hypothesis_status": [{"status": d["status"], "count": d["count"]} for d in hyp_status],
+            "evidence_sources": [{"source": d["source_type"], "count": d["count"]} for d in ev_sources],
+            "orphan_hypotheses": orphan_count,
+            "total_hypotheses": total_hyp,
+            "total_projects": Project.objects.count(),
+            "total_evidence": Evidence.objects.count(),
+            "link_directions": [{"direction": d["direction"], "count": d["count"]} for d in link_directions],
+            "recent_projects": [
+                {
+                    "id": str(d["id"]),
+                    "title": d["title"] or "(untitled)",
+                    "status": d["status"],
+                    "hypotheses": d["hyp_count"],
+                    "updated": str(d["updated_at"].date()) if d["updated_at"] else "",
+                }
+                for d in recent_projects
+            ],
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # API: Anthropic (LLM usage + rate limits)
 # ---------------------------------------------------------------------------
 
+
 @api_view(["GET"])
 @permission_classes([IsInternalUser])
 def api_anthropic(request):
     """LLM token consumption, model distribution, rate limit config."""
-    from agents_api.models import LLMUsage, LLM_RATE_LIMITS, RateLimitOverride
+    from agents_api.models import LLM_RATE_LIMITS, LLMUsage, RateLimitOverride
 
     days = _get_days(request)
     since = timezone.now().date() - timedelta(days=days)
@@ -608,7 +575,8 @@ def api_anthropic(request):
     daily_tokens = (
         usage.values("date")
         .annotate(
-            input=Sum("input_tokens"), output=Sum("output_tokens"),
+            input=Sum("input_tokens"),
+            output=Sum("output_tokens"),
             requests=Sum("request_count"),
         )
         .order_by("date")
@@ -635,33 +603,36 @@ def api_anthropic(request):
     limits = []
     for tier, default_llm in LLM_RATE_LIMITS.items():
         ovr = overrides.get(tier, {})
-        limits.append({
-            "tier": tier,
-            "llm_limit": ovr.get("llm", default_llm),
-            "llm_default": default_llm,
-            "has_override": tier in overrides,
-        })
-
-    return Response({
-        "daily_tokens": [
+        limits.append(
             {
-                "date": str(d["date"]),
-                "input": d["input"] or 0,
-                "output": d["output"] or 0,
-                "requests": d["requests"] or 0,
+                "tier": tier,
+                "llm_limit": ovr.get("llm", default_llm),
+                "llm_default": default_llm,
+                "has_override": tier in overrides,
             }
-            for d in daily_tokens
-        ],
-        "model_distribution": [
-            {"model": d["model"], "requests": d["requests"], "tokens": d["tokens"] or 0}
-            for d in model_dist
-        ],
-        "top_consumers": [
-            {"user": d["user__username"], "requests": d["requests"], "tokens": d["tokens"] or 0}
-            for d in top_consumers
-        ],
-        "rate_limits": limits,
-    })
+        )
+
+    return Response(
+        {
+            "daily_tokens": [
+                {
+                    "date": str(d["date"]),
+                    "input": d["input"] or 0,
+                    "output": d["output"] or 0,
+                    "requests": d["requests"] or 0,
+                }
+                for d in daily_tokens
+            ],
+            "model_distribution": [
+                {"model": d["model"], "requests": d["requests"], "tokens": d["tokens"] or 0} for d in model_dist
+            ],
+            "top_consumers": [
+                {"user": d["user__username"], "requests": d["requests"], "tokens": d["tokens"] or 0}
+                for d in top_consumers
+            ],
+            "rate_limits": limits,
+        }
+    )
 
 
 @api_view(["POST"])
@@ -688,6 +659,7 @@ def api_rate_limit_override(request):
 # ---------------------------------------------------------------------------
 # API: Performance
 # ---------------------------------------------------------------------------
+
 
 @api_view(["GET"])
 @permission_classes([IsInternalUser])
@@ -763,18 +735,22 @@ def api_performance(request):
         key = ts if isinstance(ts, date) else (ts.date() if not use_hourly else ts)
         samples = sample_buckets.get(key, [])
 
-        latency_trend.append({
-            "ts": ts_str,
-            "avg": round(dur / total, 1) if total else 0,
-            "p50": round(_compute_percentile(samples, 50), 1) if samples else None,
-            "p95": round(_compute_percentile(samples, 95), 1) if samples else None,
-            "p99": round(_compute_percentile(samples, 99), 1) if samples else None,
-        })
-        error_rate_trend.append({
-            "ts": ts_str,
-            "rate": round(errors / total * 100, 2) if total else 0,
-            "count": errors,
-        })
+        latency_trend.append(
+            {
+                "ts": ts_str,
+                "avg": round(dur / total, 1) if total else 0,
+                "p50": round(_compute_percentile(samples, 50), 1) if samples else None,
+                "p95": round(_compute_percentile(samples, 95), 1) if samples else None,
+                "p99": round(_compute_percentile(samples, 99), 1) if samples else None,
+            }
+        )
+        error_rate_trend.append(
+            {
+                "ts": ts_str,
+                "rate": round(errors / total * 100, 2) if total else 0,
+                "count": errors,
+            }
+        )
         volume_trend.append({"ts": ts_str, "count": total})
 
     # --- Slow endpoints (top 10 by avg duration) ---
@@ -799,13 +775,15 @@ def api_performance(request):
         key = (ep["path_pattern"], ep["method"])
         samples = endpoint_samples.get(key, [])
         total = ep["total"]
-        slow_endpoints.append({
-            "path": ep["path_pattern"],
-            "method": ep["method"],
-            "avg_ms": round(ep["duration_sum"] / total, 1) if total else 0,
-            "p95_ms": round(_compute_percentile(samples, 95), 1) if samples else None,
-            "count": total,
-        })
+        slow_endpoints.append(
+            {
+                "path": ep["path_pattern"],
+                "method": ep["method"],
+                "avg_ms": round(ep["duration_sum"] / total, 1) if total else 0,
+                "p95_ms": round(_compute_percentile(samples, 95), 1) if samples else None,
+                "count": total,
+            }
+        )
 
     # --- SLA status (monthly p95/p99) ---
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -827,14 +805,16 @@ def api_performance(request):
         "sample_count": len(month_samples),
     }
 
-    return Response({
-        "kpis": kpis,
-        "latency_trend": latency_trend,
-        "error_rate_trend": error_rate_trend,
-        "volume_trend": volume_trend,
-        "slow_endpoints": slow_endpoints,
-        "sla_status": sla_status,
-    })
+    return Response(
+        {
+            "kpis": kpis,
+            "latency_trend": latency_trend,
+            "error_rate_trend": error_rate_trend,
+            "volume_trend": volume_trend,
+            "slow_endpoints": slow_endpoints,
+            "sla_status": sla_status,
+        }
+    )
 
 
 def _compute_percentile(samples, p):
@@ -854,6 +834,7 @@ def _compute_percentile(samples, p):
 # ---------------------------------------------------------------------------
 # API: Business
 # ---------------------------------------------------------------------------
+
 
 @api_view(["GET"])
 @permission_classes([IsInternalUser])
@@ -875,12 +856,22 @@ def api_business(request):
     paid = customers.filter(tier__in=PAID_TIERS).count()
 
     # Churn
-    churning = Subscription.objects.filter(
-        is_cancel_at_period_end=True,
-    ).exclude(user__is_staff=True).exclude(user__username__in=INTERNAL_USERNAMES).count()
-    active_subs = Subscription.objects.filter(
-        status="active",
-    ).exclude(user__is_staff=True).exclude(user__username__in=INTERNAL_USERNAMES).count()
+    churning = (
+        Subscription.objects.filter(
+            is_cancel_at_period_end=True,
+        )
+        .exclude(user__is_staff=True)
+        .exclude(user__username__in=INTERNAL_USERNAMES)
+        .count()
+    )
+    active_subs = (
+        Subscription.objects.filter(
+            status="active",
+        )
+        .exclude(user__is_staff=True)
+        .exclude(user__username__in=INTERNAL_USERNAMES)
+        .count()
+    )
 
     # Founder slots
     founder_count = customers.filter(tier="founder").count()
@@ -888,28 +879,28 @@ def api_business(request):
     # Feature adoption (paid customers only)
     tool_usage = Counter()
     paid_users = customers.filter(tier__in=PAID_TIERS)
-    for log in UsageLog.objects.filter(
-        date__gte=since, user__in=paid_users
-    ).exclude(domain_counts__isnull=True):
+    for log in UsageLog.objects.filter(date__gte=since, user__in=paid_users).exclude(domain_counts__isnull=True):
         if log.domain_counts:
             for domain, count in log.domain_counts.items():
                 tool_usage[domain] += count
 
-    return Response({
-        "revenue": revenue,
-        "funnel": {
-            "total": total,
-            "verified": verified,
-            "queried": queried,
-            "paid": paid,
-        },
-        "churn": {
-            "cancelling": churning,
-            "active_subscriptions": active_subs,
-        },
-        "founder_slots": {"used": founder_count, "total": 50},
-        "feature_adoption": tool_usage.most_common(15),
-    })
+    return Response(
+        {
+            "revenue": revenue,
+            "funnel": {
+                "total": total,
+                "verified": verified,
+                "queried": queried,
+                "paid": paid,
+            },
+            "churn": {
+                "cancelling": churning,
+                "active_subscriptions": active_subs,
+            },
+            "founder_slots": {"used": founder_count, "total": 50},
+            "feature_adoption": tool_usage.most_common(15),
+        }
+    )
 
 
 @api_view(["GET"])
@@ -929,9 +920,7 @@ def api_cohort_retention(request):
         else:
             cohort_end = cohort_start.replace(month=cohort_start.month + 1)
 
-        cohort_users = customers.filter(
-            date_joined__gte=cohort_start, date_joined__lt=cohort_end
-        )
+        cohort_users = customers.filter(date_joined__gte=cohort_start, date_joined__lt=cohort_end)
         cohort_size = cohort_users.count()
         if cohort_size == 0:
             continue
@@ -959,10 +948,12 @@ def api_cohort_retention(request):
                 UsageLog.objects.filter(
                     user_id__in=cohort_ids,
                     date__gte=check_start.date(),
-                    date__lt=(check_start.replace(
-                        month=check_start.month + 1 if check_start.month < 12 else 1,
-                        year=check_start.year if check_start.month < 12 else check_start.year + 1
-                    )).date(),
+                    date__lt=(
+                        check_start.replace(
+                            month=check_start.month + 1 if check_start.month < 12 else 1,
+                            year=check_start.year if check_start.month < 12 else check_start.year + 1,
+                        )
+                    ).date(),
                 )
                 .values("user_id")
                 .distinct()
@@ -971,11 +962,13 @@ def api_cohort_retention(request):
             pct = round(active_count / cohort_size * 100, 1)
             retention.append({"month": offset, "retained": pct})
 
-        cohorts.append({
-            "label": label,
-            "size": cohort_size,
-            "retention": retention,
-        })
+        cohorts.append(
+            {
+                "label": label,
+                "size": cohort_size,
+                "retention": retention,
+            }
+        )
 
     return Response({"cohorts": cohorts})
 
@@ -983,6 +976,7 @@ def api_cohort_retention(request):
 # ---------------------------------------------------------------------------
 # API: AI Insights (POST — calls Anthropic)
 # ---------------------------------------------------------------------------
+
 
 @api_view(["POST"])
 @permission_classes([IsInternalUser])
@@ -1012,13 +1006,15 @@ def api_insights(request):
                 "actionable insights. Cite numbers. Prioritize by impact. Use "
                 "markdown formatting with headers and bullet points."
             ),
-            messages=[{
-                "role": "user",
-                "content": (
-                    f"Dashboard data snapshot:\n```json\n"
-                    f"{json.dumps(snapshot, indent=2, default=str)}\n```\n\n{prompt}"
-                ),
-            }],
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        f"Dashboard data snapshot:\n```json\n"
+                        f"{json.dumps(snapshot, indent=2, default=str)}\n```\n\n{prompt}"
+                    ),
+                }
+            ],
         )
         return Response({"insights": response.content[0].text})
     except Exception as e:
@@ -1072,7 +1068,9 @@ def api_email_preview(request):
 def api_send_email(request):
     """Send HTML email to customers with tracking. Supports individual, tier-based, or all."""
     import re
+
     from django.core.mail import send_mail as django_send_mail
+
     from api.models import EmailCampaign, EmailRecipient
 
     target = request.data.get("to", "")
@@ -1115,9 +1113,8 @@ def api_send_email(request):
     # Check for active email_subject experiment
     from api.experiments import assign_variant
     from api.views import make_unsubscribe_url
-    active_subject_exp = Experiment.objects.filter(
-        experiment_type="email_subject", status="running"
-    ).first()
+
+    active_subject_exp = Experiment.objects.filter(experiment_type="email_subject", status="running").first()
 
     sent = 0
     failed = 0
@@ -1145,24 +1142,24 @@ def api_send_email(request):
         # Personalize
         personalized = body_html
         if user:
-            personalized = personalized.replace(
-                "{{name}}", user.display_name or user.username
-            ).replace(
-                "{{firstname}}", user.first_name or user.display_name or user.username
-            ).replace(
-                "{{email}}", user.email
-            ).replace(
-                "{{tier}}", user.tier
+            personalized = (
+                personalized.replace("{{name}}", user.display_name or user.username)
+                .replace("{{firstname}}", user.first_name or user.display_name or user.username)
+                .replace("{{email}}", user.email)
+                .replace("{{tier}}", user.tier)
             )
 
         # Rewrite links for click tracking
         def _track_link(match):
             url = match.group(1)
             return f'href="https://svend.ai/api/email/click/{rcpt.id}/?url={url}"'
+
         personalized = re.sub(r'href="(https?://[^"]+)"', _track_link, personalized)
 
         # Add tracking pixel
-        pixel = f'<img src="https://svend.ai/api/email/open/{rcpt.id}/" width="1" height="1" style="display:none;" alt="">'
+        pixel = (
+            f'<img src="https://svend.ai/api/email/open/{rcpt.id}/" width="1" height="1" style="display:none;" alt="">'
+        )
         unsub_url = make_unsubscribe_url(user) if user else "https://svend.ai"
         full_html = EMAIL_TEMPLATE.format(body=personalized + pixel, unsub_url=unsub_url)
 
@@ -1180,13 +1177,15 @@ def api_send_email(request):
             rcpt.save(update_fields=["has_failed"])
             failed += 1
 
-    return Response({
-        "sent": sent,
-        "failed": failed,
-        "skipped_opted_out": skipped,
-        "campaign_id": str(campaign.id),
-        "experiment": active_subject_exp.name if active_subject_exp else None,
-    })
+    return Response(
+        {
+            "sent": sent,
+            "failed": failed,
+            "skipped_opted_out": skipped,
+            "campaign_id": str(campaign.id),
+            "experiment": active_subject_exp.name if active_subject_exp else None,
+        }
+    )
 
 
 @api_view(["POST"])
@@ -1262,8 +1261,9 @@ def api_get_email_draft(request):
 @permission_classes([IsInternalUser])
 def api_email_campaigns(request):
     """List email campaigns with tracking stats."""
-    from api.models import EmailCampaign, EmailRecipient
     from django.db.models import Count, Q
+
+    from api.models import EmailCampaign, EmailRecipient
 
     days = _get_days(request)
     since = timezone.now() - timedelta(days=days)
@@ -1284,9 +1284,8 @@ def api_email_campaigns(request):
     conversion_map = {}
     for c in campaign_list:
         window_end = c.created_at + timedelta(days=7)
-        recipient_user_ids = (
-            EmailRecipient.objects.filter(campaign=c, user__isnull=False)
-            .values_list("user_id", flat=True)
+        recipient_user_ids = EmailRecipient.objects.filter(campaign=c, user__isnull=False).values_list(
+            "user_id", flat=True
         )
         conversions = Subscription.objects.filter(
             user_id__in=recipient_user_ids,
@@ -1296,45 +1295,49 @@ def api_email_campaigns(request):
         ).count()
         conversion_map[c.id] = conversions
 
-    return Response({
-        "campaigns": [
-            {
-                "id": str(c.id),
-                "subject": c.subject,
-                "target": c.target,
-                "is_test": c.is_test,
-                "recipient_count": c.recipient_count,
-                "sent": c.total_sent,
-                "failed": c.total_failed,
-                "opened": c.total_opened,
-                "clicked": c.total_clicked,
-                "open_rate": round(c.total_opened / c.total_sent * 100, 1) if c.total_sent else 0,
-                "click_rate": round(c.total_clicked / c.total_sent * 100, 1) if c.total_sent else 0,
-                "conversions": conversion_map.get(c.id, 0),
-                "created_at": c.created_at.isoformat(),
-            }
-            for c in campaign_list
-        ],
-    })
+    return Response(
+        {
+            "campaigns": [
+                {
+                    "id": str(c.id),
+                    "subject": c.subject,
+                    "target": c.target,
+                    "is_test": c.is_test,
+                    "recipient_count": c.recipient_count,
+                    "sent": c.total_sent,
+                    "failed": c.total_failed,
+                    "opened": c.total_opened,
+                    "clicked": c.total_clicked,
+                    "open_rate": round(c.total_opened / c.total_sent * 100, 1) if c.total_sent else 0,
+                    "click_rate": round(c.total_clicked / c.total_sent * 100, 1) if c.total_sent else 0,
+                    "conversions": conversion_map.get(c.id, 0),
+                    "created_at": c.created_at.isoformat(),
+                }
+                for c in campaign_list
+            ],
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # API: Activity (Event Tracking)
 # ---------------------------------------------------------------------------
 
+
 @api_view(["GET"])
 @permission_classes([IsInternalUser])
 def api_activity(request):
     days = _get_days(request)
     since = timezone.now() - timedelta(days=days)
-    events = EventLog.objects.filter(created_at__gte=since).exclude(user__is_staff=True).exclude(user__username__in=INTERNAL_USERNAMES)
+    events = (
+        EventLog.objects.filter(created_at__gte=since)
+        .exclude(user__is_staff=True)
+        .exclude(user__username__in=INTERNAL_USERNAMES)
+    )
 
     # Page popularity
     page_views = (
-        events.filter(event_type="page_view")
-        .values("page")
-        .annotate(count=Count("id"))
-        .order_by("-count")[:20]
+        events.filter(event_type="page_view").values("page").annotate(count=Count("id")).order_by("-count")[:20]
     )
 
     # Feature heatmap
@@ -1355,10 +1358,7 @@ def api_activity(request):
     )
 
     # Recent user journeys (most recent first, customers only)
-    recent_events = (
-        events.select_related("user")
-        .order_by("-created_at")[:200]
-    )
+    recent_events = events.select_related("user").order_by("-created_at")[:200]
     journeys = {}
     for evt in recent_events:
         uid = str(evt.user_id) if evt.user_id else "anon"
@@ -1368,13 +1368,15 @@ def api_activity(request):
                 "events": [],
             }
         if len(journeys[uid]["events"]) < 20:
-            journeys[uid]["events"].append({
-                "type": evt.event_type,
-                "category": evt.category,
-                "action": evt.action,
-                "page": evt.page,
-                "time": evt.created_at.isoformat(),
-            })
+            journeys[uid]["events"].append(
+                {
+                    "type": evt.event_type,
+                    "category": evt.category,
+                    "action": evt.action,
+                    "page": evt.page,
+                    "time": evt.created_at.isoformat(),
+                }
+            )
 
     # Feature use over time (daily)
     daily_features = (
@@ -1391,28 +1393,27 @@ def api_activity(request):
     total_feature_uses = events.filter(event_type="feature_use").count()
     unique_sessions = events.values("session_id").distinct().count()
 
-    return Response({
-        "page_views": list(page_views),
-        "feature_use": list(feature_use),
-        "daily_sessions": [
-            {"date": str(d["date"]), "count": d["count"]} for d in daily_sessions
-        ],
-        "journeys": list(journeys.values())[:10],
-        "daily_features": [
-            {"date": str(d["date"]), "count": d["count"]} for d in daily_features
-        ],
-        "totals": {
-            "events": total_events,
-            "page_views": total_page_views,
-            "feature_uses": total_feature_uses,
-            "unique_sessions": unique_sessions,
-        },
-    })
+    return Response(
+        {
+            "page_views": list(page_views),
+            "feature_use": list(feature_use),
+            "daily_sessions": [{"date": str(d["date"]), "count": d["count"]} for d in daily_sessions],
+            "journeys": list(journeys.values())[:10],
+            "daily_features": [{"date": str(d["date"]), "count": d["count"]} for d in daily_features],
+            "totals": {
+                "events": total_events,
+                "page_views": total_page_views,
+                "feature_uses": total_feature_uses,
+                "unique_sessions": unique_sessions,
+            },
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # API: Onboarding Analytics
 # ---------------------------------------------------------------------------
+
 
 @api_view(["GET"])
 @permission_classes([IsInternalUser])
@@ -1432,17 +1433,9 @@ def api_onboarding(request):
 
     # Survey distributions
     industry_dist = dict(
-        surveys.exclude(industry="")
-        .values_list("industry")
-        .annotate(c=Count("id"))
-        .values_list("industry", "c")
+        surveys.exclude(industry="").values_list("industry").annotate(c=Count("id")).values_list("industry", "c")
     )
-    role_dist = dict(
-        surveys.exclude(role="")
-        .values_list("role")
-        .annotate(c=Count("id"))
-        .values_list("role", "c")
-    )
+    role_dist = dict(surveys.exclude(role="").values_list("role").annotate(c=Count("id")).values_list("role", "c"))
     experience_dist = dict(
         surveys.exclude(experience_level="")
         .values_list("experience_level")
@@ -1469,14 +1462,12 @@ def api_onboarding(request):
     # Tools used (JSON array field — need to iterate)
     tool_counts = {}
     for survey in surveys.exclude(tools_used=[]):
-        for t in (survey.tools_used or []):
+        for t in survey.tools_used or []:
             tool_counts[t] = tool_counts.get(t, 0) + 1
 
     # Top challenges (free text — just return recent ones for the dashboard)
     challenges = list(
-        surveys.exclude(biggest_challenge="")
-        .order_by("-created_at")
-        .values_list("biggest_challenge", flat=True)[:20]
+        surveys.exclude(biggest_challenge="").order_by("-created_at").values_list("biggest_challenge", flat=True)[:20]
     )
 
     # Email stats
@@ -1500,66 +1491,69 @@ def api_onboarding(request):
         .order_by("date")
     )
 
-    return Response({
-        "funnel": {
-            "registered": total,
-            "onboarded": completed,
-            "verified": verified,
-            "queried": queried,
-            "paid": paid,
-        },
-        "completion_rate": round(completed / total * 100, 1) if total else 0,
-        "distributions": {
-            "industry": industry_dist,
-            "role": role_dist,
-            "experience": experience_dist,
-            "goal": goal_dist,
-            "learning_path": path_dist,
-            "tools": tool_counts,
-        },
-        "averages": {
-            "confidence": round(conf_avg, 1) if conf_avg else None,
-            "urgency": round(urg_avg, 1) if urg_avg else None,
-        },
-        "challenges": challenges,
-        "email_stats": email_stats,
-        "completions_over_time": [
-            {"date": str(c["date"]), "count": c["count"]} for c in completions
-        ],
-    })
+    return Response(
+        {
+            "funnel": {
+                "registered": total,
+                "onboarded": completed,
+                "verified": verified,
+                "queried": queried,
+                "paid": paid,
+            },
+            "completion_rate": round(completed / total * 100, 1) if total else 0,
+            "distributions": {
+                "industry": industry_dist,
+                "role": role_dist,
+                "experience": experience_dist,
+                "goal": goal_dist,
+                "learning_path": path_dist,
+                "tools": tool_counts,
+            },
+            "averages": {
+                "confidence": round(conf_avg, 1) if conf_avg else None,
+                "urgency": round(urg_avg, 1) if urg_avg else None,
+            },
+            "challenges": challenges,
+            "email_stats": email_stats,
+            "completions_over_time": [{"date": str(c["date"]), "count": c["count"]} for c in completions],
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # API: Blog Management (Content tab)
 # ---------------------------------------------------------------------------
 
+
 @api_view(["GET"])
 @permission_classes([IsInternalUser])
 def api_blog_list(request):
     """List all blog posts (drafts, scheduled, and published)."""
     posts = BlogPost.objects.all().order_by("-created_at")
-    return Response({
-        "posts": [
-            {
-                "id": str(p.id),
-                "title": p.title,
-                "slug": p.slug,
-                "status": p.status,
-                "meta_description": p.meta_description,
-                "created_at": p.created_at.isoformat(),
-                "updated_at": p.updated_at.isoformat(),
-                "published_at": p.published_at.isoformat() if p.published_at else None,
-                "scheduled_at": p.scheduled_at.isoformat() if p.scheduled_at else None,
-            }
-            for p in posts
-        ],
-        "counts": {
-            "total": posts.count(),
-            "published": posts.filter(status="published").count(),
-            "scheduled": posts.filter(status="scheduled").count(),
-            "draft": posts.filter(status="draft").count(),
-        },
-    })
+    return Response(
+        {
+            "posts": [
+                {
+                    "id": str(p.id),
+                    "title": p.title,
+                    "slug": p.slug,
+                    "status": p.status,
+                    "meta_description": p.meta_description,
+                    "created_at": p.created_at.isoformat(),
+                    "updated_at": p.updated_at.isoformat(),
+                    "published_at": p.published_at.isoformat() if p.published_at else None,
+                    "scheduled_at": p.scheduled_at.isoformat() if p.scheduled_at else None,
+                }
+                for p in posts
+            ],
+            "counts": {
+                "total": posts.count(),
+                "published": posts.filter(status="published").count(),
+                "scheduled": posts.filter(status="scheduled").count(),
+                "draft": posts.filter(status="draft").count(),
+            },
+        }
+    )
 
 
 @api_view(["GET"])
@@ -1570,17 +1564,19 @@ def api_blog_get(request, post_id):
         post = BlogPost.objects.get(id=post_id)
     except BlogPost.DoesNotExist:
         return Response({"error": "Post not found."}, status=404)
-    return Response({
-        "id": str(post.id),
-        "title": post.title,
-        "slug": post.slug,
-        "body": post.body,
-        "meta_description": post.meta_description,
-        "status": post.status,
-        "created_at": post.created_at.isoformat(),
-        "published_at": post.published_at.isoformat() if post.published_at else None,
-        "scheduled_at": post.scheduled_at.isoformat() if post.scheduled_at else None,
-    })
+    return Response(
+        {
+            "id": str(post.id),
+            "title": post.title,
+            "slug": post.slug,
+            "body": post.body,
+            "meta_description": post.meta_description,
+            "status": post.status,
+            "created_at": post.created_at.isoformat(),
+            "published_at": post.published_at.isoformat() if post.published_at else None,
+            "scheduled_at": post.scheduled_at.isoformat() if post.scheduled_at else None,
+        }
+    )
 
 
 @api_view(["POST"])
@@ -1607,11 +1603,13 @@ def api_blog_save(request):
         post.slug = data["slug"]
 
     post.save()
-    return Response({
-        "id": str(post.id),
-        "slug": post.slug,
-        "status": post.status,
-    })
+    return Response(
+        {
+            "id": str(post.id),
+            "slug": post.slug,
+            "status": post.status,
+        }
+    )
 
 
 @api_view(["POST"])
@@ -1628,6 +1626,7 @@ def api_blog_publish(request, post_id):
 
     if action == "schedule" and scheduled_at:
         from django.utils.dateparse import parse_datetime
+
         dt = parse_datetime(scheduled_at)
         if not dt:
             return Response({"error": "Invalid datetime format."}, status=400)
@@ -1644,10 +1643,12 @@ def api_blog_publish(request, post_id):
         post.status = BlogPost.Status.DRAFT
         post.scheduled_at = None
     post.save()
-    return Response({
-        "status": post.status,
-        "scheduled_at": post.scheduled_at.isoformat() if post.scheduled_at else None,
-    })
+    return Response(
+        {
+            "status": post.status,
+            "scheduled_at": post.scheduled_at.isoformat() if post.scheduled_at else None,
+        }
+    )
 
 
 @api_view(["DELETE"])
@@ -1714,23 +1715,27 @@ def api_blog_generate(request):
         meta_response = client.messages.create(
             model="claude-sonnet-4-5-20250929",
             max_tokens=200,
-            messages=[{
-                "role": "user",
-                "content": (
-                    f"Write a 150-character SEO meta description for this blog post. "
-                    f"Include the primary keyword. Return ONLY the description, nothing else.\n\n"
-                    f"Title topic: {topic}\n"
-                    f"Keywords: {keywords}"
-                ),
-            }],
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        f"Write a 150-character SEO meta description for this blog post. "
+                        f"Include the primary keyword. Return ONLY the description, nothing else.\n\n"
+                        f"Title topic: {topic}\n"
+                        f"Keywords: {keywords}"
+                    ),
+                }
+            ],
         )
         meta = meta_response.content[0].text.strip()[:160]
 
-        return Response({
-            "title": topic,
-            "body": body,
-            "meta_description": meta,
-        })
+        return Response(
+            {
+                "title": topic,
+                "body": body,
+                "meta_description": meta,
+            }
+        )
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 
@@ -1738,6 +1743,7 @@ def api_blog_generate(request):
 # ---------------------------------------------------------------------------
 # API: Blog Analytics
 # ---------------------------------------------------------------------------
+
 
 @api_view(["GET"])
 @permission_classes([IsInternalUser])
@@ -1764,10 +1770,7 @@ def api_blog_analytics(request):
 
     # Referrer domains (where traffic comes from), including direct
     referrers_raw = list(
-        views.exclude(referrer_domain="")
-        .values("referrer_domain")
-        .annotate(count=Count("id"))
-        .order_by("-count")[:15]
+        views.exclude(referrer_domain="").values("referrer_domain").annotate(count=Count("id")).order_by("-count")[:15]
     )
     direct = views.filter(referrer_domain="").count()
     referrers = [{"domain": "Direct", "count": direct}] if direct else []
@@ -1786,28 +1789,27 @@ def api_blog_analytics(request):
             "unique": p["unique"],
         }
 
-    return Response({
-        "daily_views": [
-            {"date": str(d["date"]), "total": d["total"], "unique": d["unique"]}
-            for d in daily_views
-        ],
-        "top_posts": [
-            {
-                "title": p["post__title"],
-                "slug": p["post__slug"],
-                "views": p["total"],
-                "unique": p["unique"],
-            }
-            for p in top_posts
-        ],
-        "referrers": referrers,
-        "totals": {
-            "views": total_views,
-            "unique_visitors": unique_visitors,
-            "bot_hits": bot_hits,
-        },
-        "post_stats": post_stats,
-    })
+    return Response(
+        {
+            "daily_views": [{"date": str(d["date"]), "total": d["total"], "unique": d["unique"]} for d in daily_views],
+            "top_posts": [
+                {
+                    "title": p["post__title"],
+                    "slug": p["post__slug"],
+                    "views": p["total"],
+                    "unique": p["unique"],
+                }
+                for p in top_posts
+            ],
+            "referrers": referrers,
+            "totals": {
+                "views": total_views,
+                "unique_visitors": unique_visitors,
+                "bot_hits": bot_hits,
+            },
+            "post_stats": post_stats,
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1819,32 +1821,32 @@ def api_blog_analytics(request):
 @permission_classes([IsInternalUser])
 def api_whitepaper_list(request):
     """List all white papers with counts."""
-    papers = WhitePaper.objects.annotate(
-        download_count=Count("downloads")
-    ).order_by("-created_at")
-    return Response({
-        "papers": [
-            {
-                "id": str(p.id),
-                "title": p.title,
-                "slug": p.slug,
-                "topic": p.topic,
-                "status": p.status,
-                "gated": p.is_gated,
-                "meta_description": p.meta_description,
-                "download_count": p.download_count,
-                "created_at": p.created_at.isoformat() if p.created_at else None,
-                "updated_at": p.updated_at.isoformat() if p.updated_at else None,
-                "published_at": p.published_at.isoformat() if p.published_at else None,
-            }
-            for p in papers
-        ],
-        "counts": {
-            "total": papers.count(),
-            "published": papers.filter(status="published").count(),
-            "draft": papers.filter(status="draft").count(),
-        },
-    })
+    papers = WhitePaper.objects.annotate(download_count=Count("downloads")).order_by("-created_at")
+    return Response(
+        {
+            "papers": [
+                {
+                    "id": str(p.id),
+                    "title": p.title,
+                    "slug": p.slug,
+                    "topic": p.topic,
+                    "status": p.status,
+                    "gated": p.is_gated,
+                    "meta_description": p.meta_description,
+                    "download_count": p.download_count,
+                    "created_at": p.created_at.isoformat() if p.created_at else None,
+                    "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+                    "published_at": p.published_at.isoformat() if p.published_at else None,
+                }
+                for p in papers
+            ],
+            "counts": {
+                "total": papers.count(),
+                "published": papers.filter(status="published").count(),
+                "draft": papers.filter(status="draft").count(),
+            },
+        }
+    )
 
 
 @api_view(["GET"])
@@ -1855,19 +1857,21 @@ def api_whitepaper_get(request, paper_id):
         p = WhitePaper.objects.get(id=paper_id)
     except WhitePaper.DoesNotExist:
         return Response({"error": "not found"}, status=404)
-    return Response({
-        "id": str(p.id),
-        "title": p.title,
-        "slug": p.slug,
-        "topic": p.topic,
-        "description": p.description,
-        "body": p.body,
-        "meta_description": p.meta_description,
-        "status": p.status,
-        "gated": p.is_gated,
-        "created_at": p.created_at.isoformat() if p.created_at else None,
-        "published_at": p.published_at.isoformat() if p.published_at else None,
-    })
+    return Response(
+        {
+            "id": str(p.id),
+            "title": p.title,
+            "slug": p.slug,
+            "topic": p.topic,
+            "description": p.description,
+            "body": p.body,
+            "meta_description": p.meta_description,
+            "status": p.status,
+            "gated": p.is_gated,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+            "published_at": p.published_at.isoformat() if p.published_at else None,
+        }
+    )
 
 
 @api_view(["POST"])
@@ -1968,33 +1972,33 @@ def api_whitepaper_analytics(request):
     emails_captured = downloads.exclude(email="").values("email").distinct().count()
     bot_hits = WhitePaperDownload.objects.filter(downloaded_at__gte=since, is_bot=True).count()
 
-    return Response({
-        "daily_downloads": [
-            {"date": str(d["date"]), "total": d["total"], "unique": d["unique"]}
-            for d in daily
-        ],
-        "top_papers": [
-            {
-                "title": p["paper__title"],
-                "slug": p["paper__slug"],
-                "downloads": p["total"],
-                "unique": p["unique"],
-            }
-            for p in top_papers
-        ],
-        "referrers": referrers,
-        "totals": {
-            "downloads": total_downloads,
-            "unique_downloaders": unique_downloaders,
-            "emails_captured": emails_captured,
-            "bot_hits": bot_hits,
-        },
-    })
+    return Response(
+        {
+            "daily_downloads": [{"date": str(d["date"]), "total": d["total"], "unique": d["unique"]} for d in daily],
+            "top_papers": [
+                {
+                    "title": p["paper__title"],
+                    "slug": p["paper__slug"],
+                    "downloads": p["total"],
+                    "unique": p["unique"],
+                }
+                for p in top_papers
+            ],
+            "referrers": referrers,
+            "totals": {
+                "downloads": total_downloads,
+                "unique_downloaders": unique_downloaders,
+                "emails_captured": emails_captured,
+                "bot_hits": bot_hits,
+            },
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _build_data_snapshot(days=30):
     """Anonymized aggregate snapshot for AI analysis (customers only)."""
@@ -2009,11 +2013,7 @@ def _build_data_snapshot(days=30):
     queried = customers.filter(total_queries__gt=0).count()
     paid = customers.filter(tier__in=PAID_TIERS).count()
 
-    tier_dist = dict(
-        customers.values_list("tier")
-        .annotate(c=Count("id"))
-        .values_list("tier", "c")
-    )
+    tier_dist = dict(customers.values_list("tier").annotate(c=Count("id")).values_list("tier", "c"))
 
     mrr = sum(tier_dist.get(t, 0) * p for t, p in TIER_PRICES.items())
 
@@ -2052,21 +2052,18 @@ def _build_data_snapshot(days=30):
                 domain_totals[d] += c
 
     industries = dict(
-        customers.exclude(industry="")
-        .values_list("industry")
-        .annotate(c=Count("id"))
-        .values_list("industry", "c")
+        customers.exclude(industry="").values_list("industry").annotate(c=Count("id")).values_list("industry", "c")
     )
-    roles = dict(
-        customers.exclude(role="")
-        .values_list("role")
-        .annotate(c=Count("id"))
-        .values_list("role", "c")
-    )
+    roles = dict(customers.exclude(role="").values_list("role").annotate(c=Count("id")).values_list("role", "c"))
 
-    churning = Subscription.objects.filter(
-        is_cancel_at_period_end=True,
-    ).exclude(user__is_staff=True).exclude(user__username__in=INTERNAL_USERNAMES).count()
+    churning = (
+        Subscription.objects.filter(
+            is_cancel_at_period_end=True,
+        )
+        .exclude(user__is_staff=True)
+        .exclude(user__username__in=INTERNAL_USERNAMES)
+        .count()
+    )
 
     signups = list(
         customers.filter(date_joined__gte=since)
@@ -2096,17 +2093,13 @@ def _build_data_snapshot(days=30):
         },
         "usage": {k: v or 0 for k, v in usage.items()},
         "performance": {
-            "avg_latency_ms": (
-                round(perf["avg_latency"], 1) if perf["avg_latency"] else None
-            ),
+            "avg_latency_ms": (round(perf["avg_latency"], 1) if perf["avg_latency"] else None),
             "total_traces": perf["total_traces"],
             "gate_pass_rate": (
-                round(perf["gates_passed"] / perf["total_traces"] * 100, 1)
-                if perf["total_traces"] else None
+                round(perf["gates_passed"] / perf["total_traces"] * 100, 1) if perf["total_traces"] else None
             ),
             "fallback_rate": (
-                round(perf["fallbacks"] / perf["total_traces"] * 100, 1)
-                if perf["total_traces"] else None
+                round(perf["fallbacks"] / perf["total_traces"] * 100, 1) if perf["total_traces"] else None
             ),
         },
         "top_domains": domain_totals.most_common(10),
@@ -2118,6 +2111,7 @@ def _build_data_snapshot(days=30):
 # Automation: Experiments
 # ---------------------------------------------------------------------------
 
+
 @api_view(["GET", "POST"])
 @permission_classes([IsInternalUser])
 def api_experiments(request):
@@ -2127,23 +2121,25 @@ def api_experiments(request):
         data = []
         for exp in exps:
             assigned = ExperimentAssignment.objects.filter(experiment=exp).count()
-            data.append({
-                "id": str(exp.id),
-                "name": exp.name,
-                "hypothesis": exp.hypothesis,
-                "experiment_type": exp.experiment_type,
-                "metric": exp.metric,
-                "variants": exp.variants,
-                "status": exp.status,
-                "winner": exp.winner,
-                "target": exp.target,
-                "min_sample_size": exp.min_sample_size,
-                "results": exp.results,
-                "assigned": assigned,
-                "started_at": exp.started_at,
-                "ended_at": exp.ended_at,
-                "created_at": exp.created_at,
-            })
+            data.append(
+                {
+                    "id": str(exp.id),
+                    "name": exp.name,
+                    "hypothesis": exp.hypothesis,
+                    "experiment_type": exp.experiment_type,
+                    "metric": exp.metric,
+                    "variants": exp.variants,
+                    "status": exp.status,
+                    "winner": exp.winner,
+                    "target": exp.target,
+                    "min_sample_size": exp.min_sample_size,
+                    "results": exp.results,
+                    "assigned": assigned,
+                    "started_at": exp.started_at,
+                    "ended_at": exp.ended_at,
+                    "created_at": exp.created_at,
+                }
+            )
         return Response({"experiments": data})
 
     # POST — create or update
@@ -2154,8 +2150,16 @@ def api_experiments(request):
             exp = Experiment.objects.get(id=exp_id)
         except Experiment.DoesNotExist:
             return Response({"error": "not_found"}, status=404)
-        for field in ["name", "hypothesis", "experiment_type", "metric", "variants",
-                       "status", "target", "min_sample_size"]:
+        for field in [
+            "name",
+            "hypothesis",
+            "experiment_type",
+            "metric",
+            "variants",
+            "status",
+            "target",
+            "min_sample_size",
+        ]:
             if field in d:
                 setattr(exp, field, d[field])
         if d.get("status") == "running" and not exp.started_at:
@@ -2190,11 +2194,13 @@ def api_experiment_evaluate(request, experiment_id):
         return Response({"error": "not_found"}, status=404)
 
     results = evaluate_experiment(exp)
-    return Response({
-        "results": results,
-        "status": exp.status,
-        "winner": exp.winner,
-    })
+    return Response(
+        {
+            "results": results,
+            "status": exp.status,
+            "winner": exp.winner,
+        }
+    )
 
 
 @api_view(["POST"])
@@ -2218,6 +2224,7 @@ def api_experiment_conclude(request, experiment_id):
 # Automation: Rules
 # ---------------------------------------------------------------------------
 
+
 @api_view(["GET", "POST"])
 @permission_classes([IsInternalUser])
 def api_automation_rules(request):
@@ -2226,23 +2233,25 @@ def api_automation_rules(request):
         rules = AutomationRule.objects.all()
         data = []
         for rule in rules:
-            data.append({
-                "id": str(rule.id),
-                "name": rule.name,
-                "description": rule.description,
-                "trigger": rule.trigger,
-                "trigger_config": rule.trigger_config,
-                "trigger_2": rule.trigger_2,
-                "trigger_2_config": rule.trigger_2_config,
-                "trigger_logic": rule.trigger_logic,
-                "action": rule.action,
-                "action_config": rule.action_config,
-                "is_active": rule.is_active,
-                "cooldown_hours": rule.cooldown_hours,
-                "times_fired": rule.times_fired,
-                "last_fired_at": rule.last_fired_at,
-                "created_at": rule.created_at,
-            })
+            data.append(
+                {
+                    "id": str(rule.id),
+                    "name": rule.name,
+                    "description": rule.description,
+                    "trigger": rule.trigger,
+                    "trigger_config": rule.trigger_config,
+                    "trigger_2": rule.trigger_2,
+                    "trigger_2_config": rule.trigger_2_config,
+                    "trigger_logic": rule.trigger_logic,
+                    "action": rule.action,
+                    "action_config": rule.action_config,
+                    "is_active": rule.is_active,
+                    "cooldown_hours": rule.cooldown_hours,
+                    "times_fired": rule.times_fired,
+                    "last_fired_at": rule.last_fired_at,
+                    "created_at": rule.created_at,
+                }
+            )
         return Response({"rules": data})
 
     # POST — create or update
@@ -2254,8 +2263,16 @@ def api_automation_rules(request):
             rule = AutomationRule.objects.get(id=rule_id)
         except AutomationRule.DoesNotExist:
             return Response({"error": "not_found"}, status=404)
-        for field in ["name", "description", "trigger", "trigger_config",
-                       "action", "action_config", "is_active", "cooldown_hours"] + compound_fields:
+        for field in [
+            "name",
+            "description",
+            "trigger",
+            "trigger_config",
+            "action",
+            "action_config",
+            "is_active",
+            "cooldown_hours",
+        ] + compound_fields:
             if field in d:
                 setattr(rule, field, d[field])
         rule.save()
@@ -2293,6 +2310,7 @@ def api_automation_rule_toggle(request, rule_id):
 # Automation: Log
 # ---------------------------------------------------------------------------
 
+
 @api_view(["GET"])
 @permission_classes([IsInternalUser])
 def api_automation_log(request):
@@ -2304,22 +2322,25 @@ def api_automation_log(request):
         qs = qs.filter(rule_id=rule_id)
     entries = []
     for log in qs[:limit]:
-        entries.append({
-            "id": str(log.id),
-            "rule": log.rule.name,
-            "rule_id": str(log.rule_id),
-            "user": log.user.username,
-            "user_email": log.user.email,
-            "action_taken": log.action_taken,
-            "result": log.result,
-            "fired_at": log.fired_at,
-        })
+        entries.append(
+            {
+                "id": str(log.id),
+                "rule": log.rule.name,
+                "rule_id": str(log.rule_id),
+                "user": log.user.username,
+                "user_email": log.user.email,
+                "action_taken": log.action_taken,
+                "result": log.result,
+                "fired_at": log.fired_at,
+            }
+        )
     return Response({"log": entries})
 
 
 # ---------------------------------------------------------------------------
 # Automation: Autopilot
 # ---------------------------------------------------------------------------
+
 
 @api_view(["GET"])
 @permission_classes([IsInternalUser])
@@ -2328,14 +2349,16 @@ def api_autopilot(request):
     reports = AutopilotReport.objects.all()[:10]
     data = []
     for r in reports:
-        data.append({
-            "id": str(r.id),
-            "created_at": r.created_at,
-            "insights": r.insights,
-            "recommendations": r.recommendations,
-            "alerts": r.alerts,
-            "status": r.status,
-        })
+        data.append(
+            {
+                "id": str(r.id),
+                "created_at": r.created_at,
+                "insights": r.insights,
+                "recommendations": r.recommendations,
+                "alerts": r.alerts,
+                "status": r.status,
+            }
+        )
     return Response({"reports": data})
 
 
@@ -2370,7 +2393,6 @@ def api_autopilot_approve(request, report_id):
 
     elif rec_type == "email":
         # Create and send a campaign
-        from api.internal_views import EMAIL_TEMPLATE
         subject = config.get("subject", rec.get("title", ""))
         body = config.get("body_preview", "")
         target = config.get("target", "all")
@@ -2383,6 +2405,7 @@ def api_autopilot_approve(request, report_id):
         title = config.get("title", "")
         if title:
             from api.models import BlogPost
+
             post = BlogPost.objects.create(
                 title=title,
                 body=f"Draft generated from autopilot recommendation.\n\nTarget keyword: {config.get('target_keyword', '')}",
@@ -2424,6 +2447,7 @@ def api_autopilot_run(request):
 # Feedback
 # ---------------------------------------------------------------------------
 
+
 @api_view(["GET", "POST"])
 @permission_classes([IsInternalUser])
 def api_feedback(request):
@@ -2454,18 +2478,20 @@ def api_feedback(request):
         qs = qs.filter(status=status_filter)
     entries = []
     for fb in qs[:100]:
-        entries.append({
-            "id": str(fb.id),
-            "user": fb.user.username if fb.user else "anonymous",
-            "user_email": fb.user.email if fb.user else "",
-            "user_tier": fb.user.tier if fb.user else "",
-            "category": fb.category,
-            "message": fb.message,
-            "page": fb.page,
-            "status": fb.status,
-            "internal_notes": fb.internal_notes,
-            "created_at": fb.created_at,
-        })
+        entries.append(
+            {
+                "id": str(fb.id),
+                "user": fb.user.username if fb.user else "anonymous",
+                "user_email": fb.user.email if fb.user else "",
+                "user_tier": fb.user.tier if fb.user else "",
+                "category": fb.category,
+                "message": fb.message,
+                "page": fb.page,
+                "status": fb.status,
+                "internal_notes": fb.internal_notes,
+                "created_at": fb.created_at,
+            }
+        )
 
     # Summary counts (always unfiltered)
     all_fb = Feedback.objects.all()
@@ -2487,6 +2513,7 @@ def api_feedback(request):
     }
     return Response({"feedback": entries, "summary": summary})
 
+
 # ---------------------------------------------------------------------------
 # CRM — Outbound Outreach Management
 # ---------------------------------------------------------------------------
@@ -2506,38 +2533,36 @@ def api_crm_leads(request):
         if source:
             qs = qs.filter(source=source)
         if search:
-            qs = qs.filter(
-                Q(name__icontains=search)
-                | Q(email__icontains=search)
-                | Q(company__icontains=search)
-            )
+            qs = qs.filter(Q(name__icontains=search) | Q(email__icontains=search) | Q(company__icontains=search))
         leads = []
         for lead in qs[:200]:
-            leads.append({
-                "id": str(lead.id),
-                "name": lead.name,
-                "email": lead.email,
-                "company": lead.company,
-                "role": lead.role,
-                "industry": lead.industry,
-                "source": lead.source,
-                "stage": lead.stage,
-                "notes": lead.notes,
-                "tags": lead.tags,
-                "email_opted_out": lead.is_email_opted_out,
-                "last_contacted_at": lead.last_contacted_at.isoformat() if lead.last_contacted_at else None,
-                "next_followup_at": lead.next_followup_at.isoformat() if lead.next_followup_at else None,
-                "created_at": lead.created_at.isoformat(),
-                "enrollments": [
-                    {
-                        "id": str(e.id),
-                        "sequence": e.sequence.name,
-                        "status": e.status,
-                        "current_step": e.current_step,
-                    }
-                    for e in lead.enrollments.select_related("sequence").all()[:5]
-                ],
-            })
+            leads.append(
+                {
+                    "id": str(lead.id),
+                    "name": lead.name,
+                    "email": lead.email,
+                    "company": lead.company,
+                    "role": lead.role,
+                    "industry": lead.industry,
+                    "source": lead.source,
+                    "stage": lead.stage,
+                    "notes": lead.notes,
+                    "tags": lead.tags,
+                    "email_opted_out": lead.is_email_opted_out,
+                    "last_contacted_at": lead.last_contacted_at.isoformat() if lead.last_contacted_at else None,
+                    "next_followup_at": lead.next_followup_at.isoformat() if lead.next_followup_at else None,
+                    "created_at": lead.created_at.isoformat(),
+                    "enrollments": [
+                        {
+                            "id": str(e.id),
+                            "sequence": e.sequence.name,
+                            "status": e.status,
+                            "current_step": e.current_step,
+                        }
+                        for e in lead.enrollments.select_related("sequence").all()[:5]
+                    ],
+                }
+            )
         return Response({"leads": leads})
 
     # POST — create or update
@@ -2551,13 +2576,24 @@ def api_crm_leads(request):
     else:
         lead = CRMLead()
 
-    for field in ["name", "email", "company", "role", "industry", "source",
-                   "stage", "notes", "tags", "is_email_opted_out"]:
+    for field in [
+        "name",
+        "email",
+        "company",
+        "role",
+        "industry",
+        "source",
+        "stage",
+        "notes",
+        "tags",
+        "is_email_opted_out",
+    ]:
         if field in d:
             setattr(lead, field, d[field])
 
     if d.get("next_followup_at"):
         from django.utils.dateparse import parse_datetime
+
         dt = parse_datetime(d["next_followup_at"])
         if dt:
             if timezone.is_naive(dt):
@@ -2603,11 +2639,7 @@ def api_crm_pipeline(request):
     now = timezone.now()
     leads = CRMLead.objects.all()
 
-    stage_counts = dict(
-        leads.values_list("stage")
-        .annotate(c=Count("id"))
-        .values_list("stage", "c")
-    )
+    stage_counts = dict(leads.values_list("stage").annotate(c=Count("id")).values_list("stage", "c"))
 
     due_followups = leads.filter(
         next_followup_at__lte=now,
@@ -2616,19 +2648,17 @@ def api_crm_pipeline(request):
 
     active_enrollments = OutreachEnrollment.objects.filter(status="active").count()
 
-    source_counts = dict(
-        leads.values_list("source")
-        .annotate(c=Count("id"))
-        .values_list("source", "c")
-    )
+    source_counts = dict(leads.values_list("source").annotate(c=Count("id")).values_list("source", "c"))
 
-    return Response({
-        "stages": stage_counts,
-        "due_followups": due_followups,
-        "active_enrollments": active_enrollments,
-        "sources": source_counts,
-        "total_leads": leads.count(),
-    })
+    return Response(
+        {
+            "stages": stage_counts,
+            "due_followups": due_followups,
+            "active_enrollments": active_enrollments,
+            "sources": source_counts,
+            "total_leads": leads.count(),
+        }
+    )
 
 
 @api_view(["GET", "POST"])
@@ -2641,17 +2671,19 @@ def api_crm_sequences(request):
         for seq in seqs:
             enrolled = OutreachEnrollment.objects.filter(sequence=seq).count()
             active = OutreachEnrollment.objects.filter(sequence=seq, status="active").count()
-            data.append({
-                "id": str(seq.id),
-                "name": seq.name,
-                "description": seq.description,
-                "is_active": seq.is_active,
-                "steps": seq.steps,
-                "step_count": len(seq.steps),
-                "enrolled": enrolled,
-                "active": active,
-                "created_at": seq.created_at.isoformat(),
-            })
+            data.append(
+                {
+                    "id": str(seq.id),
+                    "name": seq.name,
+                    "description": seq.description,
+                    "is_active": seq.is_active,
+                    "steps": seq.steps,
+                    "step_count": len(seq.steps),
+                    "enrolled": enrolled,
+                    "active": active,
+                    "created_at": seq.created_at.isoformat(),
+                }
+            )
         return Response({"sequences": data})
 
     # POST — create or update
@@ -2729,11 +2761,13 @@ def api_crm_enroll(request, sequence_id):
         next_send_at=next_send,
     )
 
-    return Response({
-        "id": str(enrollment.id),
-        "variant": variant,
-        "next_send_at": next_send.isoformat(),
-    })
+    return Response(
+        {
+            "id": str(enrollment.id),
+            "variant": variant,
+            "next_send_at": next_send.isoformat(),
+        }
+    )
 
 
 @api_view(["POST"])
@@ -2828,7 +2862,7 @@ def api_crm_outreach_metrics(request):
         # Gather all recipient IDs from send logs
         recipient_ids = []
         for e in enrollments:
-            for entry in (e.send_log or []):
+            for entry in e.send_log or []:
                 if entry.get("recipient_id"):
                     recipient_ids.append(entry["recipient_id"])
 
@@ -2836,26 +2870,24 @@ def api_crm_outreach_metrics(request):
         opens = 0
         clicks = 0
         if recipient_ids:
-            opens = EmailRecipient.objects.filter(
-                id__in=recipient_ids, opened_at__isnull=False
-            ).count()
-            clicks = EmailRecipient.objects.filter(
-                id__in=recipient_ids, clicked_at__isnull=False
-            ).count()
+            opens = EmailRecipient.objects.filter(id__in=recipient_ids, opened_at__isnull=False).count()
+            clicks = EmailRecipient.objects.filter(id__in=recipient_ids, clicked_at__isnull=False).count()
 
-        metrics.append({
-            "id": str(seq.id),
-            "name": seq.name,
-            "enrolled": enrolled,
-            "active": active,
-            "completed": completed,
-            "replied": replied,
-            "emails_sent": total_sent,
-            "opens": opens,
-            "clicks": clicks,
-            "open_rate": round(opens / total_sent * 100, 1) if total_sent else 0,
-            "click_rate": round(clicks / total_sent * 100, 1) if total_sent else 0,
-        })
+        metrics.append(
+            {
+                "id": str(seq.id),
+                "name": seq.name,
+                "enrolled": enrolled,
+                "active": active,
+                "completed": completed,
+                "replied": replied,
+                "emails_sent": total_sent,
+                "opens": opens,
+                "clicks": clicks,
+                "open_rate": round(opens / total_sent * 100, 1) if total_sent else 0,
+                "click_rate": round(clicks / total_sent * 100, 1) if total_sent else 0,
+            }
+        )
 
     return Response({"metrics": metrics})
 
@@ -2865,9 +2897,10 @@ def api_crm_outreach_metrics(request):
 def api_crm_send_one(request):
     """Send a single ad-hoc email to a CRM lead."""
     import re
+
     from django.core.mail import send_mail as django_send_mail
+
     from api.models import EmailRecipient
-    from api.views import make_unsubscribe_url
 
     lead_id = request.data.get("lead_id")
     subject = request.data.get("subject", "").strip()
@@ -2905,6 +2938,7 @@ def api_crm_send_one(request):
     def _track_link(match):
         url = match.group(1)
         return f'href="https://svend.ai/api/email/click/{rcpt.id}/?url={url}"'
+
     body_html = re.sub(r'href="(https?://[^"]+)"', _track_link, body_html)
 
     # Add tracking pixel
@@ -2926,11 +2960,13 @@ def api_crm_send_one(request):
             lead.stage = "contacted"
         lead.save(update_fields=["last_contacted_at", "stage", "updated_at"])
 
-        return Response({
-            "sent": True,
-            "campaign_id": str(campaign.id),
-            "recipient_id": str(rcpt.id),
-        })
+        return Response(
+            {
+                "sent": True,
+                "campaign_id": str(campaign.id),
+                "recipient_id": str(rcpt.id),
+            }
+        )
     except Exception as e:
         rcpt.has_failed = True
         rcpt.save(update_fields=["has_failed"])
@@ -2942,7 +2978,9 @@ def api_crm_send_one(request):
 def api_crm_process_queue(request):
     """Process all due outreach sends: advance enrollments, send emails."""
     import re
+
     from django.core.mail import send_mail as django_send_mail
+
     from api.models import EmailRecipient
 
     now = timezone.now()
@@ -2999,10 +3037,13 @@ def api_crm_process_queue(request):
         def _track_link(match):
             url = match.group(1)
             return f'href="https://svend.ai/api/email/click/{rcpt.id}/?url={url}"'
+
         body_html = re.sub(r'href="(https?://[^"]+)"', _track_link, body_html)
 
         # Add tracking pixel
-        pixel = f'<img src="https://svend.ai/api/email/open/{rcpt.id}/" width="1" height="1" style="display:none;" alt="">'
+        pixel = (
+            f'<img src="https://svend.ai/api/email/open/{rcpt.id}/" width="1" height="1" style="display:none;" alt="">'
+        )
         unsub_url = "https://svend.ai"
         full_html = EMAIL_TEMPLATE.format(body=body_html + pixel, unsub_url=unsub_url)
 
@@ -3023,12 +3064,14 @@ def api_crm_process_queue(request):
             lead.save(update_fields=["last_contacted_at", "stage", "updated_at"])
 
             # Log the send
-            enrollment.send_log.append({
-                "step": enrollment.current_step,
-                "sent_at": now.isoformat(),
-                "recipient_id": str(rcpt.id),
-                "variant": variant,
-            })
+            enrollment.send_log.append(
+                {
+                    "step": enrollment.current_step,
+                    "sent_at": now.isoformat(),
+                    "recipient_id": str(rcpt.id),
+                    "variant": variant,
+                }
+            )
             enrollment.last_sent_at = now
 
             # Advance to next step
@@ -3048,12 +3091,15 @@ def api_crm_process_queue(request):
             rcpt.save(update_fields=["has_failed"])
             failed_count += 1
 
-    return Response({
-        "processed": sent_count + failed_count + skipped_count,
-        "sent": sent_count,
-        "failed": failed_count,
-        "skipped": skipped_count,
-    })
+    return Response(
+        {
+            "processed": sent_count + failed_count + skipped_count,
+            "sent": sent_count,
+            "failed": failed_count,
+            "skipped": skipped_count,
+        }
+    )
+
 
 # ---------------------------------------------------------------------------
 # API: Site Analytics (SiteVisit)
@@ -3087,10 +3133,7 @@ def api_site_analytics(request):
 
     # Referrer domains
     referrers_raw = list(
-        visits.exclude(referrer_domain="")
-        .values("referrer_domain")
-        .annotate(count=Count("id"))
-        .order_by("-count")[:15]
+        visits.exclude(referrer_domain="").values("referrer_domain").annotate(count=Count("id")).order_by("-count")[:15]
     )
     direct = visits.filter(referrer_domain="").count()
     referrers = [{"domain": "Direct", "count": direct}] if direct else []
@@ -3113,10 +3156,7 @@ def api_site_analytics(request):
     # Group visits by ip_hash, order by time, pair consecutive pages
     flow_counts = Counter()
     session_gap = timedelta(minutes=30)
-    visitor_stream = (
-        visits.values("ip_hash", "path", "viewed_at")
-        .order_by("ip_hash", "viewed_at")
-    )
+    visitor_stream = visits.values("ip_hash", "path", "viewed_at").order_by("ip_hash", "viewed_at")
     current_ip = None
     prev_path = None
     prev_time = None
@@ -3132,10 +3172,7 @@ def api_site_analytics(request):
         prev_path = v["path"]
         prev_time = v["viewed_at"]
 
-    flows = [
-        {"from": k[0], "to": k[1], "count": c}
-        for k, c in flow_counts.most_common(30)
-    ]
+    flows = [{"from": k[0], "to": k[1], "count": c} for k, c in flow_counts.most_common(30)]
 
     # Recent hits (live feed) — last 50, regardless of date range
     recent_raw = list(
@@ -3155,12 +3192,14 @@ def api_site_analytics(request):
             ago = f"{secs // 3600}h ago"
         else:
             ago = f"{secs // 86400}d ago"
-        recent.append({
-            "path": r["path"],
-            "country": r["country"] or "",
-            "referrer": r["referrer_domain"] or "direct",
-            "ago": ago,
-        })
+        recent.append(
+            {
+                "path": r["path"],
+                "country": r["country"] or "",
+                "referrer": r["referrer_domain"] or "direct",
+                "ago": ago,
+            }
+        )
 
     # Duration stats — combine beacon data with server-side session estimation.
     # For multi-page sessions, time on page = (next pageview time - this pageview time).
@@ -3169,10 +3208,7 @@ def api_site_analytics(request):
 
     session_durations = defaultdict(list)  # path → [duration_ms, ...]
     session_gap = timedelta(minutes=30)
-    visitor_pages = (
-        visits.values("ip_hash", "path", "viewed_at", "duration_ms")
-        .order_by("ip_hash", "viewed_at")
-    )
+    visitor_pages = visits.values("ip_hash", "path", "viewed_at", "duration_ms").order_by("ip_hash", "viewed_at")
     prev_ip = None
     prev_path = None
     prev_time = None
@@ -3203,11 +3239,13 @@ def api_site_analytics(request):
     page_durations = []
     for path, durations in sorted(session_durations.items(), key=lambda x: -len(x[1])):
         if durations:
-            page_durations.append({
-                "path": path,
-                "avg_duration": sum(durations) / len(durations),
-                "measured": len(durations),
-            })
+            page_durations.append(
+                {
+                    "path": path,
+                    "avg_duration": sum(durations) / len(durations),
+                    "measured": len(durations),
+                }
+            )
     page_durations = page_durations[:20]
 
     # Overall average from all measured durations
@@ -3217,64 +3255,48 @@ def api_site_analytics(request):
     no_duration = total_hits - has_duration
 
     # Registration funnel (from funnel_event beacon — paths with #_)
-    funnel_events = SiteVisit.objects.filter(
-        viewed_at__gte=since, is_bot=False, path__contains="#_"
-    )
+    funnel_events = SiteVisit.objects.filter(viewed_at__gte=since, is_bot=False, path__contains="#_")
     reg_page_views = visits.filter(path="/register/").values("ip_hash").distinct().count()
     funnel_data = {
         "page_views": reg_page_views,
     }
     for action in ("email_focus", "password_focus", "submit_attempt", "submit_error", "submit_success"):
-        funnel_data[action] = (
-            funnel_events
-            .filter(path=f"/register/#_{action}")
-            .values("ip_hash").distinct().count()
-        )
+        funnel_data[action] = funnel_events.filter(path=f"/register/#_{action}").values("ip_hash").distinct().count()
     # Recent errors (detail stored in referrer_domain field)
     recent_errors = list(
-        funnel_events
-        .filter(path="/register/#_submit_error")
+        funnel_events.filter(path="/register/#_submit_error")
         .order_by("-viewed_at")
         .values_list("referrer_domain", "country", "viewed_at")[:10]
     )
-    funnel_data["recent_errors"] = [
-        {"error": e[0], "country": e[1], "at": str(e[2])} for e in recent_errors
-    ]
+    funnel_data["recent_errors"] = [{"error": e[0], "country": e[1], "at": str(e[2])} for e in recent_errors]
 
-    return Response({
-        "daily": [
-            {"date": str(d["date"]), "total": d["total"], "unique": d["unique"]}
-            for d in daily
-        ],
-        "top_pages": [
-            {"path": p["path"], "views": p["total"], "unique": p["unique"]}
-            for p in top_pages
-        ],
-        "referrers": referrers,
-        "totals": {
-            "hits": total_hits,
-            "unique_visitors": unique_visitors,
-            "bot_hits": bot_hits,
-            "avg_duration_ms": overall_avg_ms,
-            "measured_visits": has_duration,
-            "bounce_visits": no_duration,
-        },
-        "countries": [
-            {"country": c["country"], "views": c["views"], "unique": c["unique"]}
-            for c in countries
-        ],
-        "flows": flows,
-        "recent": recent,
-        "page_durations": [
-            {
-                "path": d["path"],
-                "avg_ms": round(d["avg_duration"]),
-                "measured": d["measured"],
-            }
-            for d in page_durations
-        ],
-        "registration_funnel": funnel_data,
-    })
+    return Response(
+        {
+            "daily": [{"date": str(d["date"]), "total": d["total"], "unique": d["unique"]} for d in daily],
+            "top_pages": [{"path": p["path"], "views": p["total"], "unique": p["unique"]} for p in top_pages],
+            "referrers": referrers,
+            "totals": {
+                "hits": total_hits,
+                "unique_visitors": unique_visitors,
+                "bot_hits": bot_hits,
+                "avg_duration_ms": overall_avg_ms,
+                "measured_visits": has_duration,
+                "bounce_visits": no_duration,
+            },
+            "countries": [{"country": c["country"], "views": c["views"], "unique": c["unique"]} for c in countries],
+            "flows": flows,
+            "recent": recent,
+            "page_durations": [
+                {
+                    "path": d["path"],
+                    "avg_ms": round(d["avg_duration"]),
+                    "measured": d["measured"],
+                }
+                for d in page_durations
+            ],
+            "registration_funnel": funnel_data,
+        }
+    )
 
 
 @api_view(["GET"])
@@ -3305,15 +3327,17 @@ def api_site_live(request):
             ago = f"{secs // 3600}h ago"
         else:
             ago = f"{secs // 86400}d ago"
-        recent.append({
-            "path": r["path"],
-            "country": r["country"] or "",
-            "referrer": r["referrer_domain"] or "direct",
-            "ago": ago,
-            "duration_ms": r["duration_ms"],
-            "ts": r["viewed_at"].isoformat(),
-            "visitor": r["ip_hash"][:8],
-        })
+        recent.append(
+            {
+                "path": r["path"],
+                "country": r["country"] or "",
+                "referrer": r["referrer_domain"] or "direct",
+                "ago": ago,
+                "duration_ms": r["duration_ms"],
+                "ts": r["viewed_at"].isoformat(),
+                "visitor": r["ip_hash"][:8],
+            }
+        )
 
     # Quick totals (cheap queries)
     today = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -3321,18 +3345,18 @@ def api_site_live(request):
 
     hits_today = SiteVisit.objects.filter(viewed_at__gte=today, is_bot=False).count()
     hits_hour = SiteVisit.objects.filter(viewed_at__gte=hour_ago, is_bot=False).count()
-    unique_today = SiteVisit.objects.filter(
-        viewed_at__gte=today, is_bot=False
-    ).values("ip_hash").distinct().count()
+    unique_today = SiteVisit.objects.filter(viewed_at__gte=today, is_bot=False).values("ip_hash").distinct().count()
 
-    return Response({
-        "recent": recent,
-        "totals": {
-            "hits_today": hits_today,
-            "hits_hour": hits_hour,
-            "unique_today": unique_today,
-        },
-    })
+    return Response(
+        {
+            "recent": recent,
+            "totals": {
+                "hits_today": hits_today,
+                "hits_hour": hits_hour,
+                "unique_today": unique_today,
+            },
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -3342,7 +3366,6 @@ def api_site_live(request):
 
 @api_view(["GET"])
 @permission_classes([IsInternalUser])
-
 @api_view(["POST"])
 @permission_classes([IsInternalUser])
 def api_crm_bulk_send(request):
@@ -3388,40 +3411,42 @@ def api_crm_bulk_send(request):
 
         # Personalize for preview
         p_subj = (
-            subj
-            .replace("{{name}}", lead.name)
+            subj.replace("{{name}}", lead.name)
             .replace("{{company}}", lead.company or "")
             .replace("{{role}}", lead.role or "")
             .replace("{{industry}}", lead.industry or "")
         )
         p_body = (
-            body
-            .replace("{{name}}", lead.name)
+            body.replace("{{name}}", lead.name)
             .replace("{{company}}", lead.company or "")
             .replace("{{role}}", lead.role or "")
             .replace("{{industry}}", lead.industry or "")
         )
 
-        assignments.append({
-            "lead_id": str(lead.id),
-            "name": lead.name,
-            "email": lead.email,
-            "company": lead.company,
-            "variant": variant.upper(),
-            "subject": p_subj,
-            "body_preview": p_body[:200] + ("..." if len(p_body) > 200 else ""),
-        })
+        assignments.append(
+            {
+                "lead_id": str(lead.id),
+                "name": lead.name,
+                "email": lead.email,
+                "company": lead.company,
+                "variant": variant.upper(),
+                "subject": p_subj,
+                "body_preview": p_body[:200] + ("..." if len(p_body) > 200 else ""),
+            }
+        )
 
     count_a = sum(1 for a in assignments if a["variant"] == "A")
     count_b = len(assignments) - count_a
 
     if preview:
-        return Response({
-            "assignments": assignments,
-            "count_a": count_a,
-            "count_b": count_b,
-            "total": len(assignments),
-        })
+        return Response(
+            {
+                "assignments": assignments,
+                "count_a": count_a,
+                "count_b": count_b,
+                "total": len(assignments),
+            }
+        )
 
     # --- Actual send ---
     from syn.sched.scheduler import schedule_task
@@ -3462,43 +3487,52 @@ def api_crm_bulk_send(request):
             logger.error("Failed to schedule CRM email for %s: %s", lead.email, e)
             skipped += 1
 
-    return Response({
-        "campaign_id": str(campaign.id),
-        "scheduled": scheduled,
-        "skipped": skipped,
-        "count_a": count_a,
-        "count_b": count_b,
-        "stagger_seconds": 5,
-        "total_time_estimate": f"{scheduled * 5}s",
-    })
+    return Response(
+        {
+            "campaign_id": str(campaign.id),
+            "scheduled": scheduled,
+            "skipped": skipped,
+            "count_a": count_a,
+            "count_b": count_b,
+            "stagger_seconds": 5,
+            "total_time_estimate": f"{scheduled * 5}s",
+        }
+    )
 
 
 # =============================================================================
 # Infrastructure (Synara OS layer)
 # =============================================================================
 
+
 @api_view(["GET"])
 @permission_classes([IsInternalUser])
 def api_infra(request):
     """Synara infrastructure overview: scheduler, audit trail, system logs."""
-    now = timezone.now()
+    timezone.now()
 
     # --- Scheduler ---
     try:
         from syn.sched.models import (
-            CognitiveTask, Schedule, DeadLetterEntry, CircuitBreakerState,
+            CircuitBreakerState,
+            CognitiveTask,
+            DeadLetterEntry,
+            Schedule,
         )
 
         task_states = dict(
-            CognitiveTask.objects.values_list("state")
-            .annotate(count=Count("id"))
-            .values_list("state", "count")
+            CognitiveTask.objects.values_list("state").annotate(count=Count("id")).values_list("state", "count")
         )
 
         schedules = list(
             Schedule.objects.order_by("schedule_id").values(
-                "schedule_id", "name", "task_name", "is_enabled",
-                "last_run_at", "next_run_at", "run_count",
+                "schedule_id",
+                "name",
+                "task_name",
+                "is_enabled",
+                "last_run_at",
+                "next_run_at",
+                "run_count",
             )
         )
         for s in schedules:
@@ -3506,15 +3540,16 @@ def api_infra(request):
             s["next_run_at"] = str(s["next_run_at"]) if s["next_run_at"] else None
 
         dlq_by_status = dict(
-            DeadLetterEntry.objects.values_list("status")
-            .annotate(count=Count("id"))
-            .values_list("status", "count")
+            DeadLetterEntry.objects.values_list("status").annotate(count=Count("id")).values_list("status", "count")
         )
 
         circuit_breakers = list(
             CircuitBreakerState.objects.values(
-                "service_name", "state", "failure_count",
-                "last_failure_at", "opened_at",
+                "service_name",
+                "state",
+                "failure_count",
+                "last_failure_at",
+                "opened_at",
             )
         )
         for cb in circuit_breakers:
@@ -3543,7 +3578,7 @@ def api_infra(request):
 
     # --- Audit Trail ---
     try:
-        from syn.audit.models import SysLogEntry, IntegrityViolation, DriftViolation
+        from syn.audit.models import DriftViolation, IntegrityViolation, SysLogEntry
 
         audit_total = SysLogEntry.objects.count()
         latest_entry = SysLogEntry.objects.order_by("-id").first()
@@ -3570,7 +3605,8 @@ def api_infra(request):
         )
         drift_total_open = sum(drift_by_severity.values())
         drift_sla_breached = DriftViolation.objects.filter(
-            is_sla_breached=True, resolved_at__isnull=True,
+            is_sla_breached=True,
+            resolved_at__isnull=True,
         ).count()
 
         audit_data = {
@@ -3593,9 +3629,7 @@ def api_infra(request):
         from syn.log.models import LogEntry, LogStream
 
         log_level_counts = dict(
-            LogEntry.objects.values_list("level")
-            .annotate(count=Count("id"))
-            .values_list("level", "count")
+            LogEntry.objects.values_list("level").annotate(count=Count("id")).values_list("level", "count")
         )
         log_total = sum(log_level_counts.values())
 
@@ -3610,7 +3644,10 @@ def api_infra(request):
 
         streams = list(
             LogStream.objects.values(
-                "name", "is_active", "min_level", "retention_days",
+                "name",
+                "is_active",
+                "min_level",
+                "retention_days",
             )
         )
 
@@ -3624,11 +3661,13 @@ def api_infra(request):
         logger.warning("Infra: log query failed: %s", e)
         logs_data = {"error": str(e)}
 
-    return Response({
-        "scheduler": scheduler_data,
-        "audit": audit_data,
-        "logs": logs_data,
-    })
+    return Response(
+        {
+            "scheduler": scheduler_data,
+            "audit": audit_data,
+            "logs": logs_data,
+        }
+    )
 
 
 @api_view(["GET"])
@@ -3649,10 +3688,18 @@ def api_audit_entries(request):
             qs = qs.filter(actor__icontains=actor)
 
         total = qs.count()
-        entries = list(qs[:limit].values(
-            "id", "timestamp", "actor", "event_name",
-            "correlation_id", "payload", "current_hash", "is_genesis",
-        ))
+        entries = list(
+            qs[:limit].values(
+                "id",
+                "timestamp",
+                "actor",
+                "event_name",
+                "correlation_id",
+                "payload",
+                "current_hash",
+                "is_genesis",
+            )
+        )
 
         for e in entries:
             e["timestamp"] = e["timestamp"].isoformat() if e["timestamp"] else None
@@ -3667,17 +3714,15 @@ def api_audit_entries(request):
             del e["payload"]
 
         # Distinct event names for filter dropdown
-        event_names = list(
-            SysLogEntry.objects.values_list("event_name", flat=True)
-            .distinct()
-            .order_by("event_name")
-        )
+        event_names = list(SysLogEntry.objects.values_list("event_name", flat=True).distinct().order_by("event_name"))
 
-        return Response({
-            "entries": entries,
-            "total": total,
-            "event_names": event_names,
-        })
+        return Response(
+            {
+                "entries": entries,
+                "total": total,
+                "event_names": event_names,
+            }
+        )
     except Exception as e:
         logger.warning("Audit entries query failed: %s", e)
         return Response({"entries": [], "total": 0, "event_names": [], "error": str(e)})
@@ -3693,8 +3738,8 @@ def api_audit_entries(request):
 def api_compliance(request):
     """Return compliance check results and report data for dashboard."""
     try:
-        from syn.audit.models import ComplianceCheck, ComplianceReport
         from syn.audit.compliance import ALL_CHECKS, get_check_soc2_controls
+        from syn.audit.models import ComplianceCheck, ComplianceReport
 
         now = timezone.now()
 
@@ -3703,34 +3748,37 @@ def api_compliance(request):
         for name in ALL_CHECKS:
             latest = ComplianceCheck.objects.filter(check_name=name).order_by("-run_at").first()
             if latest:
-                latest_checks.append({
-                    "id": str(latest.id),
-                    "check_name": latest.check_name,
-                    "category": latest.category,
-                    "status": latest.status,
-                    "duration_ms": latest.duration_ms,
-                    "run_at": latest.run_at.isoformat(),
-                    "soc2_controls": latest.soc2_controls,
-                    "details": latest.details or {},
-                })
+                latest_checks.append(
+                    {
+                        "id": str(latest.id),
+                        "check_name": latest.check_name,
+                        "category": latest.category,
+                        "status": latest.status,
+                        "duration_ms": latest.duration_ms,
+                        "run_at": latest.run_at.isoformat(),
+                        "soc2_controls": latest.soc2_controls,
+                        "details": latest.details or {},
+                    }
+                )
             else:
                 _, cat = ALL_CHECKS[name]
-                latest_checks.append({
-                    "id": None,
-                    "check_name": name,
-                    "category": cat,
-                    "status": "pending",
-                    "duration_ms": 0,
-                    "run_at": None,
-                    "soc2_controls": get_check_soc2_controls(name),
-                    "details": {},
-                })
+                latest_checks.append(
+                    {
+                        "id": None,
+                        "check_name": name,
+                        "category": cat,
+                        "status": "pending",
+                        "duration_ms": 0,
+                        "run_at": None,
+                        "soc2_controls": get_check_soc2_controls(name),
+                        "details": {},
+                    }
+                )
 
         # Pass rate trend (last 30 days)
         thirty_days_ago = now - timedelta(days=30)
         trend_qs = (
-            ComplianceCheck.objects
-            .filter(run_at__gte=thirty_days_ago)
+            ComplianceCheck.objects.filter(run_at__gte=thirty_days_ago)
             .annotate(day=TruncDate("run_at"))
             .values("day")
             .annotate(
@@ -3764,20 +3812,22 @@ def api_compliance(request):
         report_objs = ComplianceReport.objects.order_by("-period_start")[:10]
         reports = []
         for rpt in report_objs:
-            reports.append({
-                "id": str(rpt.id),
-                "period_start": rpt.period_start.isoformat(),
-                "period_end": rpt.period_end.isoformat(),
-                "pass_rate": rpt.pass_rate,
-                "total_checks": rpt.total_checks,
-                "passed": rpt.passed,
-                "failed": rpt.failed,
-                "warnings": rpt.warnings,
-                "is_published": rpt.is_published,
-                "generated_at": rpt.generated_at.isoformat(),
-                "full_report": rpt.full_report or {},
-                "public_report": rpt.public_report or {},
-            })
+            reports.append(
+                {
+                    "id": str(rpt.id),
+                    "period_start": rpt.period_start.isoformat(),
+                    "period_end": rpt.period_end.isoformat(),
+                    "pass_rate": rpt.pass_rate,
+                    "total_checks": rpt.total_checks,
+                    "passed": rpt.passed,
+                    "failed": rpt.failed,
+                    "warnings": rpt.warnings,
+                    "is_published": rpt.is_published,
+                    "generated_at": rpt.generated_at.isoformat(),
+                    "full_report": rpt.full_report or {},
+                    "public_report": rpt.public_report or {},
+                }
+            )
 
         # Standards coverage — from latest standards_compliance check
         standards_data = {}
@@ -3786,6 +3836,7 @@ def api_compliance(request):
 
         # Compute test hook counts LIVE from standards files
         from syn.audit.standards import parse_all_standards
+
         live_assertions = parse_all_standards()
         live_tests_linked = 0
         live_seen = set()
@@ -3795,9 +3846,7 @@ def api_compliance(request):
                 live_seen.add(t)
         live_tests_unique = len(live_seen)
 
-        std_check = ComplianceCheck.objects.filter(
-            check_name="standards_compliance"
-        ).order_by("-run_at").first()
+        std_check = ComplianceCheck.objects.filter(check_name="standards_compliance").order_by("-run_at").first()
         if std_check and std_check.details:
             details = std_check.details
             by_standard = details.get("by_standard", {})
@@ -3824,6 +3873,7 @@ def api_compliance(request):
         code_coverage = {}
         try:
             from syn.audit.compliance import check_symbol_coverage
+
             cov_result = check_symbol_coverage()
             code_coverage = cov_result.get("details", {})
         except Exception:
@@ -3832,9 +3882,7 @@ def api_compliance(request):
         # Statistical calibration — run live or fetch latest
         calibration_data = {}
         try:
-            cal_check = ComplianceCheck.objects.filter(
-                check_name="statistical_calibration"
-            ).order_by("-run_at").first()
+            cal_check = ComplianceCheck.objects.filter(check_name="statistical_calibration").order_by("-run_at").first()
             if cal_check and cal_check.details:
                 calibration_data = cal_check.details
                 calibration_data["run_at"] = cal_check.run_at.isoformat()
@@ -3844,9 +3892,7 @@ def api_compliance(request):
 
         # SLA data from latest sla_compliance check, with live availability overlay
         sla_data = {"total": 0, "met": 0, "breached": 0, "unmeasurable": 0, "slas": []}
-        sla_check = ComplianceCheck.objects.filter(
-            check_name="sla_compliance"
-        ).order_by("-run_at").first()
+        sla_check = ComplianceCheck.objects.filter(check_name="sla_compliance").order_by("-run_at").first()
         if sla_check and sla_check.details:
             d = sla_check.details
             sla_data["total"] = d.get("total_slas", 0)
@@ -3859,6 +3905,7 @@ def api_compliance(request):
         # Overlay live availability from HealthPing (replaces stale cached value)
         try:
             from syn.audit.models import HealthPing
+
             now = timezone.now()
             month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             pings = HealthPing.objects.filter(timestamp__gte=month_start)
@@ -3888,6 +3935,7 @@ def api_compliance(request):
         soc2_data = {}
         try:
             from syn.audit.compliance import soc2_control_coverage
+
             soc2_data = soc2_control_coverage()
         except Exception as e:
             logger.warning("SOC 2 coverage computation failed: %s", e)
@@ -3898,26 +3946,28 @@ def api_compliance(request):
         all_passed = checks_passed + standards_passed
         overall_rate = round(all_passed / all_total * 100, 1) if all_total > 0 else 0
 
-        return Response({
-            "checks": latest_checks,
-            "trend": trend,
-            "stats": {
-                "total_checks_run": total_checks_run,
-                "checks_today": today_checks,
-                "overall_pass_rate": overall_rate,
-                "infra_checks": checks_total,
-                "infra_passed": checks_passed,
-                "standards_assertions": standards_total,
-                "standards_passed": standards_passed,
-                "soc2_controls_covered": len(all_controls),
-            },
-            "reports": reports,
-            "standards": standards_data,
-            "code_coverage": code_coverage,
-            "calibration": calibration_data,
-            "sla": sla_data,
-            "soc2": soc2_data,
-        })
+        return Response(
+            {
+                "checks": latest_checks,
+                "trend": trend,
+                "stats": {
+                    "total_checks_run": total_checks_run,
+                    "checks_today": today_checks,
+                    "overall_pass_rate": overall_rate,
+                    "infra_checks": checks_total,
+                    "infra_passed": checks_passed,
+                    "standards_assertions": standards_total,
+                    "standards_passed": standards_passed,
+                    "soc2_controls_covered": len(all_controls),
+                },
+                "reports": reports,
+                "standards": standards_data,
+                "code_coverage": code_coverage,
+                "calibration": calibration_data,
+                "sla": sla_data,
+                "soc2": soc2_data,
+            }
+        )
     except Exception as e:
         logger.warning("Compliance data query failed: %s", e)
         return Response({"checks": [], "trend": [], "stats": {}, "reports": [], "error": str(e)})
@@ -3929,6 +3979,7 @@ def api_compliance_publish(request, report_id):
     """Toggle publish state of a compliance report."""
     try:
         from syn.audit.models import ComplianceReport
+
         report = ComplianceReport.objects.get(id=report_id)
         report.is_published = not report.is_published
         report.save()
@@ -3950,7 +4001,8 @@ def api_compliance_run(request):
     Cloudflare/gunicorn timeout on the full suite.
     """
     try:
-        from syn.audit.compliance import run_check, ALL_CHECKS, run_standards_tests_for
+        from syn.audit.compliance import ALL_CHECKS, run_check, run_standards_tests_for
+
         data = request.data or {}
         check_name = data.get("check")
         standard = data.get("standard")
@@ -3958,6 +4010,7 @@ def api_compliance_run(request):
         # Per-standard test runner mode
         if check_name == "standards_tests" and standard:
             import time
+
             start = time.time()
             result = run_standards_tests_for(standard)
             result["duration_ms"] = round((time.time() - start) * 1000)
@@ -3969,19 +4022,23 @@ def api_compliance_run(request):
             if check_name not in ALL_CHECKS:
                 return Response({"ok": False, "error": f"Unknown check: {check_name}"}, status=400)
             check = run_check(check_name)
-            return Response({
-                "ok": True,
-                "check_name": check.check_name,
-                "status": check.status,
-                "duration_ms": check.duration_ms,
-            })
+            return Response(
+                {
+                    "ok": True,
+                    "check_name": check.check_name,
+                    "status": check.status,
+                    "duration_ms": check.duration_ms,
+                }
+            )
 
         # List mode — return check names for client to iterate
-        return Response({
-            "ok": True,
-            "checks": list(ALL_CHECKS.keys()),
-            "total": len(ALL_CHECKS),
-        })
+        return Response(
+            {
+                "ok": True,
+                "checks": list(ALL_CHECKS.keys()),
+                "total": len(ALL_CHECKS),
+            }
+        )
     except Exception as e:
         logger.exception("Compliance run failed")
         return Response({"ok": False, "error": str(e)}, status=500)
@@ -4004,7 +4061,7 @@ def api_change_management(request):
         limit: max results (default 50)
     """
     try:
-        from syn.audit.models import ChangeRequest, ChangeLog, RiskAssessment
+        from syn.audit.models import ChangeRequest
 
         qs = ChangeRequest.objects.all()
 
@@ -4030,31 +4087,33 @@ def api_change_management(request):
             latest_log = cr.logs.order_by("-timestamp").first()
             risk_assessment = cr.risk_assessments.order_by("-assessed_at").first()
 
-            changes.append({
-                "id": str(cr.id),
-                "title": cr.title,
-                "change_type": cr.change_type,
-                "risk_level": cr.risk_level,
-                "priority": cr.priority,
-                "status": cr.status,
-                "is_emergency": cr.is_emergency,
-                "author": cr.author,
-                "approver": cr.approver,
-                "created_at": cr.created_at.isoformat(),
-                "updated_at": cr.updated_at.isoformat(),
-                "completed_at": cr.completed_at.isoformat() if cr.completed_at else None,
-                "log_count": log_count,
-                "latest_log_action": latest_log.action if latest_log else None,
-                "latest_log_time": latest_log.timestamp.isoformat() if latest_log else None,
-                "risk_score": risk_assessment.overall_score if risk_assessment else None,
-                "risk_recommendation": risk_assessment.overall_recommendation if risk_assessment else None,
-                "issue_url": cr.issue_url,
-                "commit_shas": cr.commit_shas,
-                "correlation_id": str(cr.correlation_id),
-                "compliance_check_ids": cr.compliance_check_ids,
-                "drift_violation_ids": cr.drift_violation_ids,
-                "audit_entry_ids": cr.audit_entry_ids,
-            })
+            changes.append(
+                {
+                    "id": str(cr.id),
+                    "title": cr.title,
+                    "change_type": cr.change_type,
+                    "risk_level": cr.risk_level,
+                    "priority": cr.priority,
+                    "status": cr.status,
+                    "is_emergency": cr.is_emergency,
+                    "author": cr.author,
+                    "approver": cr.approver,
+                    "created_at": cr.created_at.isoformat(),
+                    "updated_at": cr.updated_at.isoformat(),
+                    "completed_at": cr.completed_at.isoformat() if cr.completed_at else None,
+                    "log_count": log_count,
+                    "latest_log_action": latest_log.action if latest_log else None,
+                    "latest_log_time": latest_log.timestamp.isoformat() if latest_log else None,
+                    "risk_score": risk_assessment.overall_score if risk_assessment else None,
+                    "risk_recommendation": risk_assessment.overall_recommendation if risk_assessment else None,
+                    "issue_url": cr.issue_url,
+                    "commit_shas": cr.commit_shas,
+                    "correlation_id": str(cr.correlation_id),
+                    "compliance_check_ids": cr.compliance_check_ids,
+                    "drift_violation_ids": cr.drift_violation_ids,
+                    "audit_entry_ids": cr.audit_entry_ids,
+                }
+            )
 
         # Summary stats
         now = timezone.now()
@@ -4069,19 +4128,17 @@ def api_change_management(request):
             "completed_30d": recent.filter(status="completed").count(),
             "failed_30d": recent.filter(status__in=["failed", "rolled_back"]).count(),
             "emergency_30d": recent.filter(is_emergency=True).count(),
-            "by_type": dict(
-                recent.values_list("change_type").annotate(count=Count("id")).order_by()
-            ),
-            "by_risk": dict(
-                recent.values_list("risk_level").annotate(count=Count("id")).order_by()
-            ),
+            "by_type": dict(recent.values_list("change_type").annotate(count=Count("id")).order_by()),
+            "by_risk": dict(recent.values_list("risk_level").annotate(count=Count("id")).order_by()),
         }
 
-        return Response({
-            "changes": changes,
-            "total": total,
-            "stats": stats,
-        })
+        return Response(
+            {
+                "changes": changes,
+                "total": total,
+                "stats": stats,
+            }
+        )
     except Exception as e:
         logger.warning("Change management query failed: %s", e)
         return Response({"changes": [], "total": 0, "stats": {}, "error": str(e)})
@@ -4125,23 +4182,25 @@ def api_change_detail(request, change_id):
                 }
                 for v in ra.votes.order_by("voted_at")
             ]
-            assessments.append({
-                "id": str(ra.id),
-                "assessment_type": ra.assessment_type,
-                "security_score": ra.security_score,
-                "availability_score": ra.availability_score,
-                "integrity_score": ra.integrity_score,
-                "confidentiality_score": ra.confidentiality_score,
-                "privacy_score": ra.privacy_score,
-                "overall_score": ra.overall_score,
-                "overall_recommendation": ra.overall_recommendation,
-                "conditions": ra.conditions,
-                "summary": ra.summary,
-                "is_retroactive": ra.is_retroactive,
-                "assessed_at": ra.assessed_at.isoformat(),
-                "assessed_by": ra.assessed_by,
-                "votes": votes,
-            })
+            assessments.append(
+                {
+                    "id": str(ra.id),
+                    "assessment_type": ra.assessment_type,
+                    "security_score": ra.security_score,
+                    "availability_score": ra.availability_score,
+                    "integrity_score": ra.integrity_score,
+                    "confidentiality_score": ra.confidentiality_score,
+                    "privacy_score": ra.privacy_score,
+                    "overall_score": ra.overall_score,
+                    "overall_recommendation": ra.overall_recommendation,
+                    "conditions": ra.conditions,
+                    "summary": ra.summary,
+                    "is_retroactive": ra.is_retroactive,
+                    "assessed_at": ra.assessed_at.isoformat(),
+                    "assessed_by": ra.assessed_by,
+                    "votes": votes,
+                }
+            )
 
         # Related changes
         related = []
@@ -4149,53 +4208,57 @@ def api_change_detail(request, change_id):
             for rid in cr.related_change_ids:
                 try:
                     rel = ChangeRequest.objects.get(id=rid)
-                    related.append({
-                        "id": str(rel.id),
-                        "title": rel.title,
-                        "status": rel.status,
-                        "change_type": rel.change_type,
-                    })
+                    related.append(
+                        {
+                            "id": str(rel.id),
+                            "title": rel.title,
+                            "status": rel.status,
+                            "change_type": rel.change_type,
+                        }
+                    )
                 except ChangeRequest.DoesNotExist:
                     pass
 
-        return Response({
-            "change": {
-                "id": str(cr.id),
-                "title": cr.title,
-                "description": cr.description,
-                "change_type": cr.change_type,
-                "risk_level": cr.risk_level,
-                "priority": cr.priority,
-                "status": cr.status,
-                "is_emergency": cr.is_emergency,
-                "justification": cr.justification,
-                "affected_files": cr.affected_files,
-                "implementation_plan": cr.implementation_plan,
-                "rollback_plan": cr.rollback_plan,
-                "testing_plan": cr.testing_plan,
-                "issue_url": cr.issue_url,
-                "parent_change_id": str(cr.parent_change_id) if cr.parent_change_id else None,
-                "related_change_ids": [str(r) for r in cr.related_change_ids] if cr.related_change_ids else [],
-                "debt_item": cr.debt_item,
-                "commit_shas": cr.commit_shas,
-                "log_md_ref": cr.log_md_ref,
-                "compliance_check_ids": cr.compliance_check_ids,
-                "drift_violation_ids": cr.drift_violation_ids,
-                "audit_entry_ids": cr.audit_entry_ids,
-                "author": cr.author,
-                "approver": cr.approver,
-                "created_at": cr.created_at.isoformat(),
-                "updated_at": cr.updated_at.isoformat(),
-                "submitted_at": cr.submitted_at.isoformat() if cr.submitted_at else None,
-                "approved_at": cr.approved_at.isoformat() if cr.approved_at else None,
-                "started_at": cr.started_at.isoformat() if cr.started_at else None,
-                "completed_at": cr.completed_at.isoformat() if cr.completed_at else None,
-                "correlation_id": str(cr.correlation_id),
-            },
-            "logs": logs,
-            "risk_assessments": assessments,
-            "related_changes": related,
-        })
+        return Response(
+            {
+                "change": {
+                    "id": str(cr.id),
+                    "title": cr.title,
+                    "description": cr.description,
+                    "change_type": cr.change_type,
+                    "risk_level": cr.risk_level,
+                    "priority": cr.priority,
+                    "status": cr.status,
+                    "is_emergency": cr.is_emergency,
+                    "justification": cr.justification,
+                    "affected_files": cr.affected_files,
+                    "implementation_plan": cr.implementation_plan,
+                    "rollback_plan": cr.rollback_plan,
+                    "testing_plan": cr.testing_plan,
+                    "issue_url": cr.issue_url,
+                    "parent_change_id": str(cr.parent_change_id) if cr.parent_change_id else None,
+                    "related_change_ids": [str(r) for r in cr.related_change_ids] if cr.related_change_ids else [],
+                    "debt_item": cr.debt_item,
+                    "commit_shas": cr.commit_shas,
+                    "log_md_ref": cr.log_md_ref,
+                    "compliance_check_ids": cr.compliance_check_ids,
+                    "drift_violation_ids": cr.drift_violation_ids,
+                    "audit_entry_ids": cr.audit_entry_ids,
+                    "author": cr.author,
+                    "approver": cr.approver,
+                    "created_at": cr.created_at.isoformat(),
+                    "updated_at": cr.updated_at.isoformat(),
+                    "submitted_at": cr.submitted_at.isoformat() if cr.submitted_at else None,
+                    "approved_at": cr.approved_at.isoformat() if cr.approved_at else None,
+                    "started_at": cr.started_at.isoformat() if cr.started_at else None,
+                    "completed_at": cr.completed_at.isoformat() if cr.completed_at else None,
+                    "correlation_id": str(cr.correlation_id),
+                },
+                "logs": logs,
+                "risk_assessments": assessments,
+                "related_changes": related,
+            }
+        )
     except ChangeRequest.DoesNotExist:
         return Response({"error": "Change request not found"}, status=404)
     except Exception as e:
@@ -4214,7 +4277,7 @@ def api_change_create(request):
            feature_id, task_id}
     """
     try:
-        from syn.audit.models import ChangeRequest, ChangeLog
+        from syn.audit.models import ChangeLog, ChangeRequest
 
         data = request.data
         author = request.user.email if request.user.is_authenticated else "system"
@@ -4260,7 +4323,7 @@ def api_change_create(request):
 
         # Bidirectional linking (CHG-001 §8.4)
         for rid in data.get("related_change_ids", []):
-            cr.link_related(rid, actor=author, message=f"Linked on creation")
+            cr.link_related(rid, actor=author, message="Linked on creation")
 
         for cid in data.get("compliance_check_ids", []):
             cr.link_compliance_checks([cid], actor=author)
@@ -4291,7 +4354,7 @@ def api_change_transition(request, change_id):
     Valid actions match ChangeLog.ACTION_CHOICES.
     """
     try:
-        from syn.audit.models import ChangeRequest, ChangeLog
+        from syn.audit.models import ChangeLog, ChangeRequest
 
         cr = ChangeRequest.objects.get(id=change_id)
         data = request.data
@@ -4319,11 +4382,14 @@ def api_change_transition(request, change_id):
             # CHG-001 §7.1.1: Validate field requirements for transition
             transition_errors = cr.validate_for_transition(to_state)
             if transition_errors:
-                return Response({
-                    "ok": False,
-                    "error": "Transition blocked — missing required fields (CHG-001 §7.1.1)",
-                    "missing_fields": transition_errors,
-                }, status=400)
+                return Response(
+                    {
+                        "ok": False,
+                        "error": "Transition blocked — missing required fields (CHG-001 §7.1.1)",
+                        "missing_fields": transition_errors,
+                    },
+                    status=400,
+                )
 
             cr.status = to_state
 
@@ -4369,6 +4435,367 @@ def api_change_transition(request, change_id):
         return Response({"ok": False, "error": "Change request not found"}, status=404)
     except Exception as e:
         logger.warning("Change transition failed: %s", e)
+        return Response({"ok": False, "error": str(e)}, status=400)
+
+
+# =============================================================================
+# Incident Management (INC-001)
+# =============================================================================
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_incident_list(request):
+    """Return incident list for dashboard.
+
+    Query params:
+        severity: filter by severity (critical, high, medium, low)
+        status: filter by status (detected, acknowledged, investigating, etc.)
+        category: filter by category (outage, degradation, security, etc.)
+        limit: max results (default 50)
+    """
+    try:
+        from syn.audit.models import Incident
+
+        qs = Incident.objects.all()
+
+        severity = request.query_params.get("severity")
+        if severity:
+            qs = qs.filter(severity=severity)
+
+        status = request.query_params.get("status")
+        if status:
+            qs = qs.filter(status=status)
+
+        category = request.query_params.get("category")
+        if category:
+            qs = qs.filter(category=category)
+
+        limit = int(request.query_params.get("limit", 50))
+        total = qs.count()
+
+        incidents = []
+        for inc in qs[:limit]:
+            log_count = inc.logs.count()
+            latest_log = inc.logs.order_by("-timestamp").first()
+
+            incidents.append(
+                {
+                    "id": str(inc.id),
+                    "title": inc.title,
+                    "severity": inc.severity,
+                    "status": inc.status,
+                    "category": inc.category,
+                    "reported_by": inc.reported_by,
+                    "assigned_to": inc.assigned_to,
+                    "detected_at": inc.detected_at.isoformat(),
+                    "acknowledged_at": inc.acknowledged_at.isoformat() if inc.acknowledged_at else None,
+                    "resolved_at": inc.resolved_at.isoformat() if inc.resolved_at else None,
+                    "closed_at": inc.closed_at.isoformat() if inc.closed_at else None,
+                    "ack_elapsed_hours": round(inc.ack_elapsed_hours, 2),
+                    "resolution_elapsed_hours": round(inc.resolution_elapsed_hours, 2),
+                    "is_ack_sla_breached": inc.is_ack_sla_breached,
+                    "is_resolution_sla_breached": inc.is_resolution_sla_breached,
+                    "change_request_id": str(inc.change_request_id) if inc.change_request_id else None,
+                    "log_count": log_count,
+                    "latest_log_action": latest_log.action if latest_log else None,
+                    "latest_log_time": latest_log.timestamp.isoformat() if latest_log else None,
+                }
+            )
+
+        # Summary stats
+        now = timezone.now()
+        thirty_days = now - timedelta(days=30)
+
+        active_statuses = ["detected", "acknowledged", "investigating", "mitigating"]
+        active_count = Incident.objects.filter(status__in=active_statuses).count()
+        resolved_30d = Incident.objects.filter(
+            status__in=["resolved", "post_mortem", "closed"],
+            resolved_at__gte=thirty_days,
+        )
+        resolved_count = resolved_30d.count()
+
+        # MTTR (mean time to resolution)
+        mttr = None
+        if resolved_count > 0:
+            total_hours = sum(i.resolution_elapsed_hours for i in resolved_30d if i.resolved_at)
+            mttr = round(total_hours / resolved_count, 1)
+
+        # SLA breaches
+        recent = Incident.objects.filter(detected_at__gte=thirty_days)
+        ack_breaches = sum(1 for i in recent if i.is_ack_sla_breached)
+        res_breaches = sum(
+            1 for i in recent.filter(status__in=["resolved", "post_mortem", "closed"]) if i.is_resolution_sla_breached
+        )
+
+        stats = {
+            "active": active_count,
+            "critical_active": Incident.objects.filter(severity="critical", status__in=active_statuses).count(),
+            "resolved_30d": resolved_count,
+            "mttr_hours": mttr,
+            "sla_breaches_30d": ack_breaches + res_breaches,
+            "ack_breaches_30d": ack_breaches,
+            "resolution_breaches_30d": res_breaches,
+        }
+
+        return Response(
+            {
+                "incidents": incidents,
+                "total": total,
+                "stats": stats,
+            }
+        )
+    except Exception as e:
+        logger.warning("Incident list query failed: %s", e)
+        return Response({"incidents": [], "total": 0, "stats": {}, "error": str(e)})
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_incident_detail(request, incident_id):
+    """Return full detail for a single incident including all logs."""
+    try:
+        from syn.audit.models import Incident
+
+        inc = Incident.objects.get(id=incident_id)
+
+        logs = [
+            {
+                "id": str(log.id),
+                "timestamp": log.timestamp.isoformat(),
+                "actor": log.actor,
+                "action": log.action,
+                "from_state": log.from_state,
+                "to_state": log.to_state,
+                "message": log.message,
+                "details": log.details,
+            }
+            for log in inc.logs.order_by("timestamp")
+        ]
+
+        return Response(
+            {
+                "incident": {
+                    "id": str(inc.id),
+                    "title": inc.title,
+                    "description": inc.description,
+                    "severity": inc.severity,
+                    "status": inc.status,
+                    "category": inc.category,
+                    "reported_by": inc.reported_by,
+                    "assigned_to": inc.assigned_to,
+                    "detected_at": inc.detected_at.isoformat(),
+                    "acknowledged_at": inc.acknowledged_at.isoformat() if inc.acknowledged_at else None,
+                    "investigating_at": inc.investigating_at.isoformat() if inc.investigating_at else None,
+                    "mitigating_at": inc.mitigating_at.isoformat() if inc.mitigating_at else None,
+                    "resolved_at": inc.resolved_at.isoformat() if inc.resolved_at else None,
+                    "closed_at": inc.closed_at.isoformat() if inc.closed_at else None,
+                    "ack_elapsed_hours": round(inc.ack_elapsed_hours, 2),
+                    "resolution_elapsed_hours": round(inc.resolution_elapsed_hours, 2),
+                    "is_ack_sla_breached": inc.is_ack_sla_breached,
+                    "is_resolution_sla_breached": inc.is_resolution_sla_breached,
+                    "root_cause": inc.root_cause,
+                    "resolution_summary": inc.resolution_summary,
+                    "post_mortem_notes": inc.post_mortem_notes,
+                    "change_request_id": str(inc.change_request_id) if inc.change_request_id else None,
+                    "correlation_id": str(inc.correlation_id) if inc.correlation_id else None,
+                },
+                "logs": logs,
+            }
+        )
+    except Incident.DoesNotExist:
+        return Response({"error": "Incident not found"}, status=404)
+    except Exception as e:
+        logger.warning("Incident detail query failed: %s", e)
+        return Response({"error": str(e)}, status=500)
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_incident_create(request):
+    """Create a new incident with initial log entry.
+
+    Body: {title, description, severity, category, assigned_to}
+    """
+    try:
+        from syn.audit.models import Incident, IncidentLog
+
+        data = request.data
+        actor = request.user.email if request.user.is_authenticated else "system"
+
+        title = data.get("title", "")
+        if len(title) < 5:
+            return Response({"ok": False, "error": "Title must be at least 5 characters"}, status=400)
+
+        inc = Incident.objects.create(
+            title=title,
+            description=data.get("description", ""),
+            severity=data.get("severity", "medium"),
+            category=data.get("category", "other"),
+            assigned_to=data.get("assigned_to", ""),
+            reported_by=actor,
+        )
+
+        IncidentLog.objects.create(
+            incident=inc,
+            actor=actor,
+            action="detected",
+            to_state="detected",
+            message=f"Incident created: {inc.title}",
+            details={"severity": inc.severity, "category": inc.category},
+        )
+
+        # Notify staff (INC-001 §7.1)
+        try:
+            from django.contrib.auth import get_user_model
+
+            from notifications.helpers import notify
+
+            User = get_user_model()
+            for user in User.objects.filter(is_staff=True):
+                notify(
+                    recipient=user,
+                    notification_type="incident_created",
+                    title=f"[{inc.severity.upper()}] Incident: {inc.title}",
+                    message=inc.description[:500],
+                    entity_type="incident",
+                    entity_id=str(inc.id),
+                )
+        except Exception:
+            pass
+
+        return Response({"ok": True, "id": str(inc.id)}, status=201)
+    except Exception as e:
+        logger.warning("Incident create failed: %s", e)
+        return Response({"ok": False, "error": str(e)}, status=400)
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_incident_transition(request, incident_id):
+    """Transition an incident to a new state with a log entry.
+
+    Body: {action, message, details, assigned_to, resolution_summary,
+           root_cause, post_mortem_notes, change_request_id}
+    """
+    try:
+        from syn.audit.models import Incident, IncidentLog
+
+        inc = Incident.objects.get(id=incident_id)
+        data = request.data
+        action = data.get("action", "")
+        actor = request.user.email if request.user.is_authenticated else "system"
+
+        TIMESTAMP_MAP = {
+            "acknowledged": "acknowledged_at",
+            "investigating": "investigating_at",
+            "mitigating": "mitigating_at",
+            "resolved": "resolved_at",
+            "closed": "closed_at",
+        }
+
+        # Validate required fields for certain transitions
+        if action == "resolved" and not (data.get("resolution_summary") or inc.resolution_summary):
+            return Response(
+                {
+                    "ok": False,
+                    "error": "resolution_summary required when resolving (INC-001 §11.1)",
+                },
+                status=400,
+            )
+
+        if action == "closed" and inc.severity in ("critical", "high"):
+            if not (data.get("post_mortem_notes") or inc.post_mortem_notes):
+                return Response(
+                    {
+                        "ok": False,
+                        "error": "post_mortem_notes required for critical/high incidents (INC-001 §8.1)",
+                    },
+                    status=400,
+                )
+
+        from_state = inc.status
+
+        # Handle state transitions
+        if action in TIMESTAMP_MAP:
+            ts_field = TIMESTAMP_MAP[action]
+            if not getattr(inc, ts_field):
+                setattr(inc, ts_field, timezone.now())
+            inc.status = action
+
+        elif action == "post_mortem":
+            inc.status = "post_mortem"
+
+        elif action == "comment":
+            pass  # No state change
+
+        elif action == "reassigned":
+            if data.get("assigned_to"):
+                inc.assigned_to = data["assigned_to"]
+
+        elif action == "severity_changed":
+            if data.get("severity"):
+                inc.severity = data["severity"]
+
+        elif action == "escalated":
+            pass  # Log-only action
+
+        else:
+            return Response({"ok": False, "error": f"Unknown action: {action}"}, status=400)
+
+        # Apply optional field updates
+        if data.get("resolution_summary"):
+            inc.resolution_summary = data["resolution_summary"]
+        if data.get("root_cause"):
+            inc.root_cause = data["root_cause"]
+        if data.get("post_mortem_notes"):
+            inc.post_mortem_notes = data["post_mortem_notes"]
+        if data.get("change_request_id"):
+            from syn.audit.models import ChangeRequest
+
+            try:
+                cr = ChangeRequest.objects.get(id=data["change_request_id"])
+                inc.change_request = cr
+            except ChangeRequest.DoesNotExist:
+                pass
+
+        inc.save()
+
+        IncidentLog.objects.create(
+            incident=inc,
+            actor=actor,
+            action=action,
+            from_state=from_state,
+            to_state=inc.status,
+            message=data.get("message", ""),
+            details=data.get("details", {}),
+        )
+
+        # Notify on resolution (INC-001 §7.1)
+        if action == "resolved":
+            try:
+                from django.contrib.auth import get_user_model
+
+                from notifications.helpers import notify
+
+                User = get_user_model()
+                for user in User.objects.filter(is_staff=True):
+                    notify(
+                        recipient=user,
+                        notification_type="incident_resolved",
+                        title=f"Incident resolved: {inc.title}",
+                        message=inc.resolution_summary[:500] if inc.resolution_summary else "",
+                        entity_type="incident",
+                        entity_id=str(inc.id),
+                    )
+            except Exception:
+                pass
+
+        return Response({"ok": True, "status": inc.status})
+    except Incident.DoesNotExist:
+        return Response({"ok": False, "error": "Incident not found"}, status=404)
+    except Exception as e:
+        logger.warning("Incident transition failed: %s", e)
         return Response({"ok": False, "error": str(e)}, status=400)
 
 
@@ -4469,6 +4896,7 @@ def api_standards(request):
 # API: Roadmap Management
 # ---------------------------------------------------------------------------
 
+
 @api_view(["GET"])
 @permission_classes([IsInternalUser])
 def api_roadmap_list(request):
@@ -4488,7 +4916,55 @@ def api_roadmap_list(request):
 
     items = []
     for item in qs:
-        items.append({
+        items.append(
+            {
+                "id": str(item.id),
+                "title": item.title,
+                "description": item.description,
+                "area": item.area,
+                "quarter": item.quarter,
+                "status": item.status,
+                "tier": item.tier,
+                "is_public": item.is_public,
+                "sort_order": item.sort_order,
+                "shipped_at": item.shipped_at.isoformat() if item.shipped_at else None,
+                "change_request_id": str(item.change_request_id) if item.change_request_id else None,
+                "created_at": item.created_at.isoformat(),
+                "updated_at": item.updated_at.isoformat(),
+            }
+        )
+
+    # Unique quarters sorted
+    quarters = sorted(RoadmapItem.objects.values_list("quarter", flat=True).distinct())
+
+    # Status counts (across full dataset, not filtered)
+    by_status = {}
+    for s in RoadmapItem.objects.values_list("status", flat=True):
+        by_status[s] = by_status.get(s, 0) + 1
+
+    return Response(
+        {
+            "items": items,
+            "quarters": quarters,
+            "stats": {
+                "total": RoadmapItem.objects.count(),
+                "by_status": by_status,
+            },
+        }
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_roadmap_get(request, item_id):
+    """Get a single roadmap item by ID."""
+    try:
+        item = RoadmapItem.objects.get(id=item_id)
+    except RoadmapItem.DoesNotExist:
+        return Response({"error": "Roadmap item not found."}, status=404)
+
+    return Response(
+        {
             "id": str(item.id),
             "title": item.title,
             "description": item.description,
@@ -4502,52 +4978,8 @@ def api_roadmap_list(request):
             "change_request_id": str(item.change_request_id) if item.change_request_id else None,
             "created_at": item.created_at.isoformat(),
             "updated_at": item.updated_at.isoformat(),
-        })
-
-    # Unique quarters sorted
-    quarters = sorted(
-        RoadmapItem.objects.values_list("quarter", flat=True).distinct()
+        }
     )
-
-    # Status counts (across full dataset, not filtered)
-    by_status = {}
-    for s in RoadmapItem.objects.values_list("status", flat=True):
-        by_status[s] = by_status.get(s, 0) + 1
-
-    return Response({
-        "items": items,
-        "quarters": quarters,
-        "stats": {
-            "total": RoadmapItem.objects.count(),
-            "by_status": by_status,
-        },
-    })
-
-
-@api_view(["GET"])
-@permission_classes([IsInternalUser])
-def api_roadmap_get(request, item_id):
-    """Get a single roadmap item by ID."""
-    try:
-        item = RoadmapItem.objects.get(id=item_id)
-    except RoadmapItem.DoesNotExist:
-        return Response({"error": "Roadmap item not found."}, status=404)
-
-    return Response({
-        "id": str(item.id),
-        "title": item.title,
-        "description": item.description,
-        "area": item.area,
-        "quarter": item.quarter,
-        "status": item.status,
-        "tier": item.tier,
-        "is_public": item.is_public,
-        "sort_order": item.sort_order,
-        "shipped_at": item.shipped_at.isoformat() if item.shipped_at else None,
-        "change_request_id": str(item.change_request_id) if item.change_request_id else None,
-        "created_at": item.created_at.isoformat(),
-        "updated_at": item.updated_at.isoformat(),
-    })
 
 
 @api_view(["POST"])
@@ -4567,7 +4999,7 @@ def api_roadmap_save(request):
 
     # Validate quarter format
     quarter = data.get("quarter", "")
-    if quarter and not re.match(r'^Q[1-4]-\d{4}$', quarter):
+    if quarter and not re.match(r"^Q[1-4]-\d{4}$", quarter):
         return Response({"error": "Quarter must match format Q1-2026."}, status=400)
 
     item.title = data.get("title", item.title or "Untitled")
@@ -4626,15 +5058,17 @@ def api_plans_list(request):
 
     plans = []
     for plan in qs:
-        plans.append({
-            "id": str(plan.id),
-            "title": plan.title,
-            "status": plan.status,
-            "category": plan.category,
-            "change_request_ids": plan.change_request_ids,
-            "created_at": plan.created_at.isoformat(),
-            "updated_at": plan.updated_at.isoformat(),
-        })
+        plans.append(
+            {
+                "id": str(plan.id),
+                "title": plan.title,
+                "status": plan.status,
+                "category": plan.category,
+                "change_request_ids": plan.change_request_ids,
+                "created_at": plan.created_at.isoformat(),
+                "updated_at": plan.updated_at.isoformat(),
+            }
+        )
 
     return Response({"plans": plans})
 
@@ -4648,16 +5082,18 @@ def api_plans_get(request, plan_id):
     except PlanDocument.DoesNotExist:
         return Response({"error": "Plan not found."}, status=404)
 
-    return Response({
-        "id": str(plan.id),
-        "title": plan.title,
-        "body": plan.body,
-        "status": plan.status,
-        "category": plan.category,
-        "change_request_ids": plan.change_request_ids,
-        "created_at": plan.created_at.isoformat(),
-        "updated_at": plan.updated_at.isoformat(),
-    })
+    return Response(
+        {
+            "id": str(plan.id),
+            "title": plan.title,
+            "body": plan.body,
+            "status": plan.status,
+            "category": plan.category,
+            "change_request_ids": plan.change_request_ids,
+            "created_at": plan.created_at.isoformat(),
+            "updated_at": plan.updated_at.isoformat(),
+        }
+    )
 
 
 @api_view(["POST"])
@@ -4733,44 +5169,48 @@ def api_features_list(request):
     for i in initiatives:
         feat_count = i.features.count()
         completed = i.features.filter(status="completed").count()
-        init_data.append({
-            "id": str(i.id),
-            "short_id": i.short_id,
-            "title": i.title,
-            "status": i.status,
-            "target_quarter": i.target_quarter,
-            "progress": i.progress,
-            "feature_count": feat_count,
-            "completed_count": completed,
-            "notes": i.notes,
-        })
+        init_data.append(
+            {
+                "id": str(i.id),
+                "short_id": i.short_id,
+                "title": i.title,
+                "status": i.status,
+                "target_quarter": i.target_quarter,
+                "progress": i.progress,
+                "feature_count": feat_count,
+                "completed_count": completed,
+                "notes": i.notes,
+            }
+        )
 
     feat_data = []
     for f in features_qs:
         dep_ids = list(f.depends_on.values_list("short_id", flat=True))
         block_ids = list(f.blocks.values_list("short_id", flat=True))
-        feat_data.append({
-            "id": str(f.id),
-            "short_id": f.short_id,
-            "title": f.title,
-            "description": f.description,
-            "status": f.status,
-            "priority": f.priority,
-            "iso_clause": f.iso_clause,
-            "standards": f.standards,
-            "legacy_id": f.legacy_id,
-            "initiative_short_id": f.initiative.short_id,
-            "initiative_title": f.initiative.title,
-            "depends_on": dep_ids,
-            "blocks": block_ids,
-            "is_blocked": f.is_blocked,
-            "progress": f.progress,
-            "roadmap_item_id": str(f.roadmap_item_id) if f.roadmap_item_id else None,
-            "task_count": f.tasks.count(),
-            "tasks_completed": f.tasks.filter(status="completed").count(),
-            "created_at": f.created_at.isoformat(),
-            "updated_at": f.updated_at.isoformat(),
-        })
+        feat_data.append(
+            {
+                "id": str(f.id),
+                "short_id": f.short_id,
+                "title": f.title,
+                "description": f.description,
+                "status": f.status,
+                "priority": f.priority,
+                "iso_clause": f.iso_clause,
+                "standards": f.standards,
+                "legacy_id": f.legacy_id,
+                "initiative_short_id": f.initiative.short_id,
+                "initiative_title": f.initiative.title,
+                "depends_on": dep_ids,
+                "blocks": block_ids,
+                "is_blocked": f.is_blocked,
+                "progress": f.progress,
+                "roadmap_item_id": str(f.roadmap_item_id) if f.roadmap_item_id else None,
+                "task_count": f.tasks.count(),
+                "tasks_completed": f.tasks.filter(status="completed").count(),
+                "created_at": f.created_at.isoformat(),
+                "updated_at": f.updated_at.isoformat(),
+            }
+        )
 
     # Stats
     total = Feature.objects.count()
@@ -4781,16 +5221,18 @@ def api_features_list(request):
             by_status[s] = c
     blocked_count = sum(1 for f2 in Feature.objects.all() if f2.is_blocked)
 
-    return Response({
-        "initiatives": init_data,
-        "features": feat_data,
-        "stats": {
-            "total": total,
-            "by_status": by_status,
-            "blocked": blocked_count,
-            "initiatives_count": initiatives.count(),
-        },
-    })
+    return Response(
+        {
+            "initiatives": init_data,
+            "features": feat_data,
+            "stats": {
+                "total": total,
+                "by_status": by_status,
+                "blocked": blocked_count,
+                "initiatives_count": initiatives.count(),
+            },
+        }
+    )
 
 
 @api_view(["GET"])
@@ -4807,49 +5249,51 @@ def api_features_get(request, feature_id):
 
     tasks = []
     for t in f.tasks.all():
-        tasks.append({
-            "id": str(t.id),
-            "short_id": t.short_id,
-            "title": t.title,
-            "description": t.description,
-            "status": t.status,
-            "task_type": t.task_type,
-            "sort_order": t.sort_order,
-            "change_request_id": str(t.change_request_id) if t.change_request_id else None,
-            "completed_at": t.completed_at.isoformat() if t.completed_at else None,
-        })
+        tasks.append(
+            {
+                "id": str(t.id),
+                "short_id": t.short_id,
+                "title": t.title,
+                "description": t.description,
+                "status": t.status,
+                "task_type": t.task_type,
+                "sort_order": t.sort_order,
+                "change_request_id": str(t.change_request_id) if t.change_request_id else None,
+                "completed_at": t.completed_at.isoformat() if t.completed_at else None,
+            }
+        )
 
-    deps = [{"short_id": d.short_id, "title": d.title, "status": d.status}
-            for d in f.depends_on.all()]
-    blocks = [{"short_id": b.short_id, "title": b.title, "status": b.status}
-              for b in f.blocks.all()]
+    deps = [{"short_id": d.short_id, "title": d.title, "status": d.status} for d in f.depends_on.all()]
+    blocks = [{"short_id": b.short_id, "title": b.title, "status": b.status} for b in f.blocks.all()]
 
-    return Response({
-        "id": str(f.id),
-        "short_id": f.short_id,
-        "title": f.title,
-        "description": f.description,
-        "acceptance_criteria": f.acceptance_criteria,
-        "status": f.status,
-        "priority": f.priority,
-        "iso_clause": f.iso_clause,
-        "standards": f.standards,
-        "legacy_id": f.legacy_id,
-        "initiative_short_id": f.initiative.short_id,
-        "initiative_title": f.initiative.title,
-        "depends_on": deps,
-        "blocks": blocks,
-        "is_blocked": f.is_blocked,
-        "progress": f.progress,
-        "tasks": tasks,
-        "roadmap_item_id": str(f.roadmap_item_id) if f.roadmap_item_id else None,
-        "change_request_ids": f.change_request_ids,
-        "notes": f.notes,
-        "started_at": f.started_at.isoformat() if f.started_at else None,
-        "completed_at": f.completed_at.isoformat() if f.completed_at else None,
-        "created_at": f.created_at.isoformat(),
-        "updated_at": f.updated_at.isoformat(),
-    })
+    return Response(
+        {
+            "id": str(f.id),
+            "short_id": f.short_id,
+            "title": f.title,
+            "description": f.description,
+            "acceptance_criteria": f.acceptance_criteria,
+            "status": f.status,
+            "priority": f.priority,
+            "iso_clause": f.iso_clause,
+            "standards": f.standards,
+            "legacy_id": f.legacy_id,
+            "initiative_short_id": f.initiative.short_id,
+            "initiative_title": f.initiative.title,
+            "depends_on": deps,
+            "blocks": blocks,
+            "is_blocked": f.is_blocked,
+            "progress": f.progress,
+            "tasks": tasks,
+            "roadmap_item_id": str(f.roadmap_item_id) if f.roadmap_item_id else None,
+            "change_request_ids": f.change_request_ids,
+            "notes": f.notes,
+            "started_at": f.started_at.isoformat() if f.started_at else None,
+            "completed_at": f.completed_at.isoformat() if f.completed_at else None,
+            "created_at": f.created_at.isoformat(),
+            "updated_at": f.updated_at.isoformat(),
+        }
+    )
 
 
 @api_view(["POST"])

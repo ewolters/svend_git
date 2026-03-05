@@ -6,7 +6,6 @@ and pgvector for efficient similarity search in PostgreSQL.
 
 import logging
 from functools import lru_cache
-from typing import Optional
 
 import numpy as np
 
@@ -24,8 +23,8 @@ def get_embedding_model():
     Uses GPU if available, falls back to CPU.
     """
     try:
-        from sentence_transformers import SentenceTransformer
         import torch
+        from sentence_transformers import SentenceTransformer
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
         logger.info(f"Loading embedding model '{EMBEDDING_MODEL}' on {device}")
@@ -40,7 +39,7 @@ def get_embedding_model():
         return None
 
 
-def generate_embedding(text: str) -> Optional[np.ndarray]:
+def generate_embedding(text: str) -> np.ndarray | None:
     """Generate embedding vector for text.
 
     Args:
@@ -67,7 +66,7 @@ def generate_embedding(text: str) -> Optional[np.ndarray]:
         return None
 
 
-def generate_rca_embedding(event: str, chain: list, root_cause: str = "") -> Optional[np.ndarray]:
+def generate_rca_embedding(event: str, chain: list, root_cause: str = "") -> np.ndarray | None:
     """Generate embedding for an RCA session.
 
     Combines event description, causal chain claims, and root cause

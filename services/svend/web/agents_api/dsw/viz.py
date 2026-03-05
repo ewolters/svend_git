@@ -1,12 +1,10 @@
 """DSW Visualization — plotting, Bayesian SPC visualization suite."""
 
 import numpy as np
-from scipy import stats as sp_stats
 
 
 def _nig_posterior_update(data, mu0, nu0, alpha0, beta0):
     """Normal-Inverse-Gamma conjugate posterior update."""
-    import numpy as np
     n = len(data)
     x_bar = np.mean(data)
     nu_n = nu0 + n
@@ -18,8 +16,8 @@ def _nig_posterior_update(data, mu0, nu0, alpha0, beta0):
 
 def _nig_sample(mu_n, nu_n, alpha_n, beta_n, n_samples=10000):
     """Draw (mu, sigma) samples from NIG posterior."""
-    import numpy as np
     from scipy.stats import invgamma
+
     rng = np.random.default_rng(42)
     sigma2_samples = invgamma.rvs(a=alpha_n, scale=beta_n, size=n_samples, random_state=rng)
     mu_samples = rng.normal(loc=mu_n, scale=np.sqrt(sigma2_samples / nu_n))
@@ -29,7 +27,6 @@ def _nig_sample(mu_n, nu_n, alpha_n, beta_n, n_samples=10000):
 
 def _cpk_from_params(mu, sigma, usl=None, lsl=None):
     """Vectorized Cpk from arrays of mu and sigma. Supports one-sided specs."""
-    import numpy as np
     if usl is not None and lsl is not None:
         cpu = (usl - mu) / (3.0 * sigma)
         cpl = (mu - lsl) / (3.0 * sigma)
@@ -42,17 +39,18 @@ def _cpk_from_params(mu, sigma, usl=None, lsl=None):
         return np.zeros_like(mu)
 
 
-
-
 def run_visualization(df, analysis_id, config):
     """Create visualizations."""
-    import numpy as np
     import pandas as pd
 
     result = {"plots": [], "summary": ""}
 
     # SVEND theme colors (canonical palette from common.py)
-    from .common import SVEND_COLORS, COLOR_GOOD, COLOR_BAD, COLOR_WARNING, COLOR_REFERENCE, COLOR_GOLD, _rgba
+    from .common import (
+        SVEND_COLORS,
+        _rgba,
+    )
+
     theme_colors = SVEND_COLORS
 
     if analysis_id == "histogram":
@@ -63,25 +61,38 @@ def run_visualization(df, analysis_id, config):
         if groupby and groupby != "" and groupby != "None":
             traces = []
             for i, group in enumerate(df[groupby].dropna().unique()):
-                traces.append({
-                    "type": "histogram",
-                    "x": df[df[groupby] == group][var].dropna().tolist(),
-                    "name": str(group),
-                    "opacity": 0.7,
-                    "nbinsx": bins,
-                    "marker": {"color": theme_colors[i % len(theme_colors)]}
-                })
-            result["plots"].append({
-                "title": f"Histogram of {var} by {groupby}",
-                "data": traces,
-                "layout": {"height": 300, "barmode": "overlay", "showlegend": True}
-            })
+                traces.append(
+                    {
+                        "type": "histogram",
+                        "x": df[df[groupby] == group][var].dropna().tolist(),
+                        "name": str(group),
+                        "opacity": 0.7,
+                        "nbinsx": bins,
+                        "marker": {"color": theme_colors[i % len(theme_colors)]},
+                    }
+                )
+            result["plots"].append(
+                {
+                    "title": f"Histogram of {var} by {groupby}",
+                    "data": traces,
+                    "layout": {"height": 300, "barmode": "overlay", "showlegend": True},
+                }
+            )
         else:
-            result["plots"].append({
-                "title": f"Histogram of {var}",
-                "data": [{"type": "histogram", "x": df[var].dropna().tolist(), "nbinsx": bins, "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}}}],
-                "layout": {"height": 300}
-            })
+            result["plots"].append(
+                {
+                    "title": f"Histogram of {var}",
+                    "data": [
+                        {
+                            "type": "histogram",
+                            "x": df[var].dropna().tolist(),
+                            "nbinsx": bins,
+                            "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                        }
+                    ],
+                    "layout": {"height": 300},
+                }
+            )
 
     elif analysis_id == "boxplot":
         var = config.get("var")
@@ -91,24 +102,37 @@ def run_visualization(df, analysis_id, config):
             # Create separate box for each group with different colors
             traces = []
             for i, group in enumerate(df[groupby].dropna().unique()):
-                traces.append({
-                    "type": "box",
-                    "y": df[df[groupby] == group][var].dropna().tolist(),
-                    "name": str(group),
-                    "marker": {"color": theme_colors[i % len(theme_colors)]},
-                    "line": {"color": theme_colors[i % len(theme_colors)]}
-                })
-            result["plots"].append({
-                "title": f"Box Plot of {var} by {groupby}",
-                "data": traces,
-                "layout": {"height": 300, "showlegend": True}
-            })
+                traces.append(
+                    {
+                        "type": "box",
+                        "y": df[df[groupby] == group][var].dropna().tolist(),
+                        "name": str(group),
+                        "marker": {"color": theme_colors[i % len(theme_colors)]},
+                        "line": {"color": theme_colors[i % len(theme_colors)]},
+                    }
+                )
+            result["plots"].append(
+                {
+                    "title": f"Box Plot of {var} by {groupby}",
+                    "data": traces,
+                    "layout": {"height": 300, "showlegend": True},
+                }
+            )
         else:
-            result["plots"].append({
-                "title": f"Box Plot of {var}",
-                "data": [{"type": "box", "y": df[var].dropna().tolist(), "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}}, "line": {"color": "#4a9f6e"}}],
-                "layout": {"height": 300}
-            })
+            result["plots"].append(
+                {
+                    "title": f"Box Plot of {var}",
+                    "data": [
+                        {
+                            "type": "box",
+                            "y": df[var].dropna().tolist(),
+                            "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                            "line": {"color": "#4a9f6e"},
+                        }
+                    ],
+                    "layout": {"height": 300},
+                }
+            )
 
     elif analysis_id == "scatter":
         x_var = config.get("x")
@@ -127,34 +151,35 @@ def run_visualization(df, analysis_id, config):
             for i, group in enumerate(groups):
                 fill_color, border_color = group_colors[i % len(group_colors)]
                 mask = df[color_var] == group
-                data.append({
+                data.append(
+                    {
+                        "type": "scatter",
+                        "x": df.loc[mask, x_var].tolist(),
+                        "y": df.loc[mask, y_var].tolist(),
+                        "mode": "markers",
+                        "marker": {"color": fill_color, "size": 8, "line": {"color": border_color, "width": 1.5}},
+                        "name": str(group),
+                    }
+                )
+        else:
+            data.append(
+                {
                     "type": "scatter",
-                    "x": df.loc[mask, x_var].tolist(),
-                    "y": df.loc[mask, y_var].tolist(),
+                    "x": df[x_var].tolist(),
+                    "y": df[y_var].tolist(),
                     "mode": "markers",
                     "marker": {
-                        "color": fill_color,
+                        "color": "rgba(74, 159, 110, 0.5)",
                         "size": 8,
-                        "line": {"color": border_color, "width": 1.5}
+                        "line": {"color": "#4a9f6e", "width": 1.5},
                     },
-                    "name": str(group)
-                })
-        else:
-            data.append({
-                "type": "scatter",
-                "x": df[x_var].tolist(),
-                "y": df[y_var].tolist(),
-                "mode": "markers",
-                "marker": {
-                    "color": "rgba(74, 159, 110, 0.5)",
-                    "size": 8,
-                    "line": {"color": "#4a9f6e", "width": 1.5}
-                },
-                "name": y_var
-            })
+                    "name": y_var,
+                }
+            )
 
         if trendline:
             import numpy as np
+
             x = df[x_var].dropna()
             y = df[y_var].loc[x.index].dropna()
             common_idx = x.index.intersection(y.index)
@@ -163,40 +188,56 @@ def run_visualization(df, analysis_id, config):
             if len(x) > 1:
                 z = np.polyfit(x, y, 1)
                 p = np.poly1d(z)
-                data.append({
-                    "type": "scatter",
-                    "x": [float(x.min()), float(x.max())],
-                    "y": [float(p(x.min())), float(p(x.max()))],
-                    "mode": "lines",
-                    "line": {"color": "#e8c547", "dash": "dash"},
-                    "name": "Trendline"
-                })
+                data.append(
+                    {
+                        "type": "scatter",
+                        "x": [float(x.min()), float(x.max())],
+                        "y": [float(p(x.min())), float(p(x.max()))],
+                        "mode": "lines",
+                        "line": {"color": "#e8c547", "dash": "dash"},
+                        "name": "Trendline",
+                    }
+                )
 
         title = f"{y_var} vs {x_var}"
         if color_var and color_var != "" and color_var != "None":
             title += f" (by {color_var})"
 
-        result["plots"].append({
-            "title": title,
-            "data": data,
-            "layout": {
-                "height": 300,
-                "xaxis": {"title": x_var},
-                "yaxis": {"title": y_var},
-                "showlegend": len(data) > 1
+        result["plots"].append(
+            {
+                "title": title,
+                "data": data,
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": x_var},
+                    "yaxis": {"title": y_var},
+                    "showlegend": len(data) > 1,
+                },
             }
-        })
+        )
 
     elif analysis_id == "heatmap":
         import numpy as np
+
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         corr = df[numeric_cols].corr()
 
-        result["plots"].append({
-            "title": "Correlation Heatmap",
-            "data": [{"type": "heatmap", "z": corr.values.tolist(), "x": numeric_cols, "y": numeric_cols, "colorscale": "RdBu", "zmid": 0}],
-            "layout": {"height": 400}
-        })
+        result["plots"].append(
+            {
+                "title": "Correlation Heatmap",
+                "data": [
+                    {
+                        "type": "heatmap",
+                        "z": corr.values.tolist(),
+                        "x": numeric_cols,
+                        "y": numeric_cols,
+                        "colorscale": "RdBu",
+                        "zmid": 0,
+                    }
+                ],
+                "layout": {"height": 400},
+            }
+        )
 
     elif analysis_id == "pareto":
         category = config.get("category") or config.get("var")
@@ -211,29 +252,46 @@ def run_visualization(df, analysis_id, config):
 
         cumulative = counts.cumsum() / counts.sum() * 100
 
-        result["plots"].append({
-            "title": f"Pareto Chart - {category}",
-            "data": [
-                {"type": "bar", "x": [str(x) for x in counts.index.tolist()], "y": counts.values.tolist(), "name": "Count", "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}}},
-                {"type": "scatter", "x": [str(x) for x in counts.index.tolist()], "y": cumulative.values.tolist(), "name": "Cumulative %", "yaxis": "y2", "line": {"color": "#fdcb6e"}}
-            ],
-            "layout": {
-                
-                "height": 350,
-                "yaxis2": {"overlaying": "y", "side": "right", "range": [0, 100], "title": "Cumulative %"}
+        result["plots"].append(
+            {
+                "title": f"Pareto Chart - {category}",
+                "data": [
+                    {
+                        "type": "bar",
+                        "x": [str(x) for x in counts.index.tolist()],
+                        "y": counts.values.tolist(),
+                        "name": "Count",
+                        "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [str(x) for x in counts.index.tolist()],
+                        "y": cumulative.values.tolist(),
+                        "name": "Cumulative %",
+                        "yaxis": "y2",
+                        "line": {"color": "#fdcb6e"},
+                    },
+                ],
+                "layout": {
+                    "height": 350,
+                    "yaxis2": {"overlaying": "y", "side": "right", "range": [0, 100], "title": "Cumulative %"},
+                },
             }
-        })
+        )
 
         # Find 80% cutoff
         cutoff_idx = (cumulative >= 80).idxmax() if (cumulative >= 80).any() else counts.index[-1]
         vital_few = counts.loc[:cutoff_idx]
-        result["summary"] = f"Pareto Analysis\n\nTotal categories: {len(counts)}\nVital few (80%): {len(vital_few)} categories\n\nTop contributors:\n"
+        result["summary"] = (
+            f"Pareto Analysis\n\nTotal categories: {len(counts)}\nVital few (80%): {len(vital_few)} categories\n\nTop contributors:\n"
+        )
         for cat, val in counts.head(5).items():
             pct = val / counts.sum() * 100
             result["summary"] += f"  {cat}: {val} ({pct:.1f}%)\n"
 
     elif analysis_id == "matrix":
         import numpy as np
+
         vars_list = config.get("vars", [])
         color_var = config.get("color")
 
@@ -252,30 +310,33 @@ def run_visualization(df, analysis_id, config):
 
                 if i == j:
                     # Diagonal: histogram
-                    fig_data.append({
-                        "type": "histogram",
-                        "x": df[x_var].dropna().tolist(),
-                        "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
-                        "xaxis": f"x{col if col > 1 else ''}",
-                        "yaxis": f"y{row if row > 1 else ''}",
-                        "showlegend": False
-                    })
+                    fig_data.append(
+                        {
+                            "type": "histogram",
+                            "x": df[x_var].dropna().tolist(),
+                            "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                            "xaxis": f"x{col if col > 1 else ''}",
+                            "yaxis": f"y{row if row > 1 else ''}",
+                            "showlegend": False,
+                        }
+                    )
                 else:
                     # Off-diagonal: scatter
-                    fig_data.append({
-                        "type": "scatter",
-                        "x": df[x_var].tolist(),
-                        "y": df[y_var].tolist(),
-                        "mode": "markers",
-                        "marker": {"color": "#4a9f6e", "size": 3},
-                        "xaxis": f"x{col if col > 1 else ''}",
-                        "yaxis": f"y{row if row > 1 else ''}",
-                        "showlegend": False
-                    })
+                    fig_data.append(
+                        {
+                            "type": "scatter",
+                            "x": df[x_var].tolist(),
+                            "y": df[y_var].tolist(),
+                            "mode": "markers",
+                            "marker": {"color": "#4a9f6e", "size": 3},
+                            "xaxis": f"x{col if col > 1 else ''}",
+                            "yaxis": f"y{row if row > 1 else ''}",
+                            "showlegend": False,
+                        }
+                    )
 
         # Build layout with subplots
         layout = {
-            
             "height": 100 + n_vars * 120,
             "showlegend": False,
         }
@@ -288,24 +349,21 @@ def run_visualization(df, analysis_id, config):
             y_key = f"yaxis{row if row > 1 else ''}"
 
             layout[x_key] = {
-                "domain": [i/n_vars + 0.02, (i+1)/n_vars - 0.02],
+                "domain": [i / n_vars + 0.02, (i + 1) / n_vars - 0.02],
                 "title": vars_list[i] if row == 1 else "",
-                "showticklabels": row == 1
+                "showticklabels": row == 1,
             }
             layout[y_key] = {
-                "domain": [i/n_vars + 0.02, (i+1)/n_vars - 0.02],
+                "domain": [i / n_vars + 0.02, (i + 1) / n_vars - 0.02],
                 "title": vars_list[n_vars - 1 - i] if col == 1 else "",
-                "showticklabels": col == 1
+                "showticklabels": col == 1,
             }
 
-        result["plots"].append({
-            "title": "Matrix Plot",
-            "data": fig_data,
-            "layout": layout
-        })
+        result["plots"].append({"title": "Matrix Plot", "data": fig_data, "layout": layout})
 
     elif analysis_id == "timeseries":
         import numpy as np
+
         x_col = config.get("x")
         y_cols = config.get("y", [])
         show_markers = config.get("markers", False)
@@ -321,21 +379,22 @@ def run_visualization(df, analysis_id, config):
                 "y": df[y_col].tolist(),
                 "mode": "lines+markers" if show_markers else "lines",
                 "name": y_col,
-                "line": {"color": theme_colors[i % len(theme_colors)]}
+                "line": {"color": theme_colors[i % len(theme_colors)]},
             }
             traces.append(trace)
 
-        result["plots"].append({
-            "title": f"Time Series: {', '.join(y_cols)}",
-            "data": traces,
-            "layout": {
-                
-                "height": 350,
-                "xaxis": {"title": x_col},
-                "yaxis": {"title": "Value"},
-                "showlegend": len(y_cols) > 1
+        result["plots"].append(
+            {
+                "title": f"Time Series: {', '.join(y_cols)}",
+                "data": traces,
+                "layout": {
+                    "height": 350,
+                    "xaxis": {"title": x_col},
+                    "yaxis": {"title": "Value"},
+                    "showlegend": len(y_cols) > 1,
+                },
             }
-        })
+        )
 
     elif analysis_id == "probability":
         import numpy as np
@@ -359,7 +418,7 @@ def run_visualization(df, analysis_id, config):
             theoretical = stats.lognorm.ppf(pp, s=1)
             dist_name = "Lognormal"
             x_sorted = np.log(x_sorted[x_sorted > 0])
-            theoretical = stats.norm.ppf(pp[:len(x_sorted)])
+            theoretical = stats.norm.ppf(pp[: len(x_sorted)])
         elif dist == "expon":
             theoretical = stats.expon.ppf(pp)
             dist_name = "Exponential"
@@ -375,38 +434,45 @@ def run_visualization(df, analysis_id, config):
         slope, intercept = np.polyfit(theoretical, x_sorted, 1)
         fit_line = slope * theoretical + intercept
 
-        result["plots"].append({
-            "title": f"Probability Plot ({dist_name}): {var}",
-            "data": [
-                {
-                    "type": "scatter",
-                    "x": theoretical.tolist(),
-                    "y": x_sorted.tolist(),
-                    "mode": "markers",
-                    "marker": {"color": "rgba(74, 159, 110, 0.5)", "size": 6, "line": {"color": "#4a9f6e", "width": 1}},
-                    "name": "Data"
+        result["plots"].append(
+            {
+                "title": f"Probability Plot ({dist_name}): {var}",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": theoretical.tolist(),
+                        "y": x_sorted.tolist(),
+                        "mode": "markers",
+                        "marker": {
+                            "color": "rgba(74, 159, 110, 0.5)",
+                            "size": 6,
+                            "line": {"color": "#4a9f6e", "width": 1},
+                        },
+                        "name": "Data",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": theoretical.tolist(),
+                        "y": fit_line.tolist(),
+                        "mode": "lines",
+                        "line": {"color": "#e89547", "dash": "dash"},
+                        "name": "Fit Line",
+                    },
+                ],
+                "layout": {
+                    "height": 350,
+                    "xaxis": {"title": f"Theoretical Quantiles ({dist_name})"},
+                    "yaxis": {"title": var},
                 },
-                {
-                    "type": "scatter",
-                    "x": theoretical.tolist(),
-                    "y": fit_line.tolist(),
-                    "mode": "lines",
-                    "line": {"color": "#e89547", "dash": "dash"},
-                    "name": "Fit Line"
-                }
-            ],
-            "layout": {
-                
-                "height": 350,
-                "xaxis": {"title": f"Theoretical Quantiles ({dist_name})"},
-                "yaxis": {"title": var}
             }
-        })
+        )
 
         # Anderson-Darling test for normality
         if dist == "norm":
             ad_stat = stats.anderson(x)
-            result["summary"] = f"Probability Plot ({dist_name})\n\nAnderson-Darling: {ad_stat.statistic:.4f}\nCritical values (15%, 10%, 5%, 2.5%, 1%):\n{ad_stat.critical_values}"
+            result["summary"] = (
+                f"Probability Plot ({dist_name})\n\nAnderson-Darling: {ad_stat.statistic:.4f}\nCritical values (15%, 10%, 5%, 2.5%, 1%):\n{ad_stat.critical_values}"
+            )
 
     elif analysis_id == "individual_value_plot":
         import numpy as np
@@ -427,54 +493,98 @@ def run_visualization(df, analysis_id, config):
                 vals = df[df[groupby] == grp][var].dropna().values
                 color = theme_colors[i % len(theme_colors)]
                 jitter = np.random.uniform(-0.15, 0.15, len(vals))
-                traces.append({
-                    "type": "scatter", "x": (np.full(len(vals), i) + jitter).tolist(),
-                    "y": vals.tolist(), "mode": "markers",
-                    "marker": {"color": color, "size": 6, "opacity": 0.6},
-                    "name": str(grp), "showlegend": True
-                })
+                traces.append(
+                    {
+                        "type": "scatter",
+                        "x": (np.full(len(vals), i) + jitter).tolist(),
+                        "y": vals.tolist(),
+                        "mode": "markers",
+                        "marker": {"color": color, "size": 6, "opacity": 0.6},
+                        "name": str(grp),
+                        "showlegend": True,
+                    }
+                )
                 if show_mean and len(vals) > 0:
                     mean_val = float(np.mean(vals))
-                    traces.append({
-                        "type": "scatter", "x": [i], "y": [mean_val],
-                        "mode": "markers", "marker": {"color": color, "size": 14, "symbol": "diamond", "line": {"color": "#fff", "width": 1}},
-                        "showlegend": False
-                    })
+                    traces.append(
+                        {
+                            "type": "scatter",
+                            "x": [i],
+                            "y": [mean_val],
+                            "mode": "markers",
+                            "marker": {
+                                "color": color,
+                                "size": 14,
+                                "symbol": "diamond",
+                                "line": {"color": "#fff", "width": 1},
+                            },
+                            "showlegend": False,
+                        }
+                    )
                 if show_ci and len(vals) > 1:
                     mean_val = float(np.mean(vals))
                     se = float(np.std(vals, ddof=1) / np.sqrt(len(vals)))
-                    ci = stats.t.interval(conf, df=len(vals)-1, loc=mean_val, scale=se)
-                    traces.append({
-                        "type": "scatter", "x": [i, i], "y": [ci[0], ci[1]],
-                        "mode": "lines", "line": {"color": color, "width": 2},
-                        "showlegend": False
-                    })
+                    ci = stats.t.interval(conf, df=len(vals) - 1, loc=mean_val, scale=se)
+                    traces.append(
+                        {
+                            "type": "scatter",
+                            "x": [i, i],
+                            "y": [ci[0], ci[1]],
+                            "mode": "lines",
+                            "line": {"color": color, "width": 2},
+                            "showlegend": False,
+                        }
+                    )
 
-            result["plots"].append({
-                "title": f"Individual Value Plot: {var} by {groupby}",
-                "data": traces,
-                "layout": {"height": 350, "xaxis": {"tickvals": list(range(len(groups))), "ticktext": [str(g) for g in groups], "title": groupby}, "yaxis": {"title": var}, "showlegend": True}
-            })
+            result["plots"].append(
+                {
+                    "title": f"Individual Value Plot: {var} by {groupby}",
+                    "data": traces,
+                    "layout": {
+                        "height": 350,
+                        "xaxis": {
+                            "tickvals": list(range(len(groups))),
+                            "ticktext": [str(g) for g in groups],
+                            "title": groupby,
+                        },
+                        "yaxis": {"title": var},
+                        "showlegend": True,
+                    },
+                }
+            )
         else:
             vals = df[var].dropna().values
             jitter = np.random.uniform(-0.15, 0.15, len(vals))
-            traces.append({
-                "type": "scatter", "x": jitter.tolist(), "y": vals.tolist(),
-                "mode": "markers", "marker": {"color": "rgba(74,159,110,0.6)", "size": 6},
-                "name": var, "showlegend": False
-            })
+            traces.append(
+                {
+                    "type": "scatter",
+                    "x": jitter.tolist(),
+                    "y": vals.tolist(),
+                    "mode": "markers",
+                    "marker": {"color": "rgba(74,159,110,0.6)", "size": 6},
+                    "name": var,
+                    "showlegend": False,
+                }
+            )
             if show_mean and len(vals) > 0:
                 mean_val = float(np.mean(vals))
-                traces.append({
-                    "type": "scatter", "x": [0], "y": [mean_val],
-                    "mode": "markers", "marker": {"color": "#e89547", "size": 14, "symbol": "diamond"},
-                    "showlegend": False
-                })
-            result["plots"].append({
-                "title": f"Individual Value Plot: {var}",
-                "data": traces,
-                "layout": {"height": 350, "xaxis": {"showticklabels": False}, "yaxis": {"title": var}}
-            })
+                traces.append(
+                    {
+                        "type": "scatter",
+                        "x": [0],
+                        "y": [mean_val],
+                        "mode": "markers",
+                        "marker": {"color": "#e89547", "size": 14, "symbol": "diamond"},
+                        "showlegend": False,
+                    }
+                )
+            result["plots"].append(
+                {
+                    "title": f"Individual Value Plot: {var}",
+                    "data": traces,
+                    "layout": {"height": 350, "xaxis": {"showticklabels": False}, "yaxis": {"title": var}},
+                }
+            )
 
     elif analysis_id == "interval_plot":
         import numpy as np
@@ -499,7 +609,7 @@ def run_visualization(df, analysis_id, config):
                     continue
                 m = float(np.mean(vals))
                 se = float(np.std(vals, ddof=1) / np.sqrt(len(vals)))
-                ci = stats.t.interval(conf, df=len(vals)-1, loc=m, scale=se)
+                ci = stats.t.interval(conf, df=len(vals) - 1, loc=m, scale=se)
                 means.append(m)
                 ci_lo.append(m - ci[0])
                 ci_hi.append(ci[1] - m)
@@ -507,23 +617,41 @@ def run_visualization(df, analysis_id, config):
 
             overall_mean = float(df[var].dropna().mean())
 
-            traces = [{
-                "type": "scatter", "x": labels, "y": means,
-                "mode": "markers",
-                "marker": {"color": "#4a9f6e", "size": 10, "symbol": "diamond"},
-                "error_y": {"type": "data", "symmetric": False, "array": ci_hi, "arrayminus": ci_lo, "color": "#4a9f6e", "thickness": 2, "width": 8},
-                "name": f"Mean ± {conf*100:.0f}% CI"
-            }, {
-                "type": "scatter", "x": [labels[0], labels[-1]], "y": [overall_mean, overall_mean],
-                "mode": "lines", "line": {"color": "#e89547", "dash": "dash", "width": 1.5},
-                "name": f"Overall Mean ({overall_mean:.4g})"
-            }]
+            traces = [
+                {
+                    "type": "scatter",
+                    "x": labels,
+                    "y": means,
+                    "mode": "markers",
+                    "marker": {"color": "#4a9f6e", "size": 10, "symbol": "diamond"},
+                    "error_y": {
+                        "type": "data",
+                        "symmetric": False,
+                        "array": ci_hi,
+                        "arrayminus": ci_lo,
+                        "color": "#4a9f6e",
+                        "thickness": 2,
+                        "width": 8,
+                    },
+                    "name": f"Mean ± {conf * 100:.0f}% CI",
+                },
+                {
+                    "type": "scatter",
+                    "x": [labels[0], labels[-1]],
+                    "y": [overall_mean, overall_mean],
+                    "mode": "lines",
+                    "line": {"color": "#e89547", "dash": "dash", "width": 1.5},
+                    "name": f"Overall Mean ({overall_mean:.4g})",
+                },
+            ]
 
-            result["plots"].append({
-                "title": f"Interval Plot: {var} by {groupby} ({conf*100:.0f}% CI)",
-                "data": traces,
-                "layout": {"height": 350, "xaxis": {"title": groupby}, "yaxis": {"title": var}, "showlegend": True}
-            })
+            result["plots"].append(
+                {
+                    "title": f"Interval Plot: {var} by {groupby} ({conf * 100:.0f}% CI)",
+                    "data": traces,
+                    "layout": {"height": 350, "xaxis": {"title": groupby}, "yaxis": {"title": var}, "showlegend": True},
+                }
+            )
 
     elif analysis_id == "dotplot":
         import numpy as np
@@ -549,21 +677,37 @@ def run_visualization(df, analysis_id, config):
                 binned = np.round(vals / bin_width) * bin_width
                 x_out, y_out = [], []
                 from collections import Counter
+
                 counts = Counter()
                 for bv, rv in zip(binned, vals):
                     counts[bv] += 1
                     x_out.append(float(rv))
                     y_out.append(i + (counts[bv] - 1) * 0.08)
-                traces.append({
-                    "type": "scatter", "x": x_out, "y": y_out,
-                    "mode": "markers", "marker": {"color": color, "size": 7},
-                    "name": str(grp)
-                })
-            result["plots"].append({
-                "title": f"Dotplot: {var} by {groupby}",
-                "data": traces,
-                "layout": {"height": 350, "xaxis": {"title": var}, "yaxis": {"tickvals": list(range(len(groups))), "ticktext": [str(g) for g in groups], "title": groupby}}
-            })
+                traces.append(
+                    {
+                        "type": "scatter",
+                        "x": x_out,
+                        "y": y_out,
+                        "mode": "markers",
+                        "marker": {"color": color, "size": 7},
+                        "name": str(grp),
+                    }
+                )
+            result["plots"].append(
+                {
+                    "title": f"Dotplot: {var} by {groupby}",
+                    "data": traces,
+                    "layout": {
+                        "height": 350,
+                        "xaxis": {"title": var},
+                        "yaxis": {
+                            "tickvals": list(range(len(groups))),
+                            "ticktext": [str(g) for g in groups],
+                            "title": groupby,
+                        },
+                    },
+                }
+            )
         else:
             vals = np.sort(df[var].dropna().values)
             if len(vals) > 0:
@@ -574,16 +718,28 @@ def run_visualization(df, analysis_id, config):
                 binned = np.round(vals / bin_width) * bin_width
                 x_out, y_out = [], []
                 from collections import Counter
+
                 counts = Counter()
                 for bv, rv in zip(binned, vals):
                     counts[bv] += 1
                     x_out.append(float(rv))
                     y_out.append(counts[bv])
-                result["plots"].append({
-                    "title": f"Dotplot: {var}",
-                    "data": [{"type": "scatter", "x": x_out, "y": y_out, "mode": "markers", "marker": {"color": "#4a9f6e", "size": 7}, "name": var}],
-                    "layout": {"height": 300, "xaxis": {"title": var}, "yaxis": {"title": "Count"}}
-                })
+                result["plots"].append(
+                    {
+                        "title": f"Dotplot: {var}",
+                        "data": [
+                            {
+                                "type": "scatter",
+                                "x": x_out,
+                                "y": y_out,
+                                "mode": "markers",
+                                "marker": {"color": "#4a9f6e", "size": 7},
+                                "name": var,
+                            }
+                        ],
+                        "layout": {"height": 300, "xaxis": {"title": var}, "yaxis": {"title": "Count"}},
+                    }
+                )
 
     # =====================================================================
     # Bubble Chart (backend — complements client-side renderGraph)
@@ -603,30 +759,51 @@ def run_visualization(df, analysis_id, config):
             for i, group in enumerate(df[color_var].dropna().unique()):
                 sub = df.loc[df[color_var] == group]
                 sizes = ((sub[size_var].fillna(s_min).astype(float) - s_min) / s_range * 35 + 5).tolist()
-                data.append({
-                    "type": "scatter", "mode": "markers",
-                    "x": sub[x_var].tolist(), "y": sub[y_var].tolist(),
-                    "marker": {"size": sizes, "sizemode": "diameter",
-                               "color": theme_colors[i % len(theme_colors)], "opacity": 0.7},
-                    "name": str(group),
-                })
+                data.append(
+                    {
+                        "type": "scatter",
+                        "mode": "markers",
+                        "x": sub[x_var].tolist(),
+                        "y": sub[y_var].tolist(),
+                        "marker": {
+                            "size": sizes,
+                            "sizemode": "diameter",
+                            "color": theme_colors[i % len(theme_colors)],
+                            "opacity": 0.7,
+                        },
+                        "name": str(group),
+                    }
+                )
         else:
             sizes = ((df[size_var].fillna(s_min).astype(float) - s_min) / s_range * 35 + 5).tolist()
-            data.append({
-                "type": "scatter", "mode": "markers",
-                "x": df[x_var].tolist(), "y": df[y_var].tolist(),
-                "marker": {"size": sizes, "sizemode": "diameter",
-                           "color": "rgba(74,159,110,0.6)",
-                           "line": {"color": "#4a9f6e", "width": 1}},
-                "name": size_var,
-            })
+            data.append(
+                {
+                    "type": "scatter",
+                    "mode": "markers",
+                    "x": df[x_var].tolist(),
+                    "y": df[y_var].tolist(),
+                    "marker": {
+                        "size": sizes,
+                        "sizemode": "diameter",
+                        "color": "rgba(74,159,110,0.6)",
+                        "line": {"color": "#4a9f6e", "width": 1},
+                    },
+                    "name": size_var,
+                }
+            )
 
-        result["plots"].append({
-            "title": f"Bubble Chart: {y_var} vs {x_var} (size: {size_var})",
-            "data": data,
-            "layout": {"height": 400, "xaxis": {"title": x_var}, "yaxis": {"title": y_var},
-                       "showlegend": bool(color_var and color_var not in ("", "None"))},
-        })
+        result["plots"].append(
+            {
+                "title": f"Bubble Chart: {y_var} vs {x_var} (size: {size_var})",
+                "data": data,
+                "layout": {
+                    "height": 400,
+                    "xaxis": {"title": x_var},
+                    "yaxis": {"title": y_var},
+                    "showlegend": bool(color_var and color_var not in ("", "None")),
+                },
+            }
+        )
         result["summary"] = (
             f"Bubble Chart\n\nX: {x_var}, Y: {y_var}, Size: {size_var}"
             + (f", Color: {color_var}" if color_var and color_var not in ("", "None") else "")
@@ -647,20 +824,24 @@ def run_visualization(df, analysis_id, config):
         dimensions = []
         for col in dims:
             if np.issubdtype(df[col].dtype, np.number):
-                dimensions.append({
-                    "label": col,
-                    "values": df[col].fillna(df[col].median()).tolist(),
-                    "range": [float(df[col].min()), float(df[col].max())],
-                })
+                dimensions.append(
+                    {
+                        "label": col,
+                        "values": df[col].fillna(df[col].median()).tolist(),
+                        "range": [float(df[col].min()), float(df[col].max())],
+                    }
+                )
             else:
                 cats = df[col].dropna().unique().tolist()
                 cat_map = {c: i for i, c in enumerate(cats)}
-                dimensions.append({
-                    "label": col,
-                    "values": df[col].map(cat_map).fillna(-1).astype(int).tolist(),
-                    "tickvals": list(range(len(cats))),
-                    "ticktext": [str(c) for c in cats],
-                })
+                dimensions.append(
+                    {
+                        "label": col,
+                        "values": df[col].map(cat_map).fillna(-1).astype(int).tolist(),
+                        "tickvals": list(range(len(cats))),
+                        "ticktext": [str(c) for c in cats],
+                    }
+                )
 
         trace = {"type": "parcoords", "dimensions": dimensions}
         if color_col and color_col not in ("", "None"):
@@ -668,7 +849,8 @@ def run_visualization(df, analysis_id, config):
                 trace["line"] = {
                     "color": df[color_col].fillna(0).tolist(),
                     "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#d94a4a"]],
-                    "showscale": True, "colorbar": {"title": color_col},
+                    "showscale": True,
+                    "colorbar": {"title": color_col},
                 }
             else:
                 cats = df[color_col].dropna().unique().tolist()
@@ -681,11 +863,13 @@ def run_visualization(df, analysis_id, config):
         else:
             trace["line"] = {"color": "#4a9f6e"}
 
-        result["plots"].append({
-            "title": f"Parallel Coordinates ({len(dims)} dimensions)",
-            "data": [trace],
-            "layout": {"height": 450},
-        })
+        result["plots"].append(
+            {
+                "title": f"Parallel Coordinates ({len(dims)} dimensions)",
+                "data": [trace],
+                "layout": {"height": 450},
+            }
+        )
         result["summary"] = (
             f"Parallel Coordinates Plot\n\n"
             f"Dimensions: {len(dims)}\nObservations: {len(df)}\n\n"
@@ -707,7 +891,11 @@ def run_visualization(df, analysis_id, config):
             result["summary"] = "Need at least 4 non-missing data points for contour interpolation."
             return result
 
-        x, y, z = common[x_col].values.astype(float), common[y_col].values.astype(float), common[z_col].values.astype(float)
+        x, y, z = (
+            common[x_col].values.astype(float),
+            common[y_col].values.astype(float),
+            common[z_col].values.astype(float),
+        )
 
         xi = np.linspace(x.min(), x.max(), 50)
         yi = np.linspace(y.min(), y.max(), 50)
@@ -720,26 +908,31 @@ def run_visualization(df, analysis_id, config):
             zi_linear = scipy_griddata((x, y), z, (xi_grid, yi_grid), method="linear")
             zi_grid[nan_mask] = zi_linear[nan_mask]
 
-        result["plots"].append({
-            "title": f"Contour: {z_col}",
-            "data": [
-                {
-                    "type": "contour",
-                    "x": xi.tolist(), "y": yi.tolist(),
-                    "z": np.where(np.isnan(zi_grid), None, zi_grid).tolist(),
-                    "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#d94a4a"]],
-                    "contours": {"showlabels": True, "labelfont": {"size": 10, "color": "#fff"}},
-                    "colorbar": {"title": z_col},
-                },
-                {
-                    "type": "scatter", "mode": "markers",
-                    "x": x.tolist(), "y": y.tolist(),
-                    "marker": {"color": "#fff", "size": 3, "opacity": 0.5},
-                    "showlegend": False,
-                },
-            ],
-            "layout": {"height": 450, "xaxis": {"title": x_col}, "yaxis": {"title": y_col}},
-        })
+        result["plots"].append(
+            {
+                "title": f"Contour: {z_col}",
+                "data": [
+                    {
+                        "type": "contour",
+                        "x": xi.tolist(),
+                        "y": yi.tolist(),
+                        "z": np.where(np.isnan(zi_grid), None, zi_grid).tolist(),
+                        "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#d94a4a"]],
+                        "contours": {"showlabels": True, "labelfont": {"size": 10, "color": "#fff"}},
+                        "colorbar": {"title": z_col},
+                    },
+                    {
+                        "type": "scatter",
+                        "mode": "markers",
+                        "x": x.tolist(),
+                        "y": y.tolist(),
+                        "marker": {"color": "#fff", "size": 3, "opacity": 0.5},
+                        "showlegend": False,
+                    },
+                ],
+                "layout": {"height": 450, "xaxis": {"title": x_col}, "yaxis": {"title": y_col}},
+            }
+        )
         result["summary"] = (
             f"Contour Plot\n\nX: {x_col}, Y: {y_col}, Z: {z_col}\n"
             f"Data points: {len(x)}\nGrid: 50x50, interpolation: cubic\n\n"
@@ -761,7 +954,11 @@ def run_visualization(df, analysis_id, config):
             result["summary"] = "Need at least 4 non-missing data points for surface interpolation."
             return result
 
-        x, y, z = common[x_col].values.astype(float), common[y_col].values.astype(float), common[z_col].values.astype(float)
+        x, y, z = (
+            common[x_col].values.astype(float),
+            common[y_col].values.astype(float),
+            common[z_col].values.astype(float),
+        )
 
         xi = np.linspace(x.min(), x.max(), 40)
         yi = np.linspace(y.min(), y.max(), 40)
@@ -773,18 +970,25 @@ def run_visualization(df, analysis_id, config):
             zi_linear = scipy_griddata((x, y), z, (xi_grid, yi_grid), method="linear")
             zi_grid[nan_mask] = zi_linear[nan_mask]
 
-        result["plots"].append({
-            "title": f"3D Surface: {z_col}",
-            "data": [{
-                "type": "surface",
-                "x": xi.tolist(), "y": yi.tolist(),
-                "z": np.where(np.isnan(zi_grid), None, zi_grid).tolist(),
-                "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#d94a4a"]],
-                "colorbar": {"title": z_col},
-            }],
-            "layout": {"height": 500,
-                       "scene": {"xaxis": {"title": x_col}, "yaxis": {"title": y_col}, "zaxis": {"title": z_col}}},
-        })
+        result["plots"].append(
+            {
+                "title": f"3D Surface: {z_col}",
+                "data": [
+                    {
+                        "type": "surface",
+                        "x": xi.tolist(),
+                        "y": yi.tolist(),
+                        "z": np.where(np.isnan(zi_grid), None, zi_grid).tolist(),
+                        "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#d94a4a"]],
+                        "colorbar": {"title": z_col},
+                    }
+                ],
+                "layout": {
+                    "height": 500,
+                    "scene": {"xaxis": {"title": x_col}, "yaxis": {"title": y_col}, "zaxis": {"title": z_col}},
+                },
+            }
+        )
         result["summary"] = (
             f"3D Surface Plot\n\nX: {x_col}, Y: {y_col}, Z: {z_col}\n"
             f"Data points: {len(x)}\nGrid: 40x40\n\n"
@@ -827,13 +1031,6 @@ def run_visualization(df, analysis_id, config):
         yi_co = np.linspace(y_co.min(), y_co.max(), 50)
         xi_grid_co, yi_grid_co = np.meshgrid(xi_co, yi_co)
 
-        overlay_colors = [
-            [[0, "rgba(74,159,110,0.1)"], [1, "rgba(74,159,110,0.6)"]],
-            [[0, "rgba(74,144,217,0.1)"], [1, "rgba(74,144,217,0.6)"]],
-            [[0, "rgba(217,74,74,0.1)"], [1, "rgba(217,74,74,0.6)"]],
-            [[0, "rgba(232,197,71,0.1)"], [1, "rgba(232,197,71,0.6)"]],
-            [[0, "rgba(122,106,154,0.1)"], [1, "rgba(122,106,154,0.6)"]],
-        ]
         line_colors = SVEND_COLORS[:5]
 
         overlay_traces = []
@@ -847,38 +1044,49 @@ def run_visualization(df, analysis_id, config):
                 zi_grid[nan_mask] = zi_linear[nan_mask]
 
             color_idx = zi % len(line_colors)
-            overlay_traces.append({
-                "type": "contour",
-                "x": xi_co.tolist(), "y": yi_co.tolist(),
-                "z": np.where(np.isnan(zi_grid), None, zi_grid).tolist(),
-                "name": z_col_name,
-                "contours": {"showlabels": True, "labelfont": {"size": 9, "color": line_colors[color_idx]},
-                             "coloring": "lines"},
-                "line": {"color": line_colors[color_idx], "width": 2},
-                "showscale": False,
-            })
+            overlay_traces.append(
+                {
+                    "type": "contour",
+                    "x": xi_co.tolist(),
+                    "y": yi_co.tolist(),
+                    "z": np.where(np.isnan(zi_grid), None, zi_grid).tolist(),
+                    "name": z_col_name,
+                    "contours": {
+                        "showlabels": True,
+                        "labelfont": {"size": 9, "color": line_colors[color_idx]},
+                        "coloring": "lines",
+                    },
+                    "line": {"color": line_colors[color_idx], "width": 2},
+                    "showscale": False,
+                }
+            )
             summary_lines.append(f"  {z_col_name}: range [{np.nanmin(z_vals):.3f}, {np.nanmax(z_vals):.3f}]")
 
         # Add data points
-        overlay_traces.append({
-            "type": "scatter", "mode": "markers",
-            "x": x_co.tolist(), "y": y_co.tolist(),
-            "marker": {"color": "#fff", "size": 4, "opacity": 0.6, "line": {"color": "#333", "width": 1}},
-            "name": "Data points", "showlegend": True,
-        })
+        overlay_traces.append(
+            {
+                "type": "scatter",
+                "mode": "markers",
+                "x": x_co.tolist(),
+                "y": y_co.tolist(),
+                "marker": {"color": "#fff", "size": 4, "opacity": 0.6, "line": {"color": "#333", "width": 1}},
+                "name": "Data points",
+                "showlegend": True,
+            }
+        )
 
-        result["plots"].append({
-            "title": f"Contour Overlay: {', '.join(z_cols_co)}",
-            "data": overlay_traces,
-            "layout": {"height": 500, "xaxis": {"title": x_col_co}, "yaxis": {"title": y_col_co}}
-        })
+        result["plots"].append(
+            {
+                "title": f"Contour Overlay: {', '.join(z_cols_co)}",
+                "data": overlay_traces,
+                "layout": {"height": 500, "xaxis": {"title": x_col_co}, "yaxis": {"title": y_col_co}},
+            }
+        )
 
         result["summary"] = (
             f"Contour Plot Overlay\n\n"
             f"X: {x_col_co}, Y: {y_col_co}\n"
-            f"Responses overlaid ({len(z_cols_co)}):\n" +
-            "\n".join(summary_lines) +
-            f"\n\nData points: {len(x_co)}\n"
+            f"Responses overlaid ({len(z_cols_co)}):\n" + "\n".join(summary_lines) + f"\n\nData points: {len(x_co)}\n"
             f"Each response shown with distinct contour line color.\n"
             f"Use this to identify regions satisfying multiple targets."
         )
@@ -917,52 +1125,69 @@ def run_visualization(df, analysis_id, config):
                 cell_val = float(ct.loc[row_name, col_name])
                 cell_height = cell_val / col_total if col_total > 0 else 0
 
-                shapes.append({
-                    "type": "rect",
-                    "x0": x_cursor, "x1": x_cursor + row_width,
-                    "y0": y_cursor, "y1": y_cursor + cell_height,
-                    "fillcolor": theme_colors[ci % len(theme_colors)],
-                    "opacity": 0.7,
-                    "line": {"color": "#1a1a2e", "width": 1},
-                })
+                shapes.append(
+                    {
+                        "type": "rect",
+                        "x0": x_cursor,
+                        "x1": x_cursor + row_width,
+                        "y0": y_cursor,
+                        "y1": y_cursor + cell_height,
+                        "fillcolor": theme_colors[ci % len(theme_colors)],
+                        "opacity": 0.7,
+                        "line": {"color": "#1a1a2e", "width": 1},
+                    }
+                )
                 if cell_height > 0.06 and row_width > 0.06:
-                    annotations.append({
-                        "x": x_cursor + row_width / 2,
-                        "y": y_cursor + cell_height / 2,
-                        "text": str(int(cell_val)),
-                        "showarrow": False,
-                        "font": {"color": "#fff", "size": 10},
-                    })
+                    annotations.append(
+                        {
+                            "x": x_cursor + row_width / 2,
+                            "y": y_cursor + cell_height / 2,
+                            "text": str(int(cell_val)),
+                            "showarrow": False,
+                            "font": {"color": "#fff", "size": 10},
+                        }
+                    )
                 y_cursor += cell_height
 
-            annotations.append({
-                "x": x_cursor + row_width / 2, "y": -0.04,
-                "text": str(row_name), "showarrow": False,
-                "font": {"color": "#b0b0b0", "size": 9},
-            })
+            annotations.append(
+                {
+                    "x": x_cursor + row_width / 2,
+                    "y": -0.04,
+                    "text": str(row_name),
+                    "showarrow": False,
+                    "font": {"color": "#b0b0b0", "size": 9},
+                }
+            )
             x_cursor += row_width
 
         # Legend traces for column categories
         legend_traces = [
             {
-                "type": "scatter", "x": [None], "y": [None], "mode": "markers",
+                "type": "scatter",
+                "x": [None],
+                "y": [None],
+                "mode": "markers",
                 "marker": {"color": theme_colors[ci % len(theme_colors)], "size": 10},
-                "name": str(col_name), "showlegend": True,
+                "name": str(col_name),
+                "showlegend": True,
             }
             for ci, col_name in enumerate(col_names)
         ]
 
-        result["plots"].append({
-            "title": f"Mosaic: {row_var} x {col_var}",
-            "data": legend_traces,
-            "layout": {
-                "height": 400,
-                "shapes": shapes, "annotations": annotations,
-                "xaxis": {"range": [0, 1], "title": row_var, "showticklabels": False},
-                "yaxis": {"range": [-0.08, 1], "title": col_var, "showticklabels": False},
-                "showlegend": True,
-            },
-        })
+        result["plots"].append(
+            {
+                "title": f"Mosaic: {row_var} x {col_var}",
+                "data": legend_traces,
+                "layout": {
+                    "height": 400,
+                    "shapes": shapes,
+                    "annotations": annotations,
+                    "xaxis": {"range": [0, 1], "title": row_var, "showticklabels": False},
+                    "yaxis": {"range": [-0.08, 1], "title": col_var, "showticklabels": False},
+                    "showlegend": True,
+                },
+            }
+        )
         result["summary"] = (
             f"Mosaic Plot\n\nRow: {row_var} ({len(row_names)} levels)\n"
             f"Column: {col_var} ({len(col_names)} levels)\n"
@@ -975,6 +1200,7 @@ def run_visualization(df, analysis_id, config):
     elif analysis_id == "bayes_spc_capability":
         # Bayesian Capability Analysis — eliminates the 1.5σ assumption
         from scipy.stats import t as tdist
+
         col = config.get("measurement") or df.select_dtypes(include="number").columns[0]
         data = df[col].dropna().values.astype(float)
         usl_raw = config.get("usl")
@@ -1052,8 +1278,7 @@ def run_visualization(df, analysis_id, config):
         if usl is not None and lsl is not None and s > 0:
             cp_samples = (usl - lsl) / (6.0 * sigma_samples)
             cp_median = float(np.median(cp_samples))
-            cp_ci = (float(np.percentile(cp_samples, 2.5)),
-                     float(np.percentile(cp_samples, 97.5)))
+            cp_ci = (float(np.percentile(cp_samples, 2.5)), float(np.percentile(cp_samples, 97.5)))
             cp_freq = float((usl - lsl) / (6 * s))
             pp_median, pp_freq = cp_median, cp_freq  # identical for individual data
 
@@ -1063,12 +1288,11 @@ def run_visualization(df, analysis_id, config):
         # Cpm — Taguchi (penalizes off-target)
         cpm_median = cpm_ci = cpm_freq = None
         if target is not None and usl is not None and lsl is not None and s > 0:
-            cpm_denom = 6.0 * np.sqrt(sigma_samples**2 + (mu_samples - target)**2)
+            cpm_denom = 6.0 * np.sqrt(sigma_samples**2 + (mu_samples - target) ** 2)
             cpm_samples = (usl - lsl) / cpm_denom
             cpm_median = float(np.median(cpm_samples))
-            cpm_ci = (float(np.percentile(cpm_samples, 2.5)),
-                      float(np.percentile(cpm_samples, 97.5)))
-            cpm_freq = float((usl - lsl) / (6 * np.sqrt(s**2 + (x_bar - target)**2)))
+            cpm_ci = (float(np.percentile(cpm_samples, 2.5)), float(np.percentile(cpm_samples, 97.5)))
+            cpm_freq = float((usl - lsl) / (6 * np.sqrt(s**2 + (x_bar - target) ** 2)))
 
         # Centering (k) — 0 = perfectly centered, 1 = mean at spec limit
         k_centering = None
@@ -1082,9 +1306,9 @@ def run_visualization(df, analysis_id, config):
         x_pred = rng_pp.normal(loc=mu_samples, scale=sigma_samples)
         oos_mask = np.zeros(len(x_pred), dtype=bool)
         if lsl is not None:
-            oos_mask |= (x_pred < lsl)
+            oos_mask |= x_pred < lsl
         if usl is not None:
-            oos_mask |= (x_pred > usl)
+            oos_mask |= x_pred > usl
         p_oos = float(np.mean(oos_mask))
 
         # Student-t curve for display only
@@ -1096,6 +1320,7 @@ def run_visualization(df, analysis_id, config):
 
         # Sigma level + yield (from Bayesian DPMO)
         from scipy.stats import norm as normdist
+
         if p_oos > 0 and p_oos < 1:
             z_bench = float(normdist.ppf(1 - p_oos))
             sigma_level = z_bench + 1.5
@@ -1122,46 +1347,42 @@ def run_visualization(df, analysis_id, config):
         # ── Summary ──
         ci_w = cpk_ci[1] - cpk_ci[0]
         summary = f"<<COLOR:accent>>{'=' * 60}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN PROCESS CAPABILITY<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN PROCESS CAPABILITY<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'=' * 60}<</COLOR>>\n\n"
-        summary += (f"<<COLOR:highlight>>Observations:<</COLOR>> {n}    "
-                    f"<<COLOR:highlight>>Spec:<</COLOR>> {spec_label}    "
-                    f"<<COLOR:highlight>>Target:<</COLOR>> {target}\n\n")
+        summary += (
+            f"<<COLOR:highlight>>Observations:<</COLOR>> {n}    "
+            f"<<COLOR:highlight>>Spec:<</COLOR>> {spec_label}    "
+            f"<<COLOR:highlight>>Target:<</COLOR>> {target}\n\n"
+        )
 
         # Capability indices table
         summary += f"<<COLOR:accent>>{'_' * 40}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>Capability Indices<</COLOR>>\n"
+        summary += "<<COLOR:title>>Capability Indices<</COLOR>>\n"
         summary += f"  {'':18s} {'Bayesian':>10s}   {'95% CI':>18s}   {'Frequentist':>12s}\n"
-        summary += (f"  {'Cpk:':18s} "
-                    f"<<COLOR:highlight>>{cpk_median:>10.4f}<</COLOR>>   "
-                    f"[{cpk_ci[0]:.4f}, {cpk_ci[1]:.4f}]   "
-                    f"{cpk_freq:>12.4f}\n")
-        summary += (f"  {'Ppk:':18s} "
-                    f"{ppk_median:>10.4f}   "
-                    f"[{cpk_ci[0]:.4f}, {cpk_ci[1]:.4f}]   "
-                    f"{ppk_freq:>12.4f}\n")
+        summary += (
+            f"  {'Cpk:':18s} "
+            f"<<COLOR:highlight>>{cpk_median:>10.4f}<</COLOR>>   "
+            f"[{cpk_ci[0]:.4f}, {cpk_ci[1]:.4f}]   "
+            f"{cpk_freq:>12.4f}\n"
+        )
+        summary += f"  {'Ppk:':18s} {ppk_median:>10.4f}   [{cpk_ci[0]:.4f}, {cpk_ci[1]:.4f}]   {ppk_freq:>12.4f}\n"
         if cp_median is not None:
-            summary += (f"  {'Cp:':18s} "
-                        f"{cp_median:>10.4f}   "
-                        f"[{cp_ci[0]:.4f}, {cp_ci[1]:.4f}]   "
-                        f"{cp_freq:>12.4f}\n")
-            summary += (f"  {'Pp:':18s} "
-                        f"{pp_median:>10.4f}   "
-                        f"[{cp_ci[0]:.4f}, {cp_ci[1]:.4f}]   "
-                        f"{pp_freq:>12.4f}\n")
+            summary += f"  {'Cp:':18s} {cp_median:>10.4f}   [{cp_ci[0]:.4f}, {cp_ci[1]:.4f}]   {cp_freq:>12.4f}\n"
+            summary += f"  {'Pp:':18s} {pp_median:>10.4f}   [{cp_ci[0]:.4f}, {cp_ci[1]:.4f}]   {pp_freq:>12.4f}\n"
         if cpm_median is not None:
-            summary += (f"  {'Cpm (Taguchi):':18s} "
-                        f"{cpm_median:>10.4f}   "
-                        f"[{cpm_ci[0]:.4f}, {cpm_ci[1]:.4f}]   "
-                        f"{cpm_freq:>12.4f}\n")
-        summary += f"\n  <<COLOR:text>>Cpk = Ppk (individual data \u2014 no subgroup structure).<</COLOR>>\n"
+            summary += (
+                f"  {'Cpm (Taguchi):':18s} "
+                f"{cpm_median:>10.4f}   "
+                f"[{cpm_ci[0]:.4f}, {cpm_ci[1]:.4f}]   "
+                f"{cpm_freq:>12.4f}\n"
+            )
+        summary += "\n  <<COLOR:text>>Cpk = Ppk (individual data \u2014 no subgroup structure).<</COLOR>>\n"
         if k_centering is not None and cp_median is not None and k_centering > 0.05:
-            summary += (f"  <<COLOR:text>>Cp > Cpk: process is off-center "
-                        f"by k = {k_centering:.0%}.<</COLOR>>\n")
+            summary += f"  <<COLOR:text>>Cp > Cpk: process is off-center by k = {k_centering:.0%}.<</COLOR>>\n"
 
         # Probability table
         summary += f"\n<<COLOR:accent>>{'_' * 40}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>Probability Table<</COLOR>>\n"
+        summary += "<<COLOR:title>>Probability Table<</COLOR>>\n"
         summary += f"  P(Cpk > 1.00) = <<COLOR:{'success' if p_gt_1 > 0.9 else 'error'}>>{p_gt_1:.1%}<</COLOR>>\n"
         summary += f"  P(Cpk > 1.33) = <<COLOR:{'success' if p_gt_133 > 0.9 else 'error'}>>{p_gt_133:.1%}<</COLOR>>\n"
         summary += f"  P(Cpk > 1.67) = <<COLOR:{'success' if p_gt_167 > 0.9 else 'text'}>>{p_gt_167:.1%}<</COLOR>>\n"
@@ -1169,11 +1390,10 @@ def run_visualization(df, analysis_id, config):
 
         # Expected performance
         summary += f"\n<<COLOR:accent>>{'_' * 40}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>Expected Performance<</COLOR>>\n"
-        summary += (f"  P(out of spec): {p_oos:.6f}    "
-                    f"DPMO: <<COLOR:highlight>>{dpmo:.0f}<</COLOR>>\n")
+        summary += "<<COLOR:title>>Expected Performance<</COLOR>>\n"
+        summary += f"  P(out of spec): {p_oos:.6f}    DPMO: <<COLOR:highlight>>{dpmo:.0f}<</COLOR>>\n"
         summary += f"  Yield: <<COLOR:highlight>>{yield_pct:.4f}%<</COLOR>>    Sigma level: {sigma_level:.1f}\u03c3\n"
-        summary += f"  (No 1.5\u03c3 shift assumption \u2014 uncertainty is first-class)\n"
+        summary += "  (No 1.5\u03c3 shift assumption \u2014 uncertainty is first-class)\n"
 
         # Verdict
         summary += f"\n<<COLOR:{verdict_color}>>{verdict}<</COLOR>>\n"
@@ -1183,7 +1403,7 @@ def run_visualization(df, analysis_id, config):
 
         # ── Narrative ──
         summary += f"\n<<COLOR:accent>>{'_' * 40}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>Narrative<</COLOR>>\n"
+        summary += "<<COLOR:title>>Narrative<</COLOR>>\n"
         narr_parts = []
 
         # Centering
@@ -1192,63 +1412,66 @@ def run_visualization(df, analysis_id, config):
                 narr_parts.append(f"Process is well-centered (k = {k_centering:.1%}).")
             else:
                 closer_to = "USL" if x_bar > (usl + lsl) / 2.0 else "LSL"
-                narr_parts.append(
-                    f"Process runs {k_centering:.0%} off-center toward {closer_to}.")
+                narr_parts.append(f"Process runs {k_centering:.0%} off-center toward {closer_to}.")
                 if cp_median is not None and cp_median > cpk_median + 0.1:
                     narr_parts.append(
-                        f"Recentering to target would improve Cpk from "
-                        f"{cpk_median:.2f} to {cp_median:.2f} (= Cp).")
+                        f"Recentering to target would improve Cpk from {cpk_median:.2f} to {cp_median:.2f} (= Cp)."
+                    )
 
         # Cpm insight
         if cpm_median is not None and cpm_median < cpk_median - 0.05:
             offset = abs(x_bar - target)
             narr_parts.append(
                 f"Taguchi Cpm ({cpm_median:.2f}) < Cpk ({cpk_median:.2f}) \u2014 "
-                f"the {offset:.4f} offset from target increases quality loss.")
+                f"the {offset:.4f} offset from target increases quality loss."
+            )
 
         # Posterior maturity
         if ci_w < 0.3:
-            narr_parts.append(
-                f"Posterior is well-converged (95% CI width = {ci_w:.2f}).")
+            narr_parts.append(f"Posterior is well-converged (95% CI width = {ci_w:.2f}).")
         elif ci_w < 0.8:
             narr_parts.append(
-                f"Moderate posterior uncertainty (95% CI width = {ci_w:.2f}). "
-                f"More data would tighten the estimate.")
+                f"Moderate posterior uncertainty (95% CI width = {ci_w:.2f}). More data would tighten the estimate."
+            )
         else:
             narr_parts.append(
                 f"Posterior is wide (95% CI width = {ci_w:.2f}) \u2014 "
-                f"collect more data before making capability decisions.")
+                f"collect more data before making capability decisions."
+            )
 
         # Bayesian vs frequentist
         cpk_diff = abs(cpk_freq - cpk_median)
         if cpk_diff < 0.05:
             narr_parts.append(
-                f"Bayesian ({cpk_median:.3f}) and frequentist ({cpk_freq:.3f}) "
-                f"agree \u2014 posterior is data-driven.")
+                f"Bayesian ({cpk_median:.3f}) and frequentist ({cpk_freq:.3f}) agree \u2014 posterior is data-driven."
+            )
         else:
             narr_parts.append(
                 f"Bayesian ({cpk_median:.3f}) differs from frequentist ({cpk_freq:.3f}) "
-                f"by {cpk_diff:.3f} \u2014 prior influence visible, more data will converge them.")
+                f"by {cpk_diff:.3f} \u2014 prior influence visible, more data will converge them."
+            )
 
         # Practical DPMO
         if dpmo > 0:
             defects_per_1k = dpmo / 1000.0
             narr_parts.append(
                 f"At {dpmo:.0f} DPMO, expect ~{defects_per_1k:.1f} defects per 1,000 parts "
-                f"({yield_pct:.4f}% yield, {sigma_level:.1f}\u03c3).")
+                f"({yield_pct:.4f}% yield, {sigma_level:.1f}\u03c3)."
+            )
         else:
-            narr_parts.append(
-                f"Zero defects predicted (yield {yield_pct:.4f}%, "
-                f">{sigma_level:.1f}\u03c3).")
+            narr_parts.append(f"Zero defects predicted (yield {yield_pct:.4f}%, >{sigma_level:.1f}\u03c3).")
 
         for part in narr_parts:
             summary += f"  {part}\n"
 
         result["summary"] = summary
         result["statistics"] = {
-            "cpk_median": cpk_median, "cpk_ci_lower": cpk_ci[0], "cpk_ci_upper": cpk_ci[1],
+            "cpk_median": cpk_median,
+            "cpk_ci_lower": cpk_ci[0],
+            "cpk_ci_upper": cpk_ci[1],
             "cpk_frequentist": cpk_freq,
-            "ppk_median": ppk_median, "ppk_frequentist": ppk_freq,
+            "ppk_median": ppk_median,
+            "ppk_frequentist": ppk_freq,
             "cp_median": cp_median,
             "cp_ci_lower": cp_ci[0] if cp_ci else None,
             "cp_ci_upper": cp_ci[1] if cp_ci else None,
@@ -1258,10 +1481,14 @@ def run_visualization(df, analysis_id, config):
             "cpm_ci_upper": cpm_ci[1] if cpm_ci else None,
             "cpm_frequentist": cpm_freq,
             "centering_k": k_centering,
-            "p_cpk_gt_1": p_gt_1, "p_cpk_gt_133": p_gt_133,
-            "p_cpk_gt_167": p_gt_167, "p_cpk_gt_2": p_gt_2,
-            "dpmo": dpmo, "p_out_of_spec": p_oos,
-            "yield_pct": yield_pct, "sigma_level": sigma_level,
+            "p_cpk_gt_1": p_gt_1,
+            "p_cpk_gt_133": p_gt_133,
+            "p_cpk_gt_167": p_gt_167,
+            "p_cpk_gt_2": p_gt_2,
+            "dpmo": dpmo,
+            "p_out_of_spec": p_oos,
+            "yield_pct": yield_pct,
+            "sigma_level": sigma_level,
             "z_bench": z_bench,
         }
 
@@ -1270,26 +1497,61 @@ def run_visualization(df, analysis_id, config):
         cpk_hist_centers = (cpk_hist_edges[:-1] + cpk_hist_edges[1:]) / 2
         ci_mask = (cpk_hist_centers >= cpk_ci[0]) & (cpk_hist_centers <= cpk_ci[1])
         cpk_ymax = int(max(cpk_hist_vals))
-        result["plots"].append({
-            "title": "Posterior Distribution of Cpk",
-            "data": [
-                {"type": "bar", "x": cpk_hist_centers.tolist(), "y": cpk_hist_vals.tolist(),
-                 "marker": {"color": ["rgba(74,159,110,0.7)" if m else "rgba(74,159,110,0.2)" for m in ci_mask]},
-                 "name": "Posterior", "showlegend": False},
-                {"type": "scatter", "x": [1.0, 1.0], "y": [0, cpk_ymax], "mode": "lines",
-                 "line": {"color": "#e89547", "dash": "dash", "width": 2}, "name": "Cpk = 1.0"},
-                {"type": "scatter", "x": [1.33, 1.33], "y": [0, cpk_ymax], "mode": "lines",
-                 "line": {"color": "#e85747", "dash": "dash", "width": 2}, "name": "Cpk = 1.33"},
-                {"type": "scatter", "x": [cpk_freq, cpk_freq], "y": [0, cpk_ymax], "mode": "lines",
-                 "line": {"color": "#5b9bd5", "width": 2}, "name": "Frequentist"},
-            ],
-            "layout": {"height": 320, "xaxis": {"title": "Cpk"}, "yaxis": {"title": "Count"},
-                        "legend": {"orientation": "h", "yanchor": "top", "y": -0.18,
-                                   "xanchor": "center", "x": 0.5},
-                        "annotations": [{"x": cpk_median, "y": cpk_ymax * 0.9,
-                                         "text": f"Median: {cpk_median:.3f}", "showarrow": True,
-                                         "arrowhead": 2, "font": {"color": "#4a9f6e"}}]}
-        })
+        result["plots"].append(
+            {
+                "title": "Posterior Distribution of Cpk",
+                "data": [
+                    {
+                        "type": "bar",
+                        "x": cpk_hist_centers.tolist(),
+                        "y": cpk_hist_vals.tolist(),
+                        "marker": {"color": ["rgba(74,159,110,0.7)" if m else "rgba(74,159,110,0.2)" for m in ci_mask]},
+                        "name": "Posterior",
+                        "showlegend": False,
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [1.0, 1.0],
+                        "y": [0, cpk_ymax],
+                        "mode": "lines",
+                        "line": {"color": "#e89547", "dash": "dash", "width": 2},
+                        "name": "Cpk = 1.0",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [1.33, 1.33],
+                        "y": [0, cpk_ymax],
+                        "mode": "lines",
+                        "line": {"color": "#e85747", "dash": "dash", "width": 2},
+                        "name": "Cpk = 1.33",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [cpk_freq, cpk_freq],
+                        "y": [0, cpk_ymax],
+                        "mode": "lines",
+                        "line": {"color": "#5b9bd5", "width": 2},
+                        "name": "Frequentist",
+                    },
+                ],
+                "layout": {
+                    "height": 320,
+                    "xaxis": {"title": "Cpk"},
+                    "yaxis": {"title": "Count"},
+                    "legend": {"orientation": "h", "yanchor": "top", "y": -0.18, "xanchor": "center", "x": 0.5},
+                    "annotations": [
+                        {
+                            "x": cpk_median,
+                            "y": cpk_ymax * 0.9,
+                            "text": f"Median: {cpk_median:.3f}",
+                            "showarrow": True,
+                            "arrowhead": 2,
+                            "font": {"color": "#4a9f6e"},
+                        }
+                    ],
+                },
+            }
+        )
 
         # Plot 2: Posterior predictive vs spec limits
         lo_bound = (lsl - 3 * s) if lsl is not None else (data.min() - 3 * s)
@@ -1297,75 +1559,177 @@ def run_visualization(df, analysis_id, config):
         x_range = np.linspace(min(lo_bound, data.min()), max(hi_bound, data.max()), 300)
         pp_pdf = pp_dist.pdf(x_range)
         from scipy.stats import norm
+
         norm_pdf = norm.pdf(x_range, loc=x_bar, scale=s) if s > 0 else np.zeros_like(x_range)
         data_hist_vals, data_hist_edges = np.histogram(data, bins=40, density=True)
         data_hist_centers = (data_hist_edges[:-1] + data_hist_edges[1:]) / 2
         peak_y = max(max(pp_pdf), max(norm_pdf)) if len(pp_pdf) > 0 else 1
         pred_traces = [
-            {"type": "bar", "x": data_hist_centers.tolist(), "y": data_hist_vals.tolist(),
-             "marker": {"color": "rgba(74,159,110,0.3)"}, "name": "Data", "showlegend": True},
-            {"type": "scatter", "x": x_range.tolist(), "y": pp_pdf.tolist(), "mode": "lines",
-             "line": {"color": "#e89547", "width": 2}, "name": "Predictive (Student-t)"},
-            {"type": "scatter", "x": x_range.tolist(), "y": norm_pdf.tolist(), "mode": "lines",
-             "line": {"color": "#5b9bd5", "dash": "dash", "width": 1.5}, "name": "Normal fit"},
+            {
+                "type": "bar",
+                "x": data_hist_centers.tolist(),
+                "y": data_hist_vals.tolist(),
+                "marker": {"color": "rgba(74,159,110,0.3)"},
+                "name": "Data",
+                "showlegend": True,
+            },
+            {
+                "type": "scatter",
+                "x": x_range.tolist(),
+                "y": pp_pdf.tolist(),
+                "mode": "lines",
+                "line": {"color": "#e89547", "width": 2},
+                "name": "Predictive (Student-t)",
+            },
+            {
+                "type": "scatter",
+                "x": x_range.tolist(),
+                "y": norm_pdf.tolist(),
+                "mode": "lines",
+                "line": {"color": "#5b9bd5", "dash": "dash", "width": 1.5},
+                "name": "Normal fit",
+            },
         ]
         if lsl is not None:
-            pred_traces.append({"type": "scatter", "x": [lsl, lsl], "y": [0, peak_y], "mode": "lines",
-                 "line": {"color": "#e85747", "dash": "dot", "width": 2}, "name": "LSL"})
+            pred_traces.append(
+                {
+                    "type": "scatter",
+                    "x": [lsl, lsl],
+                    "y": [0, peak_y],
+                    "mode": "lines",
+                    "line": {"color": "#e85747", "dash": "dot", "width": 2},
+                    "name": "LSL",
+                }
+            )
         if usl is not None:
-            pred_traces.append({"type": "scatter", "x": [usl, usl], "y": [0, peak_y], "mode": "lines",
-                 "line": {"color": "#e85747", "dash": "dot", "width": 2}, "name": "USL"})
+            pred_traces.append(
+                {
+                    "type": "scatter",
+                    "x": [usl, usl],
+                    "y": [0, peak_y],
+                    "mode": "lines",
+                    "line": {"color": "#e85747", "dash": "dot", "width": 2},
+                    "name": "USL",
+                }
+            )
         ann_x = (usl + lsl) / 2 if (usl is not None and lsl is not None) else (usl if usl is not None else lsl)
-        result["plots"].append({
-            "title": "Posterior Predictive vs Spec Limits",
-            "data": pred_traces,
-            "layout": {"height": 340, "xaxis": {"title": col},
-                        "legend": {"orientation": "h", "yanchor": "top", "y": -0.18,
-                                   "xanchor": "center", "x": 0.5},
-                        "annotations": [{"x": ann_x, "y": max(pp_pdf) * 0.95,
-                                         "text": f"DPMO: {dpmo:.0f}", "showarrow": False,
-                                         "font": {"color": "#e89547", "size": 13}}]}
-        })
+        result["plots"].append(
+            {
+                "title": "Posterior Predictive vs Spec Limits",
+                "data": pred_traces,
+                "layout": {
+                    "height": 340,
+                    "xaxis": {"title": col},
+                    "legend": {"orientation": "h", "yanchor": "top", "y": -0.18, "xanchor": "center", "x": 0.5},
+                    "annotations": [
+                        {
+                            "x": ann_x,
+                            "y": max(pp_pdf) * 0.95,
+                            "text": f"DPMO: {dpmo:.0f}",
+                            "showarrow": False,
+                            "font": {"color": "#e89547", "size": 13},
+                        }
+                    ],
+                },
+            }
+        )
 
         # Plot 3: P(Cpk > threshold) curve
         thresholds = np.linspace(0.5, 3.0, 100)
         p_above = [float(np.mean(cpk_samples > t)) for t in thresholds]
-        result["plots"].append({
-            "title": "P(Cpk > Threshold)",
-            "data": [
-                {"type": "scatter", "x": thresholds.tolist(), "y": p_above, "mode": "lines",
-                 "line": {"color": "#4a9f6e", "width": 2.5}, "name": "P(Cpk > threshold)"},
-                {"type": "scatter", "x": [0.5, 3.0], "y": [0.95, 0.95], "mode": "lines",
-                 "line": {"color": "#e89547", "dash": "dash"}, "name": "95% confidence"},
-            ],
-            "layout": {"height": 280, "xaxis": {"title": "Threshold"},
-                       "yaxis": {"title": "Probability", "range": [0, 1.05]},
-                       "legend": {"orientation": "h", "yanchor": "top", "y": -0.18,
-                                  "xanchor": "center", "x": 0.5}}
-        })
+        result["plots"].append(
+            {
+                "title": "P(Cpk > Threshold)",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": thresholds.tolist(),
+                        "y": p_above,
+                        "mode": "lines",
+                        "line": {"color": "#4a9f6e", "width": 2.5},
+                        "name": "P(Cpk > threshold)",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [0.5, 3.0],
+                        "y": [0.95, 0.95],
+                        "mode": "lines",
+                        "line": {"color": "#e89547", "dash": "dash"},
+                        "name": "95% confidence",
+                    },
+                ],
+                "layout": {
+                    "height": 280,
+                    "xaxis": {"title": "Threshold"},
+                    "yaxis": {"title": "Probability", "range": [0, 1.05]},
+                    "legend": {"orientation": "h", "yanchor": "top", "y": -0.18, "xanchor": "center", "x": 0.5},
+                },
+            }
+        )
 
         # Plot 4: Data histogram with predictive overlay
         overlay_traces = [
-            {"type": "histogram", "x": data.tolist(), "nbinsx": 40, "histnorm": "probability density",
-             "marker": {"color": "rgba(74,159,110,0.4)", "line": {"color": "#4a9f6e", "width": 1}}, "name": "Data"},
-            {"type": "scatter", "x": x_range.tolist(), "y": pp_pdf.tolist(), "mode": "lines",
-             "line": {"color": "#e89547", "width": 2.5}, "name": "Posterior Predictive"},
-            {"type": "scatter", "x": x_range.tolist(), "y": norm_pdf.tolist(), "mode": "lines",
-             "line": {"color": "#5b9bd5", "dash": "dash", "width": 1.5}, "name": "Normal Fit"},
+            {
+                "type": "histogram",
+                "x": data.tolist(),
+                "nbinsx": 40,
+                "histnorm": "probability density",
+                "marker": {"color": "rgba(74,159,110,0.4)", "line": {"color": "#4a9f6e", "width": 1}},
+                "name": "Data",
+            },
+            {
+                "type": "scatter",
+                "x": x_range.tolist(),
+                "y": pp_pdf.tolist(),
+                "mode": "lines",
+                "line": {"color": "#e89547", "width": 2.5},
+                "name": "Posterior Predictive",
+            },
+            {
+                "type": "scatter",
+                "x": x_range.tolist(),
+                "y": norm_pdf.tolist(),
+                "mode": "lines",
+                "line": {"color": "#5b9bd5", "dash": "dash", "width": 1.5},
+                "name": "Normal Fit",
+            },
         ]
         if lsl is not None:
-            overlay_traces.append({"type": "scatter", "x": [lsl, lsl], "y": [0, peak_y], "mode": "lines",
-                 "line": {"color": "#e85747", "width": 2}, "name": "LSL", "showlegend": False})
+            overlay_traces.append(
+                {
+                    "type": "scatter",
+                    "x": [lsl, lsl],
+                    "y": [0, peak_y],
+                    "mode": "lines",
+                    "line": {"color": "#e85747", "width": 2},
+                    "name": "LSL",
+                    "showlegend": False,
+                }
+            )
         if usl is not None:
-            overlay_traces.append({"type": "scatter", "x": [usl, usl], "y": [0, peak_y], "mode": "lines",
-                 "line": {"color": "#e85747", "width": 2}, "name": "USL", "showlegend": False})
-        result["plots"].append({
-            "title": "Data vs Predictive Distribution",
-            "data": overlay_traces,
-            "layout": {"height": 320, "xaxis": {"title": col}, "yaxis": {"title": "Density"},
-                       "legend": {"orientation": "h", "yanchor": "top", "y": -0.18,
-                                  "xanchor": "center", "x": 0.5}}
-        })
+            overlay_traces.append(
+                {
+                    "type": "scatter",
+                    "x": [usl, usl],
+                    "y": [0, peak_y],
+                    "mode": "lines",
+                    "line": {"color": "#e85747", "width": 2},
+                    "name": "USL",
+                    "showlegend": False,
+                }
+            )
+        result["plots"].append(
+            {
+                "title": "Data vs Predictive Distribution",
+                "data": overlay_traces,
+                "layout": {
+                    "height": 320,
+                    "xaxis": {"title": col},
+                    "yaxis": {"title": "Density"},
+                    "legend": {"orientation": "h", "yanchor": "top", "y": -0.18, "xanchor": "center", "x": 0.5},
+                },
+            }
+        )
 
         cpm_str = f", Cpm={cpm_median:.3f}" if cpm_median is not None else ""
         result["guide_observation"] = (
@@ -1377,7 +1741,8 @@ def run_visualization(df, analysis_id, config):
 
     elif analysis_id == "bayes_spc_changepoint":
         # Bayesian Online Change Point Detection (Adams & MacKay 2007)
-        from scipy.special import logsumexp, gammaln
+        from scipy.special import gammaln, logsumexp
+
         col = config.get("measurement") or df.select_dtypes(include="number").columns[0]
         data = df[col].dropna().values.astype(float)
         hazard_rate = float(config.get("hazard_rate", 0.01))
@@ -1395,7 +1760,7 @@ def run_visualization(df, analysis_id, config):
         cal_data = data[:n_cal]
         s2_cal = float(np.var(cal_data, ddof=1)) if n_cal > 1 else 1.0
         mu0_cp = float(np.mean(cal_data))
-        nu0_cp = 1.0    # kappa: 1 pseudo-observation for mean
+        nu0_cp = 1.0  # kappa: 1 pseudo-observation for mean
         alpha0_cp = 2.0  # shape: mildly informative
         beta0_cp = max(s2_cal * alpha0_cp, 1e-10)  # rate matched to calibration variance
 
@@ -1409,8 +1774,8 @@ def run_visualization(df, analysis_id, config):
         ss_sum = np.zeros(max_rl + 1)
         ss_sum2 = np.zeros(max_rl + 1)
 
-        cp_prob = np.zeros(n)      # P(r_t = 0) — instantaneous changepoint
-        shift_prob = np.zeros(n)   # 1 - P(r=t+1) — has ANY change occurred?
+        cp_prob = np.zeros(n)  # P(r_t = 0) — instantaneous changepoint
+        shift_prob = np.zeros(n)  # 1 - P(r=t+1) — has ANY change occurred?
 
         for t in range(n):
             x = data[t]
@@ -1433,8 +1798,11 @@ def run_visualization(df, analysis_id, config):
                     nu_r = nu0_cp + nn
                     mu_r = (nu0_cp * mu0_cp + nn * xbar_r) / nu_r
                     alpha_r = alpha0_cp + nn / 2.0
-                    beta_r = beta0_cp + 0.5 * (ss_sum2[r] - nn * xbar_r**2) + \
-                             (nn * nu0_cp * (xbar_r - mu0_cp)**2) / (2.0 * nu_r)
+                    beta_r = (
+                        beta0_cp
+                        + 0.5 * (ss_sum2[r] - nn * xbar_r**2)
+                        + (nn * nu0_cp * (xbar_r - mu0_cp) ** 2) / (2.0 * nu_r)
+                    )
                     beta_r = max(beta_r, 1e-10)
 
                 # Student-t log pdf
@@ -1442,9 +1810,13 @@ def run_visualization(df, analysis_id, config):
                 scale_r = np.sqrt(beta_r * (nu_r + 1) / (alpha_r * nu_r))
                 scale_r = max(scale_r, 1e-10)
                 z = (x - mu_r) / scale_r
-                log_pred[r] = (gammaln((df_r + 1) / 2) - gammaln(df_r / 2) -
-                               0.5 * np.log(df_r * np.pi) - np.log(scale_r) -
-                               ((df_r + 1) / 2) * np.log(1 + z**2 / df_r))
+                log_pred[r] = (
+                    gammaln((df_r + 1) / 2)
+                    - gammaln(df_r / 2)
+                    - 0.5 * np.log(df_r * np.pi)
+                    - np.log(scale_r)
+                    - ((df_r + 1) / 2) * np.log(1 + z**2 / df_r)
+                )
 
             # Growth: P(r_{t+1} = r+1) ∝ P(r_t = r) * pred(x) * (1-H)
             log_growth = np.full(max_rl + 1, -np.inf)
@@ -1465,15 +1837,14 @@ def run_visualization(df, analysis_id, config):
                 log_R[t + 1, r] = log_growth[r]
 
             # Normalize
-            log_evidence = logsumexp(log_R[t + 1, :max_rl + 1])
-            log_R[t + 1, :max_rl + 1] -= log_evidence
+            log_evidence = logsumexp(log_R[t + 1, : max_rl + 1])
+            log_R[t + 1, : max_rl + 1] -= log_evidence
 
             cp_prob[t] = np.exp(log_R[t + 1, 0])
 
             # Shift probability: 1 - P(original run continues from t=0)
             if t + 1 <= max_rl:
-                shift_prob[t] = float(np.clip(
-                    1.0 - np.exp(log_R[t + 1, t + 1]), 0.0, 1.0))
+                shift_prob[t] = float(np.clip(1.0 - np.exp(log_R[t + 1, t + 1]), 0.0, 1.0))
             else:
                 shift_prob[t] = 1.0
 
@@ -1502,12 +1873,16 @@ def run_visualization(df, analysis_id, config):
         boundaries = [0] + changepoints + [n]
         segments = []
         for i in range(len(boundaries) - 1):
-            seg_data = data[boundaries[i]:boundaries[i + 1]]
-            segments.append({
-                "start": int(boundaries[i]), "end": int(boundaries[i + 1]),
-                "mean": float(np.mean(seg_data)), "std": float(np.std(seg_data, ddof=1)) if len(seg_data) > 1 else 0,
-                "n": len(seg_data)
-            })
+            seg_data = data[boundaries[i] : boundaries[i + 1]]
+            segments.append(
+                {
+                    "start": int(boundaries[i]),
+                    "end": int(boundaries[i + 1]),
+                    "mean": float(np.mean(seg_data)),
+                    "std": float(np.std(seg_data, ddof=1)) if len(seg_data) > 1 else 0,
+                    "n": len(seg_data),
+                }
+            )
 
         # ── Per-regime Bayesian Cpk (activates when specs provided) ──
         usl_raw = config.get("usl")
@@ -1520,7 +1895,7 @@ def run_visualization(df, analysis_id, config):
         if has_specs and len(segments) >= 1:
             n_mc_regime = 5000
             for idx, seg in enumerate(segments):
-                seg_data = data[seg["start"]:seg["end"]]
+                seg_data = data[seg["start"] : seg["end"]]
                 seg_n = len(seg_data)
                 if seg_n < 2:
                     continue
@@ -1560,7 +1935,7 @@ def run_visualization(df, analysis_id, config):
 
         # Summary
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN CHANGE POINT DETECTION (BOCPD)<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN CHANGE POINT DETECTION (BOCPD)<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n}    <<COLOR:highlight>>Hazard rate:<</COLOR>> {hazard_rate}\n\n"
 
@@ -1569,11 +1944,15 @@ def run_visualization(df, analysis_id, config):
             for i, cp in enumerate(changepoints):
                 seg_before = segments[i]
                 seg_after = segments[i + 1]
-                summary += f"  <<COLOR:highlight>>Change {i+1}:<</COLOR>> observation {cp}, P(shifted) = {shift_prob[cp]:.3f}\n"
-                summary += f"    Before: μ = {seg_before['mean']:.4f}, σ = {seg_before['std']:.4f} (n={seg_before['n']})\n"
-                summary += f"    After:  μ = {seg_after['mean']:.4f}, σ = {seg_after['std']:.4f} (n={seg_after['n']})\n\n"
+                summary += f"  <<COLOR:highlight>>Change {i + 1}:<</COLOR>> observation {cp}, P(shifted) = {shift_prob[cp]:.3f}\n"
+                summary += (
+                    f"    Before: μ = {seg_before['mean']:.4f}, σ = {seg_before['std']:.4f} (n={seg_before['n']})\n"
+                )
+                summary += (
+                    f"    After:  μ = {seg_after['mean']:.4f}, σ = {seg_after['std']:.4f} (n={seg_after['n']})\n\n"
+                )
         else:
-            summary += f"<<COLOR:text>>No significant change points detected (threshold: P > 0.5)<</COLOR>>\n"
+            summary += "<<COLOR:text>>No significant change points detected (threshold: P > 0.5)<</COLOR>>\n"
 
         # Per-regime capability table (when specs provided)
         if has_specs and any("cpk_median" in s for s in segments):
@@ -1609,9 +1988,9 @@ def run_visualization(df, analysis_id, config):
                     summary += f"Collect 30 more to narrow the credible interval by ~{narrowing:.0f}%.<</COLOR>>\n"
                 if prev_p133 is not None:
                     if p133 < prev_p133 - 0.15:
-                        summary += f"    <<COLOR:error>>Capability degraded by shift.<</COLOR>>\n"
+                        summary += "    <<COLOR:error>>Capability degraded by shift.<</COLOR>>\n"
                     elif p133 > prev_p133 + 0.15:
-                        summary += f"    <<COLOR:success>>Capability improved after shift.<</COLOR>>\n"
+                        summary += "    <<COLOR:success>>Capability improved after shift.<</COLOR>>\n"
                 prev_p133 = p133
                 summary += "\n"
 
@@ -1620,46 +1999,102 @@ def run_visualization(df, analysis_id, config):
 
         # Plot 1: Run-length posterior heatmap
         rl_display = min(max_rl, 100)
-        heatmap_data = np.exp(log_R[1:n + 1, :rl_display]).T
-        result["plots"].append({
-            "title": "Run-Length Posterior",
-            "data": [{"type": "heatmap", "z": heatmap_data.tolist(),
-                       "colorscale": "Viridis", "showscale": True,
-                       "colorbar": {"title": "P(r)"}}],
-            "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": "Run Length"}}
-        })
+        heatmap_data = np.exp(log_R[1 : n + 1, :rl_display]).T
+        result["plots"].append(
+            {
+                "title": "Run-Length Posterior",
+                "data": [
+                    {
+                        "type": "heatmap",
+                        "z": heatmap_data.tolist(),
+                        "colorscale": "Viridis",
+                        "showscale": True,
+                        "colorbar": {"title": "P(r)"},
+                    }
+                ],
+                "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": "Run Length"}},
+            }
+        )
 
         # Plot 2: Shift probability (1 - P(original run continues))
-        colors = [f"rgba({int(255*p)},{int(255*(1-p))},80,0.8)" for p in shift_prob]
-        result["plots"].append({
-            "title": "Shift Probability — P(process has changed)",
-            "data": [
-                {"type": "scatter", "y": shift_prob.tolist(), "mode": "lines",
-                 "line": {"color": "#d94a4a", "width": 2}, "name": "P(shifted)"},
-                {"type": "scatter", "x": [0, n], "y": [0.5, 0.5], "mode": "lines",
-                 "line": {"color": "#e89547", "dash": "dash"}, "name": "Threshold (50%)"},
-                {"type": "scatter", "x": [0, n], "y": [0.95, 0.95], "mode": "lines",
-                 "line": {"color": "#d94a4a", "dash": "dot", "width": 1}, "name": "Alarm (95%)"},
-            ],
-            "layout": {"height": 250, "xaxis": {"title": "Observation"},
-                        "yaxis": {"title": "P(shifted)", "range": [0, 1.05]}}
-        })
+        colors = [f"rgba({int(255 * p)},{int(255 * (1 - p))},80,0.8)" for p in shift_prob]
+        result["plots"].append(
+            {
+                "title": "Shift Probability — P(process has changed)",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "y": shift_prob.tolist(),
+                        "mode": "lines",
+                        "line": {"color": "#d94a4a", "width": 2},
+                        "name": "P(shifted)",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [0, n],
+                        "y": [0.5, 0.5],
+                        "mode": "lines",
+                        "line": {"color": "#e89547", "dash": "dash"},
+                        "name": "Threshold (50%)",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [0, n],
+                        "y": [0.95, 0.95],
+                        "mode": "lines",
+                        "line": {"color": "#d94a4a", "dash": "dot", "width": 1},
+                        "name": "Alarm (95%)",
+                    },
+                ],
+                "layout": {
+                    "height": 250,
+                    "xaxis": {"title": "Observation"},
+                    "yaxis": {"title": "P(shifted)", "range": [0, 1.05]},
+                },
+            }
+        )
 
         # Plot 3: Process data with detected changes
-        proc_data = [{"type": "scatter", "y": data.tolist(), "mode": "lines+markers",
-                       "marker": {"size": 4, "color": "#4a9f6e"}, "line": {"color": "#4a9f6e"}, "name": col}]
+        proc_data = [
+            {
+                "type": "scatter",
+                "y": data.tolist(),
+                "mode": "lines+markers",
+                "marker": {"size": 4, "color": "#4a9f6e"},
+                "line": {"color": "#4a9f6e"},
+                "name": col,
+            }
+        ]
         for i, cp in enumerate(changepoints):
-            proc_data.append({"type": "scatter", "x": [cp, cp], "y": [float(data.min()), float(data.max())],
-                              "mode": "lines", "line": {"color": "#e85747", "width": 2, "dash": "dash"}, "name": f"Change {i+1}"})
+            proc_data.append(
+                {
+                    "type": "scatter",
+                    "x": [cp, cp],
+                    "y": [float(data.min()), float(data.max())],
+                    "mode": "lines",
+                    "line": {"color": "#e85747", "width": 2, "dash": "dash"},
+                    "name": f"Change {i + 1}",
+                }
+            )
         for seg in segments:
-            proc_data.append({"type": "scatter", "x": [seg["start"], seg["end"] - 1],
-                              "y": [seg["mean"], seg["mean"]], "mode": "lines",
-                              "line": {"color": "#e89547", "width": 2}, "name": f"μ={seg['mean']:.2f}", "showlegend": False})
-        result["plots"].append({
-            "title": "Process Data with Change Points",
-            "data": proc_data,
-            "layout": {"height": 350, "xaxis": {"title": "Observation"}, "yaxis": {"title": col}}
-        })
+            proc_data.append(
+                {
+                    "type": "scatter",
+                    "x": [seg["start"], seg["end"] - 1],
+                    "y": [seg["mean"], seg["mean"]],
+                    "mode": "lines",
+                    "line": {"color": "#e89547", "width": 2},
+                    "name": f"μ={seg['mean']:.2f}",
+                    "showlegend": False,
+                }
+            )
+        result["plots"].append(
+            {
+                "title": "Process Data with Change Points",
+                "data": proc_data,
+                "layout": {"height": 350, "xaxis": {"title": "Observation"}, "yaxis": {"title": col}},
+            }
+        )
 
         # Plot 4: Per-regime Cpk posteriors (when specs provided)
         if regime_cpk_samples:
@@ -1669,34 +2104,72 @@ def run_visualization(df, analysis_id, config):
                 seg = segments[idx]
                 samp = regime_cpk_samples[idx]
                 color = regime_colors[idx % len(regime_colors)]
-                cpk_traces.append({
-                    "type": "histogram", "x": samp.tolist(),
-                    "name": f"Regime {idx + 1} (n={seg['n']})",
-                    "opacity": 0.55, "nbinsx": 60,
-                    "marker": {"color": color}
-                })
+                cpk_traces.append(
+                    {
+                        "type": "histogram",
+                        "x": samp.tolist(),
+                        "name": f"Regime {idx + 1} (n={seg['n']})",
+                        "opacity": 0.55,
+                        "nbinsx": 60,
+                        "marker": {"color": color},
+                    }
+                )
             # Reference lines at 1.0 and 1.33
-            y_max = 1  # Plotly auto-scales; shapes use yref="paper"
             cpk_shapes = [
-                {"type": "line", "x0": 1.0, "x1": 1.0, "y0": 0, "y1": 1, "yref": "paper",
-                 "line": {"color": "#e89547", "width": 2, "dash": "dash"}},
-                {"type": "line", "x0": 1.33, "x1": 1.33, "y0": 0, "y1": 1, "yref": "paper",
-                 "line": {"color": "#d94a4a", "width": 2, "dash": "dash"}},
+                {
+                    "type": "line",
+                    "x0": 1.0,
+                    "x1": 1.0,
+                    "y0": 0,
+                    "y1": 1,
+                    "yref": "paper",
+                    "line": {"color": "#e89547", "width": 2, "dash": "dash"},
+                },
+                {
+                    "type": "line",
+                    "x0": 1.33,
+                    "x1": 1.33,
+                    "y0": 0,
+                    "y1": 1,
+                    "yref": "paper",
+                    "line": {"color": "#d94a4a", "width": 2, "dash": "dash"},
+                },
             ]
             cpk_annotations = [
-                {"x": 1.0, "y": 1, "yref": "paper", "text": "Cpk=1.0", "showarrow": False,
-                 "yanchor": "bottom", "font": {"color": "#e89547", "size": 11}},
-                {"x": 1.33, "y": 1, "yref": "paper", "text": "Cpk=1.33", "showarrow": False,
-                 "yanchor": "bottom", "font": {"color": "#d94a4a", "size": 11}},
+                {
+                    "x": 1.0,
+                    "y": 1,
+                    "yref": "paper",
+                    "text": "Cpk=1.0",
+                    "showarrow": False,
+                    "yanchor": "bottom",
+                    "font": {"color": "#e89547", "size": 11},
+                },
+                {
+                    "x": 1.33,
+                    "y": 1,
+                    "yref": "paper",
+                    "text": "Cpk=1.33",
+                    "showarrow": False,
+                    "yanchor": "bottom",
+                    "font": {"color": "#d94a4a", "size": 11},
+                },
             ]
-            result["plots"].append({
-                "title": "Per-Regime Capability — Bayesian Cpk Posterior",
-                "data": cpk_traces,
-                "layout": {"height": 300, "barmode": "overlay",
-                           "xaxis": {"title": "Cpk"}, "yaxis": {"title": "Density"},
-                           "shapes": cpk_shapes, "annotations": cpk_annotations,
-                           "showlegend": True}
-            })
+            result["plots"].append(
+                {
+                    "title": "Per-Regime Capability — Bayesian Cpk Posterior",
+                    "data": cpk_traces,
+                    "layout": {
+                        "height": 300,
+                        "barmode": "overlay",
+                        "xaxis": {"title": "Cpk"},
+                        "yaxis": {"title": "Density"},
+                        "shapes": cpk_shapes,
+                        "annotations": cpk_annotations,
+                        "showlegend": True,
+                    },
+                }
+            )
 
         result["guide_observation"] = f"BOCPD detected {len(changepoints)} change point(s) in {n} observations"
 
@@ -1740,6 +2213,7 @@ def run_visualization(df, analysis_id, config):
         seq_ci_lo = np.zeros(n)
         seq_ci_hi = np.zeros(n)
         from scipy.stats import t as tdist_sc
+
         mu0_s, nu0_s, alpha0_s, beta0_s = ref_mean, 1.0, 2.0, max(ref_std**2, 1e-10)
 
         for t in range(n):
@@ -1760,6 +2234,7 @@ def run_visualization(df, analysis_id, config):
 
             # Forward step
             from scipy.special import logsumexp as _lse
+
             new_log_alpha_ic = _lse([log_alpha_ic + log_t_ic_ic, log_alpha_sh + log_t_sh_ic]) + ll_ic
             new_log_alpha_sh = _lse([log_alpha_ic + log_t_ic_sh, log_alpha_sh + log_t_sh_sh]) + ll_sh
 
@@ -1769,10 +2244,10 @@ def run_visualization(df, analysis_id, config):
             log_alpha_sh = new_log_alpha_sh - log_evidence
 
             log_p_ic[t] = log_alpha_ic
-            p_shifted = 1.0 - np.exp(log_alpha_ic)
+            1.0 - np.exp(log_alpha_ic)
 
             # Sequential NIG for mu
-            seg_data = data[:t + 1]
+            seg_data = data[: t + 1]
             mu_n_s, nu_n_s, alpha_n_s, beta_n_s = _nig_posterior_update(seg_data, mu0_s, nu0_s, alpha0_s, beta0_s)
             seq_mu[t] = mu_n_s
             if alpha_n_s > 0 and nu_n_s > 0 and beta_n_s > 0:
@@ -1789,7 +2264,7 @@ def run_visualization(df, analysis_id, config):
 
         # Summary
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN CONTROL CHART<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN CONTROL CHART<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n}    <<COLOR:highlight>>Ref μ:<</COLOR>> {ref_mean:.4f}    <<COLOR:highlight>>Ref σ:<</COLOR>> {ref_std:.4f}\n"
         summary += f"<<COLOR:highlight>>Shift size:<</COLOR>> {shift_size}σ    <<COLOR:highlight>>P(shift):<</COLOR>> {trans_prob}\n\n"
@@ -1800,64 +2275,137 @@ def run_visualization(df, analysis_id, config):
             summary += f"<<COLOR:highlight>>First alarm at observation {first_alarm}<</COLOR>>\n\n"
             summary += f"<<COLOR:highlight>>Final posterior μ:<</COLOR>> {seq_mu[-1]:.4f} [{seq_ci_lo[-1]:.4f}, {seq_ci_hi[-1]:.4f}]\n"
         else:
-            summary += f"<<COLOR:success>>Process appears in control — no observations with P(shifted) > 0.5<</COLOR>>\n\n"
+            summary += (
+                "<<COLOR:success>>Process appears in control — no observations with P(shifted) > 0.5<</COLOR>>\n\n"
+            )
             summary += f"<<COLOR:highlight>>Final posterior μ:<</COLOR>> {seq_mu[-1]:.4f} [{seq_ci_lo[-1]:.4f}, {seq_ci_hi[-1]:.4f}]\n"
 
         result["summary"] = summary
-        result["statistics"] = {"n_alarms": n_alarms, "ref_mean": ref_mean, "ref_std": ref_std,
-                                 "final_mu": float(seq_mu[-1]), "final_ci": [float(seq_ci_lo[-1]), float(seq_ci_hi[-1])]}
+        result["statistics"] = {
+            "n_alarms": n_alarms,
+            "ref_mean": ref_mean,
+            "ref_std": ref_std,
+            "final_mu": float(seq_mu[-1]),
+            "final_ci": [float(seq_ci_lo[-1]), float(seq_ci_hi[-1])],
+        }
 
         # Plot 1: Process data colored by P(shifted)
-        colors = [f"rgb({int(255*p)},{int(255*(1-p))},80)" for p in p_shifted_arr]
-        result["plots"].append({
-            "title": "Process Data — Colored by P(shifted)",
-            "data": [
-                {"type": "scatter", "y": data.tolist(), "mode": "markers",
-                 "marker": {"color": colors, "size": 6, "line": {"color": "#333", "width": 0.5}},
-                 "name": col, "showlegend": False},
-                {"type": "scatter", "y": data.tolist(), "mode": "lines",
-                 "line": {"color": "rgba(150,150,150,0.3)", "width": 1}, "showlegend": False},
-                {"type": "scatter", "x": [0, n - 1], "y": [ref_mean, ref_mean], "mode": "lines",
-                 "line": {"color": "#5b9bd5", "dash": "dash"}, "name": "Reference μ"},
-            ],
-            "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": col}}
-        })
+        colors = [f"rgb({int(255 * p)},{int(255 * (1 - p))},80)" for p in p_shifted_arr]
+        result["plots"].append(
+            {
+                "title": "Process Data — Colored by P(shifted)",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "y": data.tolist(),
+                        "mode": "markers",
+                        "marker": {"color": colors, "size": 6, "line": {"color": "#333", "width": 0.5}},
+                        "name": col,
+                        "showlegend": False,
+                    },
+                    {
+                        "type": "scatter",
+                        "y": data.tolist(),
+                        "mode": "lines",
+                        "line": {"color": "rgba(150,150,150,0.3)", "width": 1},
+                        "showlegend": False,
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [0, n - 1],
+                        "y": [ref_mean, ref_mean],
+                        "mode": "lines",
+                        "line": {"color": "#5b9bd5", "dash": "dash"},
+                        "name": "Reference μ",
+                    },
+                ],
+                "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": col}},
+            }
+        )
 
         # Plot 2: Sequential posterior for μ
         x_idx = list(range(n))
-        result["plots"].append({
-            "title": "Sequential Posterior for μ",
-            "data": [
-                {"type": "scatter", "x": x_idx, "y": seq_ci_hi.tolist(), "mode": "lines",
-                 "line": {"color": "rgba(74,159,110,0.2)", "width": 0}, "showlegend": False},
-                {"type": "scatter", "x": x_idx, "y": seq_ci_lo.tolist(), "mode": "lines",
-                 "line": {"color": "rgba(74,159,110,0.2)", "width": 0}, "fill": "tonexty",
-                 "fillcolor": "rgba(74,159,110,0.15)", "name": "95% CI"},
-                {"type": "scatter", "x": x_idx, "y": seq_mu.tolist(), "mode": "lines",
-                 "line": {"color": "#4a9f6e", "width": 2}, "name": "Posterior μ"},
-                {"type": "scatter", "x": [0, n - 1], "y": [ref_mean, ref_mean], "mode": "lines",
-                 "line": {"color": "#5b9bd5", "dash": "dash"}, "name": "Reference"},
-            ],
-            "layout": {"height": 250, "xaxis": {"title": "Observation"}, "yaxis": {"title": "μ"}}
-        })
+        result["plots"].append(
+            {
+                "title": "Sequential Posterior for μ",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": x_idx,
+                        "y": seq_ci_hi.tolist(),
+                        "mode": "lines",
+                        "line": {"color": "rgba(74,159,110,0.2)", "width": 0},
+                        "showlegend": False,
+                    },
+                    {
+                        "type": "scatter",
+                        "x": x_idx,
+                        "y": seq_ci_lo.tolist(),
+                        "mode": "lines",
+                        "line": {"color": "rgba(74,159,110,0.2)", "width": 0},
+                        "fill": "tonexty",
+                        "fillcolor": "rgba(74,159,110,0.15)",
+                        "name": "95% CI",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": x_idx,
+                        "y": seq_mu.tolist(),
+                        "mode": "lines",
+                        "line": {"color": "#4a9f6e", "width": 2},
+                        "name": "Posterior μ",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [0, n - 1],
+                        "y": [ref_mean, ref_mean],
+                        "mode": "lines",
+                        "line": {"color": "#5b9bd5", "dash": "dash"},
+                        "name": "Reference",
+                    },
+                ],
+                "layout": {"height": 250, "xaxis": {"title": "Observation"}, "yaxis": {"title": "μ"}},
+            }
+        )
 
         # Plot 3: Alarm timeline
-        alarm_colors = [f"rgba({int(255*p)},{int(255*(1-p))},80,0.8)" for p in p_shifted_arr]
-        result["plots"].append({
-            "title": "Shift Probability Timeline",
-            "data": [
-                {"type": "bar", "y": p_shifted_arr.tolist(), "marker": {"color": alarm_colors}, "name": "P(shifted)", "showlegend": False},
-                {"type": "scatter", "x": [0, n - 1], "y": [0.5, 0.5], "mode": "lines",
-                 "line": {"color": "#e89547", "dash": "dash", "width": 2}, "name": "Alarm threshold"},
-            ],
-            "layout": {"height": 250, "xaxis": {"title": "Observation"}, "yaxis": {"title": "P(shifted)", "range": [0, 1.05]}}
-        })
+        alarm_colors = [f"rgba({int(255 * p)},{int(255 * (1 - p))},80,0.8)" for p in p_shifted_arr]
+        result["plots"].append(
+            {
+                "title": "Shift Probability Timeline",
+                "data": [
+                    {
+                        "type": "bar",
+                        "y": p_shifted_arr.tolist(),
+                        "marker": {"color": alarm_colors},
+                        "name": "P(shifted)",
+                        "showlegend": False,
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [0, n - 1],
+                        "y": [0.5, 0.5],
+                        "mode": "lines",
+                        "line": {"color": "#e89547", "dash": "dash", "width": 2},
+                        "name": "Alarm threshold",
+                    },
+                ],
+                "layout": {
+                    "height": 250,
+                    "xaxis": {"title": "Observation"},
+                    "yaxis": {"title": "P(shifted)", "range": [0, 1.05]},
+                },
+            }
+        )
 
-        result["guide_observation"] = f"Bayesian control chart: {n_alarms} alarms in {n} observations (shift={shift_size}σ)"
+        result["guide_observation"] = (
+            f"Bayesian control chart: {n_alarms} alarms in {n} observations (shift={shift_size}σ)"
+        )
 
     elif analysis_id == "bayes_spc_acceptance":
         # Bayesian Acceptance Sampling — Beta-Binomial conjugate
         from scipy.stats import beta as betadist
+
         col = config.get("measurement") or df.select_dtypes(include="number").columns[0]
         data = df[col].dropna().values.astype(float)
 
@@ -1888,8 +2436,10 @@ def run_visualization(df, analysis_id, config):
         post_beta_param = prior_beta + n_total - k
         p_accept = float(betadist.cdf(aql, post_alpha, post_beta_param))
         post_mean = post_alpha / (post_alpha + post_beta_param)
-        post_ci = (float(betadist.ppf(0.025, post_alpha, post_beta_param)),
-                   float(betadist.ppf(0.975, post_alpha, post_beta_param)))
+        post_ci = (
+            float(betadist.ppf(0.025, post_alpha, post_beta_param)),
+            float(betadist.ppf(0.975, post_alpha, post_beta_param)),
+        )
 
         # Decision
         if p_accept >= threshold:
@@ -1951,14 +2501,18 @@ def run_visualization(df, analysis_id, config):
 
         # Summary
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>BAYESIAN ACCEPTANCE SAMPLING<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN ACCEPTANCE SAMPLING<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Sample size:<</COLOR>> {n_total}    <<COLOR:highlight>>Defectives:<</COLOR>> {k}    <<COLOR:highlight>>AQL:<</COLOR>> {aql}\n"
         summary += f"<<COLOR:highlight>>Prior:<</COLOR>> Beta({prior_alpha}, {prior_beta})    <<COLOR:highlight>>Threshold:<</COLOR>> {threshold}\n\n"
         summary += f"<<COLOR:accent>>{'─' * 40}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>Posterior for Defect Rate<</COLOR>>\n"
-        summary += f"  Mean: <<COLOR:highlight>>{post_mean:.6f}<</COLOR>>    95% CI: [{post_ci[0]:.6f}, {post_ci[1]:.6f}]\n"
-        summary += f"  P(p < AQL) = <<COLOR:{'success' if p_accept > threshold else 'error'}>>{p_accept:.4f}<</COLOR>>\n\n"
+        summary += "<<COLOR:title>>Posterior for Defect Rate<</COLOR>>\n"
+        summary += (
+            f"  Mean: <<COLOR:highlight>>{post_mean:.6f}<</COLOR>>    95% CI: [{post_ci[0]:.6f}, {post_ci[1]:.6f}]\n"
+        )
+        summary += (
+            f"  P(p < AQL) = <<COLOR:{'success' if p_accept > threshold else 'error'}>>{p_accept:.4f}<</COLOR>>\n\n"
+        )
         summary += f"<<COLOR:{decision_color}>>Decision: {decision}<</COLOR>>\n\n"
 
         if earliest_accept:
@@ -1968,67 +2522,167 @@ def run_visualization(df, analysis_id, config):
 
         result["summary"] = summary
         result["statistics"] = {
-            "defectives": k, "sample_size": n_total, "defect_rate_mean": post_mean,
-            "defect_rate_ci": list(post_ci), "p_accept": p_accept, "decision": decision,
-            "earliest_accept": earliest_accept, "earliest_reject": earliest_reject,
+            "defectives": k,
+            "sample_size": n_total,
+            "defect_rate_mean": post_mean,
+            "defect_rate_ci": list(post_ci),
+            "p_accept": p_accept,
+            "decision": decision,
+            "earliest_accept": earliest_accept,
+            "earliest_reject": earliest_reject,
         }
 
         # Plot 1: Posterior for defect rate
         x_range = np.linspace(0, min(max(post_ci[1] * 3, aql * 5), 1.0), 300)
         post_pdf = betadist.pdf(x_range, post_alpha, post_beta_param)
-        prior_pdf = betadist.pdf(x_range, prior_alpha, prior_beta) if prior_alpha > 0 and prior_beta > 0 else np.zeros_like(x_range)
-        result["plots"].append({
-            "title": "Posterior for Defect Rate",
-            "data": [
-                {"type": "scatter", "x": x_range.tolist(), "y": post_pdf.tolist(), "mode": "lines",
-                 "fill": "tozeroy", "fillcolor": "rgba(74,159,110,0.2)",
-                 "line": {"color": "#4a9f6e", "width": 2}, "name": "Posterior"},
-                {"type": "scatter", "x": x_range.tolist(), "y": prior_pdf.tolist(), "mode": "lines",
-                 "line": {"color": "#888", "dash": "dash", "width": 1.5}, "name": "Prior"},
-                {"type": "scatter", "x": [aql, aql], "y": [0, max(post_pdf) if len(post_pdf) > 0 else 1],
-                 "mode": "lines", "line": {"color": "#e85747", "width": 2}, "name": f"AQL = {aql}"},
-            ],
-            "layout": {"height": 300, "xaxis": {"title": "Defect Rate (p)"}, "yaxis": {"title": "Density"},
-                        "annotations": [{"x": post_mean, "y": max(post_pdf) * 0.9 if len(post_pdf) > 0 else 0.5,
-                                         "text": f"P(p<AQL)={p_accept:.3f}", "showarrow": True,
-                                         "font": {"color": "#4a9f6e"}}]}
-        })
+        prior_pdf = (
+            betadist.pdf(x_range, prior_alpha, prior_beta)
+            if prior_alpha > 0 and prior_beta > 0
+            else np.zeros_like(x_range)
+        )
+        result["plots"].append(
+            {
+                "title": "Posterior for Defect Rate",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": x_range.tolist(),
+                        "y": post_pdf.tolist(),
+                        "mode": "lines",
+                        "fill": "tozeroy",
+                        "fillcolor": "rgba(74,159,110,0.2)",
+                        "line": {"color": "#4a9f6e", "width": 2},
+                        "name": "Posterior",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": x_range.tolist(),
+                        "y": prior_pdf.tolist(),
+                        "mode": "lines",
+                        "line": {"color": "#888", "dash": "dash", "width": 1.5},
+                        "name": "Prior",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [aql, aql],
+                        "y": [0, max(post_pdf) if len(post_pdf) > 0 else 1],
+                        "mode": "lines",
+                        "line": {"color": "#e85747", "width": 2},
+                        "name": f"AQL = {aql}",
+                    },
+                ],
+                "layout": {
+                    "height": 300,
+                    "xaxis": {"title": "Defect Rate (p)"},
+                    "yaxis": {"title": "Density"},
+                    "annotations": [
+                        {
+                            "x": post_mean,
+                            "y": max(post_pdf) * 0.9 if len(post_pdf) > 0 else 0.5,
+                            "text": f"P(p<AQL)={p_accept:.3f}",
+                            "showarrow": True,
+                            "font": {"color": "#4a9f6e"},
+                        }
+                    ],
+                },
+            }
+        )
 
         # Plot 2: Sequential posterior evolution
-        result["plots"].append({
-            "title": "Sequential P(p < AQL) — Earliest Stopping",
-            "data": [
-                {"type": "scatter", "x": list(range(1, n_total + 1)), "y": seq_p_accept, "mode": "lines",
-                 "line": {"color": "#4a9f6e", "width": 2}, "name": "P(p < AQL)"},
-                {"type": "scatter", "x": [1, n_total], "y": [threshold, threshold], "mode": "lines",
-                 "line": {"color": "#4a9f6e", "dash": "dash"}, "name": f"Accept ({threshold})"},
-                {"type": "scatter", "x": [1, n_total], "y": [1 - threshold, 1 - threshold], "mode": "lines",
-                 "line": {"color": "#e85747", "dash": "dash"}, "name": f"Reject ({1-threshold:.2f})"},
-            ],
-            "layout": {"height": 250, "xaxis": {"title": "Items Inspected"}, "yaxis": {"title": "P(p < AQL)", "range": [0, 1.05]},
-                        "annotations": ([{"x": earliest_accept, "y": threshold, "text": f"Accept @ n={earliest_accept}",
-                                          "showarrow": True, "font": {"color": "#4a9f6e"}}] if earliest_accept else [])}
-        })
+        result["plots"].append(
+            {
+                "title": "Sequential P(p < AQL) — Earliest Stopping",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": list(range(1, n_total + 1)),
+                        "y": seq_p_accept,
+                        "mode": "lines",
+                        "line": {"color": "#4a9f6e", "width": 2},
+                        "name": "P(p < AQL)",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [1, n_total],
+                        "y": [threshold, threshold],
+                        "mode": "lines",
+                        "line": {"color": "#4a9f6e", "dash": "dash"},
+                        "name": f"Accept ({threshold})",
+                    },
+                    {
+                        "type": "scatter",
+                        "x": [1, n_total],
+                        "y": [1 - threshold, 1 - threshold],
+                        "mode": "lines",
+                        "line": {"color": "#e85747", "dash": "dash"},
+                        "name": f"Reject ({1 - threshold:.2f})",
+                    },
+                ],
+                "layout": {
+                    "height": 250,
+                    "xaxis": {"title": "Items Inspected"},
+                    "yaxis": {"title": "P(p < AQL)", "range": [0, 1.05]},
+                    "annotations": (
+                        [
+                            {
+                                "x": earliest_accept,
+                                "y": threshold,
+                                "text": f"Accept @ n={earliest_accept}",
+                                "showarrow": True,
+                                "font": {"color": "#4a9f6e"},
+                            }
+                        ]
+                        if earliest_accept
+                        else []
+                    ),
+                },
+            }
+        )
 
         # Plot 3: Decision boundary
         accept_y = [b if b is not None else None for b in accept_boundary]
         reject_y = [b if b is not None else None for b in reject_boundary]
         boundary_plots = [
-            {"type": "scatter", "x": boundary_n, "y": accept_y, "mode": "lines",
-             "line": {"color": "#4a9f6e", "width": 2}, "name": "Accept boundary", "connectgaps": False},
-            {"type": "scatter", "x": boundary_n, "y": reject_y, "mode": "lines",
-             "line": {"color": "#e85747", "width": 2}, "name": "Reject boundary", "connectgaps": False},
+            {
+                "type": "scatter",
+                "x": boundary_n,
+                "y": accept_y,
+                "mode": "lines",
+                "line": {"color": "#4a9f6e", "width": 2},
+                "name": "Accept boundary",
+                "connectgaps": False,
+            },
+            {
+                "type": "scatter",
+                "x": boundary_n,
+                "y": reject_y,
+                "mode": "lines",
+                "line": {"color": "#e85747", "width": 2},
+                "name": "Reject boundary",
+                "connectgaps": False,
+            },
         ]
         # Add actual trajectory point
-        boundary_plots.append({"type": "scatter", "x": [n_total], "y": [k], "mode": "markers",
-                                "marker": {"color": "#e89547", "size": 12, "symbol": "star"},
-                                "name": f"Observed ({n_total}, {k})"})
-        result["plots"].append({
-            "title": "Decision Boundaries",
-            "data": boundary_plots,
-            "layout": {"height": 300, "xaxis": {"title": "Sample Size (n)"}, "yaxis": {"title": "Defectives (k)"}}
-        })
+        boundary_plots.append(
+            {
+                "type": "scatter",
+                "x": [n_total],
+                "y": [k],
+                "mode": "markers",
+                "marker": {"color": "#e89547", "size": 12, "symbol": "star"},
+                "name": f"Observed ({n_total}, {k})",
+            }
+        )
+        result["plots"].append(
+            {
+                "title": "Decision Boundaries",
+                "data": boundary_plots,
+                "layout": {"height": 300, "xaxis": {"title": "Sample Size (n)"}, "yaxis": {"title": "Defectives (k)"}},
+            }
+        )
 
-        result["guide_observation"] = f"Bayesian acceptance: {k}/{n_total} defectives, P(p<AQL)={p_accept:.3f}, decision={decision}"
+        result["guide_observation"] = (
+            f"Bayesian acceptance: {k}/{n_total} defectives, P(p<AQL)={p_accept:.3f}, decision={decision}"
+        )
 
     return result
