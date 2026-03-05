@@ -143,6 +143,8 @@ BILL-001 defines the subscription tier system, Stripe integration patterns, regi
 <!-- impl: accounts/models.py -->
 <!-- test: api.tests.BillingStatusTest.test_founder_availability_is_public -->
 
+<!-- assert: is_founder_locked=True prevents tier reassignment during subscription sync | check=bill-founder-enforcement -->
+
 Users with `is_founder_locked=True` keep $19/mo pricing regardless of plan changes. Maximum 50 founder slots. `get_founder_availability()` returns slots used/remaining.
 
 ---
@@ -448,6 +450,8 @@ Use decorators. They handle auth, rate limiting, and query counting atomically.
 **PROHIBITED:** Skipping `stripe.Webhook.construct_event()` signature verification. Every webhook MUST be verified.
 
 ### **13.4 Grace Period on Failed Payment**
+
+<!-- assert: Failed payment (invoice.payment_failed) immediately downgrades user to FREE tier — no grace period | check=bill-no-grace-period -->
 
 **PROHIBITED:** Allowing continued access after `invoice.payment_failed`. The current implementation correctly downgrades to FREE immediately.
 
