@@ -23,6 +23,17 @@
 
 ---
 
+### 2026-03-05 — Symbol Coverage Improvement: 9.5% → 13.3% {#symbol-coverage-improvement-9.5-to-13.3}
+**Change Request:** c563c30b (enhancement)
+**Files modified:**
+- `docs/standards/NTF-001.md` — Added `<!-- test: -->` hooks to 11 assertion blocks for 8 notification symbols
+- `docs/standards/QMS-001.md` — Converted 23 file-level `<!-- impl: -->` hooks to function-level for iso_views.py and hoshin_views.py
+- `agents_api/iso_tests.py` — Added ~65 compliance-linked test methods (aliases + new tests); fixed 18 tests using `_err_msg()` for error envelope
+- `agents_api/hoshin_deep_tests.py` — Added 18 compliance-linked tests (9 new + 9 aliases); added `_err_msg()` helper; fixed 3 pre-existing failures
+- `notifications/tests.py` — Added `test_send_email_task_sends_mail` alias
+**Verification:** 404 tests passing (iso 247, hoshin 99, notifications 58). Symbol coverage 213/1607 = 13.3%.
+**Commits:** 2b89384, 85ce4c7, dd684c4
+
 ### 2026-03-04 — Non-Gameable Symbol-Level Coverage Metric
 **Change Request:** e2ca28d2 (enhancement)
 **Files modified:**
