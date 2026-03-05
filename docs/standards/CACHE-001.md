@@ -116,7 +116,7 @@ Caddy serves `/static/*` directly via `file_server`. Content-hashed files SHOULD
 <!-- test: syn.audit.tests.test_caching.AppCacheTest.test_idempotency_ttl_bounded -->
 
 <!-- assert: Rate limit cache uses Django cache framework with bounded TTL | check=cache-rate-limit-ttl -->
-<!-- impl: syn/synara/middleware.py -->
+<!-- impl: syn/synara/middleware/rate_limit.py -->
 <!-- test: syn.audit.tests.test_caching.AppCacheTest.test_idempotency_ttl_value -->
 
 ### 5.1 Idempotency Cache

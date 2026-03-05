@@ -527,7 +527,7 @@ For ANOVA, power is computed iteratively:
 
 <!-- assert: Bayesian DOE computes design matrices, posterior distributions, and full effect analysis for factorial experiments | check=stat-bayes-doe -->
 <!-- impl: agents_api/bayes_doe.py:build_doe_design_matrix -->
-<!-- impl: agents_api/bayes_doe.py:bayesian_linear_posterior -->
+<!-- impl: agents_api/bayes_core.py:bayesian_linear_posterior -->
 <!-- impl: agents_api/bayes_doe.py:run_bayesian_doe -->
 <!-- test: agents_api.engine_tests.BayesDOEScenarioTest.test_build_design_matrix -->
 <!-- test: agents_api.engine_tests.BayesDOEScenarioTest.test_bayesian_linear_posterior -->
