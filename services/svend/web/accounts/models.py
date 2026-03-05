@@ -146,7 +146,7 @@ class LoginAttempt(models.Model):
     username = models.CharField(max_length=255, db_index=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     attempted_at = models.DateTimeField(auto_now_add=True, db_index=True)
-    was_successful = models.BooleanField(default=False)
+    is_successful = models.BooleanField(default=False)
 
     class Meta:
         db_table = "login_attempts"
@@ -159,18 +159,18 @@ class LoginAttempt(models.Model):
         window_start = timezone.now() - timedelta(minutes=cls.LOCKOUT_MINUTES)
         recent_failures = cls.objects.filter(
             username__iexact=username,
-            was_successful=False,
+            is_successful=False,
             attempted_at__gte=window_start,
         ).count()
         return recent_failures >= cls.MAX_ATTEMPTS
 
     @classmethod
-    def record(cls, username: str, ip_address=None, was_successful: bool = False):
+    def record(cls, username: str, ip_address=None, is_successful: bool = False):
         """Record a login attempt."""
         cls.objects.create(
             username=username[:255],
             ip_address=ip_address,
-            was_successful=was_successful,
+            is_successful=is_successful,
         )
 
     @classmethod
@@ -181,7 +181,7 @@ class LoginAttempt(models.Model):
         window_start = timezone.now() - timedelta(minutes=cls.LOCKOUT_MINUTES)
         cls.objects.filter(
             username__iexact=username,
-            was_successful=False,
+            is_successful=False,
             attempted_at__gte=window_start,
         ).delete()
 

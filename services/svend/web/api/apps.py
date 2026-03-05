@@ -4,6 +4,8 @@ from django.apps import AppConfig
 
 
 class ApiConfig(AppConfig):
+    """Django app configuration for the API module."""
+
     default_auto_field = "django.db.models.BigAutoField"
     name = "api"
 

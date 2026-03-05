@@ -18,6 +18,7 @@ class Tier(models.TextChoices):
 
     Used by User model and throughout the app for access control.
     """
+
     FREE = "free", "Free"
     FOUNDER = "founder", "Founder ($19/month)"  # Legacy — no longer sold
     PRO = "pro", "Professional ($49/month)"
@@ -31,10 +32,10 @@ FOUNDER_SLOTS = 50
 
 # Daily query limits by tier
 TIER_LIMITS = {
-    Tier.FREE: 5,           # Trial - basic DSW only
-    Tier.FOUNDER: 50,       # Legacy, locked at $19 forever
-    Tier.PRO: 50,           # Professional ($49/mo)
-    Tier.TEAM: 200,         # Team ($99/mo) + collaboration
+    Tier.FREE: 5,  # Trial - basic DSW only
+    Tier.FOUNDER: 50,  # Legacy, locked at $19 forever
+    Tier.PRO: 50,  # Professional ($49/mo)
+    Tier.TEAM: 200,  # Team ($99/mo) + collaboration
     Tier.ENTERPRISE: 1000,  # Enterprise ($299/mo) + AI + SSO
 }
 
@@ -42,20 +43,20 @@ TIER_LIMITS = {
 # Feature flags by tier
 TIER_FEATURES = {
     Tier.FREE: {
-        "basic_dsw": True,       # Basic decision science workbench
-        "basic_ml": False,       # No ML model training
-        "full_tools": False,     # Limited tool access
-        "ai_assistant": False,   # No Anthropic
+        "basic_dsw": True,  # Basic decision science workbench
+        "basic_ml": False,  # No ML model training
+        "full_tools": False,  # Limited tool access
+        "ai_assistant": False,  # No Anthropic
         "collaboration": False,  # No team features
-        "forge_api": False,      # No synthetic data API
-        "hoshin_kanri": False,   # No CI project management
+        "forge_api": False,  # No synthetic data API
+        "hoshin_kanri": False,  # No CI project management
         "priority_support": False,
     },
     Tier.FOUNDER: {
         "basic_dsw": True,
-        "basic_ml": True,        # Basic ML (same as PRO)
-        "full_tools": True,      # Most tools
-        "ai_assistant": False,   # No Anthropic
+        "basic_ml": True,  # Basic ML (same as PRO)
+        "full_tools": True,  # Most tools
+        "ai_assistant": False,  # No Anthropic
         "collaboration": False,
         "forge_api": True,
         "hoshin_kanri": False,
@@ -63,9 +64,9 @@ TIER_FEATURES = {
     },
     Tier.PRO: {
         "basic_dsw": True,
-        "basic_ml": True,        # Basic ML model training
-        "full_tools": True,      # Most tools
-        "ai_assistant": False,   # No Anthropic
+        "basic_ml": True,  # Basic ML model training
+        "full_tools": True,  # Most tools
+        "ai_assistant": False,  # No Anthropic
         "collaboration": False,
         "forge_api": True,
         "hoshin_kanri": False,
@@ -75,8 +76,8 @@ TIER_FEATURES = {
         "basic_dsw": True,
         "basic_ml": True,
         "full_tools": True,
-        "ai_assistant": False,   # Still no Anthropic
-        "collaboration": True,   # Team collaboration
+        "ai_assistant": False,  # Still no Anthropic
+        "collaboration": True,  # Team collaboration
         "forge_api": True,
         "hoshin_kanri": False,
         "priority_support": True,
@@ -85,10 +86,10 @@ TIER_FEATURES = {
         "basic_dsw": True,
         "basic_ml": True,
         "full_tools": True,
-        "ai_assistant": True,    # Anthropic access
+        "ai_assistant": True,  # Anthropic access
         "collaboration": True,
         "forge_api": True,
-        "hoshin_kanri": True,    # Hoshin Kanri CI project management
+        "hoshin_kanri": True,  # Hoshin Kanri CI project management
         "priority_support": True,
     },
 }
@@ -115,7 +116,10 @@ GUEST_INVITE_EXPIRY_DAYS = {
 
 # --- User profile choices ---
 
+
 class Industry(models.TextChoices):
+    """User profile industry choices."""
+
     MANUFACTURING = "manufacturing", "Manufacturing"
     HEALTHCARE = "healthcare", "Healthcare"
     TECHNOLOGY = "technology", "Technology"
@@ -127,6 +131,8 @@ class Industry(models.TextChoices):
 
 
 class Role(models.TextChoices):
+    """User profile role choices."""
+
     ENGINEER = "engineer", "Engineer"
     MANAGER = "manager", "Manager"
     ANALYST = "analyst", "Analyst"
@@ -138,12 +144,16 @@ class Role(models.TextChoices):
 
 
 class ExperienceLevel(models.TextChoices):
+    """User profile experience level choices."""
+
     BEGINNER = "beginner", "Beginner"
     INTERMEDIATE = "intermediate", "Intermediate"
     ADVANCED = "advanced", "Advanced"
 
 
 class OrganizationSize(models.TextChoices):
+    """User profile organization size choices."""
+
     SMALL = "small", "Small (1-50)"
     MEDIUM = "medium", "Medium (51-500)"
     LARGE = "large", "Large (501-5000)"
@@ -198,6 +208,7 @@ def get_founder_availability() -> dict:
     """
     # Import here to avoid circular imports
     from django.contrib.auth import get_user_model
+
     User = get_user_model()
 
     used = User.objects.filter(tier=Tier.FOUNDER).count()

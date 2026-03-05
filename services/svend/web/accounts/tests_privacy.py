@@ -41,6 +41,8 @@ def _cleanup_export(export_req):
 
 @SECURE_OFF
 class DataExportRequestModelTests(TestCase):
+    """Tests for the DataExportRequest model."""
+
     def setUp(self):
         self.user = User.objects.create_user(username="exportuser", email="export@test.com", password="testpass123!")
 
@@ -91,6 +93,8 @@ class DataExportRequestModelTests(TestCase):
 
 @SECURE_OFF
 class DataExportViewTests(TestCase):
+    """Tests for data export API views."""
+
     def setUp(self):
         self.user = User.objects.create_user(username="viewuser", email="view@test.com", password="testpass123!")
         self.other = User.objects.create_user(username="otheruser", email="other@test.com", password="testpass123!")
@@ -198,6 +202,8 @@ class DataExportViewTests(TestCase):
 
 @SECURE_OFF
 class CancelExportTests(TestCase):
+    """Tests for cancelling data export requests."""
+
     def setUp(self):
         self.user = User.objects.create_user(username="canceluser", email="cancel@test.com", password="testpass123!")
         self.other = User.objects.create_user(

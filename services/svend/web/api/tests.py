@@ -31,6 +31,8 @@ def _make_user(email, tier=Tier.FREE, password="testpass123!", **kwargs):
 
 @SECURE_OFF
 class HealthCheckTest(TestCase):
+    """Tests for the /api/health/ endpoint."""
+
     def test_health_returns_ok(self):
         client = APIClient()
         res = client.get("/api/health/")
@@ -47,6 +49,8 @@ class HealthCheckTest(TestCase):
 
 @SECURE_OFF
 class RegistrationTest(TestCase):
+    """Tests for user registration endpoint."""
+
     def setUp(self):
         self.client = APIClient()
         p = patch("api.views.RegistrationThrottle.allow_request", return_value=True)
@@ -200,6 +204,8 @@ class RegistrationTest(TestCase):
 
 @SECURE_OFF
 class LoginTest(TestCase):
+    """Tests for user login endpoint."""
+
     def setUp(self):
         self.client = APIClient()
         self.user = _make_user("user@example.com", username="testuser")
@@ -291,6 +297,8 @@ class LoginTest(TestCase):
 
 @SECURE_OFF
 class LogoutTest(TestCase):
+    """Tests for user logout endpoint."""
+
     def setUp(self):
         self.client = APIClient()
         self.user = _make_user("user@example.com")
@@ -320,6 +328,8 @@ class LogoutTest(TestCase):
 
 @SECURE_OFF
 class MeEndpointTest(TestCase):
+    """Tests for the /api/auth/me/ endpoint."""
+
     def setUp(self):
         self.client = APIClient()
         self.user = _make_user("me@example.com", Tier.PRO, username="meuser")
@@ -372,6 +382,8 @@ class MeEndpointTest(TestCase):
 
 @SECURE_OFF
 class ProfileUpdateTest(TestCase):
+    """Tests for user profile update endpoint."""
+
     def setUp(self):
         self.client = APIClient()
         self.user = _make_user("update@example.com")
@@ -484,6 +496,8 @@ class ProfileUpdateTest(TestCase):
 
 @SECURE_OFF
 class PasswordChangeTest(TestCase):
+    """Tests for password change endpoint."""
+
     def setUp(self):
         self.client = APIClient()
         self.user = _make_user("pw@example.com")
@@ -554,6 +568,8 @@ class PasswordChangeTest(TestCase):
 
 @SECURE_OFF
 class EmailVerificationTest(TestCase):
+    """Tests for email verification flow."""
+
     def setUp(self):
         self.client = APIClient()
         self.user = _make_user("verify@example.com")

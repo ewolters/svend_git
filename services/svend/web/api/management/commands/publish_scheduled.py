@@ -7,6 +7,8 @@ from api.models import BlogPost
 
 
 class Command(BaseCommand):
+    """Publish blog posts whose scheduled_at time has passed."""
+
     help = "Publish blog posts whose scheduled_at time has passed."
 
     def handle(self, *args, **options):

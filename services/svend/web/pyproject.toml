@@ -58,4 +58,4 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["syn", "api", "core", "accounts", "agents_api", "forge", "chat", "workbench", "files", "svend"]
+known-first-party = ["syn", "api", "core", "accounts", "agents_api", "forge", "chat", "workbench", "files", "svend", "notifications"]

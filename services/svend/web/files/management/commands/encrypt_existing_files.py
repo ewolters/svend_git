@@ -14,6 +14,8 @@ from files.models import UserFile
 
 
 class Command(BaseCommand):
+    """Encrypt existing unencrypted files on disk using Fernet."""
+
     help = "Encrypt existing unencrypted files on disk using Fernet"
 
     def add_arguments(self, parser):
