@@ -1,8 +1,16 @@
-# Change Log
+# Change Log — DEPRECATED
 
-All edits to the kjerne codebase are logged here. Each entry records what changed, why, and how to verify.
+> **This file is deprecated.** All change logging now happens in the change management system per CHG-001.
+>
+> - **View changes:** `/internal/dashboard/` → Operations → Changes
+> - **Standard:** `docs/standards/CHG-001.md`
+> - **API:** `POST /api/internal/changes/create/` · `GET /api/internal/changes/<id>/`
+>
+> Historical entries below are preserved for reference only. Do not add new entries to this file.
 
-## Format
+---
+
+## Historical Format
 
 ```
 ### YYYY-MM-DD — Summary
@@ -12,6 +20,322 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 **Verification:** how to confirm it worked
 **Commit:** git hash
 ```
+
+---
+
+### 2026-03-04 — Non-Gameable Symbol-Level Coverage Metric
+**Change Request:** e2ca28d2 (enhancement)
+**Files modified:**
+- `syn/audit/compliance.py` — Replaced `check_standards_code_coverage` with `check_symbol_coverage`. AST-walks all production .py files, inventories public functions/classes, classifies each as covered/specified-untested/ungoverned based on symbol-level impl hooks paired with test hooks. File-level hooks explicitly ignored. Risk score formula: ungoverned_loc * 1.0 + specified_untested_loc * 0.5.
+- `api/internal_views.py` — Updated import to use `check_symbol_coverage`
+- `templates/internal_dashboard.html` — Replaced code coverage section with stacked three-color bars (green/yellow/red) per module, risk-sorted file list, symbol count KPIs
+- `docs/standards/CMP-001.md` — Replaced §6.3 `cmp-code-coverage` with `cmp-symbol-coverage` assertion, updated Wednesday rotation
+- `syn/audit/tests/test_compliance_system.py` — Added `SymbolCoverageTest` with 5 tests: private exclusion, file-level hook ignored, covered requires tests, class.method resolution, risk formula
+**Verification:** `python3 manage.py run_compliance --check=symbol_coverage` runs (8.5% covered — honest baseline). `python3 manage.py run_compliance --standards` → 479 assertions, `cmp-symbol-coverage` passes. 5/5 new tests pass.
+
+### 2026-03-04 — Standards Code Coverage Dashboard + 132 Scenario Tests
+**Change Request:** 6c162da4 (feature)
+**Files created:**
+- `accounts/tests.py` — 40 scenario tests: tier gating, billing lifecycle, permissions, middleware
+- `agents_api/scenario_tests.py` — 22 scenario tests: FMEA, RCA, A3, reports, SPC, learn, autopilot, cross-system
+- `agents_api/dsw_engine_tests.py` — 18 scenario tests: bayesian, stats, ML, simulation, reliability, D-type, SPC engine
+- `agents_api/engine_tests.py` — 16 scenario tests: PBS, quality economics, Bayesian DOE, causal discovery, drift, anytime-valid
+- `chat/tests.py` — 14 scenario tests: conversation lifecycle, encryption, cascade delete, usage tracking, rate limits
+- `workbench/tests.py` — 22 scenario tests: project CRUD, artifacts, knowledge graph, epistemic log, access control
+**Files modified:**
+- `syn/audit/compliance.py` — Added `check_standards_code_coverage` check (Wednesday rotation)
+- `api/internal_views.py` — Added code coverage data to compliance API response
+- `templates/internal_dashboard.html` — Added Code Coverage section with KPI card + per-module bar chart
+- `docs/standards/CMP-001.md` — Added `cmp-code-coverage` assertion, updated rotation list
+- `docs/standards/BILL-001.md` — Added 36 test hooks across 5 assertions
+- `docs/standards/SEC-001.md` — Added 20 test hooks + 2 impl hooks across 5 assertions
+- `docs/standards/DSW-001.md` — Added 47 test/impl hooks + 2 new assertions (dsw-workbench-module, dsw-pbs-engine)
+- `docs/standards/QMS-001.md` — Added 11 test hooks + 1 new assertion (qms-report-templates)
+- `docs/standards/STAT-001.md` — Added 14 test/impl hooks + 2 new assertions (stat-advanced-engines, stat-bayes-doe)
+- `docs/standards/LLM-001.md` — Added 15 test/impl hooks + 2 new assertions (llm-conversation-lifecycle, llm-model-versioning)
+- `docs/standards/DAT-001.md` — Added 2 test hooks to dat-uuid-pk and dat-fk-patterns
+**Verification:** `python3 manage.py test accounts workbench agents_api.scenario_tests chat agents_api.dsw_engine_tests agents_api.engine_tests --noinput` → 132 tests, all pass. Standards compliance: 479 assertions (443 pass, 2 fail pre-existing, 34 warnings). Code coverage: 41% → 52.1% (94/253 files, 76,342/146,561 lines).
+
+### 2026-03-03 — QMS Phase 2 Module Depth (D-001, D-002, D-007, D-012)
+**Change Request:** 489f9d41 (Phase 2, feature)
+**Files changed:**
+- `agents_api/models.py` — FMEA: ScoringMethod (rpn/ap), scoring_method field. FMEARow: prevention_controls, detection_controls, failure_mode_class, control_type, compute_action_priority() static method. RCASession: new state machine (draft→investigating→root_cause_identified→verified→closed), validate_transition(), reopen_reason field.
+- `agents_api/fmea_views.py` — create/update accept scoring_method. add/update row accept 4th Ed fields. rpn_summary includes AP buckets for AP FMEAs. New spc_cpk_update_occurrence endpoint with AIAG Cpk mapping.
+- `agents_api/fmea_urls.py` — Added spc-cpk-update/ route.
+- `agents_api/rca_views.py` — create_session always starts as draft. update_session enforces state machine via validate_transition().
+- `agents_api/qms_phase2_tests.py` — **New** 18 tests covering all 4 features.
+- `agents_api/migrations/0048_qms_phase2_fmea_rca.py` — **New** field additions + RCA status data migration.
+- `docs/standards/QMS-001.md` — v1.1: §4.1.1 AIAG 4th Ed, §4.1.2 AP scoring, §4.2 RCA state machine, §5.4.1 Cpk mapping.
+- `docs/standards/QMS-002.md` — **New** Resource Management skeleton (implementation deferred).
+**Verification:** 18/18 tests pass. All QMS compliance assertions PASS (qms-fmea-aiag4, qms-fmea-ap, qms-rca-state-machine, qms-fmea-spc-cpk).
+
+---
+
+### 2026-03-03 — QMS Phase 0 Bug Fixes + Phase 1 Close the Loop
+**Change Request:** 0bbcab10 (Phase 0, bugfix) + 0d1e12fe (Phase 1, feature)
+**Files changed:**
+- `agents_api/fmea_views.py` — Risk bucket thresholds fixed (>=200 not >200). Evidence creation routed through evidence_bridge for dedup. EvidenceLink dedup check. Orphaned evidence cleanup on hypothesis re-link. New `investigate_row` endpoint (FMEA→RCA bridge).
+- `agents_api/models.py` — FMEARow.save() raises ValidationError instead of silent clamping. Requires all-three-or-none for revised scores. ActionItem.save() cycle detection for depends_on chain. VSM PCE includes changeover_time in total lead time.
+- `agents_api/vsm_views.py` — Future state uses copy.deepcopy() instead of .copy().
+- `agents_api/hoshin_views.py` — Monthly actuals dedup guard removes pre-existing duplicate month entries.
+- `agents_api/hoshin_calculations.py` — Custom formula evaluator: AST depth limit (20), node count limit (100).
+- `agents_api/rca_views.py` — Shared _rca_llm_call() helper with rate limiting (check_rate_limit) and model from CLAUDE_MODELS constant. All 3 critique endpoints refactored.
+- `agents_api/fmea_urls.py` — Added investigate/ URL for FMEA→RCA bridge.
+- `docs/roadmaps/2026-03-03_QMS_roadmap_.md` — Updated to v1.1, Phase 0 and Phase 1 marked completed with implementation notes.
+**Verification:** `python3 manage.py check` passes. POST `/api/fmea/<id>/rows/<row_id>/investigate/` creates RCA session.
+
+---
+
+### 2026-03-03 — QMS Roadmap (documentation only)
+**Type:** documentation (no approval per CHG-001)
+**Files changed:**
+- `docs/roadmaps/2026-03-03_QMS_roadmap_.md` — **NEW** — 5-phase QMS improvement roadmap from 4-agent parallel audit. 126 findings across FMEA (25), RCA (29), A3 (14), VSM (21), Hoshin/X-Matrix (19), cross-module integration (18). Phases: 0 (bugs/data integrity), 1 (close the loop), 2 (module depth), 3 (intelligence layer), 4 (enterprise/compliance). Includes competitive positioning, dependency graph, success metrics.
+**Verification:** Read `docs/roadmaps/2026-03-03_QMS_roadmap_.md`
+
+---
+
+### 2026-03-03 — Change detail viewer — split-pane with markdown rendering
+**Change Request:** dc92126b
+**Files changed:**
+- `templates/internal_dashboard.html` — Replaced Changes tab table + collapsed detail panel with standards-viewer-style split-pane layout. Left pane shows filterable change list, right pane renders full change detail with markdown: description, justification, risk assessment with full agent rationale, implementation/rollback/testing plans, affected files, commits, related changes, and full timeline. Added CSS classes for change list items, dimension grids, vote cards, timeline entries.
+- `log.md` — Added migration header pointing to the change management system as the primary log.
+**Verification:** Navigate to `/internal/dashboard/` → Operations → Changes. Split-pane visible. Click any change to see full rendered detail.
+
+---
+
+### 2026-03-03 — Link test results to compliance dashboard metrics
+**Change Request:** a25f8e35
+**Files changed:**
+- `syn/audit/standards.py` — `run_linked_test()` now returns `status` field ("pass"/"fail"/"skip"/"error"). Added `_is_db_error()` and `_is_testcase_needing_db()` to classify Django TestCase (needs test DB) vs SimpleTestCase (safe to run inline). `verify_assertion()` decoupled: test failures no longer change assertion pass/fail status — impl/code checks determine structural compliance, tests are behavioral proof tracked separately.
+- `syn/audit/compliance.py` — `check_standards_compliance()` now passes `run_tests=True` to `verify_assertion()`. Added `tests_passed`, `tests_failed`, `tests_skipped` to persisted details JSON.
+- `api/internal_views.py` — `api_compliance()` passes through `tests_passed`, `tests_failed`, `tests_skipped` from standards check.
+- `syn/audit/management/commands/run_compliance.py` — CLI renders SKIP status for DB-dependent/import-failed tests. Summary line shows passed/failed/skipped breakdown.
+- `templates/internal_dashboard.html` — New "Linked Tests" metrics row in Standards Coverage section: 4-card grid (Passed/Failed/Skipped/Pass Rate) + stacked progress bar. Per-standard cards show `X/Y tests` for ran tests, `N tests` for DB-only. Drill-down view renders SKIP with reason tooltip.
+- `api/views.py` — `compliance_page()` now passes `tests_linked`, `tests_passed`, `tests_failed`, `tests_skipped` + per-standard test counts (`tests_total`, `tests_passed`, `tests_ran`, `tests_skipped`) to template.
+- `templates/compliance.html` — Public compliance page: added "Linked Tests" stat to summary row, test results bar (pass/fail/skip), per-standard test counts. Fixed outdated description ("10 internal standards" → dynamic count). Added missing standard descriptions (BILL-001, FE-001, LLM-001, OPS-001, SCH-001, TST-001, XRF-001). Updated "How This Works" copy.
+**Verification:** `/compliance/` shows test metrics (225 linked, 126 passing, 99 require test DB) with stacked bar. Per-standard cards show `X/Y tests` for inline-testable standards, `N tests` for DB-dependent. `/internal/dashboard/` → Compliance tab shows accurate test counts per standard.
+
+### 2026-03-03 — Backfill test files for 7 remaining standards (ERR/SCH/CMP/LOG/CHG/OPS/LLM)
+**Change Request:** a25f8e35
+**Files changed:**
+- `syn/audit/tests/test_error_handling.py` — NEW: 41 tests for ERR-001. ErrorHierarchy, CorrelationId, HttpStatusMapping, ErrorAutoLogging, ErrorRegistry, ErrorEnvelope, RetryDecorator, ExponentialBackoff, CircuitBreaker, Bulkhead, WrapException. Pure unittest (no DB).
+- `syn/audit/tests/test_scheduler.py` — NEW: 34 tests for SCH-001. SchedulerExceptionHierarchy, TaskState, CognitiveScoring, CascadeLimits, RetryConfig, SchedulerConfig, TaskPriority, UUIDPrimaryKeys, CronSchedule. Pure unittest (no DB).
+- `syn/audit/tests/test_compliance_system.py` — NEW: 29 tests for CMP-001. TagVocabulary, ParseAllStandards, ParseStandard, AssertionDataclass, VerifyImplExists, VerifyCodePattern, VerifyCodeAbsent, VerifyAssertion, AllChecksRegistry, DailyRotation, ManagementCommand. Django SimpleTestCase.
+- `syn/audit/tests/test_logging.py` — NEW: LOG-001 tests. ContextVars, LogContext, CorrelationFilter, TenantFilter, ActorFilter, JsonFormatter, SynaraLogHandler, LoggerFactory, CorrelationMiddleware, RequestLoggingMiddleware, LogLevelConstants, DjangoLoggingConfig. Django SimpleTestCase + RequestFactory.
+- `syn/audit/tests/test_change_management.py` — NEW: CHG-001 tests. ChangeTypes, RiskLevels, LifecycleStates, ChangeRequestFields, UUIDLinking, ChangeLog, RiskAssessment, AgentVote. Django SimpleTestCase.
+- `syn/audit/tests/test_operations.py` — NEW: OPS-001 tests. GunicornConfig, SystemdService, SecuritySettings, RateLimit, BackupScript, StaticFiles, LogRotation, HealthCheck, EncryptionConfig, StartupScript. Django SimpleTestCase.
+- `syn/audit/tests/test_llm.py` — NEW: LLM-001 tests. LLMSingleton, LLMThreadSafe, TierModelSelection, TierModelMap, ClaudeModels, LLMRateLimit, LLMErrorHandling, LLMReset, LLMUserModel. Django SimpleTestCase.
+- `docs/standards/ERR-001.md` — Added 24 test hooks across 11 assertions
+- `docs/standards/SCH-001.md` — Added 15 test hooks across 6 assertions
+- `docs/standards/CMP-001.md` — Added 14 test hooks across 11 assertions
+- `docs/standards/LOG-001.md` — Added 23 test hooks across 14 assertions
+- `docs/standards/CHG-001.md` — Added 16 test hooks across 8 assertions
+- `docs/standards/OPS-001.md` — Added 12 test hooks across 10 assertions
+- `docs/standards/LLM-001.md` — Added 9 test hooks across 5 assertions
+**Verification:** `python3 manage.py test syn.audit.tests.test_error_handling syn.audit.tests.test_scheduler syn.audit.tests.test_compliance_system syn.audit.tests.test_logging syn.audit.tests.test_change_management syn.audit.tests.test_operations syn.audit.tests.test_llm` → 202 tests pass. `python3 manage.py run_compliance --standards` → 211 assertions, 200 passed, 0 failed, 225 tests linked.
+
+### 2026-03-03 — Backfill test hooks across all standards + fix verify_test_exists AST fallback
+**Change Request:** a25f8e35
+**Files changed:**
+- `docs/standards/AUD-001.md` — Added 12 `<!-- test: -->` hooks across 6 assertions (aud-record-content, aud-hash-chain, aud-immutable-save, aud-atomic-chain, aud-chain-integrity, aud-violation-recording)
+- `docs/standards/SEC-001.md` — Added 20 test hooks across 10 assertions (sec-password-validators, sec-permission-decorators, sec-tier-limits, sec-feature-gates, sec-org-roles, sec-tenant-queryset, sec-tenant-index, sec-fernet-fields, sec-envelope-encryption, sec-user-rate-limit, sec-bot-detection)
+- `docs/standards/DAT-001.md` — Added 24 test hooks across 10 assertions (dat-uuid-pk, dat-correlation-id, dat-synara-entity, dat-manager-soft-delete, dat-soft-delete-default, dat-synara-registry, dat-timestamp-pattern, dat-actor-charfield, dat-sdk-tenant)
+- `docs/standards/API-001.md` — Added 14 test hooks across 6 assertions (api-base-path, api-decorator-order, api-json-parsing, api-success-format, api-status-codes, api-content-type)
+- `docs/standards/BILL-001.md` — Added 22 test hooks across 8 assertions (bill-tiers, bill-features, bill-founder-lock, bill-decorators, bill-checkout, bill-model, bill-endpoints)
+- `docs/standards/TST-001.md` — Added 10 test hooks across 6 assertions (tst-framework, tst-fixtures, tst-api-client, tst-ssl-override, tst-assertions, tst-compliance)
+- `syn/audit/standards.py` — Added `_ast_verify_test()` AST-based fallback for `verify_test_exists()` when module import fails (e.g., pytest not installed). Added `os` import. Updated `run_linked_test()` with import fallback for pytest-dependent modules.
+- `syn/audit/management/commands/run_compliance.py` — `--run-tests` now points connection at test_svend DB before executing tests and restores afterwards.
+**Verification:** `python3 manage.py run_compliance --standards` → 211 assertions, 200 passed, 0 failed, 115 tests linked, 0 missing
+
+### 2026-03-03 — DOE: remove power analysis from step 2 (moved to calculators)
+**Change Request:** a6d573d6
+**Files changed:**
+- `templates/experimenter.html` — Removed Power Analysis sub-tab from step 2. Step 2 now shows only the design matrix (no sub-tabs). Removed `doe-power.js` script tag. Wizard steps unchanged: Configure → Design → Results → Analyze → Optimize.
+**Verification:** Navigate to /app/experimenter/, step 2 shows design matrix only — no Power Analysis tab
+
+### 2026-03-03 — FMEA editor redesign: list view with modal, correct field order
+**Change Request:** 730457d2
+**Files changed:**
+- `templates/fmea.html` — Replaced 16-column inline-editable table with scannable list view + click-to-edit modal. Each failure mode shows as a card with failure mode title, S×O×D scores, color-coded RPN badge, pRPN arrow if revised, action status pill. Click opens sectioned edit modal with correct field order: (1) Failure Mode identity, (2) Risk Scoring S×O×D=RPN with live preview, (3) Current Controls, (4) Recommended Action + owner/status + action item tracking, (5) Post-Action pRPN with reduction %. Footer has hypothesis link, delete, done. All API calls unchanged — frontend-only change.
+**Verification:** Navigate to /app/fmea/, open an FMEA with rows, verify list layout with RPN badges, click row to open modal with correct field order
+
+### 2026-03-03 — QMS-001: Quality Management System Standard
+**Files changed:**
+- `docs/standards/QMS-001.md` — **New.** Standardizes FMEA, RCA, A3, VSM, Hoshin Kanri, and X-Matrix. 20 machine-readable assertions with impl links. Covers: module architecture (§4), closed-loop integration (§5), feature gating (§6), full API surface (§7), anti-patterns (§8), acceptance criteria (§9), ISO 9001/IATF 16949/SOC 2 compliance mapping (§10).
+- `docs/standards/DOC-001.md` — Added QMS prefix to §5.3 Standard Code Namespaces table
+- `CLAUDE.md` — Updated standards library count (16→18), added QMS-001 and SLA-001 to standards table, updated assertion counts to match current state
+**CHG-001:** Documentation change — no approval required per §1.2
+**Verification:** Standards viewer (`/internal/dashboard/` → Ops → Standards → QMS-001) renders full standard. `python3 manage.py run_compliance --standards` parses 20 QMS-001 assertions.
+
+---
+
+### 2026-03-03 — Add Partner stage to CRM pipeline
+**Files changed:**
+- `api/models.py` — Added `PARTNER = "partner", "Partner"` to `CRMLead.Stage` choices (between Customer and Churned)
+- `api/migrations/0018_add_partner_stage_to_crmlead.py` — Choice field migration
+- `templates/internal_dashboard.html` — Added partner to stage colors (`#d97706` gold), filter dropdown, row select dropdown, and pipeline chart labels/colors (all 11 stages now have matching colors)
+**Context:** ILSSI accredited Svend — updated their CRM stage from demo → partner.
+**Verification:** `/internal/dashboard/` → Growth → CRM → ILSSI shows as "partner" with gold color.
+
+---
+
+### 2026-03-03 — Standards Library viewer on internal dashboard
+**Files changed:**
+- `api/internal_views.py` — New `api_standards` endpoint: parses `docs/standards/*.md`, extracts metadata (code, title, version, status, author, date, related standards, compliance frameworks, assertion count), returns list or single standard body
+- `api/urls.py` — Route `/api/internal/standards/`
+- `templates/internal_dashboard.html` — New "Standards" tab under Ops group. Left-right split pane: 280px nav sidebar with search filter + reading pane with GitHub-style markdown rendering (Marked.js). Features: status badges (approved/draft/deprecated), version tags, assertion counts, line counts, cross-linking between standards (click any standard reference to navigate), HTML comment tags stripped for clean reading. CSS styles for tables, code blocks, blockquotes, headers matching GitHub markdown.
+**Verification:** `/internal/dashboard/` → Ops → Standards → click any standard to view rendered markdown.
+
+---
+
+### 2026-03-03 — Fix empty Target Metric dropdown in Hoshin strategic objectives
+**Files changed:**
+- `services/svend/web/templates/hoshin.html` — Made `openXMObjectiveModal()` async; awaits `renderXMatrix()` if `xmData` not yet loaded before building metric dropdown. Also fixed `changeFY()` to re-render X-Matrix when user changes fiscal year while on X-Matrix tab.
+**Root cause:** Race condition — `renderXMatrix()` is async (API fetch) but the "+ Strategic Objective" button is static HTML visible immediately. Clicking before fetch completes leaves `xmData` null, and `buildStrategicMetricDropdown()` guard clause silently returns empty.
+**Verification:** Navigate to X-Matrix tab, immediately click "+ Strategic Objective" — Target Metric dropdown now waits for data and populates correctly (17 metrics across 4 groups).
+
+---
+
+### 2026-03-03 — Test-linked standards: standard = spec, test = proof
+**Change Request:** a25f8e35
+**Files changed:**
+- `syn/audit/standards.py` — Extended parser with `<!-- test: -->` hook. New `tests` field on Assertion dataclass, `verify_test_exists()` for import checking, `run_linked_test()` for execution. `verify_assertion()` now accepts `run_tests=False` parameter and includes `test_checks` in results.
+- `syn/audit/management/commands/run_compliance.py` — Added `--run-tests` flag. `_run_standards_verbose()` shows test existence (`[exists]`) or execution results (`[PASS]`/`[FAIL]`). Test summary line added.
+- `syn/audit/tests/test_frontend.py` — New file: 7 test classes, 19 test methods exercising FE-001. Uses `SimpleTestCase` (no DB). Covers: template inheritance, 6 themes, CSS variables, CSRF monkey patch, CDN sources, global JS objects, no-framework check, form styling.
+- `docs/standards/FE-001.md` — Added 16 `<!-- test: -->` hooks linking 8 of 9 assertions to test methods.
+- `docs/standards/DOC-001.md` — Documented `test` tag in §7.4.3. Renumbered subsections 7.4.3→7.4.7.
+- `CLAUDE.md` — Added test-linked standards documentation.
+**Verification:** `python3 manage.py test syn.audit.tests.test_frontend` → 19 tests, all pass. `python3 manage.py run_compliance --standards --run-tests` → 211 assertions, 200 passed, 0 failed; 16 tests linked, 16 passed.
+
+### 2026-03-03 — Standards library expansion: FE-001, TST-001, LLM-001
+**Change Request:** a25f8e35
+**Files changed:**
+- `docs/standards/FE-001.md` — New standard: Frontend Patterns (12 assertions). Covers template inheritance (base_app.html), 6 CSS variable themes, vanilla JS (no SPA framework), CSRF fetch monkey patch, API call patterns, CDN library allowlist, form conventions, theme persistence.
+- `docs/standards/TST-001.md` — New standard: Testing Patterns (9 assertions). Covers Django TestCase framework, pytest selective use, test file organization (16 files, 13,500+ lines), fixture helpers, APIClient + force_authenticate, @SECURE_OFF decorator, assertion conventions, compliance integration.
+- `docs/standards/LLM-001.md` — New standard: LLM Integration (7 assertions). Covers LLMManager singleton, tier-to-model mapping, per-user daily rate limits, context-aware system prompts, JSON response parsing, encrypted message storage, Synara belief engine bridge, no-retry/no-fallback design.
+- `agents_api/experimenter_views.py` — Fixed import paths: `from experimenter.` → `from agents.experimenter.` (broken by prior agents/ directory move).
+- `agents_api/tests.py` — Same import path fix for experimenter test.
+- `CLAUDE.md` — Updated standards library (13→16), assertion count (183→211), architecture tree includes FE-001, TST-001, LLM-001.
+**Verification:** `python3 manage.py run_compliance --standards` → 211 assertions, 200 passed, 0 failed, 11 warnings
+
+### 2026-03-03 — Standards library expansion: SCH-001, OPS-001, BILL-001
+**Change Request:** a25f8e35
+**Files changed:**
+- `docs/standards/SCH-001.md` — New standard: Cognitive Scheduler (11 assertions). Covers no-broker architecture, task registration, cognitive priority scoring, retry/DLQ, backpressure, temporal reflexes, cascade limits, data models, configuration.
+- `docs/standards/OPS-001.md` — New standard: Operations & Deployment (13 assertions). Covers Gunicorn/Caddy stack, systemd services, TLS/HSTS, backup encryption, data retention/purge, log rotation, WhiteNoise, health checks, encryption at rest, startup sequence.
+- `docs/standards/BILL-001.md` — New standard: Billing & Subscription (13 assertions). Covers 5-tier system, feature gating decorators, Stripe checkout/portal/webhooks, regional pricing (14+ regions), webhook signature verification, payment data encryption, daily limits, invite codes.
+- `CLAUDE.md` — Updated standards library (10→13), assertion count (550→183 exact), architecture tree includes new standards.
+**Verification:** `python3 manage.py run_compliance --standards` → 183 assertions, 173 passed, 0 failed, 10 warnings
+
+### 2026-03-03 — Pass rate methodology: all controls, warnings count against
+**Files changed:**
+- `api/views.py` — `compliance_page()` pass rate now combines 12 infrastructure checks + 146 standard assertions. Only "pass" counts; warnings count against. Result: 151/158 = 95.6%
+- `api/internal_views.py` — `api_compliance()` same methodology: combined rate from checks + standards assertions. Added `infra_checks`, `infra_passed`, `standards_assertions`, `standards_passed` to stats response for dashboard breakdown
+**Verification:** Both `/compliance/` and internal dashboard show 95.6% (151/158)
+
+### 2026-03-03 — Compliance page: current state + standards library
+**Change Request:** 60cc5add
+**Files changed:**
+- `api/views.py` — Reworked `compliance_page` view to query latest ComplianceCheck per check_name for current state, extract standards breakdown from standards_compliance details, pass categories/standards/counts to template
+- `templates/compliance.html` — Full rewrite: pass rate badge shows current state (not historical average), summary stats row (checks/assertions/SOC2 controls/standards count), category cards from live data, infrastructure checks grid with PASS/WARN/FAIL badges, standards library grid showing all 9 standards with assertion pass rates, "How It Works" section, historical reports table at bottom
+**Verification:** Visit /compliance/ — shows 100% current pass rate, 146 assertions, 12 checks, 9 standards
+
+### 2026-03-03 — Compliance audit: 12/12 checks passing (was 7 pass / 1 fail / 4 warning)
+**Change Requests:** 3ab9036d, 62f82f78, 3ecbec4f, 28342e0e, 4b9d5128
+**Files changed:**
+- `syn/audit/compliance.py` — Fixed backup_freshness path (/home/eric/backups/svend), fixed timezone.utc import, fixed permission_coverage to detect @gated/@require_auth via __code__.co_filename chain walk, added Django auth decorators to detection, set PIPAPI_PYTHON_LOCATION for pip-audit venv accuracy
+- `syn/sched/svend_tasks.py` — Registered audit.cleanup_violations task (weekly Sunday 03:00 UTC, 90-day retention)
+- `.env` — Added SVEND_FIELD_ENCRYPTION_KEY (Fernet key for field-level encryption at rest)
+- Package upgrades: Django 5.2.10→5.2.12, cryptography (venv audit fix), pip 22.0.2→26.0.1, setuptools 59.6.0→82.0.0, pillow 12.1.0→12.1.1, protobuf 6.33.4→7.34.0, flask 3.1.2→3.1.3, python-multipart 0.0.21→0.0.22, werkzeug 3.1.5→3.1.6
+**Verification:** `python manage.py run_compliance --all` → 12 passed, 0 failed, 0 warnings, 0 errors
+
+### 2026-03-03 — Compliance dashboard: interactive drill-down for checks, standards, reports, and findings
+**Files changed:**
+- `syn/audit/compliance.py` — Enriched check_standards_compliance to store per-assertion detail (impl_checks, code_checks) in by_standard and findings
+- `api/internal_views.py` — api_compliance now returns check `details` + `id`, report `full_report` + `public_report`, standards `findings` with impl/code detail, `by_standard` with per-assertion lists
+- `templates/internal_dashboard.html` — Full interactive compliance tab: clickable check badges (detail panel), clickable standard bars (per-assertion drill-down), clickable report rows (View button → full report with check results, SOC 2 controls, public report preview), Audit Findings section at top aggregating all failures with root cause detail
+**Verification:** Dashboard Ops→Compliance: click any check badge → detail panel. Click any standard bar → per-assertion list. Click View on report → full report. Findings section shows all failures with impl/code check details.
+
+---
+
+### 2026-03-03 — Standards-driven compliance testing: parser, self-documenting standard, dashboard coverage
+**Files changed:**
+- `syn/audit/standards.py` — **New** Standards parser + assertion executors (parse_standard, parse_all_standards, verify_impl_exists via AST, verify_code_pattern with fuzzy token matching, verify_code_absent, verify_assertion, run_standards_checks)
+- `syn/audit/compliance.py` — Added check_standards_compliance registered check, added to DAILY_CRITICAL
+- `syn/audit/management/commands/run_compliance.py` — Added --standards flag for verbose per-assertion output
+- `api/internal_views.py` — Added standards coverage data to api_compliance endpoint
+- `templates/internal_dashboard.html` — Added Standards Coverage section to Compliance tab (per-standard progress bars, assertion KPIs, failure details)
+- `docs/standards/AUD-001.md` — Fixed impl tag: compute_current_hash → _compute_current_hash
+- `docs/standards/CMP-001.md` — **New** Compliance automation standard (self-documenting, 12 assertions that test the compliance system itself)
+**Verification:** `manage.py run_compliance --standards` shows 134 assertions (118 pass, 10 fail, 6 warn) across 8 standards. All 12 CMP-001 self-referential assertions pass. Dashboard Ops→Compliance→Standards Coverage shows per-standard breakdown.
+
+---
+
+### 2026-03-03 — Automated compliance system: daily checks, monthly reports, public landing page
+**Files changed:**
+- `syn/audit/models.py` — Added ComplianceCheck + ComplianceReport models
+- `syn/audit/compliance.py` — **New** 10 check implementations (audit_integrity, security_config, dependency_vuln, encryption_status, permission_coverage, access_logging, backup_freshness, password_policy, data_retention, ssl_tls) with rotating daily schedule + monthly report generator with redacted public output
+- `syn/audit/management/commands/run_compliance.py` — **New** management command (--all, --check, --report)
+- `syn/sched/svend_tasks.py` — Added compliance_daily + compliance_monthly_report handlers (10 total), 2 new schedules
+- `api/internal_views.py` — Added api_compliance + api_compliance_publish endpoints
+- `api/urls.py` — Added compliance internal routes
+- `templates/internal_dashboard.html` — Added Compliance tab to Operations group with KPI cards, check status grid, trend chart, reports table with publish toggle
+- `templates/compliance.html` — **New** public compliance landing page (extends base_guest.html)
+- `api/views.py` — Added compliance_page + compliance_data public views
+- `svend/urls.py` — Added /compliance/ + /compliance/data/ routes
+- `syn/audit/migrations/0002_compliancecheck_compliancereport.py` — Migration
+**Verification:** `manage.py run_compliance --all` runs 10 checks (5 pass, 1 fail, 4 warn). `manage.py run_compliance --report` generates report. Dashboard Ops→Compliance tab loads. /compliance/ shows redacted data. No IPs/paths in public_report.
+
+---
+
+### 2026-03-03 — Codebase reorganization: dead code removal, folder structure, legacy cleanup
+**Debt items:** Root core/ misplaced (RESOLVED), services/scrub/ duplicate (RESOLVED), Root-level file clutter (RESOLVED), Dead test imports (RESOLVED), Legacy references (RESOLVED)
+**Files changed:**
+- Moved `core/` (10 Python modules) → `services/svend/agents/agent_core/` — renamed to avoid shadowing Django's `web/core/` app (both resolve via sys.path). Updated all `from core.X` imports to `from agent_core.X` in 8 agent files + tests + forge/qa.py
+- Removed `services/scrub/` (duplicate of `agents/scrub/`, nothing imported from it)
+- Removed empty `agents/core/` directory
+- Fixed dead test imports in `agents_api/tests.py` (referenced nonexistent agents/core/, agents/editor/)
+- Updated legacy "multi-agent workbench" docstring in `agents_api/views.py`
+- Updated "Neuro-Symbolic Reasoning" docstring in `core/reasoning.py`
+- Moved 12 planning/debt docs from root and scattered locations → `docs/planning/`
+- Moved 3 strategy HTML files from root → `docs/reference/`
+- Moved `DEBT-001.md` from root → `.kjerne/` (with DEBT.md)
+- Moved 4 shell scripts → `services/svend/web/ops/`
+- Moved 6 systemd service/timer files → `services/svend/web/ops/`
+- Moved `fail2ban-svend.conf`, `prod_checklist.yaml` → `services/svend/web/ops/`
+- Moved `tempora.service` from `services/tempora/` → `services/svend/web/ops/`
+- Updated systemd ExecStart paths to reference ops/ subdirectory
+- Updated CLAUDE.md architecture tree (docs/, .kjerne/, agents/core/, web/ops/)
+- Updated DEBT.md with 7 newly resolved items
+
+**What:** Major codebase organization. Removed dead code (empty dirs, duplicate service, broken test imports, legacy references). Moved root core/ into agents/core/ where it belongs. Centralized all ops files. Consolidated all planning docs. Root is now clean: just CLAUDE.md, STANDARD.md, log.md.
+
+---
+
+### 2026-03-03 — Flatten agents/agents/ and fix hardcoded paths
+**Debt item:** agents/agents/ nested directory (RESOLVED), Hardcoded /home/eric/ paths (RESOLVED)
+**Files changed:**
+- `services/svend/agents/*` — moved contents of agents/agents/ up to agents/, removed empty nested dirs
+- `services/svend/agents/__init__.py` — rewritten with correct imports matching actual module exports
+- `services/svend/web/svend/settings.py` — _AGENTS_PATH now points to agents/ (not agents/agents/)
+- `services/svend/web/agents_api/learn_views.py` — imports updated from agents.agents.experimenter to agents.experimenter
+- 11 agent .py files — replaced hardcoded sys.path.insert('/home/eric/Desktop/agents') with portable Path(__file__)-based resolution
+- 4 agent CLI files — replaced dead /home/eric/Desktop/experiments/neuro_symbolic sys.path inserts
+- `services/svend/agents/site/app.py` — removed 7 redundant sys.path inserts (line 20 already has portable path)
+- `services/svend/web/start_prod.sh` — $HOME instead of /home/eric, gunicorn via PATH
+- `services/svend/web/start_tempora.sh` — $HOME instead of /home/eric
+- `services/svend/web/backup_db.sh` — $HOME instead of /home/eric
+- `services/svend/web/run_purge.sh` — SCRIPT_DIR pattern instead of hardcoded cd
+- `services/svend/web/svend.service` — %h (systemd home dir specifier) instead of /home/eric
+- `services/svend/web/svend-purge.service` — %h
+- `services/svend/web/svend-backup.service` — %h
+- `services/tempora/tempora.service` — %h
+- `services/svend/web/Caddyfile` — $SVEND_STATIC_ROOT env var with fallback
+- `.kjerne/config.json` — ~/kjerne instead of /home/eric/kjerne
+- `CLAUDE.md` — architecture tree updated to show flat agents/ structure
+- `core/reasoning.py` — removed hardcoded path from docstring
+
+**What:** Flattened the double-nested agents/agents/ directory to a single agents/ directory. Replaced all hardcoded /home/eric/ paths in executable files with portable alternatives ($HOME, %h, Path(__file__)). Zero hardcoded paths remain in .py, .sh, .service, or .conf files.
 
 ---
 

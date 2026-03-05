@@ -3,9 +3,9 @@
 from pathlib import Path
 from django.conf import settings
 
-# Results directory
-RESULTS_DIR = Path(settings.BASE_DIR) / "forge_results"
-RESULTS_DIR.mkdir(exist_ok=True)
+# Results directory (under media/ to avoid polluting web root)
+RESULTS_DIR = Path(settings.BASE_DIR) / "media" / "forge"
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def get_job_content(job) -> str:

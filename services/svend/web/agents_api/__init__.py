@@ -1,1 +1,1 @@
-# Agents API app
+"""Agents API — analysis, QMS, and collaboration endpoints."""

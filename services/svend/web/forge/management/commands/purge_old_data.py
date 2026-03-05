@@ -8,6 +8,7 @@ Retention schedule:
   - AgentLog: 30 days
   - TrainingCandidate (exported/rejected): 30 / 7 days
   - EventLog: 90 days
+  - RequestMetric: 90 days
   - SharedConversation (expired): delete on expiry
   - BlogView (api.models): 180 days
 
@@ -124,6 +125,15 @@ class Command(BaseCommand):
             if not dry_run:
                 EventLog.objects.filter(created_at__lt=cutoff_90).delete()
             self.stdout.write(f"Event logs: {count}")
+            total_deleted += count
+
+        # Request metrics (HTTP telemetry)
+        from syn.log.models import RequestMetric
+        count = RequestMetric.objects.filter(created_at__lt=cutoff_90).count()
+        if count:
+            if not dry_run:
+                RequestMetric.objects.filter(created_at__lt=cutoff_90).delete()
+            self.stdout.write(f"Request metrics: {count}")
             total_deleted += count
 
         # ── Expired shared conversations ──────────────────────────────

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}SVEND{% endblock %}</title>
     {% block extra_head %}{% endblock %}
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌲</text></svg>">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <!-- KaTeX for LaTeX rendering -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
@@ -14,7 +14,7 @@
     <!-- Chart.js for visualizations -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <!-- Marked.js for markdown rendering -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js"></script>
     <!-- SmilesDrawer for chemical structures -->
     <script src="https://unpkg.com/smiles-drawer@2.1.5/dist/smiles-drawer.min.js"></script>
     <script>
@@ -393,6 +393,102 @@
 
         .settings-btn:hover {
             color: var(--accent-primary);
+        }
+
+        /* Notification Bell — NTF-001 §8.1 */
+        .notif-bell {
+            position: relative;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            padding: 0.25rem;
+            color: var(--text-dim);
+            transition: color 0.2s;
+        }
+        .notif-bell:hover { color: var(--accent-primary); }
+        .notif-badge {
+            position: absolute;
+            top: -4px;
+            right: -6px;
+            background: var(--danger, #d06060);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            min-width: 16px;
+            height: 16px;
+            line-height: 16px;
+            text-align: center;
+            border-radius: 8px;
+            padding: 0 4px;
+        }
+        .notif-panel {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            width: 340px;
+            max-height: 440px;
+            background: var(--bg-secondary, #1a1a2e);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            z-index: 1000;
+            overflow: hidden;
+        }
+        .notif-panel.open { display: block; }
+        .notif-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary, #e8e8e8);
+        }
+        .notif-header button {
+            background: none;
+            border: none;
+            color: var(--accent-primary, #4a9f6e);
+            font-size: 11px;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .notif-header button:hover { background: rgba(74,159,110,0.15); }
+        .notif-list {
+            overflow-y: auto;
+            max-height: 390px;
+        }
+        .notif-item {
+            display: flex;
+            gap: 8px;
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            cursor: pointer;
+            transition: background 0.15s;
+            font-size: 12px;
+        }
+        .notif-item:hover { background: rgba(74,159,110,0.08); }
+        .notif-item.unread { border-left: 3px solid var(--accent-primary, #4a9f6e); }
+        .notif-item.unread .notif-title { font-weight: 600; }
+        .notif-item-body { flex: 1; min-width: 0; }
+        .notif-title {
+            color: var(--text-primary, #e8e8e8);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .notif-meta {
+            color: var(--text-dim, #888);
+            font-size: 10px;
+            margin-top: 2px;
+        }
+        .notif-empty {
+            padding: 24px;
+            text-align: center;
+            color: var(--text-dim, #888);
+            font-size: 12px;
         }
 
         /* Nav Dropdown */
@@ -1044,6 +1140,22 @@
                     <a href="/internal/dashboard/" id="nav-internal" style="display:none;">Internal</a>
                     <div class="user-info">
                         <span class="user-name" id="user-name">Loading...</span>
+                        <div class="notif-bell" id="notif-bell" onclick="toggleNotifPanel(event)">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                            </svg>
+                            <span class="notif-badge" id="notif-badge" style="display:none">0</span>
+                            <div class="notif-panel" id="notif-panel">
+                                <div class="notif-header">
+                                    <span>Notifications</span>
+                                    <button onclick="markAllNotifRead(event)">Mark all read</button>
+                                </div>
+                                <div class="notif-list" id="notif-list">
+                                    <div class="notif-empty">No notifications</div>
+                                </div>
+                            </div>
+                        </div>
                         <a href="/app/settings/" class="settings-btn" title="Settings">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="12" cy="12" r="3"></circle>
@@ -1093,6 +1205,158 @@
         // Check auth and get user info
         window.svendUser = null;
 
+        // ── Notification System (NTF-001 §8) ─────────────────────────────
+        const ENTITY_URLS = {
+            ncr: (id) => '/app/qms/#ncr-' + id,
+            capa: (id) => '/app/qms/#capa-' + id,
+            document: (id) => '/app/qms/#doc-' + id,
+            review: (id) => '/app/qms/#review-' + id,
+            audit: (id) => '/app/qms/#audit-' + id,
+            training: (id) => '/app/qms/#training-' + id,
+            fmea: (id) => '/app/fmea/' + id + '/',
+            action: (id) => '/app/qms/#action-' + id,
+            signature: (id) => '/app/qms/#sig-' + id,
+        };
+        let notifSSE = null;
+        let notifPanelOpen = false;
+
+        async function initNotifications() {
+            // Fetch initial unread count
+            try {
+                const resp = await fetch('/api/notifications/unread-count/', { credentials: 'include' });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    updateNotifBadge(data.count);
+                }
+            } catch (e) { /* silent */ }
+            // Open SSE stream
+            startNotifSSE();
+        }
+
+        function startNotifSSE() {
+            if (notifSSE) { notifSSE.close(); notifSSE = null; }
+            notifSSE = new EventSource('/api/notifications/stream/');
+            notifSSE.addEventListener('notification', function(e) {
+                try {
+                    const notif = JSON.parse(e.data);
+                    const badge = document.getElementById('notif-badge');
+                    const current = parseInt(badge.textContent || '0', 10);
+                    updateNotifBadge(current + 1);
+                    // Prepend to list if panel open
+                    if (notifPanelOpen) {
+                        const list = document.getElementById('notif-list');
+                        const empty = list.querySelector('.notif-empty');
+                        if (empty) empty.remove();
+                        list.insertBefore(createNotifItem(notif), list.firstChild);
+                    }
+                } catch (err) { /* silent */ }
+            });
+            notifSSE.onerror = function() {
+                // EventSource auto-reconnects; nothing to do
+            };
+        }
+
+        function updateNotifBadge(count) {
+            const badge = document.getElementById('notif-badge');
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.style.display = '';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function toggleNotifPanel(e) {
+            e.stopPropagation();
+            const panel = document.getElementById('notif-panel');
+            notifPanelOpen = !notifPanelOpen;
+            panel.classList.toggle('open', notifPanelOpen);
+            if (notifPanelOpen) loadNotifList();
+        }
+
+        async function loadNotifList() {
+            const list = document.getElementById('notif-list');
+            list.innerHTML = '<div class="notif-empty">Loading...</div>';
+            try {
+                const resp = await fetch('/api/notifications/?limit=20', { credentials: 'include' });
+                if (!resp.ok) return;
+                const data = await resp.json();
+                list.innerHTML = '';
+                if (data.length === 0) {
+                    list.innerHTML = '<div class="notif-empty">No notifications</div>';
+                    return;
+                }
+                data.forEach(n => list.appendChild(createNotifItem(n)));
+            } catch (e) {
+                list.innerHTML = '<div class="notif-empty">Failed to load</div>';
+            }
+        }
+
+        function createNotifItem(n) {
+            const div = document.createElement('div');
+            div.className = 'notif-item' + (n.is_read ? '' : ' unread');
+            div.setAttribute('data-id', n.id);
+            const ago = timeAgo(n.created_at);
+            div.innerHTML = '<div class="notif-item-body">' +
+                '<div class="notif-title">' + escapeHtml(n.title) + '</div>' +
+                '<div class="notif-meta">' + escapeHtml(n.notification_type.replace(/_/g, ' ')) + ' &middot; ' + ago + '</div>' +
+                '</div>';
+            div.onclick = function(e) {
+                e.stopPropagation();
+                markNotifRead(n.id);
+                div.classList.remove('unread');
+                if (n.entity_type && n.entity_id && ENTITY_URLS[n.entity_type]) {
+                    window.location.href = ENTITY_URLS[n.entity_type](n.entity_id);
+                }
+            };
+            return div;
+        }
+
+        async function markNotifRead(id) {
+            try {
+                await fetch('/api/notifications/' + id + '/read/', {
+                    method: 'POST', credentials: 'include'
+                });
+                const badge = document.getElementById('notif-badge');
+                const current = parseInt(badge.textContent || '0', 10);
+                if (current > 0) updateNotifBadge(current - 1);
+            } catch (e) { /* silent */ }
+        }
+
+        async function markAllNotifRead(e) {
+            e.stopPropagation();
+            try {
+                await fetch('/api/notifications/read-all/', {
+                    method: 'POST', credentials: 'include'
+                });
+                updateNotifBadge(0);
+                document.querySelectorAll('.notif-item.unread').forEach(el => el.classList.remove('unread'));
+            } catch (e) { /* silent */ }
+        }
+
+        function timeAgo(isoStr) {
+            if (!isoStr) return '';
+            const diff = (Date.now() - new Date(isoStr).getTime()) / 1000;
+            if (diff < 60) return 'just now';
+            if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+            if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+            return Math.floor(diff / 86400) + 'd ago';
+        }
+
+        function escapeHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        // Close panel on outside click
+        document.addEventListener('click', function(e) {
+            if (notifPanelOpen && !document.getElementById('notif-bell').contains(e.target)) {
+                notifPanelOpen = false;
+                document.getElementById('notif-panel').classList.remove('open');
+            }
+        });
+
         async function checkAuth() {
             try {
                 const response = await fetch('/api/auth/me/', {
@@ -1127,6 +1391,8 @@
                     }
                     // Notify pages that user data is ready
                     window.dispatchEvent(new CustomEvent('svendUserReady', { detail: data }));
+                    // Start notification system (NTF-001 §8.2)
+                    initNotifications();
                 } else {
                     window.location.href = '/login/';
                 }

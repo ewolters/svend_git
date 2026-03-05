@@ -2,17 +2,17 @@
 
 import json
 import logging
-import uuid
+import re
 import tempfile
+import uuid
 from pathlib import Path
 
+from django.conf import settings
 from django.http import JsonResponse, FileResponse
 from django.views.decorators.http import require_http_methods
-from django.conf import settings
-
-import re
 
 from accounts.permissions import gated, require_auth, require_enterprise
+from .common import log_agent_action, _preload_llm_background
 
 # Validate data_id to prevent path traversal (must be data_ + alphanumeric)
 _SAFE_DATA_ID = re.compile(r"^data_[a-f0-9]+$")
@@ -21,8 +21,6 @@ _SAFE_DATA_ID = re.compile(r"^data_[a-f0-9]+$")
 def _validate_data_id(data_id: str) -> bool:
     """Return True if data_id is safe (no path traversal)."""
     return bool(data_id and _SAFE_DATA_ID.match(data_id))
-
-from .common import log_agent_action, _preload_llm_background
 
 logger = logging.getLogger(__name__)
 

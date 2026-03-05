@@ -56,8 +56,8 @@ class ConversationAdmin(admin.ModelAdmin):
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ["role", "content_preview", "domain", "verified", "blocked", "created_at"]
-    list_filter = ["role", "blocked", "verified", "domain"]
+    list_display = ["role", "content_preview", "domain", "is_verified", "is_blocked", "created_at"]
+    list_filter = ["role", "is_blocked", "is_verified", "domain"]
     search_fields = ["content"]
     readonly_fields = ["created_at"]
 
@@ -73,8 +73,8 @@ class SharedConversationAdmin(admin.ModelAdmin):
 
 @admin.register(TraceLog)
 class TraceLogAdmin(admin.ModelAdmin):
-    list_display = ["domain", "safety_passed", "verified", "total_time_ms", "created_at"]
-    list_filter = ["safety_passed", "verified", "gate_passed", "fallback_used", "domain"]
+    list_display = ["domain", "has_safety_passed", "is_verified", "total_time_ms", "created_at"]
+    list_filter = ["has_safety_passed", "is_verified", "has_gate_passed", "has_fallback_used", "domain"]
     search_fields = ["input_text"]
     date_hierarchy = "created_at"
     readonly_fields = ["created_at"]

@@ -256,7 +256,9 @@ function displayEffectsPlots(plots) {
             return { term: p.term, standardized_effect: p.standardized_effect, t_value: coef?.t_value ?? null };
         });
 
-        const colors = sorted.map(p => p.significant ? '#22c55e' : '#6b7280');
+        const sigColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-primary').trim() || '#4a9f6e';
+        const dimColor = getComputedStyle(document.documentElement).getPropertyValue('--text-dim').trim() || '#7a8f7a';
+        const colors = sorted.map(p => p.significant ? sigColor : dimColor);
 
         Plotly.newPlot('pareto-plot', [{
             y: sorted.map(p => p.term),
@@ -361,8 +363,10 @@ function onAlphaSliderChange() {
         const paretoEl = document.getElementById('pareto-plot');
         if (paretoEl && paretoEl.data) {
             // Update bar colors based on new t_critical
+            const _sig = getComputedStyle(document.documentElement).getPropertyValue('--accent-primary').trim() || '#4a9f6e';
+            const _dim = getComputedStyle(document.documentElement).getPropertyValue('--text-dim').trim() || '#7a8f7a';
             const newColors = cachedParetoData.map(p =>
-                (p.t_value != null && Math.abs(p.t_value) > tCrit) ? '#22c55e' : '#6b7280'
+                (p.t_value != null && Math.abs(p.t_value) > tCrit) ? _sig : _dim
             );
             Plotly.restyle(paretoEl, { 'marker.color': [newColors] }, [0]);
             Plotly.relayout(paretoEl, {
@@ -387,7 +391,7 @@ function displayResiduals(result) {
             y: plots.normal_probability.residuals,
             type: 'scatter',
             mode: 'markers',
-            marker: { size: 6, color: '#3b82f6' },
+            marker: { size: 6, color: getComputedStyle(document.documentElement).getPropertyValue('--accent-blue').trim() || '#4a9faf' },
         }], {
             xaxis: { title: 'Theoretical Quantiles' },
             yaxis: { title: 'Residuals' },
@@ -412,7 +416,7 @@ function displayResiduals(result) {
             y: plots.residual_vs_fitted.residuals,
             type: 'scatter',
             mode: 'markers',
-            marker: { size: 6, color: '#3b82f6' },
+            marker: { size: 6, color: getComputedStyle(document.documentElement).getPropertyValue('--accent-blue').trim() || '#4a9faf' },
         }], {
             xaxis: { title: 'Fitted Values' },
             yaxis: { title: 'Residuals' },
@@ -433,7 +437,7 @@ function displayResiduals(result) {
             y: plots.residual_vs_order.residuals,
             type: 'scatter',
             mode: 'lines+markers',
-            marker: { size: 6, color: '#3b82f6' },
+            marker: { size: 6, color: getComputedStyle(document.documentElement).getPropertyValue('--accent-blue').trim() || '#4a9faf' },
         }], {
             xaxis: { title: 'Run Order' },
             yaxis: { title: 'Residuals' },

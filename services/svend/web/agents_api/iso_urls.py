@@ -28,6 +28,7 @@ urlpatterns = [
     path("training/<uuid:req_id>/", iso_views.training_detail, name="iso_training_detail"),
     path("training/<uuid:req_id>/records/", iso_views.training_record_create, name="iso_training_record"),
     path("training/records/<uuid:record_id>/", iso_views.training_record_update, name="iso_training_record_update"),
+    path("training/records/<uuid:record_id>/files/", iso_views.training_record_files, name="iso_training_record_files"),
 
     # Management Reviews (clause 9.3)
     path("reviews/", iso_views.review_list_create, name="iso_review_list"),
@@ -41,6 +42,11 @@ urlpatterns = [
     # Supplier Management (clause 8.4) — skeleton
     path("suppliers/", iso_views.supplier_list_create, name="iso_supplier_list"),
     path("suppliers/<uuid:supplier_id>/", iso_views.supplier_detail, name="iso_supplier_detail"),
+
+    # Electronic Signatures (21 CFR Part 11)
+    path("signatures/", iso_views.signature_list_or_sign, name="iso_signatures"),
+    path("signatures/<uuid:sig_id>/verify/", iso_views.signature_verify, name="iso_signature_verify"),
+    path("signatures/verify-chain/", iso_views.signature_verify_chain, name="iso_signature_verify_chain"),
 
     # Study Output Actions (Phase 7) — QMS routing from Studies
     path("study-actions/raise-capa/", iso_views.study_raise_capa, name="iso_study_raise_capa"),

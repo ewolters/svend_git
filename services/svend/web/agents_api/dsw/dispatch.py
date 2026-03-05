@@ -258,6 +258,10 @@ def run_analysis(request):
             except Exception as e:
                 logger.warning(f"Could not save DSW result: {e}")
 
+        # Post-process: enforce canonical output schema (INIT-009 / E9-002)
+        from .standardize import standardize_output
+        result = standardize_output(result, analysis_type, analysis_id)
+
         return safe_json_response(result)
 
     except Exception as e:

@@ -1323,14 +1323,16 @@ class EpistemicLog(models.Model):
     )
 
     # Outcome tracking (for learning)
-    led_to_insight = models.BooleanField(
+    has_led_to_insight = models.BooleanField(
         null=True,
         blank=True,
+        db_column="led_to_insight",
         help_text="Did this event lead to insight? (marked retrospectively)"
     )
-    led_to_dead_end = models.BooleanField(
+    has_led_to_dead_end = models.BooleanField(
         null=True,
         blank=True,
+        db_column="led_to_dead_end",
         help_text="Did this event lead to dead end? (marked retrospectively)"
     )
 
@@ -1437,10 +1439,10 @@ class EpistemicLog(models.Model):
             source="synara",
         )
 
-    def mark_outcome(self, led_to_insight: bool = None, led_to_dead_end: bool = None):
+    def mark_outcome(self, has_led_to_insight: bool = None, has_led_to_dead_end: bool = None):
         """Mark the outcome of this event retrospectively."""
-        if led_to_insight is not None:
-            self.led_to_insight = led_to_insight
-        if led_to_dead_end is not None:
-            self.led_to_dead_end = led_to_dead_end
-        self.save(update_fields=["led_to_insight", "led_to_dead_end"])
+        if has_led_to_insight is not None:
+            self.has_led_to_insight = has_led_to_insight
+        if has_led_to_dead_end is not None:
+            self.has_led_to_dead_end = has_led_to_dead_end
+        self.save(update_fields=["has_led_to_insight", "has_led_to_dead_end"])

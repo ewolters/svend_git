@@ -1,23 +1,13 @@
-"""Tempora tasks for the API app."""
+"""Scheduled tasks for the API app (syn.sched)."""
 
 import logging
 from datetime import timedelta
 
 from django.utils import timezone
 
-from tempora.core import task
-from tempora.types import QueueType, TaskPriority
-
 logger = logging.getLogger(__name__)
 
 
-@task(
-    "api.publish_scheduled_posts",
-    queue=QueueType.CORE,
-    priority=TaskPriority.LOW,
-    timeout_seconds=30,
-    max_attempts=1,
-)
 def publish_scheduled_posts(payload, context):
     """Publish blog posts whose scheduled_at time has passed."""
     from api.models import BlogPost
@@ -250,13 +240,6 @@ EMAIL_BUILDERS = {
 }
 
 
-@task(
-    "api.send_onboarding_email",
-    queue=QueueType.CORE,
-    priority=TaskPriority.NORMAL,
-    timeout_seconds=30,
-    max_attempts=3,
-)
 def send_onboarding_email(payload, context):
     """Send a single onboarding drip email."""
     from django.core.mail import send_mail
@@ -278,7 +261,7 @@ def send_onboarding_email(payload, context):
     if not user.email:
         return {"error": "no_email"}
 
-    if getattr(user, "email_opted_out", False):
+    if getattr(user, "is_email_opted_out", False):
         OnboardingEmail.objects.filter(
             user=user, email_key=email_key
         ).update(status="skipped")
@@ -330,13 +313,6 @@ def send_onboarding_email(payload, context):
         return {"error": str(e)}
 
 
-@task(
-    "api.process_onboarding_drip",
-    queue=QueueType.CORE,
-    priority=TaskPriority.LOW,
-    timeout_seconds=60,
-    max_attempts=1,
-)
 def process_onboarding_drip(payload, context):
     """Process pending onboarding drip emails that are due."""
     from api.models import OnboardingEmail
@@ -350,7 +326,7 @@ def process_onboarding_drip(payload, context):
     count = 0
     for email in due[:50]:  # batch cap
         try:
-            from tempora.scheduler import schedule_task
+            from syn.sched.scheduler import schedule_task
             schedule_task(
                 name=f"onboarding_{email.email_key}_{email.user_id}",
                 func="api.send_onboarding_email",
@@ -544,7 +520,7 @@ def _send_lifecycle_email(user, template_key, **kwargs):
     if not user.email:
         return False
 
-    if getattr(user, "email_opted_out", False):
+    if getattr(user, "is_email_opted_out", False):
         return False
 
     try:
@@ -588,19 +564,12 @@ def _send_lifecycle_email(user, template_key, **kwargs):
         )
         return True
     except Exception as e:
-        rcpt.failed = True
-        rcpt.save(update_fields=["failed"])
+        rcpt.has_failed = True
+        rcpt.save(update_fields=["has_failed"])
         logger.error("Lifecycle email failed for %s: %s", user.email, e)
         return False
 
 
-@task(
-    "api.process_automations",
-    queue=QueueType.CORE,
-    priority=TaskPriority.NORMAL,
-    timeout_seconds=120,
-    max_attempts=1,
-)
 def process_automations(payload, context):
     """Evaluate all active automation rules and fire matching actions."""
     from accounts.constants import TIER_LIMITS
@@ -621,7 +590,7 @@ def process_automations(payload, context):
             matched = set(
                 User.objects.filter(
                     date_joined__lte=cutoff, total_queries=0,
-                    is_active=True, email_opted_out=False,
+                    is_active=True, is_email_opted_out=False,
                 ).exclude(id__in=staff_ids).values_list("id", flat=True)
             )
         elif trigger_type == "inactive_days":
@@ -630,29 +599,29 @@ def process_automations(payload, context):
             matched = set(
                 User.objects.filter(
                     last_active_at__lte=cutoff, total_queries__gt=0,
-                    is_active=True, email_opted_out=False,
+                    is_active=True, is_email_opted_out=False,
                 ).exclude(id__in=staff_ids).values_list("id", flat=True)
             )
         elif trigger_type == "query_limit_near":
             threshold_pct = cfg.get("threshold", 80)
-            for user in User.objects.filter(is_active=True, tier="free", email_opted_out=False).exclude(id__in=staff_ids):
+            for user in User.objects.filter(is_active=True, tier="free", is_email_opted_out=False).exclude(id__in=staff_ids):
                 limit = TIER_LIMITS.get(user.tier, 5)
                 if limit > 0 and user.queries_today >= (limit * threshold_pct / 100):
                     matched.add(user.id)
         elif trigger_type == "churn_signal":
             sub_user_ids = Subscription.objects.filter(
-                cancel_at_period_end=True, status="active",
+                is_cancel_at_period_end=True, status="active",
             ).values_list("user_id", flat=True)
             matched = set(
                 User.objects.filter(
-                    id__in=sub_user_ids, is_active=True, email_opted_out=False,
+                    id__in=sub_user_ids, is_active=True, is_email_opted_out=False,
                 ).exclude(id__in=staff_ids).values_list("id", flat=True)
             )
         elif trigger_type == "milestone":
             threshold = cfg.get("count", 100)
             matched = set(
                 User.objects.filter(
-                    total_queries__gte=threshold, is_active=True, email_opted_out=False,
+                    total_queries__gte=threshold, is_active=True, is_email_opted_out=False,
                 ).exclude(id__in=staff_ids).values_list("id", flat=True)
             )
         elif trigger_type == "feature_unused":
@@ -662,7 +631,7 @@ def process_automations(payload, context):
             from chat.models import UsageLog
             paid_users = User.objects.filter(
                 tier__in=["founder", "pro", "team", "enterprise"],
-                is_active=True, email_opted_out=False,
+                is_active=True, is_email_opted_out=False,
             ).exclude(id__in=staff_ids)
             for user in paid_users:
                 recent = UsageLog.objects.filter(
@@ -752,13 +721,6 @@ def process_automations(payload, context):
     return {"rules_checked": rules.count(), "actions_fired": fired}
 
 
-@task(
-    "api.evaluate_experiments",
-    queue=QueueType.CORE,
-    priority=TaskPriority.LOW,
-    timeout_seconds=60,
-    max_attempts=1,
-)
 def evaluate_experiments(payload, context):
     """Evaluate all running experiments for significance."""
     from api.experiments import evaluate_experiment
@@ -778,13 +740,6 @@ def evaluate_experiments(payload, context):
     return {"evaluated": evaluated, "concluded": concluded}
 
 
-@task(
-    "api.claude_growth_review",
-    queue=QueueType.CORE,
-    priority=TaskPriority.LOW,
-    timeout_seconds=300,
-    max_attempts=1,
-)
 def claude_growth_review(payload, context):
     """Weekly Claude-powered growth review. Generates insights and recommendations."""
     import json
@@ -931,17 +886,10 @@ For rule_tweak recommendations: {"rule_name": "...", "change": "..."}"""
 
 
 # ---------------------------------------------------------------------------
-# CRM: Outreach email send (scheduled via tempora)
+# CRM: Outreach email send (scheduled via syn.sched)
 # ---------------------------------------------------------------------------
 
 
-@task(
-    "api.crm_send_one_email",
-    queue=QueueType.CORE,
-    priority=TaskPriority.NORMAL,
-    timeout_seconds=30,
-    max_attempts=2,
-)
 def crm_send_one_email(payload, context):
     """Send a single outreach email to a CRM lead. Scheduled by bulk-send."""
     import re
@@ -963,7 +911,7 @@ def crm_send_one_email(payload, context):
         logger.warning("CRM send: lead %s not found", lead_id)
         return {"error": "lead_not_found"}
 
-    if lead.email_opted_out:
+    if lead.is_email_opted_out:
         return {"skipped": "opted_out"}
 
     # Personalize placeholders
@@ -1030,7 +978,7 @@ def crm_send_one_email(payload, context):
         logger.info("CRM email sent to %s (%s)", lead.email, lead.name)
         return {"sent": True, "recipient_id": str(rcpt.id)}
     except Exception as e:
-        rcpt.failed = True
-        rcpt.save(update_fields=["failed"])
+        rcpt.has_failed = True
+        rcpt.save(update_fields=["has_failed"])
         logger.error("CRM email failed for %s: %s", lead.email, e)
         return {"error": str(e)}

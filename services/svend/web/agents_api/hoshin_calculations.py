@@ -317,9 +317,24 @@ def evaluate_custom_formula(formula, variables):
     except SyntaxError as e:
         raise ValueError(f"Invalid formula syntax: {e}")
 
-    def _eval(node):
+    # Guard against deeply nested or excessively complex formulas
+    _MAX_DEPTH = 20
+    _MAX_NODES = 100
+
+    def _count_nodes(node):
+        count = 1
+        for child in ast.iter_child_nodes(node):
+            count += _count_nodes(child)
+        return count
+
+    if _count_nodes(tree) > _MAX_NODES:
+        raise ValueError(f"Formula too complex (max {_MAX_NODES} AST nodes)")
+
+    def _eval(node, depth=0):
+        if depth > _MAX_DEPTH:
+            raise ValueError(f"Formula nesting too deep (max {_MAX_DEPTH} levels)")
         if isinstance(node, ast.Expression):
-            return _eval(node.body)
+            return _eval(node.body, depth + 1)
         elif isinstance(node, ast.Constant):
             if isinstance(node.value, (int, float)):
                 return float(node.value)
@@ -332,8 +347,8 @@ def evaluate_custom_formula(formula, variables):
             op_fn = _SAFE_OPS.get(type(node.op))
             if op_fn is None:
                 raise ValueError(f"Unsupported operator: {type(node.op).__name__}")
-            left = _eval(node.left)
-            right = _eval(node.right)
+            left = _eval(node.left, depth + 1)
+            right = _eval(node.right, depth + 1)
             if isinstance(node.op, ast.Pow) and right > 10:
                 raise ValueError("Exponent too large (max 10)")
             return op_fn(left, right)
@@ -341,14 +356,14 @@ def evaluate_custom_formula(formula, variables):
             op_fn = _SAFE_OPS.get(type(node.op))
             if op_fn is None:
                 raise ValueError(f"Unsupported unary operator: {type(node.op).__name__}")
-            return op_fn(_eval(node.operand))
+            return op_fn(_eval(node.operand, depth + 1))
         elif isinstance(node, ast.Call):
             if not isinstance(node.func, ast.Name):
                 raise ValueError("Only simple function calls allowed")
             fn = _SAFE_FUNCS.get(node.func.id)
             if fn is None:
                 raise ValueError(f"Function not allowed: {node.func.id}")
-            args = [_eval(a) for a in node.args]
+            args = [_eval(a, depth + 1) for a in node.args]
             return fn(*args)
         else:
             raise ValueError(f"Unsupported expression: {type(node).__name__}")

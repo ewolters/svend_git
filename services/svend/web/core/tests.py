@@ -147,7 +147,7 @@ class OrgCreateTest(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 403)
-        self.assertIn("Team plan required", res.json()["error"])
+        self.assertIn("Team plan required", res.json()["error"]["message"])
 
     def test_pro_user_blocked(self):
         user = _make_user("pro@example.com", Tier.PRO)
@@ -209,7 +209,7 @@ class OrgCreateTest(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 400)
-        self.assertIn("slug is already taken", res.json()["error"])
+        self.assertIn("slug is already taken", res.json()["error"]["message"])
 
     def test_already_in_org_blocked(self):
         user = _make_user("team@example.com", Tier.TEAM)
@@ -222,7 +222,7 @@ class OrgCreateTest(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 400)
-        self.assertIn("already belong", res.json()["error"])
+        self.assertIn("already belong", res.json()["error"]["message"])
 
     def test_missing_name_rejected(self):
         user = _make_user("team@example.com", Tier.TEAM)
@@ -232,7 +232,7 @@ class OrgCreateTest(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 400)
-        self.assertIn("name is required", res.json()["error"])
+        self.assertIn("name is required", res.json()["error"]["message"])
 
     def test_missing_slug_rejected(self):
         user = _make_user("team@example.com", Tier.TEAM)
@@ -242,7 +242,7 @@ class OrgCreateTest(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 400)
-        self.assertIn("slug is required", res.json()["error"])
+        self.assertIn("slug is required", res.json()["error"]["message"])
 
     def test_invalid_slug_format_rejected(self):
         user = _make_user("team@example.com", Tier.TEAM)
@@ -274,7 +274,7 @@ class OrgCreateTest(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 400)
-        self.assertIn("255 characters", res.json()["error"])
+        self.assertIn("255 characters", res.json()["error"]["message"])
 
 
 # =========================================================================
@@ -419,7 +419,7 @@ class OrgInviteTest(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 403)
-        self.assertIn("Only owners", res.json()["error"])
+        self.assertIn("Only owners", res.json()["error"]["message"])
 
     def test_admin_cannot_invite_as_admin(self):
         admin = _make_user("admin@example.com", Tier.TEAM)
@@ -443,7 +443,7 @@ class OrgInviteTest(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 400)
-        self.assertIn("already a member", res.json()["error"])
+        self.assertIn("already a member", res.json()["error"]["message"])
 
     def test_duplicate_pending_invite_rejected(self):
         self.client.force_authenticate(self.owner)
@@ -457,7 +457,7 @@ class OrgInviteTest(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 400)
-        self.assertIn("already pending", res.json()["error"])
+        self.assertIn("already pending", res.json()["error"]["message"])
 
     def test_empty_email_rejected(self):
         self.client.force_authenticate(self.owner)
@@ -466,7 +466,7 @@ class OrgInviteTest(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 400)
-        self.assertIn("Email is required", res.json()["error"])
+        self.assertIn("Email is required", res.json()["error"]["message"])
 
     def test_invalid_role_rejected(self):
         self.client.force_authenticate(self.owner)
@@ -476,7 +476,7 @@ class OrgInviteTest(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 400)
-        self.assertIn("Invalid role", res.json()["error"])
+        self.assertIn("Invalid role", res.json()["error"]["message"])
 
 
 # =========================================================================
@@ -535,7 +535,7 @@ class AcceptInvitationTest(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 403)
-        self.assertIn("different email", res.json()["error"])
+        self.assertIn("different email", res.json()["error"]["message"])
 
     def test_expired_invitation_rejected(self):
         self.invitation.expires_at = timezone.now() - timedelta(days=1)
@@ -549,7 +549,7 @@ class AcceptInvitationTest(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 400)
-        self.assertIn("expired", res.json()["error"])
+        self.assertIn("expired", res.json()["error"]["message"])
 
     def test_cancelled_invitation_rejected(self):
         self.invitation.status = OrgInvitation.Status.CANCELLED
@@ -593,7 +593,7 @@ class AcceptInvitationTest(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 400)
-        self.assertIn("already a member", res.json()["error"])
+        self.assertIn("already a member", res.json()["error"]["message"])
 
     def test_accept_preserves_invited_role(self):
         """Invitation with admin role should create admin membership."""
@@ -669,7 +669,7 @@ class OrgChangeRoleTest(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 403)
-        self.assertIn("Only owners", res.json()["error"])
+        self.assertIn("Only owners", res.json()["error"]["message"])
 
     def test_admin_cannot_promote_to_admin(self):
         admin = _make_user("admin@example.com", Tier.TEAM)
@@ -705,7 +705,7 @@ class OrgChangeRoleTest(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 400)
-        self.assertIn("only owner", res.json()["error"])
+        self.assertIn("only owner", res.json()["error"]["message"])
 
     def test_owner_can_demote_self_if_another_owner_exists(self):
         second_owner = _make_user("owner2@example.com", Tier.TEAM)
@@ -729,7 +729,7 @@ class OrgChangeRoleTest(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 400)
-        self.assertIn("Invalid role", res.json()["error"])
+        self.assertIn("Invalid role", res.json()["error"]["message"])
 
     def test_nonexistent_member_returns_404(self):
         self.client.force_authenticate(self.owner)
@@ -775,7 +775,7 @@ class OrgRemoveMemberTest(TestCase):
             f"/api/core/org/members/{self.owner_membership.id}/remove/"
         )
         self.assertEqual(res.status_code, 400)
-        self.assertIn("Cannot remove yourself", res.json()["error"])
+        self.assertIn("Cannot remove yourself", res.json()["error"]["message"])
 
     def test_admin_cannot_remove_owner(self):
         admin = _make_user("admin@example.com", Tier.TEAM)
@@ -786,7 +786,7 @@ class OrgRemoveMemberTest(TestCase):
             f"/api/core/org/members/{self.owner_membership.id}/remove/"
         )
         self.assertEqual(res.status_code, 403)
-        self.assertIn("Only owners", res.json()["error"])
+        self.assertIn("Only owners", res.json()["error"]["message"])
 
     def test_owner_can_remove_another_owner(self):
         owner2 = _make_user("owner2@example.com", Tier.TEAM)

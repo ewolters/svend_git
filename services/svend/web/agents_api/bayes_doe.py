@@ -12,11 +12,12 @@ All tools share the conjugate Normal-Inverse-Gamma linear model
 from bayes_core.py.  No MCMC, O(p³) — industrial-grade fast.
 """
 
+from itertools import combinations
+
 import numpy as np
 import pandas as pd
-from itertools import combinations
-from scipy.stats import t as t_dist
 from scipy.linalg import cho_solve
+from scipy.stats import t as t_dist
 
 from .bayes_core import (
     bayesian_linear_posterior,

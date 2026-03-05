@@ -23,8 +23,9 @@ Dependencies: numpy, scipy. Optional: causal-learn (DAG estimation), shap.
 """
 
 import math
-import numpy as np
 from collections import deque
+
+import numpy as np
 
 __all__ = ["LinearSCM", "run_interventional_shap"]
 

@@ -26,8 +26,17 @@ urlpatterns = [
 
     # SPC ↔ FMEA closed loop (Phase C)
     path("<uuid:fmea_id>/rows/<uuid:row_id>/spc-update/", views.spc_update_occurrence, name="fmea_spc_update"),
+    path("<uuid:fmea_id>/rows/<uuid:row_id>/spc-cpk-update/", views.spc_cpk_update_occurrence, name="fmea_spc_cpk_update"),
 
     # Action items
     path("<uuid:fmea_id>/actions/", views.list_fmea_actions, name="fmea_actions"),
     path("<uuid:fmea_id>/rows/<uuid:row_id>/promote-action/", views.promote_fmea_action, name="fmea_promote_action"),
+
+    # FMEA → RCA bridge (QMS-001 §5.1 closed loop)
+    path("<uuid:fmea_id>/rows/<uuid:row_id>/investigate/", views.investigate_row, name="fmea_investigate"),
+
+    # Intelligence Layer (Phase 3)
+    path("<uuid:fmea_id>/trending/", views.rpn_trending, name="fmea_trending"),
+    path("patterns/", views.cross_fmea_patterns, name="fmea_patterns"),
+    path("<uuid:fmea_id>/suggest-failure-modes/", views.suggest_failure_modes, name="fmea_suggest"),
 ]

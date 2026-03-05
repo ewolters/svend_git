@@ -1,9 +1,10 @@
 """DSW Monte Carlo Simulation engine."""
 
-import numpy as np
-from scipy import stats as sp_stats
 import ast
 import math
+
+import numpy as np
+from scipy import stats as sp_stats
 
 from .common import _fit_best_distribution, _narrative, SVEND_COLORS, COLOR_GOOD, COLOR_BAD, COLOR_WARNING, COLOR_INFO, _rgba
 

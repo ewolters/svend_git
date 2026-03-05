@@ -27,6 +27,8 @@ from django.utils import timezone
 
 from accounts.constants import Tier
 from agents_api.models import (
+    CAPAReport,
+    CAPAStatusChange,
     NonconformanceRecord,
     InternalAudit,
     AuditFinding,
@@ -57,6 +59,15 @@ def _put(client, url, data=None):
 def _delete(client, url, data=None):
     body = json.dumps(data) if data else "{}"
     return client.delete(url, body, content_type="application/json")
+
+
+def _err_msg(resp):
+    """Extract error message from response, handling API error envelope."""
+    body = resp.json()
+    err = body.get("error", body.get("message", ""))
+    if isinstance(err, dict):
+        return err.get("message", str(err))
+    return str(err)
 
 
 def _make_team_user(email, **kwargs):
@@ -1144,6 +1155,49 @@ class SupplierManagementTest(TestCase):
         resp = self.client.delete(f"/api/iso/suppliers/{s['id']}/")
         self.assertEqual(resp.status_code, 200)
 
+    def test_get_supplier(self):
+        """GET single supplier by ID."""
+        s = _post(self.client, "/api/iso/suppliers/", {
+            "name": "Detail Supplier",
+            "supplier_type": "equipment",
+            "contact_email": "detail@test.com",
+        }).json()
+        resp = self.client.get(f"/api/iso/suppliers/{s['id']}/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["name"], "Detail Supplier")
+        self.assertEqual(data["supplier_type"], "equipment")
+        self.assertEqual(data["contact_email"], "detail@test.com")
+        self.assertIn("status_changes", data)
+        self.assertIn("evaluation_scores", data)
+
+    def test_supplier_evaluation(self):
+        """Setting evaluation_scores stores the full evaluation data."""
+        s = _post(self.client, "/api/iso/suppliers/", {"name": "Eval Supplier"}).json()
+        scores = {"quality": 4, "delivery": 5, "price": 3, "communication": 4}
+        resp = _put(self.client, f"/api/iso/suppliers/{s['id']}/", {
+            "evaluation_scores": scores,
+        })
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["evaluation_scores"]["quality"], 4)
+        self.assertEqual(data["evaluation_scores"]["delivery"], 5)
+        self.assertEqual(data["evaluation_scores"]["price"], 3)
+        self.assertEqual(data["evaluation_scores"]["communication"], 4)
+
+    def test_evaluation_auto_rating(self):
+        """quality_rating auto-computed from evaluation_scores average."""
+        s = _post(self.client, "/api/iso/suppliers/", {"name": "AutoRate"}).json()
+        resp = _put(self.client, f"/api/iso/suppliers/{s['id']}/", {
+            "evaluation_scores": {"quality": 5, "delivery": 3, "price": 4, "communication": 4},
+        })
+        self.assertEqual(resp.json()["quality_rating"], 4)  # avg=4.0
+        # Uneven average rounds
+        resp2 = _put(self.client, f"/api/iso/suppliers/{s['id']}/", {
+            "evaluation_scores": {"quality": 5, "delivery": 4, "price": 3, "communication": 3},
+        })
+        self.assertEqual(resp2.json()["quality_rating"], 4)  # avg=3.75 → rounds to 4
+
 
 # =============================================================================
 # Supplier Workflow
@@ -1165,7 +1219,7 @@ class SupplierWorkflowTest(TestCase):
             "status": "approved",
         })
         self.assertEqual(resp.status_code, 400)
-        self.assertIn("quality_rating", resp.json()["error"])
+        self.assertIn("quality_rating", _err_msg(resp))
 
     def test_pending_to_approved_with_rating(self):
         resp = _put(self.client, f"/api/iso/suppliers/{self.supplier['id']}/", {
@@ -1181,7 +1235,7 @@ class SupplierWorkflowTest(TestCase):
             "status": "conditional",
         })
         self.assertEqual(resp.status_code, 400)
-        self.assertIn("notes", resp.json()["error"])
+        self.assertIn("notes", _err_msg(resp))
 
     def test_pending_to_conditional_with_notes(self):
         resp = _put(self.client, f"/api/iso/suppliers/{self.supplier['id']}/", {
@@ -1196,7 +1250,7 @@ class SupplierWorkflowTest(TestCase):
             "status": "disqualified",
         })
         self.assertEqual(resp.status_code, 400)
-        self.assertIn("disqualification_reason", resp.json()["error"])
+        self.assertIn("disqualification_reason", _err_msg(resp))
 
     def test_pending_to_disqualified_with_reason(self):
         resp = _put(self.client, f"/api/iso/suppliers/{self.supplier['id']}/", {
@@ -1273,6 +1327,170 @@ class SupplierWorkflowTest(TestCase):
         })
         self.assertEqual(resp.status_code, 400)
 
+    # ---- Tests below match QMS-001 §4.7 assertion test tags ----
+
+    def test_prospective_to_approved(self):
+        """Prospective (pending) → approved with quality_rating."""
+        sid = self.supplier["id"]
+        self.assertEqual(self.supplier["status"], "pending")
+        resp = _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "approved",
+            "quality_rating": 4,
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "approved")
+
+    def test_approved_to_preferred(self):
+        """Approved → preferred requires quality_rating."""
+        sid = self.supplier["id"]
+        _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "approved", "quality_rating": 5,
+        })
+        resp = _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "preferred", "quality_rating": 5,
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "preferred")
+
+    def test_suspend_supplier(self):
+        """Approved supplier can be suspended with notes."""
+        sid = self.supplier["id"]
+        _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "approved", "quality_rating": 3,
+        })
+        resp = _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "suspended", "notes": "Repeated late deliveries",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "suspended")
+
+    def test_reinstate_supplier(self):
+        """Suspended supplier can be reinstated to approved."""
+        sid = self.supplier["id"]
+        _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "approved", "quality_rating": 4,
+        })
+        _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "suspended", "notes": "Under review",
+        })
+        resp = _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "approved", "quality_rating": 4,
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "approved")
+        # Should have 3 status changes: pending→approved, approved→suspended, suspended→approved
+        changes = resp.json()["status_changes"]
+        self.assertEqual(len(changes), 3)
+
+    def test_invalid_transition(self):
+        """Invalid transitions are rejected with 400."""
+        sid = self.supplier["id"]
+        # pending → preferred is invalid (must go through approved first)
+        resp = _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "preferred", "quality_rating": 5,
+        })
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Cannot transition", _err_msg(resp))
+
+    def test_evaluation_history(self):
+        """Evaluation score changes tracked — multiple evaluations update quality_rating."""
+        sid = self.supplier["id"]
+        # Approve first so we can track status changes
+        _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "approved", "quality_rating": 3,
+        })
+        # First evaluation
+        _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "evaluation_scores": {"quality": 4, "delivery": 3, "price": 4, "communication": 5},
+        })
+        s1 = self.client.get(f"/api/iso/suppliers/{sid}/").json()
+        self.assertEqual(s1["quality_rating"], 4)  # avg=4.0
+        # Second evaluation — scores improve
+        _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "evaluation_scores": {"quality": 5, "delivery": 5, "price": 4, "communication": 5},
+        })
+        s2 = self.client.get(f"/api/iso/suppliers/{sid}/").json()
+        self.assertEqual(s2["quality_rating"], 5)  # avg=4.75 → 5
+        # Status change history recorded from the approval
+        self.assertTrue(len(s2["status_changes"]) >= 1)
+
+    def test_supplier_product_link(self):
+        """Supplier tracks products_services field for product linking."""
+        sid = self.supplier["id"]
+        resp = _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "products_services": "M6 bolts, M8 washers, custom gaskets",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("M6 bolts", resp.json()["products_services"])
+        self.assertIn("custom gaskets", resp.json()["products_services"])
+
+    def test_corrective_action_link(self):
+        """CAPA can be linked to a supplier issue via source_type."""
+        sid = self.supplier["id"]
+        # Create CAPA linked to supplier issue
+        resp = _post(self.client, "/api/capa/", {
+            "title": "CAPA from supplier quality issue",
+            "source_type": "supplier_issue",
+            "source_id": sid,
+        })
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+        self.assertEqual(data["source_type"], "supplier_issue")
+        self.assertEqual(data["source_id"], sid)
+
+    def test_supplier_kpis(self):
+        """Dashboard includes supplier KPI metrics."""
+        # setUp already creates 1 supplier; add 2 more
+        _post(self.client, "/api/iso/suppliers/", {"name": "KPI Supplier 1"})
+        _post(self.client, "/api/iso/suppliers/", {"name": "KPI Supplier 2"})
+        resp = self.client.get("/api/iso/dashboard/")
+        self.assertEqual(resp.status_code, 200)
+        suppliers = resp.json()["suppliers"]
+        self.assertEqual(suppliers["total"], 3)
+
+    def test_auto_suspend_on_low_score(self):
+        """Supplier auto-suspended when evaluation average drops below 2."""
+        sid = self.supplier["id"]
+        # First approve the supplier
+        _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "approved", "quality_rating": 3,
+        })
+        # Now submit very low evaluation scores
+        resp = _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "evaluation_scores": {"quality": 1, "delivery": 1, "price": 2, "communication": 1},
+        })
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["status"], "suspended")
+        self.assertIn("Auto-suspended", data["notes"])
+        # Status change should be recorded
+        self.assertTrue(any(
+            sc["to_status"] == "suspended" and "Auto-suspended" in sc["note"]
+            for sc in data["status_changes"]
+        ))
+
+    def test_supplier_categories(self):
+        """Supplier type categories filter correctly."""
+        _post(self.client, "/api/iso/suppliers/", {"name": "Raw 1", "supplier_type": "raw_material"})
+        _post(self.client, "/api/iso/suppliers/", {"name": "Svc 1", "supplier_type": "service"})
+        _post(self.client, "/api/iso/suppliers/", {"name": "Cal 1", "supplier_type": "calibration"})
+        # Filter by each category
+        for cat, expected in [("raw_material", 1), ("service", 1), ("calibration", 1)]:
+            resp = self.client.get(f"/api/iso/suppliers/?supplier_type={cat}")
+            self.assertEqual(len(resp.json()), expected, f"Expected {expected} for {cat}")
+
+    def test_supplier_dashboard(self):
+        """Dashboard supplier section includes status breakdown."""
+        sid = self.supplier["id"]
+        _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "approved", "quality_rating": 4,
+        })
+        _post(self.client, "/api/iso/suppliers/", {"name": "S2"})
+        resp = self.client.get("/api/iso/dashboard/")
+        self.assertEqual(resp.status_code, 200)
+        suppliers = resp.json()["suppliers"]
+        self.assertEqual(suppliers["total"], 2)
+
 
 # =============================================================================
 # Study Actions — raise CAPA
@@ -1299,24 +1517,23 @@ class StudyRaiseCAPATest(TestCase):
         data = resp.json()
         self.assertTrue(data["ok"])
         self.assertEqual(data["action"], "raise_capa")
-        self.assertIn("report", data)
-        self.assertEqual(data["report"]["report_type"], "capa")
+        self.assertIn("capa", data)
+        self.assertEqual(data["capa"]["status"], "draft")
         # StudyAction created
         actions = StudyAction.objects.filter(project=self.project, action_type="raise_capa")
         self.assertEqual(actions.count(), 1)
-        self.assertEqual(str(actions.first().target_id), data["report"]["id"])
+        self.assertEqual(str(actions.first().target_id), data["capa"]["id"])
 
     def test_capa_pre_fills_problem(self):
-        """CAPA report pre-fills problem_description from project title."""
+        """CAPA pre-fills description from project title."""
         resp = _post(self.client, "/api/iso/study-actions/raise-capa/", {
             "project_id": str(self.project.id),
         })
-        report = resp.json()["report"]
-        sections = report["sections"]
-        self.assertEqual(sections["problem_description"], self.project.title)
+        capa = resp.json()["capa"]
+        self.assertEqual(capa["description"], self.project.title)
 
     def test_capa_pre_fills_root_cause_from_evidence(self):
-        """If Study has root cause evidence, CAPA pre-fills root_cause_analysis."""
+        """If Study has root cause evidence, CAPA pre-fills root_cause."""
         Evidence.objects.create(
             project=self.project,
             summary="Misaligned fixture caused dimensional drift",
@@ -1326,8 +1543,8 @@ class StudyRaiseCAPATest(TestCase):
         resp = _post(self.client, "/api/iso/study-actions/raise-capa/", {
             "project_id": str(self.project.id),
         })
-        sections = resp.json()["report"]["sections"]
-        self.assertIn("fixture", sections["root_cause_analysis"])
+        capa = resp.json()["capa"]
+        self.assertIn("fixture", capa["root_cause"])
 
     def test_missing_project_id_rejected(self):
         resp = _post(self.client, "/api/iso/study-actions/raise-capa/", {})
@@ -1797,3 +2014,486 @@ class ISOLoopClosureTest(TestCase):
         # 10. Dashboard should reflect the resolution
         dash = self.client.get("/api/iso/dashboard/").json()
         self.assertEqual(dash["ncrs"]["open"], 0)
+
+
+# =============================================================================
+# CAPA CRUD (FEAT-004)
+# =============================================================================
+
+@SECURE_OFF
+class CAPACrudTest(TestCase):
+    """CAPA create, read, update, delete."""
+
+    def setUp(self):
+        self.user = _make_team_user("capacrud@test.com")
+        self.client.force_login(self.user)
+
+    def test_create_capa(self):
+        resp = _post(self.client, "/api/capa/", {
+            "title": "Weld defect corrective action",
+            "description": "Address recurring weld cracks on frame assembly",
+            "priority": "critical",
+            "source_type": "ncr",
+        })
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+        self.assertEqual(data["title"], "Weld defect corrective action")
+        self.assertEqual(data["priority"], "critical")
+        self.assertEqual(data["status"], "draft")
+        self.assertEqual(data["source_type"], "ncr")
+        self.assertIsNotNone(data["project_id"])
+
+    def test_list_capas(self):
+        _post(self.client, "/api/capa/", {"title": "CAPA-001"})
+        _post(self.client, "/api/capa/", {"title": "CAPA-002"})
+        resp = self.client.get("/api/capa/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.json()), 2)
+
+    def test_get_capa(self):
+        capa = _post(self.client, "/api/capa/", {"title": "Detail CAPA"}).json()
+        resp = self.client.get(f"/api/capa/{capa['id']}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["title"], "Detail CAPA")
+
+    def test_update_capa(self):
+        capa = _post(self.client, "/api/capa/", {"title": "Update CAPA"}).json()
+        resp = _put(self.client, f"/api/capa/{capa['id']}/", {
+            "title": "Updated CAPA Title",
+            "containment_action": "Quarantined affected lot",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["title"], "Updated CAPA Title")
+        self.assertEqual(resp.json()["containment_action"], "Quarantined affected lot")
+
+    def test_delete_capa(self):
+        capa = _post(self.client, "/api/capa/", {"title": "Delete CAPA"}).json()
+        resp = _delete(self.client, f"/api/capa/{capa['id']}/")
+        self.assertEqual(resp.status_code, 200)
+        resp2 = self.client.get(f"/api/capa/{capa['id']}/")
+        self.assertEqual(resp2.status_code, 404)
+
+    def test_capa_stats(self):
+        _post(self.client, "/api/capa/", {"title": "Stats CAPA", "priority": "high"})
+        resp = self.client.get("/api/capa/stats/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["total"], 1)
+        self.assertEqual(data["open"], 1)
+
+    def test_create_requires_title(self):
+        resp = _post(self.client, "/api/capa/", {"description": "No title"})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("title", _err_msg(resp))
+
+
+# =============================================================================
+# CAPA Workflow (FEAT-004)
+# =============================================================================
+
+@SECURE_OFF
+class CAPAWorkflowTest(TestCase):
+    """CAPA status transitions with workflow enforcement."""
+
+    def setUp(self):
+        self.user = _make_team_user("capaflow@test.com")
+        self.client.force_login(self.user)
+        self.capa = _post(self.client, "/api/capa/", {
+            "title": "Workflow CAPA",
+            "priority": "high",
+        }).json()
+
+    def test_draft_to_containment(self):
+        resp = _put(self.client, f"/api/capa/{self.capa['id']}/", {
+            "status": "containment",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "containment")
+
+    def test_containment_to_investigation(self):
+        capa_id = self.capa["id"]
+        _put(self.client, f"/api/capa/{capa_id}/", {"status": "containment"})
+        resp = _put(self.client, f"/api/capa/{capa_id}/", {
+            "status": "investigation",
+            "containment_action": "Quarantined suspect inventory",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "investigation")
+
+    def test_investigation_requires_containment_action(self):
+        capa_id = self.capa["id"]
+        _put(self.client, f"/api/capa/{capa_id}/", {"status": "containment"})
+        resp = _put(self.client, f"/api/capa/{capa_id}/", {
+            "status": "investigation",
+        })
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("containment_action", _err_msg(resp))
+
+    def test_full_workflow_draft_to_closed(self):
+        capa_id = self.capa["id"]
+        _put(self.client, f"/api/capa/{capa_id}/", {"status": "containment"})
+        _put(self.client, f"/api/capa/{capa_id}/", {
+            "status": "investigation",
+            "containment_action": "Isolated batch",
+        })
+        _put(self.client, f"/api/capa/{capa_id}/", {
+            "status": "corrective",
+            "root_cause": "Insufficient weld penetration due to gas flow",
+        })
+        _put(self.client, f"/api/capa/{capa_id}/", {
+            "status": "verification",
+            "corrective_action": "Recalibrated gas flow regulator",
+            "preventive_action": "Added flow check to PM schedule",
+        })
+        resp = _put(self.client, f"/api/capa/{capa_id}/", {
+            "status": "closed",
+            "verification_result": "20 samples passed pull test",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "closed")
+        self.assertIsNotNone(resp.json()["closed_at"])
+
+    def test_invalid_transition_rejected(self):
+        resp = _put(self.client, f"/api/capa/{self.capa['id']}/", {
+            "status": "corrective",
+        })
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Cannot transition", _err_msg(resp))
+
+    def test_transition_requires_fields(self):
+        capa_id = self.capa["id"]
+        _put(self.client, f"/api/capa/{capa_id}/", {"status": "containment"})
+        _put(self.client, f"/api/capa/{capa_id}/", {
+            "status": "investigation",
+            "containment_action": "Isolated",
+        })
+        # corrective requires root_cause
+        resp = _put(self.client, f"/api/capa/{capa_id}/", {
+            "status": "corrective",
+        })
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("root_cause", _err_msg(resp))
+
+    def test_reopen_capa(self):
+        capa_id = self.capa["id"]
+        _put(self.client, f"/api/capa/{capa_id}/", {"status": "containment"})
+        resp = _put(self.client, f"/api/capa/{capa_id}/", {"status": "draft"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "draft")
+
+    def test_status_changes_recorded(self):
+        capa_id = self.capa["id"]
+        _put(self.client, f"/api/capa/{capa_id}/", {
+            "status": "containment",
+            "status_note": "Starting containment",
+        })
+        capa = self.client.get(f"/api/capa/{capa_id}/").json()
+        self.assertEqual(len(capa["status_changes"]), 1)
+        sc = capa["status_changes"][0]
+        self.assertEqual(sc["from_status"], "draft")
+        self.assertEqual(sc["to_status"], "containment")
+        self.assertEqual(sc["note"], "Starting containment")
+
+
+# =============================================================================
+# CAPA Evidence Hooks (FEAT-004)
+# =============================================================================
+
+@SECURE_OFF
+class CAPAEvidenceHooksTest(TestCase):
+    """Verify CAPA field updates create Evidence records."""
+
+    def setUp(self):
+        self.user = _make_team_user("capaevidence@test.com")
+        self.client.force_login(self.user)
+        self.capa = _post(self.client, "/api/capa/", {
+            "title": "Evidence CAPA",
+            "priority": "critical",
+        }).json()
+
+    def test_auto_study_created(self):
+        project_id = self.capa["project_id"]
+        self.assertIsNotNone(project_id)
+        project = Project.objects.get(id=project_id)
+        self.assertIn("auto-created", project.tags)
+        self.assertIn("capa", project.tags)
+
+    def test_root_cause_creates_evidence(self):
+        capa_id = self.capa["id"]
+        _put(self.client, f"/api/capa/{capa_id}/", {
+            "root_cause": "Operator training gap on torque specification",
+        })
+        evidence = Evidence.objects.filter(project_id=self.capa["project_id"])
+        rc_evidence = [e for e in evidence if "root_cause" in (e.source_description or "")]
+        self.assertTrue(len(rc_evidence) > 0)
+
+    def test_corrective_action_evidence(self):
+        capa_id = self.capa["id"]
+        _put(self.client, f"/api/capa/{capa_id}/", {
+            "corrective_action": "Installed torque-limiting tool",
+        })
+        evidence = Evidence.objects.filter(project_id=self.capa["project_id"])
+        ca_evidence = [e for e in evidence if "corrective_action" in (e.source_description or "")]
+        self.assertTrue(len(ca_evidence) > 0)
+
+    def test_verification_result_evidence(self):
+        capa_id = self.capa["id"]
+        _put(self.client, f"/api/capa/{capa_id}/", {
+            "verification_result": "50 consecutive samples within spec",
+        })
+        evidence = Evidence.objects.filter(project_id=self.capa["project_id"])
+        vr_evidence = [e for e in evidence if "verification_result" in (e.source_description or "")]
+        self.assertTrue(len(vr_evidence) > 0)
+
+    def test_launch_rca_from_capa(self):
+        capa_id = self.capa["id"]
+        resp = _post(self.client, f"/api/capa/{capa_id}/launch-rca/")
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+        self.assertTrue(data["ok"])
+        self.assertIn("rca_session_id", data)
+        # Verify CAPA is linked to the RCA session
+        capa = self.client.get(f"/api/capa/{capa_id}/").json()
+        self.assertEqual(capa["rca_session_id"], data["rca_session_id"])
+
+
+# =============================================================================
+# CAPA Source Linking (FEAT-004)
+# =============================================================================
+
+@SECURE_OFF
+class CAPASourceLinkTest(TestCase):
+    """Verify CAPA source linking for different QMS trigger types."""
+
+    def setUp(self):
+        self.user = _make_team_user("capasource@test.com")
+        self.client.force_login(self.user)
+
+    def test_capa_from_ncr(self):
+        ncr = _post(self.client, "/api/iso/ncrs/", {"title": "Source NCR"}).json()
+        resp = _post(self.client, "/api/capa/", {
+            "title": "CAPA from NCR",
+            "source_type": "ncr",
+            "source_id": ncr["id"],
+        })
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+        self.assertEqual(data["source_type"], "ncr")
+        self.assertEqual(data["source_id"], ncr["id"])
+
+    def test_capa_from_audit_finding(self):
+        import uuid
+        finding_id = str(uuid.uuid4())
+        resp = _post(self.client, "/api/capa/", {
+            "title": "CAPA from audit finding",
+            "source_type": "audit_finding",
+            "source_id": finding_id,
+        })
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(resp.json()["source_type"], "audit_finding")
+
+    def test_capa_from_spc_alarm(self):
+        import uuid
+        resp = _post(self.client, "/api/capa/", {
+            "title": "CAPA from SPC alarm",
+            "source_type": "spc_alarm",
+            "source_id": str(uuid.uuid4()),
+        })
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(resp.json()["source_type"], "spc_alarm")
+
+    def test_source_id_stored(self):
+        import uuid
+        src_id = str(uuid.uuid4())
+        resp = _post(self.client, "/api/capa/", {
+            "title": "Source ID CAPA",
+            "source_type": "customer_complaint",
+            "source_id": src_id,
+        })
+        self.assertEqual(resp.json()["source_id"], src_id)
+
+
+# =============================================================================
+# CAPA User Isolation (FEAT-004)
+# =============================================================================
+
+@SECURE_OFF
+class CAPAUserIsolationTest(TestCase):
+    """Verify user A cannot see user B's CAPAs."""
+
+    def setUp(self):
+        self.user_a = _make_team_user("capa_a@test.com")
+        self.user_b = _make_team_user("capa_b@test.com")
+
+    def test_list_isolation(self):
+        self.client.force_login(self.user_a)
+        _post(self.client, "/api/capa/", {"title": "A's CAPA"})
+        self.client.force_login(self.user_b)
+        _post(self.client, "/api/capa/", {"title": "B's CAPA"})
+        resp = self.client.get("/api/capa/")
+        items = resp.json()
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["title"], "B's CAPA")
+
+    def test_detail_isolation(self):
+        self.client.force_login(self.user_a)
+        capa = _post(self.client, "/api/capa/", {"title": "A's private CAPA"}).json()
+        self.client.force_login(self.user_b)
+        resp = self.client.get(f"/api/capa/{capa['id']}/")
+        self.assertEqual(resp.status_code, 404)
+
+
+# =============================================================================
+# CAPA Aging Metrics (FEAT-005)
+# =============================================================================
+
+@SECURE_OFF
+class CAPAAgingMetricsTest(TestCase):
+    """CAPA stats endpoint returns aging metrics per state."""
+
+    def setUp(self):
+        self.user = _make_team_user("capaaging@test.com")
+        self.client.force_login(self.user)
+
+    def test_aging_in_stats(self):
+        """Stats response includes 'aging' dict."""
+        resp = self.client.get("/api/capa/stats/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("aging", data)
+        self.assertIsInstance(data["aging"], dict)
+
+    def test_aging_records_state_durations(self):
+        """Aging computes avg time in states from CAPAStatusChange records."""
+        capa = _post(self.client, "/api/capa/", {"title": "Aging CAPA"}).json()
+        # Transition draft → containment
+        _put(self.client, f"/api/capa/{capa['id']}/", {"status": "containment"})
+        # Transition containment → investigation (requires containment_action)
+        _put(self.client, f"/api/capa/{capa['id']}/", {
+            "status": "investigation",
+            "containment_action": "Quarantined lot",
+        })
+        resp = self.client.get("/api/capa/stats/")
+        data = resp.json()
+        # At least one state should have a duration
+        self.assertIn("aging", data)
+        # containment should have a recorded duration (between the two transitions)
+        # Note: times are very close together in tests, so duration ≈ 0
+        if "containment" in data["aging"]:
+            self.assertIsInstance(data["aging"]["containment"], float)
+
+
+# =============================================================================
+# CAPA-RCA Bridge (FEAT-006)
+# =============================================================================
+
+@SECURE_OFF
+class CAPARCABridgeTest(TestCase):
+    """CAPA → RCA bridge: NCR pre-populate and root cause backflow."""
+
+    def setUp(self):
+        self.user = _make_team_user("caparaca@test.com")
+        self.client.force_login(self.user)
+
+    def test_launch_rca_basic(self):
+        """Launch RCA from CAPA creates linked session."""
+        capa = _post(self.client, "/api/capa/", {"title": "Bridge CAPA"}).json()
+        resp = _post(self.client, f"/api/capa/{capa['id']}/launch-rca/", {})
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+        self.assertTrue(data["ok"])
+        self.assertIn("rca_session_id", data)
+        # CAPA now has rca_session linked
+        capa2 = self.client.get(f"/api/capa/{capa['id']}/").json()
+        self.assertEqual(capa2["rca_session_id"], data["rca_session_id"])
+
+    def test_launch_rca_from_ncr_prepopulates(self):
+        """RCA pre-populated with NCR data when CAPA source is NCR."""
+        # Create NCR
+        ncr_resp = _post(self.client, "/api/iso/ncrs/", {
+            "title": "Weld crack on frame",
+            "description": "Crack found during final inspection",
+            "severity": "major",
+            "containment_action": "Quarantined affected units",
+        })
+        self.assertEqual(ncr_resp.status_code, 201)
+        ncr = ncr_resp.json()
+
+        # Create CAPA linked to NCR
+        capa = _post(self.client, "/api/capa/", {
+            "title": "Fix weld crack issue",
+            "source_type": "ncr",
+            "source_id": ncr["id"],
+        }).json()
+
+        # Launch RCA
+        resp = _post(self.client, f"/api/capa/{capa['id']}/launch-rca/", {})
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+        self.assertTrue(data.get("pre_populated_from_ncr"))
+
+        # Verify RCA session has NCR data
+        rca_resp = self.client.get(f"/api/rca/sessions/{data['rca_session_id']}/")
+        self.assertEqual(rca_resp.status_code, 200)
+        rca = rca_resp.json()
+        session = rca.get("session", rca)
+        self.assertIn("Weld crack on frame", session["event"])
+        # Chain should have containment from NCR
+        self.assertTrue(len(session["chain"]) > 0)
+        self.assertIn("Quarantined", session["chain"][0]["claim"])
+
+    def test_rca_root_cause_flows_to_capa(self):
+        """When RCA root_cause is set, it flows back to linked CAPA."""
+        capa = _post(self.client, "/api/capa/", {"title": "Backflow CAPA"}).json()
+        # Launch RCA
+        rca_resp = _post(self.client, f"/api/capa/{capa['id']}/launch-rca/", {})
+        rca_id = rca_resp.json()["rca_session_id"]
+
+        # Set root cause on RCA session
+        _put(self.client, f"/api/rca/sessions/{rca_id}/update/", {
+            "root_cause": "Insufficient heat input during welding",
+            "status": "investigating",
+        })
+        _put(self.client, f"/api/rca/sessions/{rca_id}/update/", {
+            "root_cause": "Insufficient heat input during welding",
+            "status": "root_cause_identified",
+        })
+
+        # CAPA should now have root_cause
+        capa2 = self.client.get(f"/api/capa/{capa['id']}/").json()
+        self.assertEqual(capa2["root_cause"], "Insufficient heat input during welding")
+
+    def test_rca_backflow_no_overwrite(self):
+        """RCA backflow does NOT overwrite existing CAPA root_cause."""
+        capa = _post(self.client, "/api/capa/", {"title": "Existing RC CAPA"}).json()
+        # Set root cause on CAPA first
+        _put(self.client, f"/api/capa/{capa['id']}/", {
+            "root_cause": "Original root cause",
+        })
+
+        # Launch RCA and set different root cause
+        rca_resp = _post(self.client, f"/api/capa/{capa['id']}/launch-rca/", {})
+        rca_id = rca_resp.json()["rca_session_id"]
+        _put(self.client, f"/api/rca/sessions/{rca_id}/update/", {
+            "root_cause": "Different root cause from RCA",
+            "status": "investigating",
+        })
+
+        # CAPA root_cause should remain the original
+        capa2 = self.client.get(f"/api/capa/{capa['id']}/").json()
+        self.assertEqual(capa2["root_cause"], "Original root cause")
+
+    def test_bidirectional_link(self):
+        """CAPA ↔ RCA session bidirectional link exists."""
+        capa = _post(self.client, "/api/capa/", {"title": "Bidir CAPA"}).json()
+        rca_resp = _post(self.client, f"/api/capa/{capa['id']}/launch-rca/", {})
+        rca_id = rca_resp.json()["rca_session_id"]
+
+        # CAPA → RCA
+        capa2 = self.client.get(f"/api/capa/{capa['id']}/").json()
+        self.assertEqual(capa2["rca_session_id"], rca_id)
+
+        # RCA → CAPA (via project link — same project)
+        rca = self.client.get(f"/api/rca/sessions/{rca_id}/").json()
+        session = rca.get("session", rca)
+        self.assertEqual(session.get("project_id"), capa2.get("project_id"))

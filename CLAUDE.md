@@ -41,41 +41,111 @@ ChatGPT helped build Meganeura — an early workflow engine named after a stuffe
 
 - **This machine is the production server.** Do not restructure, rename, or move files without explicit approval.
 - **Git is our safety net.** A prior version of Claude destroyed work. Always commit before making changes.
+- **All codebase changes MUST follow CHG-001.** No exceptions. See §Change Management below.
 - All changes must be logged in `log.md` at the root.
 - Technical debt is tracked in `.kjerne/DEBT.md`. Process for closing items is in `DEBT-001.md`.
 - Unified workbench direction is documented in `services/svend/reference_docs/ARCHITECTURE.md`.
+
+## WARNING: Change Request Enforcement (CHG-001 §7.1.1)
+
+**DO NOT touch code without a ChangeRequest. This is not a guideline — it is enforced at three levels and there is no bypass.**
+
+| Layer | Mechanism | What It Catches |
+|-------|-----------|-----------------|
+| **Model** | `ChangeRequest.clean()` | Rejects empty title (<10 chars), description (<20 chars), or author |
+| **API** | `validate_for_transition(target_state)` | Blocks state transitions when required fields are missing |
+| **Compliance** | `check_change_management()` — 14 checks, daily | Flags ALL gaps as FAIL or WARNING, reports field completeness |
+
+**Before ANY code change:**
+1. Create a ChangeRequest with `title` (>=10 chars), `description` (>=20 chars), `change_type`, `author`
+2. Add `justification` and `affected_files` before submitting
+3. Add `implementation_plan`, `testing_plan`, and `rollback_plan` (if applicable) before approval
+4. Risk assessment REQUIRED for all code-touching types (feature, enhancement, bugfix, security, infrastructure, migration, debt)
+
+**After implementation — BEFORE completing the CR (CHG-001 §5.4.2):**
+1. Commit code → capture the SHA
+2. Set `cr.commit_shas = [sha]` — this is the CR→git bridge
+3. Set `cr.log_md_ref` to the log.md section reference
+4. THEN transition CR to `completed`
+
+**`validate_for_transition('completed')` will REJECT any code CR with empty `commit_shas`.** This is not a suggestion. The transition returns HTTP 400 and the CR stays in its current state until the field is populated.
+
+Skipping this creates compliance failures that are permanently visible in the audit trail. There is no retroactive cleanup path that removes the gap — only honest markers acknowledging it.
 
 ## Architecture
 
 ```
 ~/kjerne/                              # Root — production server
-├── CLAUDE.md                          # This file
+├── CLAUDE.md                          # This file — READ THIS FIRST
 ├── STANDARD.md                        # 5S lab standards (v2.0)
-├── DSW_gaps.md                        # Competitive gap analysis vs Minitab/JMP
 ├── log.md                             # Change log (all edits)
-├── DEBT-001.md                        # Debt closure process
 │
-├── core/                              # Shared utilities
-│   ├── llm.py                         # LLM loading (Qwen)
-│   └── quality.py                     # Quality framework
+├── docs/                              # All documentation
+│   ├── standards/                     # Kjerne Standards Library (25 standards)
+│   │   ├── DOC-001.md                 # Documentation Structure
+│   │   ├── XRF-001.md                 # Cross-Reference Syntax
+│   │   ├── AUD-001.md                 # Audit Trail
+│   │   ├── ERR-001.md                 # Error Handling
+│   │   ├── LOG-001.md                 # Logging & Observability
+│   │   ├── SEC-001.md                 # Security Architecture
+│   │   ├── API-001.md                 # API Design
+│   │   ├── DAT-001.md                 # Data Model
+│   │   ├── CMP-001.md                 # Compliance Automation
+│   │   ├── CHG-001.md                 # Change Management ← MANDATORY PROCESS
+│   │   ├── SCH-001.md                 # Cognitive Scheduler
+│   │   ├── OPS-001.md                 # Operations & Deployment
+│   │   ├── BILL-001.md               # Billing & Subscription
+│   │   ├── FE-001.md                  # Frontend Patterns
+│   │   ├── TST-001.md                 # Testing Patterns
+│   │   ├── LLM-001.md                # LLM Integration
+│   │   ├── QMS-001.md                # Quality Management System
+│   │   ├── QMS-002.md                # Resource Management
+│   │   ├── MAP-001.md                # Architecture Map
+│   │   ├── STY-001.md                # Code Style & Conventions
+│   │   ├── DSW-001.md                # Decision Science Workbench
+│   │   ├── ARCH-001.md               # Architecture & Structure
+│   │   └── QUAL-001.md               # Output Quality Assurance
+│   ├── compliance/                    # SOC 2 controls, policies, gap analysis
+│   ├── planning/                      # Roadmaps, migration plans
+│   └── reference/                     # Strategy docs, whitepapers
+│
+├── .kjerne/                           # Meta-tooling
+│   ├── DEBT.md                        # Technical debt tracker
+│   ├── DEBT-001.md                    # Debt closure process
+│   ├── config.json                    # Lab config
+│   ├── kjerne.py                      # Lab executable
+│   └── snapshots/                     # Point-in-time snapshots
 │
 ├── services/svend/                    # The Svend product
 │   ├── reference_docs/                # Architecture docs
-│   │   └── ARCHITECTURE.md            # Unified workbench vision (Jan 2026)
+│   │   └── ARCHITECTURE.md            # Unified workbench vision
 │   │
-│   ├── agents/agents/                 # Agent implementations
-│   │   ├── experimenter/              # DOE agent (agent.py, doe.py, stats.py)
-│   │   ├── researcher/                # Research agent (enabled)
-│   │   ├── coder/                     # Code execution agent (DISABLED at router)
-│   │   ├── writer/                    # Writing agent
-│   │   ├── reviewer/                  # Review agent
-│   │   └── guide/                     # Interview/decision guide
+│   ├── agents/                        # DOE agent module (others moved to ~/agents_old/)
+│   │   └── experimenter/              # Power analysis, DOE design, factorial/CCD/Latin square
 │   │
 │   ├── web/                           # Django web application
 │   │   ├── manage.py
-│   │   ├── svend_web/                 # Django project settings
+│   │   ├── ops/                       # Operations (scripts, systemd, configs)
+│   │   ├── svend/                     # Django project settings
 │   │   │   ├── settings.py
 │   │   │   └── urls.py                # Root URL config
+│   │   │
+│   │   ├── syn/                       # Synara infrastructure layer
+│   │   │   ├── core/                  # Base models (SynaraEntity, SynaraImmutableLog)
+│   │   │   ├── log/                   # Logging (middleware, handlers, formatters)
+│   │   │   ├── api/                   # API middleware (error envelope, idempotency)
+│   │   │   ├── err/                   # Error hierarchy (SynaraError, retry, circuit breaker)
+│   │   │   ├── sched/                 # Task scheduler (syn.sched — replaces Celery)
+│   │   │   └── audit/                 # Audit & compliance subsystem
+│   │   │       ├── models.py          # SysLogEntry, IntegrityViolation, DriftViolation,
+│   │   │       │                      #   ComplianceCheck, ComplianceReport,
+│   │   │       │                      #   ChangeRequest, ChangeLog, RiskAssessment, AgentVote
+│   │   │       ├── compliance.py      # 25 automated compliance checks
+│   │   │       ├── standards.py       # Standards parser (machine-readable hooks)
+│   │   │       ├── utils.py           # generate_entry(), verify_chain_integrity()
+│   │   │       ├── events.py          # Audit event catalog
+│   │   │       ├── signals.py         # Django signal handlers
+│   │   │       └── management/commands/run_compliance.py
 │   │   │
 │   │   ├── core/                      # Core Django app (TARGET models)
 │   │   │   └── models/
@@ -85,23 +155,15 @@ ChatGPT helped build Meganeura — an early workflow engine named after a stuffe
 │   │   │       └── graph.py           # KnowledgeGraph, Entity, Relationship
 │   │   │
 │   │   ├── agents_api/                # API views (main application logic)
-│   │   │   ├── models.py              # Problem (DEPRECATED), Board, A3Report, Report,
-│   │   │   │                          #   FMEA, FMEARow, RCASession, ValueStreamMap,
-│   │   │   │                          #   HoshinProject, ActionItem, Site, SavedModel,
-│   │   │   │                          #   Workflow, DSWResult, TriageResult, etc.
+│   │   │   ├── models.py              # Board, A3Report, Report, FMEA, FMEARow,
+│   │   │   │                          #   RCASession, ValueStreamMap, HoshinProject,
+│   │   │   │                          #   ActionItem, DSWResult, TriageResult, etc.
 │   │   │   ├── dsw_views.py           # DSW statistical engine (200+ analyses)
 │   │   │   ├── spc_views.py           # SPC endpoints (control charts, capability, gage R&R)
 │   │   │   ├── spc.py                 # SPC engine
 │   │   │   ├── experimenter_views.py  # DOE endpoints
-│   │   │   ├── problem_views.py       # Problem/hypothesis management (legacy)
 │   │   │   ├── synara_views.py        # Synara belief engine API
-│   │   │   ├── synara/                # Synara engine
-│   │   │   │   ├── synara.py          # Orchestrator
-│   │   │   │   ├── belief.py          # Bayesian update math
-│   │   │   │   ├── dsl.py             # Hypothesis DSL parser
-│   │   │   │   ├── logic_engine.py
-│   │   │   │   ├── kernel.py          # Data structures
-│   │   │   │   └── llm_interface.py   # LLM prompts (Claude)
+│   │   │   ├── synara/                # Synara engine (orchestrator, belief, DSL, kernel)
 │   │   │   ├── forecast_views.py      # Time series forecasting
 │   │   │   ├── learn_views.py         # Learning center + assessments
 │   │   │   ├── rca_views.py           # Root cause analysis
@@ -113,51 +175,256 @@ ChatGPT helped build Meganeura — an early workflow engine named after a stuffe
 │   │   │   ├── whiteboard_views.py    # Collaborative whiteboard
 │   │   │   ├── triage_views.py        # Data cleaning/validation
 │   │   │   ├── guide_views.py         # AI decision guide (rate-limited)
-│   │   │   ├── views.py               # Agent dispatch + add_finding_to_problem()
-│   │   │   └── urls.py                # Agent router (coder DISABLED)
+│   │   │   └── views.py               # Agent dispatch
 │   │   │
-│   │   ├── api/                       # Content, automation, feedback
-│   │   │   ├── models.py              # BlogPost, OnboardingSurvey, EmailCampaign,
-│   │   │   │                          #   Experiment, AutomationRule, Feedback, etc.
-│   │   │   ├── views.py               # Auth, chat, feedback, internal dashboard,
-│   │   │   │                          #   blog mgmt, A/B testing, automation, autopilot
+│   │   ├── api/                       # Content, automation, feedback, internal dashboard
+│   │   │   ├── views.py               # Auth, chat, feedback, compliance (public)
+│   │   │   ├── internal_views.py      # Staff dashboard, analytics, change management
 │   │   │   └── urls.py
 │   │   │
 │   │   ├── chat/                      # LLM conversation system
-│   │   │   └── models.py              # Conversation, Message, TraceLog, TrainingCandidate
-│   │   │
 │   │   ├── workbench/                 # Unified workbench (new platform)
-│   │   │   ├── models.py              # Project, Hypothesis, Evidence, Workbench,
-│   │   │   │                          #   Artifact, KnowledgeGraph, EpistemicLog
-│   │   │   └── views.py               # Full CRUD + graph + epistemic log
-│   │   │
 │   │   ├── forge/                     # Synthetic data generation
-│   │   │   ├── models.py              # APIKey, Job, SchemaTemplate
-│   │   │   └── views.py               # generate, job status, download
-│   │   │
 │   │   ├── files/                     # File storage
-│   │   │   └── models.py              # UserFile, UserQuota
-│   │   │
-│   │   ├── tempora/                   # Task scheduler (distributed)
-│   │   │   └── models.py              # CognitiveTask, Schedule, DeadLetterEntry,
-│   │   │                              #   CircuitBreakerState, ClusterMember
-│   │   │
 │   │   ├── accounts/                  # Auth, billing, permissions
 │   │   │   ├── models.py              # User (custom), Subscription, InviteCode
 │   │   │   └── permissions.py         # @gated, @require_auth, @gated_paid, etc.
 │   │   │
-│   │   └── templates/                 # 42 Django templates (HTML)
+│   │   ├── svend_config/              # Environment configuration
+│   │   ├── templates/                 # ~100 Django templates (HTML)
+│   │   ├── static/                    # Source static files
+│   │   └── ops/                       # Deployment scripts, systemd configs
 │   │
 │   └── site/                          # Landing page (svend.ai)
 │       └── index.html
 │
-├── .kjerne/                           # Meta-tooling
-│   ├── DEBT.md                        # Technical debt tracker
-│   ├── config.json                    # Lab config
-│   └── snapshots/                     # Point-in-time snapshots
-│
 └── .gitignore
 ```
+
+## Change Management (CHG-001) — MANDATORY
+
+**Every codebase change MUST follow CHG-001. No exceptions. No shortcuts. This is not optional.**
+
+Full standard: `docs/standards/CHG-001.md`
+Compliance: SOC 2 CC8.1 (Change Management), CC3.4 (Risk Assessment), NIST SP 800-53 CM-3/CM-4
+
+### The Rule
+
+Before you write code, there must be a reason. That reason gets a `ChangeRequest`. The change gets logged at every step. When it's done, the chain of logs connects the reason to the result. If there's no chain, the change shouldn't have happened.
+
+### Change Types
+
+| Type | What | Risk Assessment | Approval |
+|------|------|-----------------|----------|
+| `feature` | New functionality | Multi-agent (4 roles) | Required |
+| `enhancement` | Improve existing | Single agent | Required |
+| `bugfix` | Fix defect | Single agent | Required |
+| `hotfix` | Critical production fix | Expedited → retroactive 24h | Retroactive |
+| `security` | Security patch | Security-focused | Required |
+| `infrastructure` | Server, deploy, CI/CD | Operations-focused | Required |
+| `migration` | Database schema | Multi-agent (4 roles) | Required |
+| `documentation` | Docs, standards, README | None | None |
+| `plan` | Architecture decisions | None — but logged | None |
+| `debt` | Technical debt closure | Single agent | Required |
+
+### Lifecycle
+
+```
+draft → submitted → risk_assessed → approved → in_progress → testing → completed
+```
+
+Every arrow creates an immutable `ChangeLog` entry. Every entry links to commits, issues, and related changes by UUID.
+
+### Risk Assessment (Multi-Agent Voting)
+
+For `feature`, `migration`, and `critical` risk changes, 4 agents vote from different perspectives:
+
+- **security_analyst** — Auth, data exposure, SOC 2 impact (has veto power)
+- **architect** — Architecture drift, coupling, scalability
+- **operations** — Downtime risk, rollback plan, monitoring
+- **quality** — Test coverage, regression risk, edge cases
+
+Each scores 5 dimensions (Security, Availability, Integrity, Confidentiality, Privacy) on 1-5 scale. Overall score = max dimension. Score ≥4 requires staff review + mandatory rollback plan.
+
+### Emergency Changes
+
+Hotfixes can bypass normal approval. But:
+- Retroactive risk assessment within **24 hours** (compliance check flags violation)
+- Post-incident review within **48 hours**
+- The `change_management` compliance check enforces this daily
+
+### UUID Chain
+
+Every finding, violation, change, and audit entry is UUID-linked bidirectionally:
+
+```
+ComplianceCheck.remediation_change_id  ←→  ChangeRequest.compliance_check_ids
+DriftViolation.remediation_change_id   ←→  ChangeRequest.drift_violation_ids
+SysLogEntry.correlation_id             ←→  ChangeRequest.correlation_id
+ChangeRequest.parent_change_id         ←→  ChangeRequest (parent)
+ChangeRequest.related_change_ids       ←→  [ChangeRequest UUIDs]
+ChangeLog.details                      →   commit_sha, issue_url, log_md_ref
+```
+
+Start from any node. Traverse the entire chain.
+
+### API
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/internal/changes/` | GET | List changes (filter by type, status, risk) |
+| `/api/internal/changes/create/` | POST | Create change request |
+| `/api/internal/changes/<id>/` | GET | Full detail with logs, risk assessments, votes |
+| `/api/internal/changes/<id>/transition/` | POST | State transition with log entry |
+
+### Dashboard
+
+`/internal/dashboard/` → Operations → Changes tab. Shows all change requests, filter by type/status/risk, click any row to see full detail panel with risk scores, agent votes, and log chain timeline.
+
+### What Gets Flagged
+
+The `change_management` compliance check (runs daily, SOC 2 CC8.1 + CC3.4) flags:
+- Emergency changes without retroactive risk assessment (>24h)
+- Changes stuck in `in_progress` >7 days without updates
+- Completed changes missing log entries
+- Features/migrations approved without risk assessment
+
+## Planning System — MANDATORY
+
+**This is the internal project management system. It replaces all ad-hoc planning.** Every feature, initiative, and task is tracked here with short IDs, dependencies, and status. Use it.
+
+### Hierarchy
+
+```
+Initiative (INIT-xxx)  — strategic phase/theme
+  └── Feature (FEAT-xxx)  — deliverable capability
+        └── Task (TASK-xxx)  — implementation work item → ChangeRequest
+```
+
+Models: `api/models.py` (Initiative, Feature, PlanTask)
+Management command: `syn/audit/management/commands/plan.py`
+Dashboard: `/internal/dashboard/` → Product → Features tab
+
+### Session Start Protocol
+
+**At the start of every work session**, run this to get context:
+
+```bash
+python manage.py plan context          # Show active initiatives + actionable features
+python manage.py plan show FEAT-xxx    # Deep dive on specific feature (if user provides one)
+```
+
+If the user says "work on FEAT-042" or gives any short ID, run `plan show` on it first.
+
+### Commands
+
+```bash
+# Context
+plan context                          # Active initiatives with ready/blocked features
+plan progress                         # All initiatives with progress bars
+plan show FEAT-042                    # Full context dump for a feature
+plan show INIT-003                    # Initiative overview with all features
+
+# Discovery
+plan list --type feat --status in_progress  # List by type and status
+plan search "CAPA"                    # Full-text search across everything
+plan tree INIT-003                    # Visual hierarchy for an initiative
+plan deps FEAT-042                    # Dependency graph (what blocks, what it blocks)
+plan blocked                          # All blocked features
+
+# Updates (Claude does this during/after work)
+plan update FEAT-042 --status in_progress   # Update status
+plan update TASK-117 --status completed     # Complete a task
+plan activate INIT-003 INIT-006             # Set initiatives as active focus
+
+# Notes
+plan note FEAT-042 "SSE endpoint needs auth middleware review"     # Claude note
+plan note FEAT-042 "Priority — need this before demo" --user      # User note ($ prefix)
+```
+
+### Notes Convention
+
+- **Claude notes:** Timestamped, no prefix — technical context, decisions, blockers
+- **User notes:** Prefixed with `$` — priorities, business context, instructions
+- User notes displayed in gold on the dashboard to distinguish from Claude's
+
+### Workflow
+
+1. **User activates initiatives:** `plan activate INIT-003 INIT-006` (or tells Claude which to activate)
+2. **Claude runs `plan context`** to see what's ready to work on
+3. **Pick a feature** — prioritize by: user notes ($), priority, unblocked status
+4. **Create tasks** under the feature if none exist
+5. **Create ChangeRequest** per CHG-001 (link task → CR)
+6. **Update status** as work progresses
+7. **Mark completed** when done — triggers progress rollup to initiative
+
+### Short IDs
+
+- `INIT-001` through `INIT-007` — initiatives (phases)
+- `FEAT-001` through `FEAT-060` — features (from master plan, more can be added)
+- `TASK-001+` — tasks (created as features are worked)
+- `legacy_id` field maps to original master plan IDs (E3-001, E4-002, etc.)
+- All IDs are grepable: `grep -r "FEAT-042"` finds every reference
+
+### Active Initiatives
+
+Default view shows only features from **active** initiatives. To see everything, use the "All Initiatives" filter on the dashboard or `plan list --initiative __all__`.
+
+## Standards Library
+
+`docs/standards/` contains 25 machine-readable standards with assertion hooks that the compliance system parses and verifies automatically:
+
+| Standard | Scope | Assertions |
+|----------|-------|------------|
+| DOC-001 | Documentation structure, hook vocabulary | 5 (Foundation) |
+| XRF-001 | Cross-reference syntax | Foundation |
+| AUD-001 | Hash-chained audit trail, immutability | 9 |
+| ERR-001 | Error hierarchy, retry, circuit breaker | 11 |
+| LOG-001 | Logging, correlation, structured output | 23 |
+| SEC-001 | Auth, encryption, tenant isolation, CSP | 26 |
+| API-001 | URL design, error envelope, idempotency | 25 |
+| DAT-001 | Base models, UUID PKs, field patterns | 27 |
+| CMP-001 | Compliance automation, standards parser | 14 |
+| CHG-001 | Change management, risk assessment | 11 |
+| SCH-001 | Cognitive scheduler, backpressure, temporal | 11 |
+| OPS-001 | Deployment, backup, TLS, systemd, purge | 13 |
+| BILL-001 | Billing tiers, Stripe, feature gating | 13 |
+| FE-001 | Frontend patterns, themes, CSRF, CDN | 9 |
+| TST-001 | Testing framework, fixtures, conventions | 8 |
+| LLM-001 | LLM integration, rate limits, encryption | 11 |
+| QMS-001 | FMEA, RCA, A3, VSM, Hoshin Kanri, X-Matrix | 20 |
+| QMS-002 | Resource management | — |
+| SLA-001 | Service level agreements, availability targets | — |
+| MAP-001 | Architecture map, standards registry, drift detection | 5 |
+| STY-001 | Code style, naming conventions, import ordering | 5 |
+| DSW-001 | Decision Science Workbench architecture | — |
+| ARCH-001 | Architecture & structure, layer boundaries | 6 |
+| CACHE-001 | Caching patterns, HTTP cache control, CDN integrity | 6 |
+| QUAL-001 | Output quality assurance, calibration, bounds checking | 12 |
+
+Standards support `<!-- test: module.Class.method -->` hooks that link assertions to executable tests. The compliance system verifies test existence and can run them:
+
+Run `python manage.py run_compliance --standards` to verify all assertions + test existence.
+Run `python manage.py run_compliance --standards --run-tests` to execute linked tests.
+Run `python manage.py run_compliance --all` to run all 25 infrastructure checks.
+
+## Compliance Checks (25)
+
+| Check | Category | Schedule | SOC 2 |
+|-------|----------|----------|-------|
+| audit_integrity | processing_integrity | Daily (critical) | CC7.2, CC7.3 |
+| security_config | security | Daily (critical) | CC6.1, CC6.2 |
+| access_logging | security | Daily (critical) | CC6.1, CC7.1 |
+| standards_compliance | processing_integrity | Daily (critical) | CC4.1, CC9.1 |
+| change_management | processing_integrity | Daily (critical) | CC8.1, CC3.4 |
+| dependency_vuln | security | Mon/Fri | CC6.2 |
+| ssl_tls | confidentiality | Mon/Fri | CC6.2 |
+| encryption_status | confidentiality | Tuesday | CC6.1 |
+| password_policy | security | Tuesday | CC6.1 |
+| permission_coverage | security | Wednesday | CC6.1, CC6.2 |
+| backup_freshness | availability | Wednesday | CC9.2 |
+| data_retention | privacy | Thursday | CC7.2 |
+| output_quality | processing_integrity | Wednesday | CC4.1, CC7.2 |
 
 ## Data Model (Two Systems — Dual-Write Phase 2)
 
@@ -234,9 +501,11 @@ KnowledgeGraph (uuid)
 | `/api/forge/` | forge/views.py | Synthetic data generation jobs |
 | `/api/files/` | files/views.py | File upload, download, sharing, quotas |
 | `/api/auth/` | api/views.py | Register, login, logout, profile, verification |
-| `/api/internal/` | api/views.py | Staff-only: analytics, email, blog, A/B tests, automation |
+| `/api/internal/` | internal_views.py | Staff dashboard, analytics, compliance, change management |
 | `/api/feedback/` | api/views.py | In-app feedback submission |
 | `/billing/` | accounts/views.py | Stripe checkout, portal, webhooks |
+| `/compliance/` | api/views.py | Public compliance page (trust signal) |
+| `/internal/dashboard/` | internal_views.py | Staff-only operational dashboard |
 
 ## Integration Pattern
 
@@ -265,7 +534,7 @@ add_finding_to_problem(user, problem_id, summary, evidence_type, source, support
 ## Frontend
 
 - **Vanilla JavaScript** — no SPA framework (React/Vue/Angular)
-- **Django templates** — 42 HTML files, all app pages extend `base_app.html`
+- **Django templates** — ~100 HTML files, all app pages extend `base_app.html`
 - **Inline CSS/JS** — styles and scripts embedded in templates, no build tool
 - **CDN libraries** — Chart.js, KaTeX, Marked.js, SmilesDrawer
 - **Theme system** — 6 themes via CSS variables (dark, light, nordic, sandstone, midnight, contrast)
@@ -298,3 +567,4 @@ add_finding_to_problem(user, problem_id, summary, evidence_type, source, support
 - All changes logged in `log.md`
 - Debt tracked in `.kjerne/DEBT.md`, closed via `DEBT-001.md` process
 - Lab standards in `STANDARD.md` (5S methodology, v2.0)
+- **All changes follow CHG-001** — no code touches production without a ChangeRequest

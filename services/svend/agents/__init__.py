@@ -1,19 +1,8 @@
-"""Svend Agents - Individual agent modules."""
+"""Svend Agents — DOE/experimenter module."""
 
-from .coder import CodingAgent, CodingTask, CodingResult
-from .researcher import ResearchAgent, ResearchQuery, ResearchResult
-from .writer import WriterAgent, DocumentRequest, Document
-from .reviewer import ReviewerAgent, ReviewResult
-from .guide import BusinessPlanGuide
-from .experimenter import ExperimenterAgent, ExperimentRequest
-from .analyst import Analyst, AnalystResult, AnalystReport
+from .experimenter.agent import ExperimenterAgent, ExperimentRequest
 
 __all__ = [
-    "CodingAgent", "CodingTask", "CodingResult",
-    "ResearchAgent", "ResearchQuery", "ResearchResult",
-    "WriterAgent", "DocumentRequest", "Document",
-    "ReviewerAgent", "ReviewResult",
-    "BusinessPlanGuide",
-    "ExperimenterAgent", "ExperimentRequest",
-    "Analyst", "AnalystResult", "AnalystReport",
+    "ExperimenterAgent",
+    "ExperimentRequest",
 ]

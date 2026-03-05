@@ -90,7 +90,7 @@ def log_agent_action(user, agent, action, latency_ms=None, success=True, error_m
             agent=agent,
             action=action,
             latency_ms=latency_ms,
-            success=success,
+            is_success=success,
             error_message=error_message,
             metadata=json.dumps(metadata) if metadata else "",
         )

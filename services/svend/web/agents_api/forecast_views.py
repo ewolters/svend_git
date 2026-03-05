@@ -2,9 +2,9 @@
 
 import json
 import logging
-import numpy as np
 from datetime import datetime, timedelta
 
+import numpy as np
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 

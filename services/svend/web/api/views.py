@@ -166,7 +166,7 @@ def chat(request):
         selected_model = "default"  # Silently reset for non-enterprise
 
     # Check email verification
-    if user.email and not user.email_verified:
+    if user.email and not user.is_email_verified:
         return Response(
             {
                 "error": "Please verify your email before using SVEND",
@@ -230,7 +230,7 @@ def chat(request):
             trace_log.domain = f"enterprise:{selected_model}"
             trace_log.response = result.response
             trace_log.total_time_ms = result.inference_time_ms
-            trace_log.gate_passed = True
+            trace_log.has_gate_passed = True
             trace_log.gate_reason = f"Enterprise model: {selected_model}"
             gate_passed = True
             final_response = result.response
@@ -264,12 +264,12 @@ def chat(request):
 
         # Handle cognition pipeline (all modes including EXECUTIVE)
         if result.pipeline_type == "cognition":
-            trace_log.safety_passed = not result.blocked
+            trace_log.has_safety_passed = not result.blocked
             trace_log.domain = result.selected_mode or result.domain or "cognition"
             trace_log.difficulty = result.difficulty
             trace_log.reasoning_trace = result.reasoning_trace
             trace_log.tool_calls = result.tool_calls
-            trace_log.verified = result.verified
+            trace_log.is_verified = result.verified
             trace_log.verification_confidence = result.verification_confidence
             trace_log.response = result.response
             trace_log.total_time_ms = result.inference_time_ms
@@ -287,17 +287,17 @@ def chat(request):
                 gate_reason = "No response generated"
                 final_response = result.response or "Could not generate response."
 
-            trace_log.gate_passed = gate_passed
+            trace_log.has_gate_passed = gate_passed
             trace_log.gate_reason = gate_reason
 
         # Legacy coder mode handling
         elif result.pipeline_type == "coder":
-            trace_log.safety_passed = not result.blocked
+            trace_log.has_safety_passed = not result.blocked
             trace_log.domain = result.domain or "computation"
             trace_log.difficulty = result.difficulty
             trace_log.reasoning_trace = result.reasoning_trace
             trace_log.tool_calls = result.tool_calls
-            trace_log.verified = result.verified
+            trace_log.is_verified = result.verified
             trace_log.verification_confidence = result.verification_confidence
             trace_log.response = result.response
             trace_log.total_time_ms = result.inference_time_ms
@@ -315,7 +315,7 @@ def chat(request):
                 gate_reason = "Code execution failed"
                 final_response = result.response or "Code execution failed."
 
-            trace_log.gate_passed = gate_passed
+            trace_log.has_gate_passed = gate_passed
             trace_log.gate_reason = gate_reason
 
         else:
@@ -329,12 +329,12 @@ def chat(request):
             )
 
             # Update trace log with results
-            trace_log.safety_passed = not result.blocked
+            trace_log.has_safety_passed = not result.blocked
             trace_log.domain = result.domain or ""
             trace_log.difficulty = result.difficulty
             trace_log.reasoning_trace = flywheel_result.final_trace or result.reasoning_trace
             trace_log.tool_calls = result.tool_calls
-            trace_log.verified = result.verified
+            trace_log.is_verified = result.verified
             trace_log.verification_confidence = result.verification_confidence
             trace_log.response = flywheel_result.final_response
             trace_log.total_time_ms = flywheel_result.total_time_ms or result.inference_time_ms
@@ -377,16 +377,16 @@ def chat(request):
                 # Gate passed - use flywheel response
                 final_response = flywheel_result.final_response
 
-            trace_log.gate_passed = gate_passed
+            trace_log.has_gate_passed = gate_passed
             trace_log.gate_reason = gate_reason
-            trace_log.fallback_used = fallback_used
+            trace_log.has_fallback_used = fallback_used
 
     except Exception as e:
         # Pipeline error - fail closed
         logger.exception(f"Pipeline error for user {user.id}")
         trace_log.error_stage = "pipeline"
         trace_log.error_message = str(e)
-        trace_log.gate_passed = False
+        trace_log.has_gate_passed = False
         trace_log.gate_reason = f"Pipeline error: {type(e).__name__}"
 
         gate_passed = False
@@ -415,9 +415,9 @@ def chat(request):
         content=final_response,
         domain=result.domain or "",
         difficulty=result.difficulty,
-        verified=result.verified,
+        is_verified=result.verified,
         verification_confidence=result.verification_confidence,
-        blocked=result.blocked,
+        is_blocked=result.blocked,
         block_reason=result.block_reason or "",
         reasoning_trace=result.reasoning_trace,
         tool_calls=result.tool_calls,
@@ -628,8 +628,8 @@ def trace_stats(request):
     since = timezone.now() - timedelta(hours=24)
 
     total = TraceLog.objects.filter(created_at__gte=since).count()
-    gate_passed = TraceLog.objects.filter(created_at__gte=since, gate_passed=True).count()
-    gate_failed = TraceLog.objects.filter(created_at__gte=since, gate_passed=False).count()
+    gate_passed = TraceLog.objects.filter(created_at__gte=since, has_gate_passed=True).count()
+    gate_failed = TraceLog.objects.filter(created_at__gte=since, has_gate_passed=False).count()
     errors = TraceLog.objects.filter(created_at__gte=since).exclude(error_stage="").count()
 
     avg_time = TraceLog.objects.filter(
@@ -691,6 +691,7 @@ class LoginRateThrottle(AnonRateThrottle):
 def login(request):
     """Login and create session. Rate limited to 5 attempts/minute."""
     from django.contrib.auth import authenticate, login as auth_login
+    from accounts.models import LoginAttempt
 
     username = request.data.get("username", "").strip()
     password = request.data.get("password", "")
@@ -700,6 +701,16 @@ def login(request):
             {"error": "Username and password required"},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    # Account lockout check (SOC 2 CC6.1)
+    if LoginAttempt.is_locked_out(username):
+        logger.warning(f"Locked out login attempt for: {username}")
+        return Response(
+            {"error": "Account temporarily locked due to too many failed attempts. Try again in 15 minutes."},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
+    ip = request.META.get("HTTP_CF_CONNECTING_IP") or request.META.get("REMOTE_ADDR")
 
     user = authenticate(request, username=username, password=password)
 
@@ -714,6 +725,7 @@ def login(request):
             pass
 
     if user is None:
+        LoginAttempt.record(username, ip, was_successful=False)
         logger.warning(f"Failed login attempt for: {username}")
         return Response(
             {"error": "Invalid credentials"},
@@ -721,10 +733,15 @@ def login(request):
         )
 
     if not user.is_active:
+        LoginAttempt.record(username, ip, was_successful=False)
         return Response(
             {"error": "Account is disabled"},
             status=status.HTTP_403_FORBIDDEN,
         )
+
+    # Success — clear lockout window
+    LoginAttempt.clear_on_success(username)
+    LoginAttempt.record(username, ip, was_successful=True)
 
     auth_login(request, user)
     logger.info(f"User logged in: {user.username}")
@@ -763,7 +780,7 @@ def me(request):
         "id": str(user.id),
         "username": user.username,
         "email": user.email,
-        "email_verified": user.email_verified,
+        "email_verified": user.is_email_verified,
         "tier": user.tier,
         "display_name": user.display_name or user.username,
         "avatar_url": user.avatar_url,
@@ -995,7 +1012,7 @@ def send_verification_email(request):
     """Send or resend verification email to current user."""
     user = request.user
 
-    if user.email_verified:
+    if user.is_email_verified:
         return Response({"status": "already_verified"})
 
     if not user.email:
@@ -1352,8 +1369,8 @@ def email_unsubscribe(request):
     except User.DoesNotExist:
         return HttpResponse("User not found.", status=404, content_type="text/plain")
 
-    user.email_opted_out = True
-    user.save(update_fields=["email_opted_out"])
+    user.is_email_opted_out = True
+    user.save(update_fields=["is_email_opted_out"])
 
     html = """<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <style>body{margin:0;padding:60px 20px;background:#f4f7f4;font-family:'Inter',-apple-system,sans-serif;text-align:center;}
@@ -1624,7 +1641,7 @@ def onboarding_complete(request):
         "onboarding_completed_at",
     ])
 
-    # Schedule drip emails via Tempora
+    # Schedule drip emails via syn.sched
     now = tz.now()
     drip_schedule = [
         ("welcome", now),                                      # Immediate
@@ -1641,9 +1658,9 @@ def onboarding_complete(request):
             defaults={"scheduled_for": scheduled_for},
         )
 
-    # Fire welcome email immediately via Tempora
+    # Fire welcome email immediately via syn.sched
     try:
-        from tempora.scheduler import schedule_task
+        from syn.sched.scheduler import schedule_task
         schedule_task(
             name=f"onboarding_welcome_{user.id}",
             func="api.send_onboarding_email",
@@ -1660,3 +1677,208 @@ def onboarding_complete(request):
         "learning_path": survey.learning_path,
         "message": "Welcome aboard! Check your email for your personalized getting started guide.",
     })
+
+
+# =============================================================================
+# Public Compliance
+# =============================================================================
+
+
+def compliance_page(request):
+    """Public compliance landing page showing current check state + standards."""
+    from django.shortcuts import render
+    from syn.audit.models import ComplianceCheck, ComplianceReport
+
+    # Current state: latest result per check (use run_at, not UUID pk)
+    from syn.audit.compliance import ALL_CHECKS, get_all_soc2_controls
+    from syn.audit.standards import parse_standard_titles
+    current_checks = []
+    for check_name in sorted(ALL_CHECKS.keys()):
+        latest = ComplianceCheck.objects.filter(check_name=check_name).order_by("-run_at").first()
+        if latest:
+            current_checks.append(latest)
+
+    checks_total = len(current_checks)
+    checks_passed = sum(1 for c in current_checks if c.status == "pass")
+
+    # Category summary from current checks
+    categories = {}
+    for c in current_checks:
+        cat = c.category
+        if cat not in categories:
+            categories[cat] = {"total": 0, "passed": 0}
+        categories[cat]["total"] += 1
+        if c.status == "pass":
+            categories[cat]["passed"] += 1
+    for cat, data in categories.items():
+        data["pass_rate"] = round(data["passed"] / data["total"] * 100) if data["total"] else 0
+        data["status"] = "passing" if data["pass_rate"] >= 90 else "needs_attention"
+
+    # Standards library — driven by docs/standards/ files, overlaid with compliance data
+    std_descriptions = parse_standard_titles()
+    standards = {}
+    for std_name, desc in sorted(std_descriptions.items()):
+        standards[std_name] = {
+            "description": desc,
+            "total": 0, "passed": 0, "failed": 0, "pass_rate": 0,
+            "tests_total": 0, "tests_passed": 0, "tests_ran": 0, "tests_skipped": 0,
+        }
+
+    standards_total = 0
+    standards_passed = 0
+    tests_linked = tests_unique = tests_passed = tests_failed = tests_skipped = 0
+
+    # Compute assertion and test hook counts LIVE from standards files (fast — no test execution)
+    from syn.audit.standards import parse_all_standards
+    live_assertions = parse_all_standards()
+    seen_tests = set()
+    live_by_standard = {}
+    for a in live_assertions:
+        std = a.standard
+        if std not in live_by_standard:
+            live_by_standard[std] = {"total": 0, "tests": []}
+        live_by_standard[std]["total"] += 1
+        for t in a.tests:
+            tests_linked += 1
+            seen_tests.add(t)
+            live_by_standard[std]["tests"].append(t)
+    tests_unique = len(seen_tests)
+
+    # Overlay test execution results (pass/fail/skip) from latest stored check
+    standards_check = next((c for c in current_checks if c.check_name == "standards_compliance"), None)
+    if standards_check and standards_check.details.get("by_standard"):
+        details = standards_check.details
+        tests_passed = details.get("tests_passed", 0)
+        tests_failed = details.get("tests_failed", 0)
+        tests_skipped = details.get("tests_skipped", 0)
+        for std_name, info in details["by_standard"].items():
+            std_tests_ran = std_tests_passed = std_tests_skipped = std_tests_total = 0
+            for a in info.get("assertions", []):
+                for tc in a.get("test_checks", []):
+                    std_tests_total += 1
+                    status = tc.get("status", "")
+                    if status == "skip":
+                        std_tests_skipped += 1
+                    elif status == "pass" or (tc.get("ran") and tc.get("passed")):
+                        std_tests_passed += 1
+                        std_tests_ran += 1
+                    elif tc.get("ran"):
+                        std_tests_ran += 1
+            entry = standards.setdefault(std_name, {"description": std_descriptions.get(std_name, "")})
+            entry.update({
+                "total": info["total"],
+                "passed": info["passed"],
+                "failed": info["failed"],
+                "pass_rate": round(info["passed"] / info["total"] * 100) if info["total"] else 0,
+                "tests_total": std_tests_total,
+                "tests_passed": std_tests_passed,
+                "tests_ran": std_tests_ran,
+                "tests_skipped": std_tests_skipped,
+            })
+            standards_total += info["total"]
+            standards_passed += info["passed"]
+
+    # SOC 2 controls covered — from registry metadata, not just DB records
+    soc2_controls = set(get_all_soc2_controls())
+
+    # SLA summary from latest sla_compliance check
+    sla_check = next((c for c in current_checks if c.check_name == "sla_compliance"), None)
+    sla_data = {"total": 0, "met": 0, "breached": 0, "unmeasurable": 0, "slas": []}
+    if sla_check and sla_check.details:
+        d = sla_check.details
+        sla_data["total"] = d.get("total_slas", 0)
+        sla_data["met"] = d.get("met", 0)
+        sla_data["breached"] = d.get("breached", 0)
+        sla_data["unmeasurable"] = d.get("unmeasurable", 0)
+        # Public-safe SLA results: description, target, status, severity (no internal paths)
+        for r in d.get("sla_results", []):
+            sla_data["slas"].append({
+                "description": r.get("description", ""),
+                "target": r.get("target", ""),
+                "window": r.get("window", ""),
+                "severity": r.get("severity", ""),
+                "status": r.get("status", ""),
+                "current_value": r.get("current_value"),
+                "metric": r.get("metric", ""),
+            })
+
+    # Overlay live availability from HealthPing (replaces stale cached value)
+    try:
+        from syn.audit.models import HealthPing
+        from django.utils import timezone as tz
+        now = tz.now()
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        pings = HealthPing.objects.filter(timestamp__gte=month_start)
+        total_pings = pings.count()
+        if total_pings > 0:
+            healthy_pings = pings.filter(is_healthy=True).count()
+            live_pct = (healthy_pings / total_pings) * 100
+            live_status = "met" if live_pct >= 99.9 else "breach"
+            for sla in sla_data["slas"]:
+                if sla.get("metric") == "availability":
+                    old_status = sla.get("status")
+                    sla["current_value"] = f"{live_pct:.2f}%"
+                    sla["status"] = live_status
+                    if old_status != live_status:
+                        if old_status == "breach" and live_status == "met":
+                            sla_data["met"] = sla_data["met"] + 1
+                            sla_data["breached"] = max(sla_data["breached"] - 1, 0)
+                        elif old_status == "met" and live_status == "breach":
+                            sla_data["met"] = max(sla_data["met"] - 1, 0)
+                            sla_data["breached"] = sla_data["breached"] + 1
+    except Exception:
+        pass  # Fall back to cached value
+
+    # Overall pass rate: infrastructure checks + standard assertions
+    # Warnings count against — only "pass" counts
+    all_total = checks_total + standards_total
+    all_passed = checks_passed + standards_passed
+    current_pass_rate = round(all_passed / all_total * 100, 1) if all_total else 0
+
+    latest_report = ComplianceReport.objects.filter(is_published=True).first()
+
+    # Most recent check run timestamp
+    last_check_run = max((c.run_at for c in current_checks), default=None) if current_checks else None
+
+    response = render(request, "compliance.html", {
+        "report": latest_report,
+        "current_pass_rate": current_pass_rate,
+        "current_checks": current_checks,
+        "current_total": all_total,
+        "current_passed": all_passed,
+        "categories": categories,
+        "standards": standards,
+        "standards_total": standards_total,
+        "standards_passed": standards_passed,
+        "soc2_controls_count": len(soc2_controls),
+        "tests_linked": tests_linked,
+        "tests_unique": tests_unique,
+        "tests_passed": tests_passed,
+        "tests_failed": tests_failed,
+        "tests_skipped": tests_skipped,
+        "sla_data": sla_data,
+        "last_check_run": last_check_run,
+    })
+    response["Cache-Control"] = "no-cache, must-revalidate, max-age=0"
+    return response
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@authentication_classes([])
+def compliance_data(request):
+    """Public API returning published compliance reports (redacted data only)."""
+    from syn.audit.models import ComplianceReport
+
+    reports = ComplianceReport.objects.filter(is_published=True).order_by("-period_start")[:6]
+    data = []
+    for r in reports:
+        data.append({
+            "period_start": r.period_start.isoformat(),
+            "period_end": r.period_end.isoformat(),
+            "pass_rate": r.pass_rate,
+            "total_checks": r.total_checks,
+            "public_report": r.public_report,
+        })
+
+    return Response({"reports": data})

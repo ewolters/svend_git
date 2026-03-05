@@ -66,9 +66,9 @@ def record_conversion(user, experiment_name, value=None):
     updated = ExperimentAssignment.objects.filter(
         experiment__name=experiment_name,
         user=user,
-        converted=False,
+        has_converted=False,
     ).update(
-        converted=True,
+        has_converted=True,
         converted_at=timezone.now(),
         conversion_value=value,
     )
@@ -92,7 +92,7 @@ def evaluate_experiment(experiment):
     for name in variant_names:
         qs = assignments.filter(variant=name)
         total = qs.count()
-        converted = qs.filter(converted=True).count()
+        converted = qs.filter(has_converted=True).count()
         results[name] = {
             "total": total,
             "converted": converted,

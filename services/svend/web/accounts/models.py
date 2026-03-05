@@ -53,7 +53,7 @@ class Subscription(models.Model):
     # Billing period
     current_period_start = models.DateTimeField(null=True, blank=True)
     current_period_end = models.DateTimeField(null=True, blank=True)
-    cancel_at_period_end = models.BooleanField(default=False)
+    is_cancel_at_period_end = models.BooleanField(default=False, db_column="cancel_at_period_end")
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -127,6 +127,59 @@ class InviteCode(models.Model):
         return codes
 
 
+class LoginAttempt(models.Model):
+    """Track failed login attempts for account lockout (SOC 2 CC6.1).
+
+    Lockout policy: 5 failed attempts in any rolling window triggers a
+    15-minute lockout for that username/email identifier.
+    """
+
+    MAX_ATTEMPTS = 5
+    LOCKOUT_MINUTES = 15
+
+    username = models.CharField(max_length=255, db_index=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    attempted_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    was_successful = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "login_attempts"
+
+    @classmethod
+    def is_locked_out(cls, username: str) -> bool:
+        """Check if the username is currently locked out."""
+        from django.utils import timezone
+
+        window_start = timezone.now() - timedelta(minutes=cls.LOCKOUT_MINUTES)
+        recent_failures = cls.objects.filter(
+            username__iexact=username,
+            was_successful=False,
+            attempted_at__gte=window_start,
+        ).count()
+        return recent_failures >= cls.MAX_ATTEMPTS
+
+    @classmethod
+    def record(cls, username: str, ip_address=None, was_successful: bool = False):
+        """Record a login attempt."""
+        cls.objects.create(
+            username=username[:255],
+            ip_address=ip_address,
+            was_successful=was_successful,
+        )
+
+    @classmethod
+    def clear_on_success(cls, username: str):
+        """Clear recent failed attempts after successful login."""
+        from django.utils import timezone
+
+        window_start = timezone.now() - timedelta(minutes=cls.LOCKOUT_MINUTES)
+        cls.objects.filter(
+            username__iexact=username,
+            was_successful=False,
+            attempted_at__gte=window_start,
+        ).delete()
+
+
 class User(AbstractUser):
     """Custom user model for Svend."""
 
@@ -149,7 +202,7 @@ class User(AbstractUser):
     stripe_customer_id_hash = models.CharField(max_length=64, blank=True, db_index=True)
 
     # Legacy fields (kept for backwards compat, use Subscription model instead)
-    subscription_active = models.BooleanField(default=False)
+    is_subscription_active = models.BooleanField(default=False, db_column="subscription_active")
     subscription_ends_at = models.DateTimeField(null=True, blank=True)
 
     # === Future features (nullable, no migration needed to enable) ===
@@ -190,9 +243,10 @@ class User(AbstractUser):
     onboarding_completed_at = models.DateTimeField(null=True, blank=True)
 
     # Email verification (token stored as SHA-256 hash)
-    email_verified = models.BooleanField(default=False)
+    is_email_verified = models.BooleanField(default=False, db_column="email_verified")
     email_verification_token = models.CharField(max_length=64, blank=True, db_index=True)
-    email_opted_out = models.BooleanField(default=False)
+    email_verification_token_sent_at = models.DateTimeField(null=True, blank=True)
+    is_email_opted_out = models.BooleanField(default=False, db_column="email_opted_out")
 
     class Meta:
         db_table = "users"
@@ -247,11 +301,14 @@ class User(AbstractUser):
         """Generate a new email verification token.
 
         Returns plaintext token (for the email link) but stores only
-        a SHA-256 hash in the database.
+        a SHA-256 hash in the database. Token expires in 24 hours.
         """
+        from django.utils import timezone
+
         plaintext = secrets.token_urlsafe(32)
         self.email_verification_token = hash_token(plaintext)
-        self.save(update_fields=["email_verification_token"])
+        self.email_verification_token_sent_at = timezone.now()
+        self.save(update_fields=["email_verification_token", "email_verification_token_sent_at"])
         return plaintext
 
     def send_verification_email(self):
@@ -283,10 +340,25 @@ If you didn't create this account, you can ignore this email.
         return True
 
     def verify_email(self, token: str) -> bool:
-        """Verify email with token. Compares hash of input to stored hash."""
-        if self.email_verification_token and self.email_verification_token == hash_token(token):
-            self.email_verified = True
+        """Verify email with token. Compares hash of input to stored hash.
+
+        Token expires 24 hours after generation (SOC 2 CC6.2).
+        """
+        from django.utils import timezone
+
+        if not self.email_verification_token:
+            return False
+
+        # Expiry check — 24 hours
+        if self.email_verification_token_sent_at:
+            age = timezone.now() - self.email_verification_token_sent_at
+            if age.total_seconds() > 86400:
+                return False
+
+        if self.email_verification_token == hash_token(token):
+            self.is_email_verified = True
             self.email_verification_token = ""
-            self.save(update_fields=["email_verified", "email_verification_token"])
+            self.email_verification_token_sent_at = None
+            self.save(update_fields=["is_email_verified", "email_verification_token", "email_verification_token_sent_at"])
             return True
         return False

@@ -150,11 +150,12 @@ select.iso-input { appearance: none; background-image: url("data:image/svg+xml,%
 .training-grid th { background: var(--bg-secondary); font-weight: 500; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; }
 .training-grid th:first-child { text-align: left; min-width: 200px; position: sticky; left: 0; background: var(--bg-secondary); z-index: 1; }
 .training-grid td:first-child { text-align: left; font-weight: 500; position: sticky; left: 0; background: var(--card-bg); z-index: 1; }
-.training-cell { width: 24px; height: 24px; border-radius: 4px; display: inline-block; cursor: help; }
-.training-cell.complete { background: #4ade80; }
-.training-cell.in_progress { background: #facc15; }
-.training-cell.not_started { background: #6b7280; }
-.training-cell.expired { background: #f87171; }
+.training-cell { width: 36px; height: 36px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 20px; cursor: help; line-height: 1; }
+.training-cell.cert-current { background: #4ade8033; }
+.training-cell.cert-expiring { background: #facc1533; }
+.training-cell.cert-expired { background: #f8717133; }
+.training-cell.cert-incomplete { background: #6b728033; }
+.training-cell.cert-not_required { background: transparent; }
 
 /* Review structured form */
 .review-section { margin-bottom: 20px; }
@@ -975,6 +976,11 @@ function renderTraining(el) {
     el.innerHTML = html;
 }
 
+// TWI competency model — Harvey ball glyphs (TRN-001 §2)
+const HARVEY = ['○', '◔', '◑', '◕', '●'];
+const COMP_LABELS = ['No Exposure', 'Awareness', 'Supervised', 'Competent', 'Trainer'];
+const CERT_LABELS = {current: 'Current', expiring: 'Expiring', expired: 'Expired', incomplete: 'Incomplete', not_required: 'Not Required'};
+
 function renderTrainingGrid() {
     // Collect all unique employees
     const employees = new Set();
@@ -1004,24 +1010,34 @@ function renderTrainingGrid() {
         empList.forEach(emp => {
             const record = lookup[`${req.id}|${emp}`];
             if (record) {
-                const s = record.status;
-                html += `<td><div class="training-cell ${s}" title="${emp}: ${s.replace(/_/g,' ')}"></div></td>`;
+                const level = record.competency_level || 0;
+                const glyph = HARVEY[level];
+                const cert = record.certification_status || 'incomplete';
+                const title = `${escHtml(emp)}: ${COMP_LABELS[level]} | ${CERT_LABELS[cert] || cert}`;
+                html += `<td><div class="training-cell cert-${cert}" title="${title}">${glyph}</div></td>`;
             } else {
-                html += '<td><div class="training-cell not_started" title="Not assigned" style="opacity:0.3"></div></td>';
+                html += `<td><div class="training-cell cert-not_required" title="${escHtml(emp)}: Not assigned">○</div></td>`;
             }
         });
         html += '</tr>';
     });
     html += '</tbody></table></div>';
 
-    // Legend
-    html += '<div style="margin-top:12px;display:flex;gap:16px;font-size:12px;color:var(--text-secondary)">';
-    html += '<span><span class="training-cell complete" style="width:12px;height:12px;vertical-align:middle"></span> Complete</span>';
-    html += '<span><span class="training-cell in_progress" style="width:12px;height:12px;vertical-align:middle"></span> In Progress</span>';
-    html += '<span><span class="training-cell not_started" style="width:12px;height:12px;vertical-align:middle"></span> Not Started</span>';
-    html += '<span><span class="training-cell expired" style="width:12px;height:12px;vertical-align:middle"></span> Expired</span>';
-    html += '<span style="color:#f87171">* Mandatory</span>';
+    // Legend — Row 1: Harvey ball competency levels
+    html += '<div style="margin-top:12px;font-size:12px;color:var(--text-secondary)">';
+    html += '<div style="display:flex;gap:16px;margin-bottom:6px">';
+    html += '<strong style="min-width:80px">Competency:</strong>';
+    HARVEY.forEach((g, i) => html += `<span>${g} ${COMP_LABELS[i]}</span>`);
     html += '</div>';
+    // Legend — Row 2: Certification status backgrounds
+    html += '<div style="display:flex;gap:16px">';
+    html += '<strong style="min-width:80px">Certification:</strong>';
+    html += '<span><span class="training-cell cert-current" style="width:14px;height:14px;font-size:10px;vertical-align:middle;border-radius:3px">●</span> Current</span>';
+    html += '<span><span class="training-cell cert-expiring" style="width:14px;height:14px;font-size:10px;vertical-align:middle;border-radius:3px">●</span> Expiring</span>';
+    html += '<span><span class="training-cell cert-expired" style="width:14px;height:14px;font-size:10px;vertical-align:middle;border-radius:3px">●</span> Expired</span>';
+    html += '<span><span class="training-cell cert-incomplete" style="width:14px;height:14px;font-size:10px;vertical-align:middle;border-radius:3px">●</span> Incomplete</span>';
+    html += '<span style="color:#f87171">* Mandatory</span>';
+    html += '</div></div>';
     return html;
 }
 
@@ -1042,11 +1058,14 @@ function renderTrainingList() {
         </div>`;
 
         if (req.records?.length) {
-            html += '<table class="iso-table" style="margin-bottom:8px"><thead><tr><th>Employee</th><th>Status</th><th>Completed</th><th>Expires</th><th></th></tr></thead><tbody>';
+            html += '<table class="iso-table" style="margin-bottom:8px"><thead><tr><th>Employee</th><th>Competency</th><th>Cert Status</th><th>Completed</th><th>Expires</th><th></th></tr></thead><tbody>';
             req.records.forEach(r => {
+                const level = r.competency_level || 0;
+                const cert = r.certification_status || 'incomplete';
                 html += `<tr>
                     <td>${escHtml(r.employee_name)}${r.employee_email ? `<div style="font-size:11px;color:var(--text-dim)">${escHtml(r.employee_email)}</div>` : ''}</td>
-                    <td>${badge(r.status)}</td>
+                    <td><span style="font-size:16px">${HARVEY[level]}</span> <span style="font-size:11px;color:var(--text-dim)">${COMP_LABELS[level]}</span></td>
+                    <td>${badge(cert, CERT_LABELS[cert] || cert)}</td>
                     <td style="font-size:12px">${fmtDate(r.completed_at)}</td>
                     <td style="font-size:12px">${fmtDate(r.expires_at)}</td>
                     <td style="text-align:right;white-space:nowrap">
@@ -1057,7 +1076,7 @@ function renderTrainingList() {
                     </td>
                 </tr>`;
                 html += `<tr id="edit-row-${r.id}" style="display:none">
-                    <td colspan="5">
+                    <td colspan="7">
                         <div class="iso-form" style="margin:0;padding:8px">
                             <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
                                 <div><label class="iso-label">Name</label><input class="iso-input" id="edit-name-${r.id}" value="${escHtml(r.employee_name)}" style="width:160px"></div>
@@ -1068,6 +1087,11 @@ function renderTrainingList() {
                                         <option value="in_progress" ${r.status==='in_progress'?'selected':''}>In Progress</option>
                                         <option value="complete" ${r.status==='complete'?'selected':''}>Complete</option>
                                         <option value="expired" ${r.status==='expired'?'selected':''}>Expired</option>
+                                    </select>
+                                </div>
+                                <div><label class="iso-label">Competency</label>
+                                    <select class="iso-input" id="edit-competency-${r.id}" style="width:150px">
+                                        ${COMP_LABELS.map((lbl, i) => `<option value="${i}" ${(r.competency_level||0)===i?'selected':''}>${HARVEY[i]} ${lbl}</option>`).join('')}
                                     </select>
                                 </div>
                                 <div><label class="iso-label">Notes</label><input class="iso-input" id="edit-notes-${r.id}" value="${escHtml(r.notes || '')}" style="width:200px"></div>
@@ -1106,6 +1130,11 @@ function renderTrainingList() {
         html += `<div style="display:flex;gap:8px;align-items:end">
             <div><label class="iso-label">Employee Name</label><input class="iso-input" id="emp-name-${req.id}" style="width:180px"></div>
             <div><label class="iso-label">Email</label><input class="iso-input" id="emp-email-${req.id}" style="width:180px"></div>
+            <div><label class="iso-label">Competency</label>
+                <select class="iso-input" id="emp-competency-${req.id}" style="width:150px">
+                    ${COMP_LABELS.map((lbl, i) => `<option value="${i}">${HARVEY[i]} ${lbl}</option>`).join('')}
+                </select>
+            </div>
             <button class="iso-btn small" onclick="addEmployee('${req.id}')">Add Employee</button>
         </div>`;
         html += '</div>';
@@ -1165,6 +1194,7 @@ async function addEmployee(reqId) {
         await apiFetch(`/training/${reqId}/records/`, { method: 'POST', body: {
             employee_name: name,
             employee_email: document.getElementById(`emp-email-${reqId}`).value,
+            competency_level: parseInt(document.getElementById(`emp-competency-${reqId}`).value),
         }});
         toast('Employee added');
         loadTraining();
@@ -1201,6 +1231,7 @@ async function saveRecordEdit(id) {
             employee_name: name,
             employee_email: document.getElementById(`edit-email-${id}`).value,
             status: document.getElementById(`edit-status-${id}`).value,
+            competency_level: parseInt(document.getElementById(`edit-competency-${id}`).value),
             notes: document.getElementById(`edit-notes-${id}`).value,
         }});
         toast('Record updated');

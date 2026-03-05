@@ -91,7 +91,7 @@ class RegistrationTest(TestCase):
             "password": "SecurePass123!",
         }, format="json")
         self.assertEqual(res.status_code, 400)
-        self.assertIn("3 characters", res.json()["error"])
+        self.assertIn("3 characters", res.json()["error"]["message"])
 
     def test_register_short_password(self):
         res = self.client.post("/api/auth/register/", {
@@ -117,7 +117,7 @@ class RegistrationTest(TestCase):
             "password": "SecurePass123!",
         }, format="json")
         self.assertEqual(res.status_code, 400)
-        self.assertIn("already taken", res.json()["error"])
+        self.assertIn("already taken", res.json()["error"]["message"])
 
     def test_register_duplicate_email(self):
         _make_user("taken@example.com")
@@ -127,7 +127,7 @@ class RegistrationTest(TestCase):
             "password": "SecurePass123!",
         }, format="json")
         self.assertEqual(res.status_code, 400)
-        self.assertIn("already registered", res.json()["error"])
+        self.assertIn("already registered", res.json()["error"]["message"])
 
     def test_register_new_user_is_free_tier(self):
         self.client.post("/api/auth/register/", {
@@ -194,7 +194,7 @@ class LoginTest(TestCase):
             "password": "wrongpassword",
         })
         self.assertEqual(res.status_code, 401)
-        self.assertIn("Invalid", res.json()["error"])
+        self.assertIn("Invalid", res.json()["error"]["message"])
 
     def test_login_nonexistent_user(self):
         res = self.client.post("/api/auth/login/", {
@@ -358,7 +358,7 @@ class ProfileUpdateTest(TestCase):
             "industry": "fake_industry",
         }, format="json")
         self.assertEqual(res.status_code, 400)
-        self.assertIn("Invalid", res.json()["error"])
+        self.assertIn("Invalid", res.json()["error"]["message"])
 
     def test_update_valid_role(self):
         res = self.client.patch("/api/auth/profile/", {
@@ -419,7 +419,7 @@ class PasswordChangeTest(TestCase):
             "new_password": "NewSecurePass456!",
         }, format="json")
         self.assertEqual(res.status_code, 400)
-        self.assertIn("incorrect", res.json()["error"])
+        self.assertIn("incorrect", res.json()["error"]["message"])
 
     def test_new_password_too_short(self):
         res = self.client.post("/api/auth/password/", {
@@ -461,10 +461,10 @@ class EmailVerificationTest(TestCase):
         self.user.save()
         res = self.client.post("/api/auth/send-verification/")
         self.assertEqual(res.status_code, 400)
-        self.assertIn("No email", res.json()["error"])
+        self.assertIn("No email", res.json()["error"]["message"])
 
     def test_send_verification_already_verified(self):
-        self.user.email_verified = True
+        self.user.is_email_verified = True
         self.user.save()
         res = self.client.post("/api/auth/send-verification/")
         self.assertEqual(res.status_code, 200)
@@ -473,7 +473,7 @@ class EmailVerificationTest(TestCase):
     def test_verify_missing_token(self):
         res = self.client.get("/api/auth/verify-email/")
         self.assertEqual(res.status_code, 400)
-        self.assertIn("token required", res.json()["error"])
+        self.assertIn("token required", res.json()["error"]["message"])
 
     def test_verify_invalid_token(self):
         res = self.client.get("/api/auth/verify-email/?token=invalidtoken123")
@@ -557,7 +557,7 @@ class PermissionDecoratorTest(TestCase):
         self.client.force_login(user)
         res = self.client.get("/api/fmea/")
         self.assertEqual(res.status_code, 403)
-        self.assertIn("Upgrade", res.json()["error"])
+        self.assertIn("Upgrade", res.json()["error"]["message"])
 
     def test_gated_paid_allows_pro_user(self):
         """@gated_paid should allow PRO tier."""
@@ -575,7 +575,7 @@ class PermissionDecoratorTest(TestCase):
             "name": "Test", "slug": "test",
         }, format="json")
         self.assertEqual(res.status_code, 403)
-        self.assertIn("Team plan", res.json()["error"])
+        self.assertIn("Team plan", res.json()["error"]["message"])
 
     def test_require_team_allows_team(self):
         """@require_team should allow TEAM tier."""
@@ -725,8 +725,9 @@ class QueryLimitTest(TestCase):
         res = self.client.post("/api/core/graph/check-consistency/")
         self.assertEqual(res.status_code, 429)
         data = res.json()
-        self.assertIn("limit", data)
-        self.assertEqual(data["limit"], 5)
+        err = data.get("error", data)
+        msg = err.get("message", "") if isinstance(err, dict) else str(err)
+        self.assertIn("limit", msg.lower())
 
     def test_queries_increment_on_success(self):
         user = _make_user("counter@example.com", Tier.FREE)

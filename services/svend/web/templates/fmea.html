@@ -10,7 +10,7 @@
     padding: 20px;
 }
 
-/* ============ LIST VIEW ============ */
+/* ============ FMEA LIST PAGE (card grid of FMEAs) ============ */
 
 .fmea-list-header {
     display: flex;
@@ -135,7 +135,7 @@
 
 .fmea-empty h3 { margin: 0 0 8px; color: var(--text-secondary); }
 
-/* ============ EDITOR VIEW ============ */
+/* ============ EDITOR TOOLBAR ============ */
 
 .fmea-toolbar {
     display: flex;
@@ -206,88 +206,103 @@
 
 .fmea-spacer { flex: 1; }
 
-/* ============ TABLE ============ */
+/* ============ ROW LIST (replaces table) ============ */
 
-.fmea-table-wrapper {
-    overflow-x: auto;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
+.fmea-row-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
     margin-bottom: 20px;
 }
 
-.fmea-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
+.fmea-row-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
 }
 
-.fmea-table th {
-    background: var(--bg-tertiary);
-    padding: 8px 10px;
-    text-align: left;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-dim);
-    border-bottom: 1px solid var(--border);
-    white-space: nowrap;
-    position: sticky;
-    top: 0;
-    z-index: 1;
-}
-
-.fmea-table td {
-    padding: 6px 8px;
-    border-bottom: 1px solid var(--border);
-    vertical-align: top;
-}
-
-.fmea-table tr:last-child td { border-bottom: none; }
-
-.fmea-table tr:hover { background: var(--bg-hover); }
-
-.fmea-table input,
-.fmea-table textarea,
-.fmea-table select {
-    width: 100%;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 3px;
-    color: var(--text-primary);
-    padding: 4px 6px;
-    font-size: 13px;
-    font-family: inherit;
-}
-
-.fmea-table input:hover, .fmea-table textarea:hover,
-.fmea-table input:focus, .fmea-table textarea:focus {
-    border-color: var(--border);
-    outline: none;
-}
-
-.fmea-table input:focus, .fmea-table textarea:focus {
+.fmea-row-item:hover {
     border-color: var(--accent);
+    background: var(--bg-hover, var(--bg-card));
 }
 
-.fmea-table textarea {
-    min-height: 40px;
-    resize: vertical;
-}
-
-.fmea-table .score-input {
-    width: 45px;
-    text-align: center;
+.fmea-row-num {
+    font-size: 12px;
+    color: var(--text-dim);
     font-weight: 600;
+    min-width: 20px;
+    text-align: center;
 }
 
-.fmea-table .rpn-cell {
+.fmea-row-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.fmea-row-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fmea-row-title .process-step {
+    font-weight: 400;
+    color: var(--text-dim);
+    font-size: 12px;
+}
+
+.fmea-row-title .hyp-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+}
+
+.fmea-row-detail {
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.fmea-row-detail .dim-label {
+    color: var(--text-dim);
+}
+
+.fmea-row-scores {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.fmea-row-scores .sod {
+    font-size: 11px;
+    color: var(--text-dim);
+    white-space: nowrap;
+}
+
+.rpn-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 10px;
+    border-radius: 6px;
     font-weight: 700;
+    font-size: 13px;
+    min-width: 48px;
     text-align: center;
-    padding: 6px 10px;
-    border-radius: 4px;
-    min-width: 50px;
 }
 
 .rpn-low { background: rgba(46, 204, 113, 0.15); color: #2ecc71; }
@@ -295,44 +310,302 @@
 .rpn-high { background: rgba(243, 156, 18, 0.15); color: #f39c12; }
 .rpn-critical { background: rgba(231, 76, 60, 0.15); color: #e74c3c; }
 
-.fmea-row-actions {
-    display: flex;
-    gap: 4px;
-    align-items: center;
+.prpn-arrow {
+    font-size: 11px;
+    color: var(--text-dim);
 }
 
-.fmea-row-btn {
-    width: 24px;
-    height: 24px;
+.fmea-row-status {
     display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.status-pill {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.status-pill.not_started { background: rgba(255,255,255,0.05); color: var(--text-dim); }
+.status-pill.in_progress { background: rgba(52, 152, 219, 0.15); color: #3498db; }
+.status-pill.complete { background: rgba(46, 204, 113, 0.15); color: #2ecc71; }
+
+.fmea-row-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-dim);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+/* ============ EDIT MODAL ============ */
+
+.fmea-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 1000;
+    display: none;
     align-items: center;
     justify-content: center;
-    border: none;
-    background: transparent;
-    color: var(--text-dim);
-    cursor: pointer;
-    border-radius: 4px;
-    font-size: 14px;
 }
 
-.fmea-row-btn:hover { background: var(--bg-hover); color: var(--accent); }
-.fmea-row-btn.delete:hover { color: #e74c3c; }
+.fmea-modal-overlay.active { display: flex; }
 
-/* Revised scores column */
-.revised-group {
+.fmea-modal-backdrop {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.75);
+}
+
+.fmea-modal {
+    position: relative;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: 500px;
+    max-width: 90vw;
+    max-height: 85vh;
+    overflow: hidden;
     display: flex;
-    gap: 2px;
+    flex-direction: column;
+}
+
+.fmea-modal.wide {
+    width: 700px;
+}
+
+.fmea-modal-header {
+    display: flex;
+    justify-content: space-between;
     align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
 }
 
-.revised-group input {
-    width: 32px;
-    text-align: center;
+.fmea-modal-header h3 { margin: 0; font-weight: 500; font-size: 1.1rem; }
+
+.fmea-modal-body {
+    padding: 1.25rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.fmea-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--border);
+}
+
+.fmea-modal-close { background: transparent; border: none; color: var(--text-dim); font-size: 1.5rem; cursor: pointer; padding: 0; line-height: 1; }
+.fmea-modal-close:hover { color: var(--text-primary); }
+
+/* Edit modal sections */
+.edit-section {
+    margin-bottom: 1.25rem;
+}
+
+.edit-section:last-child { margin-bottom: 0; }
+
+.edit-section-label {
     font-size: 11px;
-    padding: 2px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
 }
 
-.revised-group .sep { color: var(--text-dim); font-size: 10px; }
+.edit-field {
+    margin-bottom: 10px;
+}
+
+.edit-field:last-child { margin-bottom: 0; }
+
+.edit-field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 3px;
+}
+
+.edit-field input,
+.edit-field textarea,
+.edit-field select {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+}
+
+.edit-field input:focus,
+.edit-field textarea:focus {
+    border-color: var(--accent);
+    outline: none;
+}
+
+.edit-field textarea {
+    min-height: 50px;
+    resize: vertical;
+}
+
+.edit-scoring-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.edit-scoring-row .score-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.edit-scoring-row .score-group label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin: 0;
+}
+
+.edit-scoring-row .score-input {
+    width: 50px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 6px;
+}
+
+.edit-scoring-row .multiply {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin-top: 14px;
+}
+
+.edit-scoring-row .equals {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin-top: 14px;
+}
+
+.edit-rpn-result {
+    margin-top: 14px;
+}
+
+.edit-inline-row {
+    display: flex;
+    gap: 10px;
+}
+
+.edit-inline-row .edit-field { flex: 1; }
+.edit-inline-row .edit-field.narrow { flex: 0 0 auto; min-width: 130px; }
+
+.edit-reduction {
+    font-size: 12px;
+    color: #2ecc71;
+    margin-top: 6px;
+    font-weight: 500;
+}
+
+.edit-section-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0;
+}
+
+/* Action tracking in modal */
+.fmea-track-btn {
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    background: transparent;
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    color: var(--accent);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+}
+
+.fmea-track-btn:hover {
+    background: var(--accent);
+    color: white;
+}
+
+.fmea-tracked-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(46, 204, 113, 0.15);
+    border: 1px solid rgba(46, 204, 113, 0.3);
+    border-radius: 4px;
+    color: #2ecc71;
+    white-space: nowrap;
+}
+
+/* Hypothesis item in link modal */
+.fmea-modal .hypothesis-item {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.fmea-modal .hypothesis-item:hover {
+    border-color: var(--accent);
+    background: var(--bg-hover);
+}
+
+.fmea-modal .hypothesis-item .statement {
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.fmea-modal .hypothesis-item .prob {
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+/* Create modal form */
+.fmea-create-form label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    margin-top: 12px;
+}
+
+.fmea-create-form input,
+.fmea-create-form select,
+.fmea-create-form textarea {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+}
+
+.fmea-create-form textarea { min-height: 60px; resize: vertical; }
 
 /* ============ PANELS ============ */
 
@@ -383,154 +656,7 @@
 
 #pareto-chart { width: 100%; height: 300px; }
 
-/* ============ MODAL (matches DSW pattern) ============ */
-
-.fmea-modal-overlay {
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    z-index: 1000;
-    display: none;
-    align-items: center;
-    justify-content: center;
-}
-
-.fmea-modal-overlay.active { display: flex; }
-
-.fmea-modal-backdrop {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.75);
-}
-
-.fmea-modal {
-    position: relative;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    width: 500px;
-    max-width: 90vw;
-    max-height: 85vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.fmea-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid var(--border);
-}
-
-.fmea-modal-header h3 { margin: 0; font-weight: 500; font-size: 1.1rem; }
-
-.fmea-modal-body {
-    padding: 1.25rem;
-    overflow-y: auto;
-    flex: 1;
-}
-
-.fmea-modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-    padding: 1rem 1.25rem;
-    border-top: 1px solid var(--border);
-}
-
-.fmea-modal-close { background: transparent; border: none; color: var(--text-dim); font-size: 1.5rem; cursor: pointer; padding: 0; line-height: 1; }
-.fmea-modal-close:hover { color: var(--text-primary); }
-
-.fmea-modal .hypothesis-item {
-    padding: 10px 12px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    margin-bottom: 8px;
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.fmea-modal .hypothesis-item:hover {
-    border-color: var(--accent);
-    background: var(--bg-hover);
-}
-
-.fmea-modal .hypothesis-item .statement {
-    font-size: 13px;
-    margin-bottom: 4px;
-}
-
-.fmea-modal .hypothesis-item .prob {
-    font-size: 12px;
-    color: var(--text-dim);
-}
-
-.fmea-modal .close-btn {
-    float: right;
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    cursor: pointer;
-    font-size: 18px;
-}
-
-/* Create modal */
-.fmea-create-form label {
-    display: block;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    margin-bottom: 4px;
-    margin-top: 12px;
-}
-
-.fmea-create-form input,
-.fmea-create-form select,
-.fmea-create-form textarea {
-    width: 100%;
-    padding: 8px 10px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text-primary);
-    font-size: 13px;
-    font-family: inherit;
-}
-
-.fmea-create-form textarea { min-height: 60px; resize: vertical; }
-
-/* ============ ACTION TRACKING ============ */
-
-.fmea-track-btn {
-    padding: 2px 8px;
-    font-size: 11px;
-    font-weight: 500;
-    background: transparent;
-    border: 1px solid var(--accent);
-    border-radius: 4px;
-    color: var(--accent);
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.15s;
-}
-
-.fmea-track-btn:hover {
-    background: var(--accent);
-    color: white;
-}
-
-.fmea-tracked-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    font-size: 11px;
-    font-weight: 600;
-    background: rgba(46, 204, 113, 0.15);
-    border: 1px solid rgba(46, 204, 113, 0.3);
-    border-radius: 4px;
-    color: #2ecc71;
-    white-space: nowrap;
-}
+/* ============ ACTION ITEMS PANEL ============ */
 
 .fmea-action-items-panel {
     background: var(--bg-card);
@@ -581,19 +707,12 @@
     border-radius: 4px;
     color: var(--text-primary);
 }
-
-.fmea-action-empty {
-    text-align: center;
-    padding: 16px;
-    color: var(--text-dim);
-    font-size: 13px;
-}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="fmea-container" id="fmea-app">
-    <!-- List View -->
+    <!-- List View (FMEA studies) -->
     <div id="fmea-list-view" style="display:none;">
         <div class="fmea-list-header">
             <h1>FMEA Studies</h1>
@@ -631,6 +750,7 @@
                 </select>
             </div>
             <div class="fmea-toolbar-group">
+                <span style="font-size:12px;color:var(--text-dim);">Study:</span>
                 <select class="fmea-project-select" id="fmea-project" onchange="saveMeta()">
                     <option value="">No study linked</option>
                 </select>
@@ -638,73 +758,13 @@
             <div class="fmea-spacer"></div>
             <div class="fmea-toolbar-group">
                 <button class="fmea-btn small" onclick="addRow()">+ Add Row</button>
-                <button class="fmea-btn small" onclick="refreshSummary()">Summary</button>
+                <button class="fmea-btn small" id="summary-toggle-btn" onclick="toggleSummary()">Summary</button>
                 <button class="fmea-btn small danger" onclick="confirmDeleteFmea()">Delete</button>
             </div>
         </div>
 
-        <!-- Quick Reference -->
-        <details style="margin:0 12px 12px; padding:0.6rem 0.8rem; background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; cursor:pointer;">
-            <summary style="font-size:0.78rem; font-weight:600; color:var(--accent-primary); list-style:none; display:flex; align-items:center; gap:0.35rem;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                Scoring guide &amp; hypothesis linking
-            </summary>
-            <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.5; padding-top:0.5rem;">
-                <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:0.75rem; margin-bottom:0.6rem;">
-                    <div>
-                        <strong>Severity (S)</strong> — How bad is the effect?<br>
-                        1 = No effect<br>
-                        4-6 = Moderate disruption<br>
-                        8 = Major (customer affected)<br>
-                        10 = Safety/regulatory hazard
-                    </div>
-                    <div>
-                        <strong>Occurrence (O)</strong> — How often does it happen?<br>
-                        1 = Almost never<br>
-                        4-6 = Occasional<br>
-                        8 = Frequent<br>
-                        10 = Almost certain
-                    </div>
-                    <div>
-                        <strong>Detection (D)</strong> — Can you catch it before it reaches the customer?<br>
-                        1 = Always detected<br>
-                        4-6 = Moderate chance of detection<br>
-                        8 = Low chance<br>
-                        10 = Undetectable
-                    </div>
-                </div>
-                <p style="margin:0 0 0.4rem;"><strong>RPN</strong> = S &times; O &times; D (1-1000). Focus on the highest RPNs first. Color coding: <span style="color:#e74c3c;">red &gt;200</span>, <span style="color:#f39c12;">orange 100-200</span>, <span style="color:#f1c40f;">yellow 50-100</span>, <span style="color:#27ae60;">green &lt;50</span>.</p>
-                <p style="margin:0 0 0.4rem;"><strong>Linking to hypotheses:</strong> Link a study above, then click the circle icon on any row to connect a failure mode to a hypothesis. This creates formal evidence with a computed likelihood ratio (from S&times;O) and automatically updates hypothesis probability via Bayes' theorem.</p>
-                <p style="margin:0;"><strong>After corrective action:</strong> Fill in revised S/O/D scores. If the RPN decreases and the row is linked, Svend records the improvement as opposing evidence — the hypothesis probability adjusts downward.</p>
-            </div>
-        </details>
-
-        <!-- FMEA Table -->
-        <div class="fmea-table-wrapper">
-            <table class="fmea-table">
-                <thead>
-                    <tr>
-                        <th style="width:30px">#</th>
-                        <th style="min-width:100px">Process Step</th>
-                        <th style="min-width:130px">Failure Mode</th>
-                        <th style="min-width:120px">Effect</th>
-                        <th style="width:45px">S</th>
-                        <th style="min-width:100px">Cause</th>
-                        <th style="width:45px">O</th>
-                        <th style="min-width:100px">Controls</th>
-                        <th style="width:45px">D</th>
-                        <th style="width:60px">RPN</th>
-                        <th style="min-width:120px">Action</th>
-                        <th style="width:80px">Owner</th>
-                        <th style="width:90px">Status</th>
-                        <th style="width:100px">Revised S/O/D</th>
-                        <th style="width:60px">New RPN</th>
-                        <th style="width:70px"></th>
-                    </tr>
-                </thead>
-                <tbody id="fmea-tbody"></tbody>
-            </table>
-        </div>
+        <!-- Failure Mode List -->
+        <div class="fmea-row-list" id="fmea-row-list"></div>
 
         <!-- Summary Panels -->
         <div class="fmea-panels" id="fmea-panels" style="display:none;">
@@ -780,6 +840,19 @@
     </div>
 </div>
 
+<!-- Edit Row Modal -->
+<div class="fmea-modal-overlay" id="edit-modal">
+    <div class="fmea-modal-backdrop" onclick="closeEditModal()"></div>
+    <div class="fmea-modal wide">
+        <div class="fmea-modal-header">
+            <h3 id="edit-modal-title">Edit Failure Mode</h3>
+            <button class="fmea-modal-close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <div class="fmea-modal-body" id="edit-modal-body"></div>
+        <div class="fmea-modal-footer" id="edit-modal-footer"></div>
+    </div>
+</div>
+
 <script>
 const API = '/api/fmea/';
 let currentFmea = null;
@@ -788,23 +861,23 @@ let availableHypotheses = [];
 let projects = [];
 let currentActionItems = [];
 let linkingRowId = null;
+let editingRowId = null;
 let saveTimer = null;
 
 // ====== INIT ======
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Load projects for dropdowns
     try {
         const resp = await fetch('/api/core/projects/', {credentials: 'include'});
         if (resp.ok) {
             const data = await resp.json();
-            projects = data.projects || [];
+            // DRF returns flat list, not {projects: [...]}
+            projects = Array.isArray(data) ? data : (data.projects || []);
         }
     } catch(e) {}
 
     populateProjectDropdowns();
 
-    // Route: /app/fmea/<id>/ or /app/fmea/
     const path = window.location.pathname;
     const match = path.match(/\/app\/fmea\/([0-9a-f-]+)\//);
     if (match) {
@@ -815,19 +888,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function populateProjectDropdowns() {
+    const labels = {'create-project': 'None', 'fmea-project': 'No study linked'};
     ['create-project', 'fmea-project'].forEach(id => {
         const sel = document.getElementById(id);
         if (!sel) return;
         const val = sel.value;
-        sel.innerHTML = '<option value="">None</option>';
+        sel.innerHTML = `<option value="">${labels[id]}</option>`;
         projects.forEach(p => {
-            sel.innerHTML += `<option value="${p.id}">${p.title}</option>`;
+            sel.innerHTML += `<option value="${p.id}">${esc(p.title)}</option>`;
         });
         sel.value = val;
     });
 }
 
-// ====== LIST VIEW ======
+// ====== LIST VIEW (FMEA studies) ======
 
 async function loadList() {
     document.getElementById('fmea-list-view').style.display = '';
@@ -889,92 +963,270 @@ async function loadFmea(id) {
     populateProjectDropdowns();
     document.getElementById('fmea-project').value = currentFmea.project_id || '';
 
-    renderTable();
+    renderRows();
     renderFmeaActionItems(currentActionItems);
-    refreshSummary();
 }
 
-function renderTable() {
-    const tbody = document.getElementById('fmea-tbody');
+// ====== ROW LIST RENDERING ======
+
+function renderRows() {
+    const container = document.getElementById('fmea-row-list');
     if (currentRows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="16" style="text-align:center;padding:40px;color:var(--text-dim);">
-            No failure modes yet. Click "+ Add Row" to start.
-        </td></tr>`;
+        container.innerHTML = '<div class="fmea-row-empty">No failure modes yet. Click "+ Add Row" to start.</div>';
         return;
     }
 
-    tbody.innerHTML = currentRows.map((r, i) => `
-        <tr data-id="${r.id}">
-            <td style="color:var(--text-dim);text-align:center;">${i+1}</td>
-            <td><input value="${esc(r.process_step)}" data-field="process_step" onchange="saveRow('${r.id}', this)"></td>
-            <td><input value="${esc(r.failure_mode)}" data-field="failure_mode" onchange="saveRow('${r.id}', this)"></td>
-            <td><textarea data-field="effect" onchange="saveRow('${r.id}', this)">${esc(r.effect)}</textarea></td>
-            <td><input type="number" min="1" max="10" class="score-input" value="${r.severity}" data-field="severity" onchange="saveRow('${r.id}', this)"></td>
-            <td><textarea data-field="cause" onchange="saveRow('${r.id}', this)">${esc(r.cause)}</textarea></td>
-            <td><input type="number" min="1" max="10" class="score-input" value="${r.occurrence}" data-field="occurrence" onchange="saveRow('${r.id}', this)"></td>
-            <td><textarea data-field="current_controls" onchange="saveRow('${r.id}', this)">${esc(r.current_controls)}</textarea></td>
-            <td><input type="number" min="1" max="10" class="score-input" value="${r.detection}" data-field="detection" onchange="saveRow('${r.id}', this)"></td>
-            <td><span class="rpn-cell ${rpnClass(r.rpn)}">${r.rpn}</span></td>
-            <td>
-                <textarea data-field="recommended_action" onchange="saveRow('${r.id}', this)">${esc(r.recommended_action)}</textarea>
-                ${r.recommended_action ? (isRowTracked(r.id)
-                    ? '<span class="fmea-tracked-badge">Tracked</span>'
-                    : `<button class="fmea-track-btn" onclick="promoteFmeaAction('${currentFmea.id}', '${r.id}')">Track</button>`
-                ) : ''}
-            </td>
-            <td><input value="${esc(r.action_owner)}" data-field="action_owner" onchange="saveRow('${r.id}', this)"></td>
-            <td>
-                <select data-field="action_status" onchange="saveRow('${r.id}', this)">
-                    <option value="not_started" ${r.action_status==='not_started'?'selected':''}>Not Started</option>
-                    <option value="in_progress" ${r.action_status==='in_progress'?'selected':''}>In Progress</option>
-                    <option value="complete" ${r.action_status==='complete'?'selected':''}>Complete</option>
-                </select>
-            </td>
-            <td>
-                <div class="revised-group">
-                    <input type="number" min="1" max="10" value="${r.revised_severity||''}" placeholder="S"
-                        data-field="revised_severity" onchange="saveRevision('${r.id}')">
-                    <span class="sep">/</span>
-                    <input type="number" min="1" max="10" value="${r.revised_occurrence||''}" placeholder="O"
-                        data-field="revised_occurrence" onchange="saveRevision('${r.id}')">
-                    <span class="sep">/</span>
-                    <input type="number" min="1" max="10" value="${r.revised_detection||''}" placeholder="D"
-                        data-field="revised_detection" onchange="saveRevision('${r.id}')">
+    container.innerHTML = currentRows.map((r, i) => {
+        const hasAction = r.recommended_action || r.action_owner;
+        const statusLabel = {not_started: 'Not Started', in_progress: 'In Progress', complete: 'Complete'};
+
+        let rpnHtml = `<span class="rpn-badge ${rpnClass(r.rpn)}">${r.rpn}</span>`;
+        if (r.revised_rpn) {
+            rpnHtml += `<span class="prpn-arrow">&rarr;</span>`;
+            rpnHtml += `<span class="rpn-badge ${rpnClass(r.revised_rpn)}">${r.revised_rpn}</span>`;
+        }
+
+        let detailParts = [];
+        if (r.effect) detailParts.push(`<span><span class="dim-label">Effect:</span> ${esc(truncate(r.effect, 60))}</span>`);
+        if (r.cause) detailParts.push(`<span><span class="dim-label">Cause:</span> ${esc(truncate(r.cause, 60))}</span>`);
+
+        return `
+        <div class="fmea-row-item" onclick="openEditModal('${r.id}')">
+            <div class="fmea-row-num">${i + 1}</div>
+            <div class="fmea-row-body">
+                <div class="fmea-row-title">
+                    ${r.process_step ? `<span class="process-step">${esc(r.process_step)}</span>` : ''}
+                    <span>${esc(r.failure_mode)}</span>
+                    ${r.hypothesis_id ? '<span class="hyp-dot" title="Linked to hypothesis"></span>' : ''}
                 </div>
-            </td>
-            <td>
-                ${r.revised_rpn ? `<span class="rpn-cell ${rpnClass(r.revised_rpn)}">${r.revised_rpn}</span>` : '<span style="color:var(--text-dim);">—</span>'}
-            </td>
-            <td>
-                <div class="fmea-row-actions">
-                    <button class="fmea-row-btn" title="Link to hypothesis" onclick="showLinkModal('${r.id}')">
-                        ${r.hypothesis_id ? '<span style="color:var(--accent);">&#9679;</span>' : '&#9675;'}
-                    </button>
-                    <button class="fmea-row-btn delete" title="Delete row" onclick="deleteRow('${r.id}')">&#10005;</button>
-                </div>
-            </td>
-        </tr>
-    `).join('');
+                ${detailParts.length ? `<div class="fmea-row-detail">${detailParts.join('')}</div>` : ''}
+            </div>
+            <div class="fmea-row-scores">
+                <span class="sod">${r.severity}&times;${r.occurrence}&times;${r.detection}</span>
+                ${rpnHtml}
+            </div>
+            ${hasAction ? `
+            <div class="fmea-row-status">
+                ${r.action_owner ? `<span style="font-size:12px;color:var(--text-dim);">${esc(r.action_owner)}</span>` : ''}
+                <span class="status-pill ${r.action_status}">${statusLabel[r.action_status] || ''}</span>
+            </div>` : ''}
+        </div>`;
+    }).join('');
 }
 
-// ====== ROW OPERATIONS ======
+// ====== EDIT MODAL ======
 
-async function addRow() {
-    const resp = await fetch(API + currentFmea.id + '/rows/', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({failure_mode: 'New failure mode'}),
+function openEditModal(rowId) {
+    editingRowId = rowId;
+    const r = currentRows.find(row => row.id === rowId);
+    if (!r) return;
+
+    const idx = currentRows.indexOf(r);
+    const tracked = isRowTracked(r.id);
+    const statusLabel = {not_started: 'Not Started', in_progress: 'In Progress', complete: 'Complete'};
+
+    document.getElementById('edit-modal-title').textContent = `#${idx + 1} — ${r.failure_mode || 'New Failure Mode'}`;
+
+    // Compute reduction text
+    let reductionHtml = '';
+    if (r.rpn && r.revised_rpn) {
+        const pct = ((r.rpn - r.revised_rpn) / r.rpn * 100).toFixed(0);
+        reductionHtml = `<div class="edit-reduction">${r.rpn} &rarr; ${r.revised_rpn} (${pct}% reduction)</div>`;
+    }
+
+    document.getElementById('edit-modal-body').innerHTML = `
+        <!-- Section 1: Failure Mode -->
+        <div class="edit-section">
+            <div class="edit-section-label">Failure Mode</div>
+            <div class="edit-inline-row">
+                <div class="edit-field narrow">
+                    <label>Process Step</label>
+                    <input type="text" id="edit-process_step" value="${esc(r.process_step)}" data-field="process_step">
+                </div>
+                <div class="edit-field">
+                    <label>Failure Mode</label>
+                    <input type="text" id="edit-failure_mode" value="${esc(r.failure_mode)}" data-field="failure_mode" required>
+                </div>
+            </div>
+            <div class="edit-field">
+                <label>Effect</label>
+                <textarea id="edit-effect" data-field="effect">${esc(r.effect)}</textarea>
+            </div>
+            <div class="edit-field">
+                <label>Cause</label>
+                <textarea id="edit-cause" data-field="cause">${esc(r.cause)}</textarea>
+            </div>
+        </div>
+
+        <hr class="edit-section-divider">
+
+        <!-- Section 2: Risk Scoring -->
+        <div class="edit-section">
+            <div class="edit-section-label">Risk Scoring (RPN)</div>
+            <div class="edit-scoring-row">
+                <div class="score-group">
+                    <label>Severity</label>
+                    <input type="number" min="1" max="10" class="score-input" id="edit-severity" value="${r.severity}" data-field="severity">
+                </div>
+                <span class="multiply">&times;</span>
+                <div class="score-group">
+                    <label>Occurrence</label>
+                    <input type="number" min="1" max="10" class="score-input" id="edit-occurrence" value="${r.occurrence}" data-field="occurrence">
+                </div>
+                <span class="multiply">&times;</span>
+                <div class="score-group">
+                    <label>Detection</label>
+                    <input type="number" min="1" max="10" class="score-input" id="edit-detection" value="${r.detection}" data-field="detection">
+                </div>
+                <span class="equals">=</span>
+                <div class="edit-rpn-result">
+                    <span class="rpn-badge ${rpnClass(r.rpn)}" id="edit-rpn-badge">${r.rpn}</span>
+                </div>
+            </div>
+        </div>
+
+        <hr class="edit-section-divider">
+
+        <!-- Section 3: Controls -->
+        <div class="edit-section">
+            <div class="edit-section-label">Current Controls</div>
+            <div class="edit-field">
+                <textarea id="edit-current_controls" data-field="current_controls" placeholder="What controls exist today to detect or prevent this failure?">${esc(r.current_controls)}</textarea>
+            </div>
+        </div>
+
+        <hr class="edit-section-divider">
+
+        <!-- Section 4: Action -->
+        <div class="edit-section">
+            <div class="edit-section-label">Recommended Action</div>
+            <div class="edit-field">
+                <textarea id="edit-recommended_action" data-field="recommended_action" placeholder="What action should be taken?">${esc(r.recommended_action)}</textarea>
+            </div>
+            <div class="edit-inline-row">
+                <div class="edit-field">
+                    <label>Owner</label>
+                    <input type="text" id="edit-action_owner" value="${esc(r.action_owner)}" data-field="action_owner" placeholder="Who is responsible?">
+                </div>
+                <div class="edit-field narrow">
+                    <label>Status</label>
+                    <select id="edit-action_status" data-field="action_status">
+                        <option value="not_started" ${r.action_status==='not_started'?'selected':''}>Not Started</option>
+                        <option value="in_progress" ${r.action_status==='in_progress'?'selected':''}>In Progress</option>
+                        <option value="complete" ${r.action_status==='complete'?'selected':''}>Complete</option>
+                    </select>
+                </div>
+            </div>
+            <div style="margin-top:8px;">
+                ${r.recommended_action ? (tracked
+                    ? '<span class="fmea-tracked-badge">Tracked as Action Item</span>'
+                    : `<button class="fmea-track-btn" onclick="promoteFmeaAction('${currentFmea.id}', '${r.id}'); return false;">Track as Action Item</button>`
+                ) : '<span style="font-size:12px;color:var(--text-dim);">Add a recommended action to enable tracking</span>'}
+            </div>
+        </div>
+
+        <hr class="edit-section-divider">
+
+        <!-- Section 5: Post-Action (pRPN) -->
+        <div class="edit-section">
+            <div class="edit-section-label">Post-Action Scores (pRPN)</div>
+            <div class="edit-scoring-row">
+                <div class="score-group">
+                    <label>Rev. S</label>
+                    <input type="number" min="1" max="10" class="score-input" id="edit-revised_severity" value="${r.revised_severity||''}" placeholder="-">
+                </div>
+                <span class="multiply">&times;</span>
+                <div class="score-group">
+                    <label>Rev. O</label>
+                    <input type="number" min="1" max="10" class="score-input" id="edit-revised_occurrence" value="${r.revised_occurrence||''}" placeholder="-">
+                </div>
+                <span class="multiply">&times;</span>
+                <div class="score-group">
+                    <label>Rev. D</label>
+                    <input type="number" min="1" max="10" class="score-input" id="edit-revised_detection" value="${r.revised_detection||''}" placeholder="-">
+                </div>
+                <span class="equals">=</span>
+                <div class="edit-rpn-result">
+                    ${r.revised_rpn
+                        ? `<span class="rpn-badge ${rpnClass(r.revised_rpn)}" id="edit-prpn-badge">${r.revised_rpn}</span>`
+                        : '<span style="color:var(--text-dim);" id="edit-prpn-badge">&mdash;</span>'}
+                </div>
+            </div>
+            ${reductionHtml}
+        </div>
+    `;
+
+    // Footer: hypothesis link + delete + close
+    document.getElementById('edit-modal-footer').innerHTML = `
+        <button class="fmea-btn small" onclick="showLinkModal('${r.id}'); closeEditModal();" style="margin-right:auto;">
+            ${r.hypothesis_id ? '&#9679; Linked' : '&#9675; Link Hypothesis'}
+        </button>
+        <button class="fmea-btn small danger" onclick="deleteRowFromModal('${r.id}')">Delete</button>
+        <button class="fmea-btn primary" onclick="closeEditModal()">Done</button>
+    `;
+
+    // Attach change handlers
+    document.getElementById('edit-modal').classList.add('active');
+    attachEditHandlers(r.id);
+}
+
+function attachEditHandlers(rowId) {
+    const fields = ['process_step', 'failure_mode', 'effect', 'cause',
+                     'current_controls', 'recommended_action', 'action_owner', 'action_status'];
+    fields.forEach(field => {
+        const el = document.getElementById('edit-' + field);
+        if (el) {
+            el.addEventListener('change', () => saveEditField(rowId, field, el));
+        }
     });
-    if (!resp.ok) return;
-    const data = await resp.json();
-    currentRows.push(data.row);
-    renderTable();
+
+    // Score fields — update RPN live
+    ['severity', 'occurrence', 'detection'].forEach(field => {
+        const el = document.getElementById('edit-' + field);
+        if (el) {
+            el.addEventListener('input', () => updateRpnPreview());
+            el.addEventListener('change', () => saveEditField(rowId, field, el));
+        }
+    });
+
+    // Revised score fields
+    ['revised_severity', 'revised_occurrence', 'revised_detection'].forEach(field => {
+        const el = document.getElementById('edit-' + field);
+        if (el) {
+            el.addEventListener('input', () => updatePrpnPreview());
+            el.addEventListener('change', () => saveRevisionFromModal(rowId));
+        }
+    });
 }
 
-async function saveRow(rowId, el) {
-    const field = el.dataset.field;
-    const value = el.type === 'number' ? parseInt(el.value) || 1 : el.value;
+function updateRpnPreview() {
+    const s = parseInt(document.getElementById('edit-severity').value) || 1;
+    const o = parseInt(document.getElementById('edit-occurrence').value) || 1;
+    const d = parseInt(document.getElementById('edit-detection').value) || 1;
+    const rpn = s * o * d;
+    const badge = document.getElementById('edit-rpn-badge');
+    badge.textContent = rpn;
+    badge.className = 'rpn-badge ' + rpnClass(rpn);
+}
+
+function updatePrpnPreview() {
+    const rs = parseInt(document.getElementById('edit-revised_severity').value);
+    const ro = parseInt(document.getElementById('edit-revised_occurrence').value);
+    const rd = parseInt(document.getElementById('edit-revised_detection').value);
+    const badge = document.getElementById('edit-prpn-badge');
+    if (rs && ro && rd) {
+        const prpn = rs * ro * rd;
+        badge.textContent = prpn;
+        badge.className = 'rpn-badge ' + rpnClass(prpn);
+    } else {
+        badge.innerHTML = '&mdash;';
+        badge.className = '';
+        badge.style.color = 'var(--text-dim)';
+    }
+}
+
+async function saveEditField(rowId, field, el) {
+    const value = el.type === 'number' ? (parseInt(el.value) || 1) : el.value;
 
     const resp = await fetch(API + currentFmea.id + '/rows/' + rowId + '/', {
         method: 'PATCH',
@@ -985,20 +1237,23 @@ async function saveRow(rowId, el) {
     if (!resp.ok) return;
     const data = await resp.json();
 
-    // Update local state
     const idx = currentRows.findIndex(r => r.id === rowId);
     if (idx >= 0) currentRows[idx] = data.row;
-    renderTable();
+
+    // Update modal title if failure mode changed
+    if (field === 'failure_mode') {
+        document.getElementById('edit-modal-title').textContent =
+            `#${idx + 1} — ${data.row.failure_mode || 'New Failure Mode'}`;
+    }
 }
 
-async function saveRevision(rowId) {
-    const tr = document.querySelector(`tr[data-id="${rowId}"]`);
-    const rs = tr.querySelector('[data-field="revised_severity"]').value;
-    const ro = tr.querySelector('[data-field="revised_occurrence"]').value;
-    const rd = tr.querySelector('[data-field="revised_detection"]').value;
+async function saveRevisionFromModal(rowId) {
+    const rs = document.getElementById('edit-revised_severity').value;
+    const ro = document.getElementById('edit-revised_occurrence').value;
+    const rd = document.getElementById('edit-revised_detection').value;
 
     if (!rs && !ro && !rd) return;
-    if (!rs || !ro || !rd) return; // wait until all 3 filled
+    if (!rs || !ro || !rd) return;
 
     const resp = await fetch(API + currentFmea.id + '/rows/' + rowId + '/revise/', {
         method: 'POST',
@@ -1015,14 +1270,13 @@ async function saveRevision(rowId) {
 
     const idx = currentRows.findIndex(r => r.id === rowId);
     if (idx >= 0) currentRows[idx] = data.row;
-    renderTable();
 
     if (data.hypothesis_probability !== undefined) {
         showToast(`Hypothesis updated: ${(data.hypothesis_probability * 100).toFixed(0)}%`);
     }
 }
 
-async function deleteRow(rowId) {
+async function deleteRowFromModal(rowId) {
     if (!confirm('Delete this failure mode?')) return;
 
     await fetch(API + currentFmea.id + '/rows/' + rowId + '/delete/', {
@@ -1030,7 +1284,30 @@ async function deleteRow(rowId) {
         credentials: 'include',
     });
     currentRows = currentRows.filter(r => r.id !== rowId);
-    renderTable();
+    closeEditModal();
+    renderRows();
+}
+
+function closeEditModal() {
+    editingRowId = null;
+    document.getElementById('edit-modal').classList.remove('active');
+    renderRows();
+}
+
+// ====== ROW OPERATIONS ======
+
+async function addRow() {
+    const resp = await fetch(API + currentFmea.id + '/rows/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({failure_mode: 'New failure mode'}),
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    currentRows.push(data.row);
+    renderRows();
+    openEditModal(data.row.id);
 }
 
 // ====== META ======
@@ -1143,25 +1420,37 @@ async function linkHypothesis(hypothesisId) {
     if (idx >= 0) currentRows[idx] = data.row;
 
     hideLinkModal();
-    renderTable();
+    renderRows();
     showToast(`Linked! Hypothesis P = ${(data.hypothesis_probability * 100).toFixed(0)}% (LR=${data.likelihood_ratio})`);
 }
 
 // ====== SUMMARY ======
 
+let summaryVisible = false;
+function toggleSummary() {
+    const panels = document.getElementById('fmea-panels');
+    if (summaryVisible) {
+        panels.style.display = 'none';
+        summaryVisible = false;
+    } else {
+        refreshSummary();
+    }
+}
+
 async function refreshSummary() {
     if (!currentFmea || currentRows.length === 0) {
         document.getElementById('fmea-panels').style.display = 'none';
+        summaryVisible = false;
         return;
     }
 
     const resp = await fetch(API + currentFmea.id + '/summary/', {credentials: 'include'});
     if (!resp.ok) return;
     const data = await resp.json();
+    summaryVisible = true;
 
     document.getElementById('fmea-panels').style.display = '';
 
-    // Risk buckets
     const b = data.risk_buckets || {};
     document.getElementById('risk-buckets').innerHTML = `
         <div class="fmea-bucket bucket-critical"><div class="count">${b.critical||0}</div><div class="label">Critical (&gt;200)</div></div>
@@ -1246,12 +1535,15 @@ async function promoteFmeaAction(fmeaId, rowId) {
     const data = await resp.json();
     const item = data.action_item;
 
-    // Avoid duplicates in local state
     if (!currentActionItems.find(a => a.id === item.id)) {
         currentActionItems.push(item);
     }
 
-    renderTable();
+    // Re-render the modal to show "Tracked" badge
+    if (editingRowId === rowId) {
+        openEditModal(rowId);
+    }
+    renderRows();
     renderFmeaActionItems(currentActionItems);
     showToast('Action item tracked');
 }
@@ -1311,6 +1603,11 @@ function rpnClass(rpn) {
 function esc(s) {
     if (!s) return '';
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function truncate(s, len) {
+    if (!s) return '';
+    return s.length > len ? s.slice(0, len - 3) + '...' : s;
 }
 
 function showToast(msg) {

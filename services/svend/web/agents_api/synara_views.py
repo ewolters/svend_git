@@ -110,6 +110,20 @@ def save_synara(workbench_id: str, synara: Synara = None, user=None) -> bool:
     return False
 
 
+def _require_project(workbench_id: str, user=None):
+    """Validate that a project exists for the given workbench_id.
+
+    Returns (project, None) on success, or (None, JsonResponse) on failure.
+    Use before any Synara mutation that creates hypotheses, evidence, or links.
+    """
+    project = _resolve_project(workbench_id, user=user)
+    if not project:
+        return None, JsonResponse({
+            "error": "No study loaded. Create or select a study first."
+        }, status=400)
+    return project, None
+
+
 # =============================================================================
 # Hypothesis Management
 # =============================================================================
@@ -135,6 +149,10 @@ def add_hypothesis(request, workbench_id: str):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
+    project, err = _require_project(workbench_id, user=request.user)
+    if err:
+        return err
+
     synara = get_synara(workbench_id, user=request.user)
 
     h = synara.create_hypothesis(
@@ -146,7 +164,8 @@ def add_hypothesis(request, workbench_id: str):
         source="user",
     )
 
-    save_synara(workbench_id, synara, user=request.user)
+    if not save_synara(workbench_id, synara, user=request.user):
+        return JsonResponse({"error": "Failed to persist hypothesis."}, status=500)
 
     return JsonResponse({
         "success": True,
@@ -177,7 +196,8 @@ def delete_hypothesis(request, workbench_id: str, hypothesis_id: str):
 
     if hypothesis_id in synara.graph.hypotheses:
         del synara.graph.hypotheses[hypothesis_id]
-        save_synara(workbench_id, synara, user=request.user)
+        if not save_synara(workbench_id, synara, user=request.user):
+            return JsonResponse({"error": "Failed to persist deletion."}, status=500)
         return JsonResponse({"success": True})
     else:
         return JsonResponse({"error": "Hypothesis not found"}, status=404)
@@ -207,6 +227,10 @@ def add_link(request, workbench_id: str):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
+    project, err = _require_project(workbench_id, user=request.user)
+    if err:
+        return err
+
     synara = get_synara(workbench_id, user=request.user)
 
     # Validate hypotheses exist
@@ -222,7 +246,8 @@ def add_link(request, workbench_id: str):
         strength=body.get("strength", 0.7),
     )
 
-    save_synara(workbench_id, synara, user=request.user)
+    if not save_synara(workbench_id, synara, user=request.user):
+        return JsonResponse({"error": "Failed to persist link."}, status=500)
 
     return JsonResponse({
         "success": True,
@@ -271,6 +296,10 @@ def add_evidence(request, workbench_id: str):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
+    project, err = _require_project(workbench_id, user=request.user)
+    if err:
+        return err
+
     synara = get_synara(workbench_id, user=request.user)
 
     result = synara.create_evidence(
@@ -283,7 +312,8 @@ def add_evidence(request, workbench_id: str):
         data=body.get("data"),
     )
 
-    save_synara(workbench_id, synara, user=request.user)
+    if not save_synara(workbench_id, synara, user=request.user):
+        return JsonResponse({"error": "Failed to persist evidence."}, status=500)
 
     return JsonResponse({
         "success": True,
@@ -318,7 +348,8 @@ def delete_evidence(request, workbench_id: str, evidence_id: str):
     if len(synara.graph.evidence) == original_len:
         return JsonResponse({"error": "Evidence not found"}, status=404)
 
-    save_synara(workbench_id, synara, user=request.user)
+    if not save_synara(workbench_id, synara, user=request.user):
+        return JsonResponse({"error": "Failed to persist deletion."}, status=500)
     return JsonResponse({"success": True})
 
 
@@ -347,7 +378,8 @@ def delete_link(request, workbench_id: str):
     if len(synara.graph.links) == original_len:
         return JsonResponse({"error": "Link not found"}, status=404)
 
-    save_synara(workbench_id, synara, user=request.user)
+    if not save_synara(workbench_id, synara, user=request.user):
+        return JsonResponse({"error": "Failed to persist deletion."}, status=500)
     return JsonResponse({"success": True})
 
 
@@ -387,6 +419,12 @@ def resolve_expansion(request, workbench_id: str, signal_id: str):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
+    # Guard: creating a hypothesis requires a project
+    if body.get("resolution") == "new_hypothesis":
+        project, err = _require_project(workbench_id, user=request.user)
+        if err:
+            return err
+
     synara = get_synara(workbench_id, user=request.user)
 
     new_h = None
@@ -410,7 +448,8 @@ def resolve_expansion(request, workbench_id: str, signal_id: str):
     )
 
     if success:
-        save_synara(workbench_id, synara, user=request.user)
+        if not save_synara(workbench_id, synara, user=request.user):
+            return JsonResponse({"error": "Failed to persist expansion resolution."}, status=500)
         return JsonResponse({
             "success": True,
             "new_hypothesis": new_h.to_dict() if new_h else None,
@@ -597,6 +636,10 @@ def llm_generate_hypotheses(request, workbench_id: str, signal_id: str):
     Generates prompt, calls Claude, parses response, adds hypotheses to graph.
     """
 
+    project, err = _require_project(workbench_id, user=request.user)
+    if err:
+        return err
+
     synara = get_synara(workbench_id, user=request.user)
 
     signal = next(
@@ -618,7 +661,8 @@ def llm_generate_hypotheses(request, workbench_id: str, signal_id: str):
             "fallback_prompt": interface.generate_hypothesis_prompt(signal),
         }, status=503)
 
-    save_synara(workbench_id, synara, user=request.user)
+    if not save_synara(workbench_id, synara, user=request.user):
+        return JsonResponse({"error": "Failed to persist generated hypotheses."}, status=500)
 
     return JsonResponse({
         "success": True,
@@ -751,11 +795,17 @@ def import_synara(request, workbench_id: str):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
+    project, err = _require_project(workbench_id, user=request.user)
+    if err:
+        return err
+
     synara = Synara.from_dict(body)
     if len(_synara_cache) >= _SYNARA_CACHE_MAX:
         _synara_cache.pop(next(iter(_synara_cache)), None)
     _synara_cache[workbench_id] = synara
-    save_synara(workbench_id, synara, user=request.user)
+
+    if not save_synara(workbench_id, synara, user=request.user):
+        return JsonResponse({"error": "Failed to persist imported state."}, status=500)
 
     return JsonResponse({
         "success": True,
@@ -909,6 +959,10 @@ def add_formal_hypothesis(request, workbench_id: str):
     if not text:
         return JsonResponse({"error": "No hypothesis text provided"}, status=400)
 
+    project, err = _require_project(workbench_id, user=request.user)
+    if err:
+        return err
+
     # Parse and validate
     validation = validate_hypothesis(text)
     if not validation["valid"]:
@@ -930,10 +984,8 @@ def add_formal_hypothesis(request, workbench_id: str):
         source="dsl",
     )
 
-    # Store the parsed structure as metadata
-    # (In a full implementation, we'd extend HypothesisRegion)
-
-    save_synara(workbench_id, synara, user=request.user)
+    if not save_synara(workbench_id, synara, user=request.user):
+        return JsonResponse({"error": "Failed to persist formal hypothesis."}, status=500)
 
     return JsonResponse({
         "success": True,
@@ -1010,7 +1062,8 @@ def evaluate_workbench_hypothesis(request, workbench_id: str, hypothesis_id: str
         result = None
 
     if result:
-        save_synara(workbench_id, synara, user=request.user)
+        if not save_synara(workbench_id, synara, user=request.user):
+            return JsonResponse({"error": "Failed to persist evaluation results."}, status=500)
 
     return JsonResponse({
         "success": True,

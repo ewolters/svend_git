@@ -149,7 +149,12 @@ def get_pricing_context(request):
 
 def landing_view(request):
     """Render landing page with localized pricing."""
+    from api.models import RoadmapItem
+
     ctx = get_pricing_context(request)
+    ctx["roadmap_items"] = RoadmapItem.objects.filter(
+        is_public=True,
+    ).exclude(status__in=["cancelled", "shipped"])
     return render(request, "landing.html", ctx)
 
 
@@ -223,6 +228,48 @@ def vsm_playbook_view(request):
     """Render Value Stream Mapping playbook with localized pricing."""
     ctx = get_pricing_context(request)
     return render(request, "vsm_playbook.html", ctx)
+
+
+def partnerships_view(request):
+    """Render partnerships page."""
+    ctx = get_pricing_context(request)
+    return render(request, "partnerships.html", ctx)
+
+
+def roadmap_view(request):
+    """Public product roadmap showing planned and shipped features by quarter."""
+    from api.models import RoadmapItem
+    from collections import OrderedDict
+
+    items = RoadmapItem.objects.filter(
+        is_public=True,
+    ).exclude(status="cancelled")
+
+    # Group by quarter, sorted chronologically (newest first)
+    # Parse quarter "Q2-2026" into (year, q_num) for proper sorting
+    quarters = OrderedDict()
+    for item in items:
+        q = item.quarter
+        if q not in quarters:
+            quarters[q] = []
+        quarters[q].append(item)
+
+    # Sort quarters chronologically (newest first)
+    def quarter_sort_key(q_str):
+        try:
+            parts = q_str.split("-")
+            return (int(parts[1]), int(parts[0][1]))
+        except (IndexError, ValueError):
+            return (0, 0)
+
+    sorted_quarters = sorted(quarters.keys(), key=quarter_sort_key, reverse=True)
+    quarter_data = [(q, quarters[q]) for q in sorted_quarters]
+
+    context = {
+        "quarter_data": quarter_data,
+        **get_pricing_context(request),
+    }
+    return render(request, "roadmap.html", context)
 
 
 def education_view(request):

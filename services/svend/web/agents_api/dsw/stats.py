@@ -1473,12 +1473,12 @@ def run_statistical_analysis(df, analysis_id, config):
             f" Strongest: {strong_pairs[0][0]} ↔ {strong_pairs[0][1]} (r={strong_pairs[0][2]:.3f})." if strong_pairs else " No strong relationships found.")
 
         # Narrative (enhanced — spurious warning, sample size context)
-        _n_obs = len(df[cols[0]].dropna()) if cols else 0
+        _n_obs = len(df[numeric_cols[0]].dropna()) if numeric_cols else 0
         _spur_warn = ""
         if _n_obs < 30 and strong_pairs:
             _spur_warn = " <em>Warning: with n &lt; 30, correlations can be inflated by outliers. Verify with a larger sample.</em>"
-        elif len(cols) > 10 and strong_pairs:
-            _n_tests = len(cols) * (len(cols) - 1) // 2
+        elif len(numeric_cols) > 10 and strong_pairs:
+            _n_tests = len(numeric_cols) * (len(numeric_cols) - 1) // 2
             _spur_warn = f" <em>Note: {_n_tests} pairwise tests — some correlations may be spurious. Apply Bonferroni correction (α = {0.05/_n_tests:.4f}) for strict interpretation.</em>"
 
         if strong_pairs:
@@ -1501,9 +1501,9 @@ def run_statistical_analysis(df, analysis_id, config):
         # ── Diagnostics ──
         diagnostics = []
         # If Pearson, check normality and suggest Spearman if non-normal
-        if method == "pearson" and cols:
+        if method == "pearson" and numeric_cols:
             _any_nonnorm = False
-            for _cc in cols[:4]:  # check first few
+            for _cc in numeric_cols[:4]:  # check first few
                 _nd = _check_normality(df[_cc].dropna().values, label=_cc, alpha=0.05)
                 if _nd:
                     _any_nonnorm = True
@@ -1512,10 +1512,10 @@ def run_statistical_analysis(df, analysis_id, config):
                 diagnostics.append({"level": "warning", "title": "Non-normal data detected (Pearson assumes normality)",
                                     "detail": "Pearson's r is sensitive to outliers and non-normality. Spearman's rank correlation is more robust.",
                                     "action": {"label": "Run Spearman Correlation", "type": "stats", "analysis": "correlation",
-                                               "config": {"vars": cols, "method": "spearman"}}})
+                                               "config": {"vars": numeric_cols, "method": "spearman"}}})
                 # Cross-validate: run Spearman internally
                 try:
-                    _sp_corr = df[cols].corr(method="spearman")
+                    _sp_corr = df[numeric_cols].corr(method="spearman")
                     if strong_pairs:
                         _sp_r = _sp_corr.loc[strong_pairs[0][0], strong_pairs[0][1]]
                         _cv = _cross_validate(strong_pairs[0][3], strong_pairs[0][3], "Pearson", "Spearman", alpha=0.05)
@@ -1528,8 +1528,8 @@ def run_statistical_analysis(df, analysis_id, config):
                 except Exception:
                     pass
         # Multiple testing warning
-        if len(cols) > 5:
-            _n_tests = len(cols) * (len(cols) - 1) // 2
+        if len(numeric_cols) > 5:
+            _n_tests = len(numeric_cols) * (len(numeric_cols) - 1) // 2
             diagnostics.append({"level": "info", "title": f"{_n_tests} pairwise comparisons \u2014 multiple testing risk",
                                 "detail": f"With {_n_tests} tests, expect ~{_n_tests * 0.05:.0f} false positives at \u03b1=0.05. Apply Bonferroni (\u03b1 = {0.05/_n_tests:.4f}) for strict control."})
         # Effect size emphasis

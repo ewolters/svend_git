@@ -8,6 +8,7 @@ Unlike a general whiteboard, VSM has structured elements:
 - Timeline showing value-add vs non-value-add time
 """
 
+import copy
 import json
 import logging
 import time as _time
@@ -404,12 +405,12 @@ def create_future_state(request, vsm_id):
         takt_time=vsm.takt_time,
         supplier_name=vsm.supplier_name,
         supply_frequency=vsm.supply_frequency,
-        process_steps=vsm.process_steps.copy(),
-        inventory=vsm.inventory.copy(),
-        information_flow=vsm.information_flow.copy(),
-        material_flow=vsm.material_flow.copy(),
-        kaizen_bursts=vsm.kaizen_bursts.copy(),
-        work_centers=vsm.work_centers.copy(),
+        process_steps=copy.deepcopy(vsm.process_steps),
+        inventory=copy.deepcopy(vsm.inventory),
+        information_flow=copy.deepcopy(vsm.information_flow),
+        material_flow=copy.deepcopy(vsm.material_flow),
+        kaizen_bursts=copy.deepcopy(vsm.kaizen_bursts),
+        work_centers=copy.deepcopy(vsm.work_centers),
         zoom=vsm.zoom,
         pan_x=vsm.pan_x,
         pan_y=vsm.pan_y,
@@ -490,6 +491,137 @@ def compare_vsm(request, vsm_id):
         "current": current.to_dict(),
         "future": future.to_dict(),
         "comparison": comparison,
+    })
+
+
+# =============================================================================
+# Intelligence Layer — Phase 3: TIMWOODS Waste Analysis
+# =============================================================================
+
+@gated_paid
+@require_http_methods(["GET"])
+def waste_analysis(request, vsm_id):
+    """Classify TIMWOODS waste categories from VSM process metrics.
+
+    Rule-based analysis — no LLM required. Uses configurable thresholds.
+    """
+    vsm = get_object_or_404(ValueStreamMap, id=vsm_id, owner=request.user)
+
+    steps = vsm.process_steps or []
+    inventory = vsm.inventory or []
+    material_flow = vsm.material_flow or []
+    info_flow = vsm.information_flow or []
+
+    # Calculate takt time if available
+    takt_time = getattr(vsm, "takt_time", None) or 0
+
+    waste = {
+        "transport": [],
+        "inventory": [],
+        "motion": [],
+        "waiting": [],
+        "overproduction": [],
+        "overprocessing": [],
+        "defects": [],
+        "skills": [],
+    }
+
+    # --- Inventory waste: high days of supply ---
+    for inv in inventory:
+        dos = inv.get("days_of_supply", 0)
+        if dos > 5:
+            severity = "high" if dos > 15 else ("medium" if dos > 10 else "low")
+            waste["inventory"].append({
+                "location": inv.get("name", inv.get("id", "unknown")),
+                "detail": f"{dos} days supply",
+                "severity": severity,
+            })
+
+    for step in steps:
+        ct = step.get("cycle_time", 0) or 0
+        changeover = step.get("changeover_time", 0) or 0
+        uptime = step.get("uptime", 100) or 100
+        batch_size = step.get("batch_size", 1) or 1
+        name = step.get("name", "Unknown")
+
+        # --- Waiting: high changeover relative to cycle time ---
+        if ct > 0 and changeover > 10 * ct:
+            waste["waiting"].append({
+                "step": name,
+                "detail": f"changeover {changeover}s vs cycle time {ct}s (ratio {changeover/ct:.0f}x)",
+                "severity": "high",
+                "suggested_kaizen": "SMED changeover reduction",
+            })
+
+        # --- Waiting: CT exceeds takt time ---
+        if takt_time > 0 and ct > 2 * takt_time:
+            waste["waiting"].append({
+                "step": name,
+                "detail": f"cycle time {ct}s exceeds 2× takt ({takt_time}s)",
+                "severity": "high",
+            })
+
+        # --- Defects: low uptime ---
+        if uptime < 85:
+            severity = "high" if uptime < 70 else "medium"
+            waste["defects"].append({
+                "step": name,
+                "detail": f"uptime {uptime}%",
+                "severity": severity,
+                "suggested_kaizen": "TPM (Total Productive Maintenance)",
+            })
+
+        # --- Overproduction: large batch sizes ---
+        if batch_size > 50:
+            waste["overproduction"].append({
+                "step": name,
+                "detail": f"batch size {batch_size}",
+                "severity": "medium" if batch_size < 200 else "high",
+            })
+
+    # --- Overproduction: too many push flows ---
+    push_count = sum(1 for mf in material_flow if mf.get("type") == "push")
+    if push_count > 2:
+        waste["overproduction"].append({
+            "step": "Material flow",
+            "detail": f"{push_count} push connections (consider pull/kanban)",
+            "severity": "medium",
+        })
+
+    # --- Motion/Transport: manual information flows ---
+    manual_count = sum(1 for inf in info_flow if inf.get("type") == "manual")
+    if manual_count > 0:
+        waste["motion"].append({
+            "step": "Information flow",
+            "detail": f"{manual_count} manual information flows",
+            "severity": "low" if manual_count < 3 else "medium",
+        })
+
+    # --- Overprocessing: very low PCE ---
+    pce = vsm.pce or 0
+    if pce > 0 and pce < 5:
+        waste["overprocessing"].append({
+            "step": "Overall",
+            "detail": f"PCE {pce:.1f}% — less than 5% of lead time is value-adding",
+            "severity": "high",
+        })
+
+    # Count total and build top opportunities
+    total = sum(len(items) for items in waste.values())
+    top_opportunities = []
+    for category, items in waste.items():
+        for item in items:
+            if item.get("severity") in ("high", "medium"):
+                top_opportunities.append({
+                    "category": category,
+                    "step": item.get("step", ""),
+                    "suggested_kaizen": item.get("suggested_kaizen", ""),
+                })
+
+    return JsonResponse({
+        "waste_categories": waste,
+        "total_waste_items": total,
+        "top_opportunities": top_opportunities[:10],
     })
 
 

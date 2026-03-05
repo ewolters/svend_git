@@ -171,7 +171,7 @@ function updateRunEstimate() {
     // Apply replicates and center points
     const total = runs * reps + cp;
     el.textContent = `≈ ${total} runs`;
-    el.style.color = total > 100 ? 'var(--error, #ef4444)' : total > 50 ? 'var(--warning, #f59e0b)' : 'var(--text-dim)';
+    el.style.color = total > 100 ? 'var(--error)' : total > 50 ? 'var(--warning)' : 'var(--text-dim)';
 
     validateFactors();
     updateLivePreview(k, levelCounts, total, runs, reps, cp);

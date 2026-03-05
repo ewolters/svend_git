@@ -19,7 +19,10 @@ from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
 
 from accounts.permissions import require_feature
-from .models import Site, SiteAccess, HoshinProject, ActionItem, ValueStreamMap
+from .models import (
+    Site, SiteAccess, HoshinProject, ActionItem, ValueStreamMap,
+    Employee, ResourceCommitment,
+)
 from .hoshin_calculations import (
     CALCULATION_METHODS,
     calculate_savings,
@@ -460,6 +463,16 @@ def update_monthly_actual(request, hoshin_id, month):
 
     actuals = list(hoshin.monthly_actuals or [])
 
+    # Dedup: remove any duplicate entries for the same month (data integrity guard)
+    seen_months = set()
+    deduped = []
+    for m in actuals:
+        mo = m.get("month")
+        if mo not in seen_months:
+            seen_months.add(mo)
+            deduped.append(m)
+    actuals = deduped
+
     # Find existing month entry or create new one
     entry = None
     for m in actuals:
@@ -881,6 +894,124 @@ def hoshin_dashboard(request):
     })
 
 
+# =============================================================================
+# Intelligence Layer — Phase 3: Strategy Alignment Analysis
+# =============================================================================
+
+@require_feature("hoshin_kanri")
+@require_http_methods(["GET"])
+def alignment_analysis(request, site_id):
+    """Identify gaps in the strategy-to-execution chain.
+
+    Finds unlinked objectives, projects, and KPIs via JOIN queries.
+    No LLM required — pure database analysis.
+    """
+    tenant, err = _require_tenant(request.user)
+    if err:
+        return err
+
+    site = get_object_or_404(Site, id=site_id, tenant=tenant)
+    if not _check_site_read(request.user, site, tenant):
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    fiscal_year = int(request.GET.get("fiscal_year", date.today().year))
+
+    from .models import (
+        AnnualObjective, StrategicObjective, HoshinKPI,
+        XMatrixCorrelation, HoshinProject,
+    )
+
+    # All entities for this tenant and fiscal year
+    projects = HoshinProject.objects.filter(site=site)
+    annual_objs = AnnualObjective.objects.filter(tenant=tenant, fiscal_year=fiscal_year)
+    strategic_objs = StrategicObjective.objects.filter(
+        tenant=tenant, start_year__lte=fiscal_year, end_year__gte=fiscal_year,
+    )
+    kpis = HoshinKPI.objects.filter(tenant=tenant, fiscal_year=fiscal_year)
+
+    # Correlations tell us what's linked
+    correlations = XMatrixCorrelation.objects.filter(tenant=tenant, fiscal_year=fiscal_year)
+    annual_project_links = set()  # annual objective IDs linked to projects
+    project_linked_ids = set()    # project IDs linked to annual objectives
+    strategic_annual_links = set()  # strategic objective IDs linked to annual
+    project_kpi_links = set()    # project IDs linked to KPIs
+
+    for c in correlations:
+        if c.pair_type == "annual_project":
+            annual_project_links.add(str(c.row_id))
+            project_linked_ids.add(str(c.col_id))
+        elif c.pair_type == "strategic_annual":
+            strategic_annual_links.add(str(c.row_id))
+
+    # KPI-project links via derived_from FK
+    for kpi in kpis:
+        if kpi.derived_from_id:
+            project_kpi_links.add(str(kpi.derived_from_id))
+
+    # Find gaps
+    objectives_without_projects = [
+        {"id": str(o.id), "title": o.title}
+        for o in annual_objs if str(o.id) not in annual_project_links
+    ]
+
+    projects_without_objectives = [
+        {"id": str(p.id), "title": p.project.title}
+        for p in projects.select_related("project") if str(p.id) not in project_linked_ids
+    ]
+
+    projects_without_kpis = [
+        {"id": str(p.id), "title": p.project.title}
+        for p in projects.select_related("project")
+        if p.hoshin_status in ("active", "budgeted") and str(p.id) not in project_kpi_links
+    ]
+
+    strategic_without_annual = [
+        {"id": str(s.id), "title": s.title}
+        for s in strategic_objs if str(s.id) not in strategic_annual_links
+    ]
+
+    # Compute alignment score
+    total_entities = (
+        annual_objs.count() + projects.count() + strategic_objs.count()
+    )
+    linked = (
+        len(annual_project_links) + len(project_linked_ids) +
+        len(strategic_annual_links) + len(project_kpi_links)
+    )
+    alignment_score = round(linked / max(total_entities, 1), 2)
+
+    # Build recommendations
+    recommendations = []
+    if objectives_without_projects:
+        recommendations.append(
+            f"{len(objectives_without_projects)} annual objective(s) have no linked improvement projects"
+        )
+    if projects_without_objectives:
+        recommendations.append(
+            f"{len(projects_without_objectives)} project(s) are not linked to any annual objective"
+        )
+    if projects_without_kpis:
+        recommendations.append(
+            f"{len(projects_without_kpis)} active project(s) have no KPI measurement — consider adding KPIs"
+        )
+    if strategic_without_annual:
+        recommendations.append(
+            f"{len(strategic_without_annual)} strategic objective(s) have no annual breakdowns"
+        )
+
+    return JsonResponse({
+        "alignment_score": alignment_score,
+        "gaps": {
+            "objectives_without_projects": objectives_without_projects,
+            "projects_without_objectives": projects_without_objectives,
+            "projects_without_kpis": projects_without_kpis,
+            "strategic_without_annual": strategic_without_annual,
+        },
+        "recommendations": recommendations,
+        "fiscal_year": fiscal_year,
+    })
+
+
 # ---------------------------------------------------------------------------
 # Site member management
 # ---------------------------------------------------------------------------
@@ -1132,3 +1263,446 @@ def test_formula(request):
         })
     except (ValueError, TypeError, ZeroDivisionError) as e:
         return JsonResponse({"error": str(e), "fields": fields}, status=400)
+
+
+# ---------------------------------------------------------------------------
+# Employee CRUD (QMS-002 §2.1)
+# ---------------------------------------------------------------------------
+
+
+@require_feature("hoshin_kanri")
+@require_http_methods(["GET", "POST"])
+def list_create_employees(request):
+    """GET: list employees. POST: create employee."""
+    tenant, err = _require_tenant(request.user)
+    if err:
+        return err
+
+    if request.method == "GET":
+        qs = Employee.objects.filter(tenant=tenant)
+        site_id = request.GET.get("site")
+        if site_id:
+            qs = qs.filter(site_id=site_id)
+        dept = request.GET.get("department")
+        if dept:
+            qs = qs.filter(department=dept)
+        active = request.GET.get("is_active")
+        if active is not None:
+            qs = qs.filter(is_active=active.lower() in ("true", "1"))
+        return JsonResponse([e.to_dict() for e in qs.order_by("name")], safe=False)
+
+    # POST
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    name = data.get("name", "").strip()
+    email = data.get("email", "").strip()
+    if not name or not email:
+        return JsonResponse({"error": "name and email are required"}, status=400)
+
+    if Employee.objects.filter(tenant=tenant, email=email).exists():
+        return JsonResponse({"error": "Employee with this email already exists"}, status=409)
+
+    emp = Employee.objects.create(
+        tenant=tenant,
+        name=name,
+        email=email,
+        role=data.get("role", ""),
+        department=data.get("department", ""),
+        site_id=data.get("site_id"),
+        user_link_id=data.get("user_link_id"),
+    )
+    return JsonResponse(emp.to_dict(), status=201)
+
+
+@require_feature("hoshin_kanri")
+@require_http_methods(["GET", "PUT", "DELETE"])
+def employee_detail(request, emp_id):
+    """GET/PUT/DELETE a single employee."""
+    tenant, err = _require_tenant(request.user)
+    if err:
+        return err
+
+    emp = get_object_or_404(Employee, pk=emp_id, tenant=tenant)
+
+    if request.method == "GET":
+        return JsonResponse(emp.to_dict())
+
+    if request.method == "DELETE":
+        emp.is_active = False
+        emp.save(update_fields=["is_active"])
+        return JsonResponse({"ok": True})
+
+    # PUT
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    for field in ("name", "email", "role", "department"):
+        if field in data:
+            setattr(emp, field, data[field])
+    if "site_id" in data:
+        emp.site_id = data["site_id"]
+    if "user_link_id" in data:
+        emp.user_link_id = data["user_link_id"]
+    if "is_active" in data:
+        emp.is_active = data["is_active"]
+    emp.save()
+    return JsonResponse(emp.to_dict())
+
+
+@require_feature("hoshin_kanri")
+@require_http_methods(["GET"])
+def employee_availability(request, emp_id):
+    """Check availability for an employee over a date range."""
+    tenant, err = _require_tenant(request.user)
+    if err:
+        return err
+
+    emp = get_object_or_404(Employee, pk=emp_id, tenant=tenant)
+    start = request.GET.get("start")
+    end = request.GET.get("end")
+    if not start or not end:
+        return JsonResponse({"error": "start and end query params required"}, status=400)
+
+    try:
+        start_date = date.fromisoformat(start)
+        end_date = date.fromisoformat(end)
+    except ValueError:
+        return JsonResponse({"error": "Invalid date format (use YYYY-MM-DD)"}, status=400)
+
+    conflicts = ResourceCommitment.check_availability(emp, start_date, end_date)
+    return JsonResponse({
+        "employee_id": str(emp.id),
+        "available": not conflicts.exists(),
+        "conflicts": [c.to_dict() for c in conflicts],
+    })
+
+
+# ---------------------------------------------------------------------------
+# ResourceCommitment CRUD (QMS-002 §2.2)
+# ---------------------------------------------------------------------------
+
+
+@require_feature("hoshin_kanri")
+@require_http_methods(["GET", "POST"])
+def list_create_commitments(request):
+    """GET: list commitments. POST: create commitment."""
+    tenant, err = _require_tenant(request.user)
+    if err:
+        return err
+
+    if request.method == "GET":
+        qs = ResourceCommitment.objects.filter(
+            employee__tenant=tenant,
+        ).select_related("employee", "project")
+        project_id = request.GET.get("project")
+        if project_id:
+            qs = qs.filter(project_id=project_id)
+        employee_id = request.GET.get("employee")
+        if employee_id:
+            qs = qs.filter(employee_id=employee_id)
+        return JsonResponse([c.to_dict() for c in qs.order_by("-created_at")], safe=False)
+
+    # POST
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    employee_id = data.get("employee_id")
+    project_id = data.get("project_id")
+    if not employee_id or not project_id:
+        return JsonResponse({"error": "employee_id and project_id required"}, status=400)
+
+    emp = get_object_or_404(Employee, pk=employee_id, tenant=tenant)
+    project = get_object_or_404(HoshinProject, pk=project_id, site__tenant=tenant)
+
+    try:
+        start_date = date.fromisoformat(data["start_date"])
+        end_date = date.fromisoformat(data["end_date"])
+    except (KeyError, ValueError):
+        return JsonResponse({"error": "start_date and end_date required (YYYY-MM-DD)"}, status=400)
+
+    # Check availability
+    conflicts = ResourceCommitment.check_availability(emp, start_date, end_date)
+    conflict_data = [c.to_dict() for c in conflicts]
+
+    commitment = ResourceCommitment.objects.create(
+        employee=emp,
+        project=project,
+        role=data.get("role", "team_member"),
+        start_date=start_date,
+        end_date=end_date,
+        hours_per_day=data.get("hours_per_day", 8),
+        requested_by=request.user,
+    )
+    result = commitment.to_dict()
+    if conflict_data:
+        result["conflicts"] = conflict_data
+    return JsonResponse(result, status=201)
+
+
+@require_feature("hoshin_kanri")
+@require_http_methods(["GET", "PUT", "DELETE"])
+def commitment_detail(request, commitment_id):
+    """GET/PUT/DELETE a single commitment."""
+    tenant, err = _require_tenant(request.user)
+    if err:
+        return err
+
+    commitment = get_object_or_404(
+        ResourceCommitment, pk=commitment_id, employee__tenant=tenant,
+    )
+
+    if request.method == "GET":
+        return JsonResponse(commitment.to_dict())
+
+    if request.method == "DELETE":
+        commitment.delete()
+        return JsonResponse({"ok": True})
+
+    # PUT — update status (with lifecycle enforcement) and/or fields
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    if "status" in data:
+        new_status = data["status"]
+        valid = ResourceCommitment.VALID_TRANSITIONS.get(commitment.status, set())
+        if new_status not in valid:
+            return JsonResponse({
+                "error": f"Cannot transition from '{commitment.status}' to '{new_status}'",
+                "valid_transitions": sorted(valid),
+            }, status=400)
+        commitment.status = new_status
+
+    for field in ("role", "hours_per_day"):
+        if field in data:
+            setattr(commitment, field, data[field])
+    if "start_date" in data:
+        commitment.start_date = date.fromisoformat(data["start_date"])
+    if "end_date" in data:
+        commitment.end_date = date.fromisoformat(data["end_date"])
+
+    commitment.save()
+    return JsonResponse(commitment.to_dict())
+
+
+# ---------------------------------------------------------------------------
+# Bulk Employee Import (QMS-002 §3.1)
+# ---------------------------------------------------------------------------
+
+
+@require_feature("hoshin_kanri")
+@require_http_methods(["POST"])
+def employees_import(request):
+    """Bulk import employees from CSV.
+
+    Accepts multipart file upload with columns: name, email (required),
+    role, department, site_code (optional). Deduplicates by (tenant, email).
+    """
+    tenant, err = _require_tenant(request.user)
+    if err:
+        return err
+
+    if "file" not in request.FILES:
+        return JsonResponse({"error": "No file uploaded"}, status=400)
+
+    uploaded = request.FILES["file"]
+    if not uploaded.name.endswith(".csv"):
+        return JsonResponse({"error": "Only CSV files are supported"}, status=400)
+
+    import io
+    import pandas as pd
+
+    try:
+        raw = uploaded.read()
+        try:
+            df = pd.read_csv(io.BytesIO(raw), encoding="utf-8")
+        except UnicodeDecodeError:
+            df = pd.read_csv(io.BytesIO(raw), encoding="latin-1")
+    except Exception as e:
+        return JsonResponse({"error": f"Failed to parse CSV: {e}"}, status=400)
+
+    # Validate required columns
+    df.columns = [c.strip().lower() for c in df.columns]
+    if "name" not in df.columns or "email" not in df.columns:
+        return JsonResponse({
+            "error": "CSV must have 'name' and 'email' columns",
+            "found_columns": list(df.columns),
+        }, status=400)
+
+    # Build site_code → site_id lookup
+    site_map = {}
+    if "site_code" in df.columns:
+        sites = Site.objects.filter(tenant=tenant)
+        site_map = {s.code.lower(): s.id for s in sites if s.code}
+
+    created = 0
+    updated = 0
+    errors = []
+
+    for idx, row in df.iterrows():
+        name = str(row.get("name", "")).strip()
+        email = str(row.get("email", "")).strip()
+        if not name or not email:
+            errors.append({"row": idx + 2, "message": "Missing name or email"})
+            continue
+
+        defaults = {
+            "name": name,
+            "role": str(row.get("role", "")).strip(),
+            "department": str(row.get("department", "")).strip(),
+        }
+
+        if "site_code" in df.columns:
+            code = str(row.get("site_code", "")).strip().lower()
+            if code and code in site_map:
+                defaults["site_id"] = site_map[code]
+
+        emp, was_created = Employee.objects.update_or_create(
+            tenant=tenant, email=email,
+            defaults=defaults,
+        )
+        if was_created:
+            created += 1
+        else:
+            updated += 1
+
+    return JsonResponse({
+        "created": created,
+        "updated": updated,
+        "errors": errors,
+        "total_rows": len(df),
+    })
+
+
+# ---------------------------------------------------------------------------
+# Employee Timeline (QMS-002 §3.2)
+# ---------------------------------------------------------------------------
+
+
+@require_feature("hoshin_kanri")
+@require_http_methods(["GET"])
+def employee_timeline(request, emp_id):
+    """Return commitment timeline + capacity for an employee."""
+    tenant, err = _require_tenant(request.user)
+    if err:
+        return err
+
+    emp = get_object_or_404(Employee, pk=emp_id, tenant=tenant)
+
+    # Default to current fiscal year
+    year = date.today().year
+    start_str = request.GET.get("start", f"{year}-01-01")
+    end_str = request.GET.get("end", f"{year}-12-31")
+    try:
+        start_date = date.fromisoformat(start_str)
+        end_date = date.fromisoformat(end_str)
+    except ValueError:
+        return JsonResponse({"error": "Invalid date format (YYYY-MM-DD)"}, status=400)
+
+    commitments = ResourceCommitment.objects.filter(
+        employee=emp,
+        start_date__lt=end_date,
+        end_date__gt=start_date,
+    ).exclude(
+        status__in=("completed", "declined"),
+    ).select_related("project__project").order_by("start_date")
+
+    # Calculate total committed hours across the date range
+    total_hours = 0.0
+    for c in commitments:
+        overlap_start = max(c.start_date, start_date)
+        overlap_end = min(c.end_date, end_date)
+        days = (overlap_end - overlap_start).days
+        if days > 0:
+            total_hours += days * float(c.hours_per_day)
+
+    return JsonResponse({
+        "employee": emp.to_dict(),
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "commitments": [c.to_dict() for c in commitments],
+        "total_committed_hours": round(total_hours, 1),
+    })
+
+
+# ---------------------------------------------------------------------------
+# Facilitator Calendar (QMS-002 §3.4)
+# ---------------------------------------------------------------------------
+
+
+@require_feature("hoshin_kanri")
+@require_http_methods(["GET"])
+def hoshin_calendar_facilitators(request):
+    """Facilitator workload view with over-commitment detection."""
+    tenant, err = _require_tenant(request.user)
+    if err:
+        return err
+
+    fiscal_year = request.GET.get("fiscal_year", str(date.today().year))
+    try:
+        fiscal_year = int(fiscal_year)
+    except ValueError:
+        fiscal_year = date.today().year
+
+    fy_start = date(fiscal_year, 1, 1)
+    fy_end = date(fiscal_year, 12, 31)
+
+    # All facilitator commitments for this tenant in the fiscal year
+    commitments = ResourceCommitment.objects.filter(
+        employee__tenant=tenant,
+        role="facilitator",
+        start_date__lt=fy_end,
+        end_date__gt=fy_start,
+    ).exclude(
+        status__in=("completed", "declined"),
+    ).select_related("employee", "project__project")
+
+    # Group by employee
+    from collections import defaultdict
+    emp_map = defaultdict(list)
+    for c in commitments:
+        emp_map[c.employee_id].append(c)
+
+    facilitators = []
+    for emp_id, comms in emp_map.items():
+        emp = comms[0].employee
+
+        # Detect over-commitment: find dates where total hours > 8
+        over_committed_dates = []
+        # Determine scan range (intersection of all commitment ranges with FY)
+        all_starts = [max(c.start_date, fy_start) for c in comms]
+        all_ends = [min(c.end_date, fy_end) for c in comms]
+        scan_start = min(all_starts)
+        scan_end = max(all_ends)
+
+        from datetime import timedelta as _td
+        current = scan_start
+        while current < scan_end:
+            day_hours = sum(
+                float(c.hours_per_day) for c in comms
+                if c.start_date <= current < c.end_date
+            )
+            if day_hours > 8:
+                over_committed_dates.append(current.isoformat())
+            current += _td(days=1)
+
+        facilitators.append({
+            "employee": emp.to_dict(),
+            "commitments": [c.to_dict() for c in comms],
+            "over_committed": len(over_committed_dates) > 0,
+            "over_committed_days": len(over_committed_dates),
+            "over_committed_dates": over_committed_dates[:30],  # Cap for response size
+        })
+
+    return JsonResponse({
+        "fiscal_year": fiscal_year,
+        "facilitators": facilitators,
+    })

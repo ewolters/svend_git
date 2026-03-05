@@ -2,15 +2,18 @@
 
 import json
 import logging
+import re
 from collections import Counter
-from datetime import timedelta
+from datetime import date, timedelta
+from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.decorators import user_passes_test
-from django.db.models import Avg, Count, Q, Sum
-from django.db.models.functions import TruncDate
+from django.db.models import Avg, Count, F, Q, Sum
+from django.db.models.functions import TruncDate, TruncHour
 from django.shortcuts import render
 from django.utils import timezone
+from django.views.decorators.cache import never_cache
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import BasePermission, IsAdminUser
@@ -25,8 +28,13 @@ from api.models import (
     BlogView,
     CRMLead,
     EmailCampaign,
+    Feature,
+    Initiative,
     OutreachEnrollment,
     OutreachSequence,
+    PlanDocument,
+    PlanTask,
+    RoadmapItem,
     SiteVisit,
     WhitePaper,
     WhitePaperDownload,
@@ -271,6 +279,7 @@ def _staff_ids():
 # Page view
 # ---------------------------------------------------------------------------
 
+@never_cache
 @user_passes_test(can_access_internal, login_url="/login/")
 def dashboard_view(request):
     return render(request, "internal_dashboard.html")
@@ -419,7 +428,7 @@ def api_users(request):
     )
 
     total = customers.count()
-    verified = customers.filter(email_verified=True).count()
+    verified = customers.filter(is_email_verified=True).count()
 
     # Churn risk: paid users who haven't been active recently
     now = timezone.now()
@@ -454,66 +463,226 @@ def api_users(request):
 
 
 # ---------------------------------------------------------------------------
-# API: Usage
+# API: DSW Analytics (replaces dead Usage tab — UsageLog has 0 records)
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
 @permission_classes([IsInternalUser])
-def api_usage(request):
+def api_dsw_analytics(request):
+    """DSW analysis volume, type popularity, and top users."""
+    from syn.log.models import RequestMetric
+    from agents_api.models import DSWResult
+
     days = _get_days(request)
     since = timezone.now().date() - timedelta(days=days)
-    logs = UsageLog.objects.filter(date__gte=since).exclude(user__is_staff=True).exclude(user__username__in=INTERNAL_USERNAMES)
 
-    daily_requests = (
-        logs.values("date")
-        .annotate(total=Sum("request_count"))
-        .order_by("date")
+    # Volume trend — analysis-related requests per day
+    dsw_patterns = ["/api/dsw/", "/api/spc/", "/api/forecast/", "/api/experimenter/"]
+    dsw_q = Q()
+    for pat in dsw_patterns:
+        dsw_q |= Q(path_pattern__startswith=pat)
+    dsw_metrics = RequestMetric.objects.filter(dsw_q, bucket_start__gte=since)
+    daily_volume = (
+        dsw_metrics.annotate(day=TruncDate("bucket_start"))
+        .values("day")
+        .annotate(requests=Sum("request_count"), errors=Sum("error_count"))
+        .order_by("day")
     )
 
-    # Aggregate domain_counts JSON in Python (fine at alpha scale)
-    domain_totals = Counter()
-    for log in logs.exclude(domain_counts__isnull=True):
-        if log.domain_counts:
-            for domain, count in log.domain_counts.items():
-                domain_totals[domain] += count
-
-    daily_tokens = (
-        logs.values("date")
-        .annotate(input=Sum("tokens_input"), output=Sum("tokens_output"))
-        .order_by("date")
+    # Analysis type popularity from DSWResult
+    results = DSWResult.objects.filter(created_at__date__gte=since)
+    type_counts = (
+        results.values("result_type")
+        .annotate(count=Count("id"))
+        .order_by("-count")[:20]
     )
 
-    daily_errors = (
-        logs.values("date")
-        .annotate(errors=Sum("error_count"), requests=Sum("request_count"))
-        .order_by("date")
+    # Endpoint popularity from RequestMetric path_pattern
+    endpoint_counts = (
+        dsw_metrics.values("path_pattern")
+        .annotate(count=Sum("request_count"))
+        .order_by("-count")[:15]
+    )
+
+    # Top users (non-staff)
+    top_users = (
+        results.exclude(user__is_staff=True)
+        .exclude(user__username__in=INTERNAL_USERNAMES)
+        .values("user__username")
+        .annotate(count=Count("id"))
+        .order_by("-count")[:10]
     )
 
     return Response({
-        "daily_requests": [
-            {"date": str(d["date"]), "count": d["total"]} for d in daily_requests
+        "daily_volume": [
+            {"date": str(d["day"]), "requests": d["requests"] or 0, "errors": d["errors"] or 0}
+            for d in daily_volume
         ],
-        "domain_popularity": domain_totals.most_common(20),
+        "type_popularity": [
+            {"type": d["result_type"] or "unknown", "count": d["count"]}
+            for d in type_counts
+        ],
+        "endpoint_popularity": [
+            {"endpoint": d["path_pattern"], "count": d["count"] or 0}
+            for d in endpoint_counts
+        ],
+        "top_users": [
+            {"user": d["user__username"], "count": d["count"]}
+            for d in top_users
+        ],
+    })
+
+
+# ---------------------------------------------------------------------------
+# API: Hypothesis Health
+# ---------------------------------------------------------------------------
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_hypothesis_health(request):
+    """Project/hypothesis status distribution, evidence coverage, orphan detection."""
+    from core.models import Project, Hypothesis, Evidence, EvidenceLink
+
+    project_status = list(
+        Project.objects.values("status").annotate(count=Count("id")).order_by("-count")
+    )
+
+    hyp_status = list(
+        Hypothesis.objects.values("status").annotate(count=Count("id")).order_by("-count")
+    )
+
+    ev_sources = list(
+        Evidence.objects.values("source_type").annotate(count=Count("id")).order_by("-count")
+    )
+
+    total_hyp = Hypothesis.objects.count()
+    linked_hyp = EvidenceLink.objects.values("hypothesis").distinct().count()
+    orphan_count = total_hyp - linked_hyp
+
+    link_directions = list(
+        EvidenceLink.objects.values("direction").annotate(count=Count("id")).order_by("-count")
+    )
+
+    recent_projects = list(
+        Project.objects.annotate(hyp_count=Count("hypotheses"))
+        .order_by("-updated_at")[:15]
+        .values("id", "title", "status", "hyp_count", "updated_at")
+    )
+
+    return Response({
+        "project_status": [{"status": d["status"], "count": d["count"]} for d in project_status],
+        "hypothesis_status": [{"status": d["status"], "count": d["count"]} for d in hyp_status],
+        "evidence_sources": [{"source": d["source_type"], "count": d["count"]} for d in ev_sources],
+        "orphan_hypotheses": orphan_count,
+        "total_hypotheses": total_hyp,
+        "total_projects": Project.objects.count(),
+        "total_evidence": Evidence.objects.count(),
+        "link_directions": [{"direction": d["direction"], "count": d["count"]} for d in link_directions],
+        "recent_projects": [
+            {
+                "id": str(d["id"]),
+                "title": d["title"] or "(untitled)",
+                "status": d["status"],
+                "hypotheses": d["hyp_count"],
+                "updated": str(d["updated_at"].date()) if d["updated_at"] else "",
+            }
+            for d in recent_projects
+        ],
+    })
+
+
+# ---------------------------------------------------------------------------
+# API: Anthropic (LLM usage + rate limits)
+# ---------------------------------------------------------------------------
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_anthropic(request):
+    """LLM token consumption, model distribution, rate limit config."""
+    from agents_api.models import LLMUsage, LLM_RATE_LIMITS, RateLimitOverride
+
+    days = _get_days(request)
+    since = timezone.now().date() - timedelta(days=days)
+    usage = LLMUsage.objects.filter(date__gte=since)
+
+    daily_tokens = (
+        usage.values("date")
+        .annotate(
+            input=Sum("input_tokens"), output=Sum("output_tokens"),
+            requests=Sum("request_count"),
+        )
+        .order_by("date")
+    )
+
+    model_dist = (
+        usage.values("model")
+        .annotate(requests=Sum("request_count"), tokens=Sum(F("input_tokens") + F("output_tokens")))
+        .order_by("-requests")
+    )
+
+    top_consumers = (
+        usage.exclude(user__is_staff=True)
+        .exclude(user__username__in=INTERNAL_USERNAMES)
+        .values("user__username")
+        .annotate(
+            requests=Sum("request_count"),
+            tokens=Sum(F("input_tokens") + F("output_tokens")),
+        )
+        .order_by("-requests")[:10]
+    )
+
+    overrides = RateLimitOverride.get_overrides()
+    limits = []
+    for tier, default_llm in LLM_RATE_LIMITS.items():
+        ovr = overrides.get(tier, {})
+        limits.append({
+            "tier": tier,
+            "llm_limit": ovr.get("llm", default_llm),
+            "llm_default": default_llm,
+            "has_override": tier in overrides,
+        })
+
+    return Response({
         "daily_tokens": [
             {
                 "date": str(d["date"]),
                 "input": d["input"] or 0,
                 "output": d["output"] or 0,
+                "requests": d["requests"] or 0,
             }
             for d in daily_tokens
         ],
-        "daily_errors": [
-            {
-                "date": str(d["date"]),
-                "errors": d["errors"] or 0,
-                "requests": d["requests"] or 0,
-                "rate": round(
-                    (d["errors"] or 0) / d["requests"] * 100, 2
-                ) if d["requests"] else 0,
-            }
-            for d in daily_errors
+        "model_distribution": [
+            {"model": d["model"], "requests": d["requests"], "tokens": d["tokens"] or 0}
+            for d in model_dist
         ],
+        "top_consumers": [
+            {"user": d["user__username"], "requests": d["requests"], "tokens": d["tokens"] or 0}
+            for d in top_consumers
+        ],
+        "rate_limits": limits,
     })
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def api_rate_limit_override(request):
+    """Set a runtime rate limit override for a tier."""
+    from agents_api.models import RateLimitOverride
+
+    tier = (request.data.get("tier") or "").upper()
+    llm_limit = request.data.get("llm_limit")
+    if not tier or llm_limit is None:
+        return Response({"error": "tier and llm_limit required"}, status=400)
+    try:
+        llm_limit = int(llm_limit)
+    except (ValueError, TypeError):
+        return Response({"error": "llm_limit must be an integer"}, status=400)
+    obj, created = RateLimitOverride.objects.update_or_create(
+        tier=tier,
+        defaults={"daily_llm_limit": llm_limit, "daily_query_limit": 0, "updated_by": request.user},
+    )
+    return Response({"ok": True, "tier": tier, "llm_limit": obj.daily_llm_limit, "created": created})
 
 
 # ---------------------------------------------------------------------------
@@ -523,65 +692,163 @@ def api_usage(request):
 @api_view(["GET"])
 @permission_classes([IsInternalUser])
 def api_performance(request):
+    """HTTP telemetry — latency, errors, volume, slow endpoints, SLA status."""
+    from syn.log.models import RequestMetric
+
     days = _get_days(request)
-    since = timezone.now() - timedelta(days=days)
-    traces = (
-        TraceLog.objects.filter(created_at__gte=since)
-        .exclude(user_id__in=_staff_ids())
-    )
+    now = timezone.now()
+    since = now - timedelta(days=days)
+    qs = RequestMetric.objects.filter(bucket_start__gte=since)
 
-    latency_trend = (
-        traces.filter(total_time_ms__isnull=False)
-        .annotate(date=TruncDate("created_at"))
-        .values("date")
-        .annotate(avg_ms=Avg("total_time_ms"), count=Count("id"))
-        .order_by("date")
+    # --- KPIs (today) ---
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_qs = qs.filter(bucket_start__gte=today_start)
+    today_agg = today_qs.aggregate(
+        total=Sum("request_count"),
+        errors=Sum("error_count"),
+        duration_sum=Sum("total_duration_ms"),
     )
+    req_today = today_agg["total"] or 0
+    err_today = today_agg["errors"] or 0
+    dur_sum = today_agg["duration_sum"] or 0
 
-    stage_avgs = traces.aggregate(
-        safety=Avg("safety_time_ms"),
-        intuition=Avg("intuition_time_ms"),
-        reasoner=Avg("reasoner_time_ms"),
-        verifier=Avg("verifier_time_ms"),
-        lm=Avg("lm_time_ms"),
-    )
+    # Merge today's samples for p95
+    today_samples = []
+    for b in today_qs.only("duration_samples"):
+        today_samples.extend(b.duration_samples or [])
+    p95_today = _compute_percentile(today_samples, 95)
 
-    gate_trend = (
-        traces.annotate(date=TruncDate("created_at"))
-        .values("date")
+    kpis = {
+        "requests_today": req_today,
+        "error_rate_today": round(err_today / req_today * 100, 2) if req_today else 0,
+        "p95_today": round(p95_today, 1) if p95_today is not None else None,
+        "avg_duration_today": round(dur_sum / req_today, 1) if req_today else None,
+    }
+
+    # --- Trends (hourly if ≤2 days, daily otherwise) ---
+    use_hourly = days <= 2
+    trunc_fn = TruncHour if use_hourly else TruncDate
+
+    trend_qs = (
+        qs.annotate(ts=trunc_fn("bucket_start"))
+        .values("ts")
         .annotate(
-            total=Count("id"),
-            passed=Count("id", filter=Q(gate_passed=True)),
+            total=Sum("request_count"),
+            errors=Sum("error_count"),
+            duration_sum=Sum("total_duration_ms"),
         )
-        .order_by("date")
+        .order_by("ts")
     )
 
-    error_stages = (
-        traces.exclude(error_stage="")
-        .values("error_stage")
-        .annotate(count=Count("id"))
-        .order_by("-count")
+    # Collect samples per time bucket for percentiles
+    sample_buckets = {}
+    for b in qs.only("bucket_start", "duration_samples"):
+        if use_hourly:
+            key = b.bucket_start.replace(minute=0, second=0, microsecond=0)
+        else:
+            key = b.bucket_start.date()
+        sample_buckets.setdefault(key, []).extend(b.duration_samples or [])
+
+    latency_trend = []
+    error_rate_trend = []
+    volume_trend = []
+    for row in trend_qs:
+        ts = row["ts"]
+        ts_str = ts.isoformat() if hasattr(ts, "isoformat") else str(ts)
+        total = row["total"] or 0
+        errors = row["errors"] or 0
+        dur = row["duration_sum"] or 0
+
+        # Look up samples for this time bucket
+        key = ts if isinstance(ts, date) else (ts.date() if not use_hourly else ts)
+        samples = sample_buckets.get(key, [])
+
+        latency_trend.append({
+            "ts": ts_str,
+            "avg": round(dur / total, 1) if total else 0,
+            "p50": round(_compute_percentile(samples, 50), 1) if samples else None,
+            "p95": round(_compute_percentile(samples, 95), 1) if samples else None,
+            "p99": round(_compute_percentile(samples, 99), 1) if samples else None,
+        })
+        error_rate_trend.append({
+            "ts": ts_str,
+            "rate": round(errors / total * 100, 2) if total else 0,
+            "count": errors,
+        })
+        volume_trend.append({"ts": ts_str, "count": total})
+
+    # --- Slow endpoints (top 10 by avg duration) ---
+    endpoint_qs = (
+        qs.values("path_pattern", "method")
+        .annotate(
+            total=Sum("request_count"),
+            duration_sum=Sum("total_duration_ms"),
+        )
+        .filter(total__gte=5)  # at least 5 requests
+        .order_by("-duration_sum")
     )
+
+    # Collect samples per endpoint for p95
+    endpoint_samples = {}
+    for b in qs.only("path_pattern", "method", "duration_samples"):
+        key = (b.path_pattern, b.method)
+        endpoint_samples.setdefault(key, []).extend(b.duration_samples or [])
+
+    slow_endpoints = []
+    for ep in endpoint_qs[:10]:
+        key = (ep["path_pattern"], ep["method"])
+        samples = endpoint_samples.get(key, [])
+        total = ep["total"]
+        slow_endpoints.append({
+            "path": ep["path_pattern"],
+            "method": ep["method"],
+            "avg_ms": round(ep["duration_sum"] / total, 1) if total else 0,
+            "p95_ms": round(_compute_percentile(samples, 95), 1) if samples else None,
+            "count": total,
+        })
+
+    # --- SLA status (monthly p95/p99) ---
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_qs = RequestMetric.objects.filter(bucket_start__gte=month_start)
+    month_samples = []
+    for b in month_qs.only("duration_samples"):
+        month_samples.extend(b.duration_samples or [])
+
+    p95_month = _compute_percentile(month_samples, 95)
+    p99_month = _compute_percentile(month_samples, 99)
+
+    sla_status = {
+        "p95_target": 2000,
+        "p95_current": round(p95_month, 1) if p95_month is not None else None,
+        "p99_target": 5000,
+        "p99_current": round(p99_month, 1) if p99_month is not None else None,
+        "p95_met": p95_month <= 2000 if p95_month is not None else None,
+        "p99_met": p99_month <= 5000 if p99_month is not None else None,
+        "sample_count": len(month_samples),
+    }
 
     return Response({
-        "latency_trend": [
-            {"date": str(r["date"]), "avg_ms": round(r["avg_ms"], 1), "count": r["count"]}
-            for r in latency_trend
-        ],
-        "stage_breakdown": {
-            k: round(v, 1) if v else 0 for k, v in stage_avgs.items()
-        },
-        "gate_trend": [
-            {
-                "date": str(g["date"]),
-                "total": g["total"],
-                "passed": g["passed"],
-                "rate": round(g["passed"] / g["total"] * 100, 1) if g["total"] else 0,
-            }
-            for g in gate_trend
-        ],
-        "error_stages": list(error_stages),
+        "kpis": kpis,
+        "latency_trend": latency_trend,
+        "error_rate_trend": error_rate_trend,
+        "volume_trend": volume_trend,
+        "slow_endpoints": slow_endpoints,
+        "sla_status": sla_status,
     })
+
+
+def _compute_percentile(samples, p):
+    """Compute percentile from a list of values using linear interpolation."""
+    if not samples:
+        return None
+    sorted_s = sorted(samples)
+    n = len(sorted_s)
+    if n == 1:
+        return sorted_s[0]
+    k = (n - 1) * (p / 100)
+    f = int(k)
+    c = min(f + 1, n - 1)
+    return sorted_s[f] + (k - f) * (sorted_s[c] - sorted_s[f])
 
 
 # ---------------------------------------------------------------------------
@@ -603,13 +870,13 @@ def api_business(request):
 
     # Conversion funnel
     total = customers.count()
-    verified = customers.filter(email_verified=True).count()
+    verified = customers.filter(is_email_verified=True).count()
     queried = customers.filter(total_queries__gt=0).count()
     paid = customers.filter(tier__in=PAID_TIERS).count()
 
     # Churn
     churning = Subscription.objects.filter(
-        cancel_at_period_end=True,
+        is_cancel_at_period_end=True,
     ).exclude(user__is_staff=True).exclude(user__username__in=INTERNAL_USERNAMES).count()
     active_subs = Subscription.objects.filter(
         status="active",
@@ -857,7 +1124,7 @@ def api_send_email(request):
     skipped = 0
     for user, email in recipients:
         # Skip opted-out users
-        if user and getattr(user, "email_opted_out", False):
+        if user and getattr(user, "is_email_opted_out", False):
             skipped += 1
             continue
 
@@ -909,8 +1176,8 @@ def api_send_email(request):
             )
             sent += 1
         except Exception:
-            rcpt.failed = True
-            rcpt.save(update_fields=["failed"])
+            rcpt.has_failed = True
+            rcpt.save(update_fields=["has_failed"])
             failed += 1
 
     return Response({
@@ -1159,7 +1426,7 @@ def api_onboarding(request):
     surveys = OnboardingSurvey.objects.filter(user__is_staff=False).exclude(user__username__in=INTERNAL_USERNAMES)
 
     # Funnel
-    verified = customers.filter(email_verified=True).count()
+    verified = customers.filter(is_email_verified=True).count()
     queried = customers.filter(total_queries__gt=0).count()
     paid = customers.filter(tier__in=PAID_TIERS).count()
 
@@ -1563,7 +1830,7 @@ def api_whitepaper_list(request):
                 "slug": p.slug,
                 "topic": p.topic,
                 "status": p.status,
-                "gated": p.gated,
+                "gated": p.is_gated,
                 "meta_description": p.meta_description,
                 "download_count": p.download_count,
                 "created_at": p.created_at.isoformat() if p.created_at else None,
@@ -1597,7 +1864,7 @@ def api_whitepaper_get(request, paper_id):
         "body": p.body,
         "meta_description": p.meta_description,
         "status": p.status,
-        "gated": p.gated,
+        "gated": p.is_gated,
         "created_at": p.created_at.isoformat() if p.created_at else None,
         "published_at": p.published_at.isoformat() if p.published_at else None,
     })
@@ -1622,7 +1889,7 @@ def api_whitepaper_save(request):
     paper.description = data.get("description", paper.description or "")
     paper.meta_description = data.get("meta_description", paper.meta_description or "")
     paper.topic = data.get("topic", paper.topic or "")
-    paper.gated = data.get("gated", paper.gated)
+    paper.is_gated = data.get("gated", paper.is_gated)
     if data.get("slug"):
         paper.slug = data["slug"]
     paper.save()
@@ -1738,7 +2005,7 @@ def _build_data_snapshot(days=30):
     staff_ids = _staff_ids()
 
     total_users = customers.count()
-    verified = customers.filter(email_verified=True).count()
+    verified = customers.filter(is_email_verified=True).count()
     queried = customers.filter(total_queries__gt=0).count()
     paid = customers.filter(tier__in=PAID_TIERS).count()
 
@@ -1768,8 +2035,8 @@ def _build_data_snapshot(days=30):
         .aggregate(
             avg_latency=Avg("total_time_ms"),
             total_traces=Count("id"),
-            gates_passed=Count("id", filter=Q(gate_passed=True)),
-            fallbacks=Count("id", filter=Q(fallback_used=True)),
+            gates_passed=Count("id", filter=Q(has_gate_passed=True)),
+            fallbacks=Count("id", filter=Q(has_fallback_used=True)),
         )
     )
 
@@ -1798,7 +2065,7 @@ def _build_data_snapshot(days=30):
     )
 
     churning = Subscription.objects.filter(
-        cancel_at_period_end=True,
+        is_cancel_at_period_end=True,
     ).exclude(user__is_staff=True).exclude(user__username__in=INTERNAL_USERNAMES).count()
 
     signups = list(
@@ -2140,7 +2407,7 @@ def api_autopilot_approve(request, report_id):
 @permission_classes([IsInternalUser])
 def api_autopilot_run(request):
     """Manually trigger a Claude growth review."""
-    from tempora.scheduler import schedule_task
+    from syn.sched.scheduler import schedule_task
 
     schedule_task(
         name="manual_growth_review",
@@ -2257,7 +2524,7 @@ def api_crm_leads(request):
                 "stage": lead.stage,
                 "notes": lead.notes,
                 "tags": lead.tags,
-                "email_opted_out": lead.email_opted_out,
+                "email_opted_out": lead.is_email_opted_out,
                 "last_contacted_at": lead.last_contacted_at.isoformat() if lead.last_contacted_at else None,
                 "next_followup_at": lead.next_followup_at.isoformat() if lead.next_followup_at else None,
                 "created_at": lead.created_at.isoformat(),
@@ -2285,7 +2552,7 @@ def api_crm_leads(request):
         lead = CRMLead()
 
     for field in ["name", "email", "company", "role", "industry", "source",
-                   "stage", "notes", "tags", "email_opted_out"]:
+                   "stage", "notes", "tags", "is_email_opted_out"]:
         if field in d:
             setattr(lead, field, d[field])
 
@@ -2437,7 +2704,7 @@ def api_crm_enroll(request, sequence_id):
     except CRMLead.DoesNotExist:
         return Response({"error": "lead_not_found"}, status=404)
 
-    if lead.email_opted_out:
+    if lead.is_email_opted_out:
         return Response({"error": "lead_opted_out"}, status=400)
 
     if OutreachEnrollment.objects.filter(lead=lead, sequence=seq).exists():
@@ -2614,7 +2881,7 @@ def api_crm_send_one(request):
     except CRMLead.DoesNotExist:
         return Response({"error": "lead_not_found"}, status=404)
 
-    if lead.email_opted_out:
+    if lead.is_email_opted_out:
         return Response({"error": "lead_opted_out"}, status=400)
 
     # Personalize
@@ -2665,8 +2932,8 @@ def api_crm_send_one(request):
             "recipient_id": str(rcpt.id),
         })
     except Exception as e:
-        rcpt.failed = True
-        rcpt.save(update_fields=["failed"])
+        rcpt.has_failed = True
+        rcpt.save(update_fields=["has_failed"])
         return Response({"error": str(e)}, status=500)
 
 
@@ -2692,7 +2959,7 @@ def api_crm_process_queue(request):
         lead = enrollment.lead
         seq = enrollment.sequence
 
-        if lead.email_opted_out:
+        if lead.is_email_opted_out:
             enrollment.status = "opted_out"
             enrollment.save(update_fields=["status"])
             skipped_count += 1
@@ -2777,8 +3044,8 @@ def api_crm_process_queue(request):
             enrollment.save()
 
         except Exception:
-            rcpt.failed = True
-            rcpt.save(update_fields=["failed"])
+            rcpt.has_failed = True
+            rcpt.save(update_fields=["has_failed"])
             failed_count += 1
 
     return Response({
@@ -3079,7 +3346,7 @@ def api_site_live(request):
 @api_view(["POST"])
 @permission_classes([IsInternalUser])
 def api_crm_bulk_send(request):
-    """Schedule personalized A/B outreach emails to multiple leads via tempora.
+    """Schedule personalized A/B outreach emails to multiple leads via syn.sched.
 
     Expects: lead_ids, subject_a, body_a, subject_b, body_b.
     Pass preview: true to return per-lead assignments without sending.
@@ -3107,7 +3374,7 @@ def api_crm_bulk_send(request):
     if not body_b:
         body_b = body_a
 
-    leads = CRMLead.objects.filter(id__in=lead_ids, email_opted_out=False)
+    leads = CRMLead.objects.filter(id__in=lead_ids, is_email_opted_out=False)
     if not leads.exists():
         return Response({"error": "No eligible leads found."}, status=400)
 
@@ -3157,7 +3424,7 @@ def api_crm_bulk_send(request):
         })
 
     # --- Actual send ---
-    from tempora.scheduler import schedule_task
+    from syn.sched.scheduler import schedule_task
 
     campaign = EmailCampaign.objects.create(
         subject=f"[CRM Bulk] {subject_a[:80]}",
@@ -3204,3 +3471,1475 @@ def api_crm_bulk_send(request):
         "stagger_seconds": 5,
         "total_time_estimate": f"{scheduled * 5}s",
     })
+
+
+# =============================================================================
+# Infrastructure (Synara OS layer)
+# =============================================================================
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_infra(request):
+    """Synara infrastructure overview: scheduler, audit trail, system logs."""
+    now = timezone.now()
+
+    # --- Scheduler ---
+    try:
+        from syn.sched.models import (
+            CognitiveTask, Schedule, DeadLetterEntry, CircuitBreakerState,
+        )
+
+        task_states = dict(
+            CognitiveTask.objects.values_list("state")
+            .annotate(count=Count("id"))
+            .values_list("state", "count")
+        )
+
+        schedules = list(
+            Schedule.objects.order_by("schedule_id").values(
+                "schedule_id", "name", "task_name", "is_enabled",
+                "last_run_at", "next_run_at", "run_count",
+            )
+        )
+        for s in schedules:
+            s["last_run_at"] = str(s["last_run_at"]) if s["last_run_at"] else None
+            s["next_run_at"] = str(s["next_run_at"]) if s["next_run_at"] else None
+
+        dlq_by_status = dict(
+            DeadLetterEntry.objects.values_list("status")
+            .annotate(count=Count("id"))
+            .values_list("status", "count")
+        )
+
+        circuit_breakers = list(
+            CircuitBreakerState.objects.values(
+                "service_name", "state", "failure_count",
+                "last_failure_at", "opened_at",
+            )
+        )
+        for cb in circuit_breakers:
+            cb["last_failure_at"] = str(cb["last_failure_at"]) if cb["last_failure_at"] else None
+            cb["opened_at"] = str(cb["opened_at"]) if cb["opened_at"] else None
+
+        recent_failures = list(
+            CognitiveTask.objects.filter(state="FAILURE")
+            .order_by("-completed_at")[:10]
+            .values("id", "task_name", "error_type", "error_message", "completed_at")
+        )
+        for f in recent_failures:
+            f["id"] = str(f["id"])
+            f["completed_at"] = str(f["completed_at"]) if f["completed_at"] else None
+
+        scheduler_data = {
+            "task_states": task_states,
+            "schedules": schedules,
+            "dlq": dlq_by_status,
+            "circuit_breakers": circuit_breakers,
+            "recent_failures": recent_failures,
+        }
+    except Exception as e:
+        logger.warning("Infra: scheduler query failed: %s", e)
+        scheduler_data = {"error": str(e)}
+
+    # --- Audit Trail ---
+    try:
+        from syn.audit.models import SysLogEntry, IntegrityViolation, DriftViolation
+
+        audit_total = SysLogEntry.objects.count()
+        latest_entry = SysLogEntry.objects.order_by("-id").first()
+        chain_ok = True
+        chain_length = audit_total
+        if latest_entry and latest_entry.current_hash:
+            chain_ok = bool(latest_entry.current_hash)
+
+        event_distribution = dict(
+            SysLogEntry.objects.values_list("event_name")
+            .annotate(count=Count("id"))
+            .order_by("-count")
+            .values_list("event_name", "count")[:15]
+        )
+
+        integrity_open = IntegrityViolation.objects.filter(is_resolved=False).count()
+        integrity_total = IntegrityViolation.objects.count()
+
+        drift_by_severity = dict(
+            DriftViolation.objects.filter(resolved_at__isnull=True)
+            .values_list("severity")
+            .annotate(count=Count("id"))
+            .values_list("severity", "count")
+        )
+        drift_total_open = sum(drift_by_severity.values())
+        drift_sla_breached = DriftViolation.objects.filter(
+            is_sla_breached=True, resolved_at__isnull=True,
+        ).count()
+
+        audit_data = {
+            "total_entries": audit_total,
+            "chain_length": chain_length,
+            "chain_ok": chain_ok,
+            "event_distribution": event_distribution,
+            "integrity_violations_open": integrity_open,
+            "integrity_violations_total": integrity_total,
+            "drift_by_severity": drift_by_severity,
+            "drift_total_open": drift_total_open,
+            "drift_sla_breached": drift_sla_breached,
+        }
+    except Exception as e:
+        logger.warning("Infra: audit query failed: %s", e)
+        audit_data = {"error": str(e)}
+
+    # --- System Logs ---
+    try:
+        from syn.log.models import LogEntry, LogStream
+
+        log_level_counts = dict(
+            LogEntry.objects.values_list("level")
+            .annotate(count=Count("id"))
+            .values_list("level", "count")
+        )
+        log_total = sum(log_level_counts.values())
+
+        recent_errors = list(
+            LogEntry.objects.filter(level__in=["ERROR", "CRITICAL"])
+            .order_by("-timestamp")[:20]
+            .values("id", "timestamp", "level", "logger", "message")
+        )
+        for entry in recent_errors:
+            entry["id"] = str(entry["id"])
+            entry["timestamp"] = str(entry["timestamp"])
+
+        streams = list(
+            LogStream.objects.values(
+                "name", "is_active", "min_level", "retention_days",
+            )
+        )
+
+        logs_data = {
+            "total": log_total,
+            "by_level": log_level_counts,
+            "recent_errors": recent_errors,
+            "streams": streams,
+        }
+    except Exception as e:
+        logger.warning("Infra: log query failed: %s", e)
+        logs_data = {"error": str(e)}
+
+    return Response({
+        "scheduler": scheduler_data,
+        "audit": audit_data,
+        "logs": logs_data,
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_audit_entries(request):
+    """Return paginated audit log entries with optional filters."""
+    try:
+        from syn.audit.models import SysLogEntry
+
+        limit = min(int(request.GET.get("limit", 50)), 200)
+        event_name = request.GET.get("event_name", "").strip()
+        actor = request.GET.get("actor", "").strip()
+
+        qs = SysLogEntry.objects.order_by("-id")
+        if event_name:
+            qs = qs.filter(event_name=event_name)
+        if actor:
+            qs = qs.filter(actor__icontains=actor)
+
+        total = qs.count()
+        entries = list(qs[:limit].values(
+            "id", "timestamp", "actor", "event_name",
+            "correlation_id", "payload", "current_hash", "is_genesis",
+        ))
+
+        for e in entries:
+            e["timestamp"] = e["timestamp"].isoformat() if e["timestamp"] else None
+            e["correlation_id"] = str(e["correlation_id"]) if e["correlation_id"] else None
+            e["hash_preview"] = (e.pop("current_hash") or "")[:16] + "..."
+            # Truncate payload for preview
+            payload = e.get("payload") or {}
+            if isinstance(payload, dict) and len(str(payload)) > 200:
+                e["payload_preview"] = {k: str(v)[:60] for k, v in list(payload.items())[:5]}
+            else:
+                e["payload_preview"] = payload
+            del e["payload"]
+
+        # Distinct event names for filter dropdown
+        event_names = list(
+            SysLogEntry.objects.values_list("event_name", flat=True)
+            .distinct()
+            .order_by("event_name")
+        )
+
+        return Response({
+            "entries": entries,
+            "total": total,
+            "event_names": event_names,
+        })
+    except Exception as e:
+        logger.warning("Audit entries query failed: %s", e)
+        return Response({"entries": [], "total": 0, "event_names": [], "error": str(e)})
+
+
+# =============================================================================
+# Compliance
+# =============================================================================
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_compliance(request):
+    """Return compliance check results and report data for dashboard."""
+    try:
+        from syn.audit.models import ComplianceCheck, ComplianceReport
+        from syn.audit.compliance import ALL_CHECKS, get_check_soc2_controls
+
+        now = timezone.now()
+
+        # Latest result per check (with details for drill-down)
+        latest_checks = []
+        for name in ALL_CHECKS:
+            latest = ComplianceCheck.objects.filter(check_name=name).order_by("-run_at").first()
+            if latest:
+                latest_checks.append({
+                    "id": str(latest.id),
+                    "check_name": latest.check_name,
+                    "category": latest.category,
+                    "status": latest.status,
+                    "duration_ms": latest.duration_ms,
+                    "run_at": latest.run_at.isoformat(),
+                    "soc2_controls": latest.soc2_controls,
+                    "details": latest.details or {},
+                })
+            else:
+                _, cat = ALL_CHECKS[name]
+                latest_checks.append({
+                    "id": None,
+                    "check_name": name,
+                    "category": cat,
+                    "status": "pending",
+                    "duration_ms": 0,
+                    "run_at": None,
+                    "soc2_controls": get_check_soc2_controls(name),
+                    "details": {},
+                })
+
+        # Pass rate trend (last 30 days)
+        thirty_days_ago = now - timedelta(days=30)
+        trend_qs = (
+            ComplianceCheck.objects
+            .filter(run_at__gte=thirty_days_ago)
+            .annotate(day=TruncDate("run_at"))
+            .values("day")
+            .annotate(
+                total=Count("id"),
+                passed=Count("id", filter=Q(status="pass")),
+            )
+            .order_by("day")
+        )
+        trend = [
+            {
+                "date": row["day"].isoformat(),
+                "total": row["total"],
+                "passed": row["passed"],
+                "pass_rate": round(row["passed"] / row["total"] * 100, 1) if row["total"] > 0 else 0,
+            }
+            for row in trend_qs
+        ]
+
+        # Aggregate stats — current state from latest per-check results
+        total_checks_run = ComplianceCheck.objects.count()
+        today_checks = ComplianceCheck.objects.filter(run_at__date=now.date()).count()
+        checks_total = len(latest_checks)
+        checks_passed = sum(1 for c in latest_checks if c["status"] == "pass")
+
+        # SOC 2 coverage
+        all_controls = set()
+        for c in latest_checks:
+            all_controls.update(c.get("soc2_controls", []))
+
+        # Reports (include full_report for drill-down)
+        report_objs = ComplianceReport.objects.order_by("-period_start")[:10]
+        reports = []
+        for rpt in report_objs:
+            reports.append({
+                "id": str(rpt.id),
+                "period_start": rpt.period_start.isoformat(),
+                "period_end": rpt.period_end.isoformat(),
+                "pass_rate": rpt.pass_rate,
+                "total_checks": rpt.total_checks,
+                "passed": rpt.passed,
+                "failed": rpt.failed,
+                "warnings": rpt.warnings,
+                "is_published": rpt.is_published,
+                "generated_at": rpt.generated_at.isoformat(),
+                "full_report": rpt.full_report or {},
+                "public_report": rpt.public_report or {},
+            })
+
+        # Standards coverage — from latest standards_compliance check
+        standards_data = {}
+        standards_total = 0
+        standards_passed = 0
+
+        # Compute test hook counts LIVE from standards files
+        from syn.audit.standards import parse_all_standards
+        live_assertions = parse_all_standards()
+        live_tests_linked = 0
+        live_seen = set()
+        for a in live_assertions:
+            for t in a.tests:
+                live_tests_linked += 1
+                live_seen.add(t)
+        live_tests_unique = len(live_seen)
+
+        std_check = ComplianceCheck.objects.filter(
+            check_name="standards_compliance"
+        ).order_by("-run_at").first()
+        if std_check and std_check.details:
+            details = std_check.details
+            by_standard = details.get("by_standard", {})
+            standards_total = details.get("total_assertions", 0)
+            standards_passed = details.get("passed", 0)
+            standards_data = {
+                "total_assertions": len(live_assertions),
+                "passed": standards_passed,
+                "failed": details.get("failed", 0),
+                "warnings": details.get("warnings", 0),
+                "tests_linked": live_tests_linked,
+                "tests_unique": live_tests_unique,
+                "tests_exist": details.get("tests_exist", 0),
+                "tests_missing": details.get("tests_missing", 0),
+                "tests_passed": details.get("tests_passed", 0),
+                "tests_failed": details.get("tests_failed", 0),
+                "tests_skipped": details.get("tests_skipped", 0),
+                "run_at": std_check.run_at.isoformat(),
+                "by_standard": by_standard,
+                "findings": details.get("findings", []),
+            }
+
+        # Symbol coverage — compute live from standards symbol-level impl hooks
+        code_coverage = {}
+        try:
+            from syn.audit.compliance import check_symbol_coverage
+            cov_result = check_symbol_coverage()
+            code_coverage = cov_result.get("details", {})
+        except Exception:
+            pass
+
+        # Statistical calibration — run live or fetch latest
+        calibration_data = {}
+        try:
+            cal_check = ComplianceCheck.objects.filter(
+                check_name="statistical_calibration"
+            ).order_by("-run_at").first()
+            if cal_check and cal_check.details:
+                calibration_data = cal_check.details
+                calibration_data["run_at"] = cal_check.run_at.isoformat()
+                calibration_data["status"] = cal_check.status
+        except Exception:
+            pass
+
+        # SLA data from latest sla_compliance check, with live availability overlay
+        sla_data = {"total": 0, "met": 0, "breached": 0, "unmeasurable": 0, "slas": []}
+        sla_check = ComplianceCheck.objects.filter(
+            check_name="sla_compliance"
+        ).order_by("-run_at").first()
+        if sla_check and sla_check.details:
+            d = sla_check.details
+            sla_data["total"] = d.get("total_slas", 0)
+            sla_data["met"] = d.get("met", 0)
+            sla_data["breached"] = d.get("breached", 0)
+            sla_data["unmeasurable"] = d.get("unmeasurable", 0)
+            sla_data["run_at"] = sla_check.run_at.isoformat()
+            sla_data["slas"] = d.get("sla_results", [])
+
+        # Overlay live availability from HealthPing (replaces stale cached value)
+        try:
+            from syn.audit.models import HealthPing
+            now = timezone.now()
+            month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            pings = HealthPing.objects.filter(timestamp__gte=month_start)
+            total_pings = pings.count()
+            if total_pings > 0:
+                healthy_pings = pings.filter(is_healthy=True).count()
+                live_pct = (healthy_pings / total_pings) * 100
+                live_status = "met" if live_pct >= 99.9 else "breach"
+                for sla in sla_data["slas"]:
+                    if sla.get("metric") == "availability":
+                        old_status = sla.get("status")
+                        sla["current_value"] = f"{live_pct:.2f}%"
+                        sla["status"] = live_status
+                        sla["measurement"] = "automated"
+                        # Recount met/breached if status changed
+                        if old_status != live_status:
+                            if old_status == "breach" and live_status == "met":
+                                sla_data["met"] = sla_data["met"] + 1
+                                sla_data["breached"] = max(sla_data["breached"] - 1, 0)
+                            elif old_status == "met" and live_status == "breach":
+                                sla_data["met"] = max(sla_data["met"] - 1, 0)
+                                sla_data["breached"] = sla_data["breached"] + 1
+        except Exception:
+            pass  # Fall back to cached value
+
+        # SOC 2 control coverage
+        soc2_data = {}
+        try:
+            from syn.audit.compliance import soc2_control_coverage
+            soc2_data = soc2_control_coverage()
+        except Exception as e:
+            logger.warning("SOC 2 coverage computation failed: %s", e)
+
+        # Overall pass rate: infrastructure checks + standard assertions
+        # Only "pass" counts — warnings count against
+        all_total = checks_total + standards_total
+        all_passed = checks_passed + standards_passed
+        overall_rate = round(all_passed / all_total * 100, 1) if all_total > 0 else 0
+
+        return Response({
+            "checks": latest_checks,
+            "trend": trend,
+            "stats": {
+                "total_checks_run": total_checks_run,
+                "checks_today": today_checks,
+                "overall_pass_rate": overall_rate,
+                "infra_checks": checks_total,
+                "infra_passed": checks_passed,
+                "standards_assertions": standards_total,
+                "standards_passed": standards_passed,
+                "soc2_controls_covered": len(all_controls),
+            },
+            "reports": reports,
+            "standards": standards_data,
+            "code_coverage": code_coverage,
+            "calibration": calibration_data,
+            "sla": sla_data,
+            "soc2": soc2_data,
+        })
+    except Exception as e:
+        logger.warning("Compliance data query failed: %s", e)
+        return Response({"checks": [], "trend": [], "stats": {}, "reports": [], "error": str(e)})
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_compliance_publish(request, report_id):
+    """Toggle publish state of a compliance report."""
+    try:
+        from syn.audit.models import ComplianceReport
+        report = ComplianceReport.objects.get(id=report_id)
+        report.is_published = not report.is_published
+        report.save()
+        return Response({"ok": True, "is_published": report.is_published})
+    except ComplianceReport.DoesNotExist:
+        return Response({"ok": False, "error": "Report not found"}, status=404)
+    except Exception as e:
+        return Response({"ok": False, "error": str(e)}, status=500)
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_compliance_run(request):
+    """Run compliance checks.
+
+    POST with {"check": "name"} runs a single check.
+    POST with no body or {"check": "__all__"} returns the list of checks to run.
+    The frontend iterates the list and calls each check individually to avoid
+    Cloudflare/gunicorn timeout on the full suite.
+    """
+    try:
+        from syn.audit.compliance import run_check, ALL_CHECKS, run_standards_tests_for
+        data = request.data or {}
+        check_name = data.get("check")
+        standard = data.get("standard")
+
+        # Per-standard test runner mode
+        if check_name == "standards_tests" and standard:
+            import time
+            start = time.time()
+            result = run_standards_tests_for(standard)
+            result["duration_ms"] = round((time.time() - start) * 1000)
+            result["ok"] = True
+            return Response(result)
+
+        # Single check mode
+        if check_name and check_name != "__all__":
+            if check_name not in ALL_CHECKS:
+                return Response({"ok": False, "error": f"Unknown check: {check_name}"}, status=400)
+            check = run_check(check_name)
+            return Response({
+                "ok": True,
+                "check_name": check.check_name,
+                "status": check.status,
+                "duration_ms": check.duration_ms,
+            })
+
+        # List mode — return check names for client to iterate
+        return Response({
+            "ok": True,
+            "checks": list(ALL_CHECKS.keys()),
+            "total": len(ALL_CHECKS),
+        })
+    except Exception as e:
+        logger.exception("Compliance run failed")
+        return Response({"ok": False, "error": str(e)}, status=500)
+
+
+# =============================================================================
+# Change Management (CHG-001)
+# =============================================================================
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_change_management(request):
+    """Return change management data for dashboard.
+
+    Query params:
+        type: filter by change_type (feature, bugfix, etc.)
+        status: filter by status (draft, in_progress, completed, etc.)
+        risk: filter by risk_level (critical, high, medium, low)
+        limit: max results (default 50)
+    """
+    try:
+        from syn.audit.models import ChangeRequest, ChangeLog, RiskAssessment
+
+        qs = ChangeRequest.objects.all()
+
+        # Filters
+        change_type = request.query_params.get("type")
+        if change_type:
+            qs = qs.filter(change_type=change_type)
+
+        status = request.query_params.get("status")
+        if status:
+            qs = qs.filter(status=status)
+
+        risk = request.query_params.get("risk")
+        if risk:
+            qs = qs.filter(risk_level=risk)
+
+        limit = int(request.query_params.get("limit", 50))
+        total = qs.count()
+
+        changes = []
+        for cr in qs[:limit]:
+            log_count = cr.logs.count()
+            latest_log = cr.logs.order_by("-timestamp").first()
+            risk_assessment = cr.risk_assessments.order_by("-assessed_at").first()
+
+            changes.append({
+                "id": str(cr.id),
+                "title": cr.title,
+                "change_type": cr.change_type,
+                "risk_level": cr.risk_level,
+                "priority": cr.priority,
+                "status": cr.status,
+                "is_emergency": cr.is_emergency,
+                "author": cr.author,
+                "approver": cr.approver,
+                "created_at": cr.created_at.isoformat(),
+                "updated_at": cr.updated_at.isoformat(),
+                "completed_at": cr.completed_at.isoformat() if cr.completed_at else None,
+                "log_count": log_count,
+                "latest_log_action": latest_log.action if latest_log else None,
+                "latest_log_time": latest_log.timestamp.isoformat() if latest_log else None,
+                "risk_score": risk_assessment.overall_score if risk_assessment else None,
+                "risk_recommendation": risk_assessment.overall_recommendation if risk_assessment else None,
+                "issue_url": cr.issue_url,
+                "commit_shas": cr.commit_shas,
+                "correlation_id": str(cr.correlation_id),
+                "compliance_check_ids": cr.compliance_check_ids,
+                "drift_violation_ids": cr.drift_violation_ids,
+                "audit_entry_ids": cr.audit_entry_ids,
+            })
+
+        # Summary stats
+        now = timezone.now()
+        thirty_days = now - timedelta(days=30)
+        recent = ChangeRequest.objects.filter(created_at__gte=thirty_days)
+
+        stats = {
+            "total_changes": total,
+            "active_changes": ChangeRequest.objects.filter(
+                status__in=["draft", "submitted", "risk_assessed", "approved", "in_progress", "testing"]
+            ).count(),
+            "completed_30d": recent.filter(status="completed").count(),
+            "failed_30d": recent.filter(status__in=["failed", "rolled_back"]).count(),
+            "emergency_30d": recent.filter(is_emergency=True).count(),
+            "by_type": dict(
+                recent.values_list("change_type").annotate(count=Count("id")).order_by()
+            ),
+            "by_risk": dict(
+                recent.values_list("risk_level").annotate(count=Count("id")).order_by()
+            ),
+        }
+
+        return Response({
+            "changes": changes,
+            "total": total,
+            "stats": stats,
+        })
+    except Exception as e:
+        logger.warning("Change management query failed: %s", e)
+        return Response({"changes": [], "total": 0, "stats": {}, "error": str(e)})
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_change_detail(request, change_id):
+    """Return full detail for a single change request including all logs and risk assessments."""
+    try:
+        from syn.audit.models import ChangeRequest
+
+        cr = ChangeRequest.objects.get(id=change_id)
+
+        # All logs in chronological order
+        logs = [
+            {
+                "id": str(log.id),
+                "timestamp": log.timestamp.isoformat(),
+                "actor": log.actor,
+                "action": log.action,
+                "from_state": log.from_state,
+                "to_state": log.to_state,
+                "message": log.message,
+                "details": log.details,
+            }
+            for log in cr.logs.order_by("timestamp")
+        ]
+
+        # Risk assessments with votes
+        assessments = []
+        for ra in cr.risk_assessments.order_by("-assessed_at"):
+            votes = [
+                {
+                    "agent_role": v.agent_role,
+                    "recommendation": v.recommendation,
+                    "risk_scores": v.risk_scores,
+                    "rationale": v.rationale,
+                    "conditions": v.conditions,
+                    "voted_at": v.voted_at.isoformat(),
+                }
+                for v in ra.votes.order_by("voted_at")
+            ]
+            assessments.append({
+                "id": str(ra.id),
+                "assessment_type": ra.assessment_type,
+                "security_score": ra.security_score,
+                "availability_score": ra.availability_score,
+                "integrity_score": ra.integrity_score,
+                "confidentiality_score": ra.confidentiality_score,
+                "privacy_score": ra.privacy_score,
+                "overall_score": ra.overall_score,
+                "overall_recommendation": ra.overall_recommendation,
+                "conditions": ra.conditions,
+                "summary": ra.summary,
+                "is_retroactive": ra.is_retroactive,
+                "assessed_at": ra.assessed_at.isoformat(),
+                "assessed_by": ra.assessed_by,
+                "votes": votes,
+            })
+
+        # Related changes
+        related = []
+        if cr.related_change_ids:
+            for rid in cr.related_change_ids:
+                try:
+                    rel = ChangeRequest.objects.get(id=rid)
+                    related.append({
+                        "id": str(rel.id),
+                        "title": rel.title,
+                        "status": rel.status,
+                        "change_type": rel.change_type,
+                    })
+                except ChangeRequest.DoesNotExist:
+                    pass
+
+        return Response({
+            "change": {
+                "id": str(cr.id),
+                "title": cr.title,
+                "description": cr.description,
+                "change_type": cr.change_type,
+                "risk_level": cr.risk_level,
+                "priority": cr.priority,
+                "status": cr.status,
+                "is_emergency": cr.is_emergency,
+                "justification": cr.justification,
+                "affected_files": cr.affected_files,
+                "implementation_plan": cr.implementation_plan,
+                "rollback_plan": cr.rollback_plan,
+                "testing_plan": cr.testing_plan,
+                "issue_url": cr.issue_url,
+                "parent_change_id": str(cr.parent_change_id) if cr.parent_change_id else None,
+                "related_change_ids": [str(r) for r in cr.related_change_ids] if cr.related_change_ids else [],
+                "debt_item": cr.debt_item,
+                "commit_shas": cr.commit_shas,
+                "log_md_ref": cr.log_md_ref,
+                "compliance_check_ids": cr.compliance_check_ids,
+                "drift_violation_ids": cr.drift_violation_ids,
+                "audit_entry_ids": cr.audit_entry_ids,
+                "author": cr.author,
+                "approver": cr.approver,
+                "created_at": cr.created_at.isoformat(),
+                "updated_at": cr.updated_at.isoformat(),
+                "submitted_at": cr.submitted_at.isoformat() if cr.submitted_at else None,
+                "approved_at": cr.approved_at.isoformat() if cr.approved_at else None,
+                "started_at": cr.started_at.isoformat() if cr.started_at else None,
+                "completed_at": cr.completed_at.isoformat() if cr.completed_at else None,
+                "correlation_id": str(cr.correlation_id),
+            },
+            "logs": logs,
+            "risk_assessments": assessments,
+            "related_changes": related,
+        })
+    except ChangeRequest.DoesNotExist:
+        return Response({"error": "Change request not found"}, status=404)
+    except Exception as e:
+        logger.warning("Change detail query failed: %s", e)
+        return Response({"error": str(e)}, status=500)
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_change_create(request):
+    """Create a new change request with initial log entry.
+
+    Body: {title, description, change_type, risk_level, priority, justification,
+           affected_files, implementation_plan, rollback_plan, testing_plan,
+           issue_url, parent_change_id, debt_item, is_emergency,
+           feature_id, task_id}
+    """
+    try:
+        from syn.audit.models import ChangeRequest, ChangeLog
+
+        data = request.data
+        author = request.user.email if request.user.is_authenticated else "system"
+
+        cr = ChangeRequest.objects.create(
+            title=data.get("title", ""),
+            description=data.get("description", ""),
+            change_type=data.get("change_type", "enhancement"),
+            risk_level=data.get("risk_level", "medium"),
+            priority=data.get("priority", "medium"),
+            status="draft",
+            is_emergency=data.get("is_emergency", False),
+            justification=data.get("justification", ""),
+            affected_files=data.get("affected_files", []),
+            implementation_plan=data.get("implementation_plan", {}),
+            rollback_plan=data.get("rollback_plan", {}),
+            testing_plan=data.get("testing_plan", {}),
+            issue_url=data.get("issue_url", ""),
+            parent_change_id=data.get("parent_change_id"),
+            debt_item=data.get("debt_item", ""),
+            feature_id=data.get("feature_id"),
+            task_id=data.get("task_id"),
+            author=author,
+        )
+
+        # CHG-001 §7.1.1: Validate mandatory fields at creation
+        try:
+            cr.full_clean()
+        except Exception as ve:
+            cr.delete()
+            error_dict = ve.message_dict if hasattr(ve, "message_dict") else {"error": str(ve)}
+            return Response({"ok": False, "error": error_dict}, status=400)
+
+        # Create initial log entry
+        ChangeLog.objects.create(
+            change_request=cr,
+            actor=author,
+            action="plan_created",
+            to_state="draft",
+            message=f"Change request created: {cr.title}",
+            details={"change_type": cr.change_type, "risk_level": cr.risk_level},
+        )
+
+        # Bidirectional linking (CHG-001 §8.4)
+        for rid in data.get("related_change_ids", []):
+            cr.link_related(rid, actor=author, message=f"Linked on creation")
+
+        for cid in data.get("compliance_check_ids", []):
+            cr.link_compliance_checks([cid], actor=author)
+
+        for did in data.get("drift_violation_ids", []):
+            cr.link_drift_violations([did], actor=author)
+
+        # Planning linkage write-back (CHG-001 §5.6.1)
+        if cr.feature_id or cr.task_id:
+            cr.link_planning(
+                feature_id=cr.feature_id,
+                task_id=cr.task_id,
+                actor=author,
+            )
+
+        return Response({"ok": True, "id": str(cr.id)}, status=201)
+    except Exception as e:
+        logger.warning("Change create failed: %s", e)
+        return Response({"ok": False, "error": str(e)}, status=400)
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_change_transition(request, change_id):
+    """Transition a change request to a new state with a log entry.
+
+    Body: {action, message, details}
+    Valid actions match ChangeLog.ACTION_CHOICES.
+    """
+    try:
+        from syn.audit.models import ChangeRequest, ChangeLog
+
+        cr = ChangeRequest.objects.get(id=change_id)
+        data = request.data
+        action = data.get("action", "")
+        actor = request.user.email if request.user.is_authenticated else "system"
+
+        # Map action to target state
+        ACTION_TO_STATE = {
+            "submitted": "submitted",
+            "risk_assessed": "risk_assessed",
+            "approved": "approved",
+            "rejected": "rejected",
+            "implementation_started": "in_progress",
+            "testing_completed": "testing",
+            "completed": "completed",
+            "failed": "failed",
+            "rolled_back": "rolled_back",
+            "cancelled": "cancelled",
+        }
+
+        from_state = cr.status
+        to_state = ACTION_TO_STATE.get(action, "")
+
+        if to_state:
+            # CHG-001 §7.1.1: Validate field requirements for transition
+            transition_errors = cr.validate_for_transition(to_state)
+            if transition_errors:
+                return Response({
+                    "ok": False,
+                    "error": "Transition blocked — missing required fields (CHG-001 §7.1.1)",
+                    "missing_fields": transition_errors,
+                }, status=400)
+
+            cr.status = to_state
+
+            # Set lifecycle timestamps
+            now = timezone.now()
+            if to_state == "submitted" and not cr.submitted_at:
+                cr.submitted_at = now
+            elif to_state == "approved" and not cr.approved_at:
+                cr.approved_at = now
+                cr.approver = actor
+            elif to_state == "in_progress" and not cr.started_at:
+                cr.started_at = now
+            elif to_state in ("completed", "failed", "rolled_back", "cancelled"):
+                cr.completed_at = now
+
+            cr.save()
+
+        # Handle linking actions (CHG-001 §8.4/§8.5) — no state change
+        if action == "linked":
+            details = data.get("details", {})
+            msg = data.get("message", "")
+            for rid in details.get("related_change_ids", []):
+                cr.link_related(rid, actor=actor, message=msg)
+            if details.get("compliance_check_ids"):
+                cr.link_compliance_checks(details["compliance_check_ids"], actor=actor, message=msg)
+            if details.get("drift_violation_ids"):
+                cr.link_drift_violations(details["drift_violation_ids"], actor=actor, message=msg)
+            return Response({"ok": True, "status": cr.status})
+
+        # Always create log entry
+        ChangeLog.objects.create(
+            change_request=cr,
+            actor=actor,
+            action=action,
+            from_state=from_state,
+            to_state=to_state or from_state,
+            message=data.get("message", ""),
+            details=data.get("details", {}),
+        )
+
+        return Response({"ok": True, "status": cr.status})
+    except ChangeRequest.DoesNotExist:
+        return Response({"ok": False, "error": "Change request not found"}, status=404)
+    except Exception as e:
+        logger.warning("Change transition failed: %s", e)
+        return Response({"ok": False, "error": str(e)}, status=400)
+
+
+# ---------------------------------------------------------------------------
+# Standards Library
+# ---------------------------------------------------------------------------
+
+_STANDARDS_DIR = Path(settings.BASE_DIR).parent.parent.parent / "docs" / "standards"
+
+_META_PATTERNS = {
+    "version": re.compile(r"^\*\*Version:\*\*\s*(.+)$", re.M),
+    "status": re.compile(r"^\*\*Status:\*\*\s*(.+)$", re.M),
+    "date": re.compile(r"^\*\*Date:\*\*\s*(.+)$", re.M),
+    "author": re.compile(r"^\*\*Author:\*\*\s*(.+)$", re.M),
+    "supersedes": re.compile(r"^\*\*Supersedes:\*\*\s*(.+)$", re.M),
+}
+
+
+def _parse_standard_meta(text, filename):
+    """Extract metadata from a standard's markdown header."""
+    # Title from first line: **CODE: TITLE**
+    title_m = re.match(r"\*\*(\S+):\s*(.+?)\*\*", text)
+    code = title_m.group(1) if title_m else filename.replace(".md", "")
+    title = title_m.group(2).strip() if title_m else code
+
+    meta = {"code": code, "title": title}
+    for key, pat in _META_PATTERNS.items():
+        m = pat.search(text)
+        meta[key] = m.group(1).strip() if m else ""
+
+    # Related standards
+    related = []
+    in_related = False
+    for line in text.splitlines():
+        if line.startswith("**Related Standards:**"):
+            in_related = True
+            continue
+        if in_related:
+            if line.startswith("- "):
+                ref_m = re.match(r"- (\w+-\d+)", line)
+                if ref_m:
+                    related.append(ref_m.group(1))
+            else:
+                break
+    meta["related"] = related
+
+    # Compliance frameworks
+    compliance = []
+    in_compliance = False
+    for line in text.splitlines():
+        if line.startswith("**Compliance:**"):
+            in_compliance = True
+            continue
+        if in_compliance:
+            if line.startswith("- "):
+                compliance.append(line[2:].strip())
+            else:
+                break
+    meta["compliance"] = compliance
+
+    # Count assertion hooks
+    meta["assertions"] = len(re.findall(r"<!--\s*assert:", text))
+
+    return meta
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_standards(request):
+    """List all standards or return a single standard's full content."""
+    code = request.GET.get("code")
+
+    if code:
+        # Single standard — return metadata + full markdown body
+        filepath = _STANDARDS_DIR / f"{code}.md"
+        if not filepath.is_file():
+            return Response({"error": "Standard not found"}, status=404)
+        text = filepath.read_text(encoding="utf-8")
+        meta = _parse_standard_meta(text, filepath.name)
+        meta["body"] = text
+        # Line count for UI
+        meta["lines"] = text.count("\n") + 1
+        return Response(meta)
+
+    # List all standards
+    standards = []
+    if _STANDARDS_DIR.is_dir():
+        for fp in sorted(_STANDARDS_DIR.glob("*.md")):
+            text = fp.read_text(encoding="utf-8")
+            meta = _parse_standard_meta(text, fp.name)
+            meta["lines"] = text.count("\n") + 1
+            standards.append(meta)
+
+    return Response({"standards": standards})
+
+
+# ---------------------------------------------------------------------------
+# API: Roadmap Management
+# ---------------------------------------------------------------------------
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_roadmap_list(request):
+    """List roadmap items with optional filters and aggregate stats."""
+    qs = RoadmapItem.objects.all()
+
+    quarter = request.GET.get("quarter")
+    area = request.GET.get("area")
+    status = request.GET.get("status")
+
+    if quarter:
+        qs = qs.filter(quarter=quarter)
+    if area:
+        qs = qs.filter(area=area)
+    if status:
+        qs = qs.filter(status=status)
+
+    items = []
+    for item in qs:
+        items.append({
+            "id": str(item.id),
+            "title": item.title,
+            "description": item.description,
+            "area": item.area,
+            "quarter": item.quarter,
+            "status": item.status,
+            "tier": item.tier,
+            "is_public": item.is_public,
+            "sort_order": item.sort_order,
+            "shipped_at": item.shipped_at.isoformat() if item.shipped_at else None,
+            "change_request_id": str(item.change_request_id) if item.change_request_id else None,
+            "created_at": item.created_at.isoformat(),
+            "updated_at": item.updated_at.isoformat(),
+        })
+
+    # Unique quarters sorted
+    quarters = sorted(
+        RoadmapItem.objects.values_list("quarter", flat=True).distinct()
+    )
+
+    # Status counts (across full dataset, not filtered)
+    by_status = {}
+    for s in RoadmapItem.objects.values_list("status", flat=True):
+        by_status[s] = by_status.get(s, 0) + 1
+
+    return Response({
+        "items": items,
+        "quarters": quarters,
+        "stats": {
+            "total": RoadmapItem.objects.count(),
+            "by_status": by_status,
+        },
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_roadmap_get(request, item_id):
+    """Get a single roadmap item by ID."""
+    try:
+        item = RoadmapItem.objects.get(id=item_id)
+    except RoadmapItem.DoesNotExist:
+        return Response({"error": "Roadmap item not found."}, status=404)
+
+    return Response({
+        "id": str(item.id),
+        "title": item.title,
+        "description": item.description,
+        "area": item.area,
+        "quarter": item.quarter,
+        "status": item.status,
+        "tier": item.tier,
+        "is_public": item.is_public,
+        "sort_order": item.sort_order,
+        "shipped_at": item.shipped_at.isoformat() if item.shipped_at else None,
+        "change_request_id": str(item.change_request_id) if item.change_request_id else None,
+        "created_at": item.created_at.isoformat(),
+        "updated_at": item.updated_at.isoformat(),
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_roadmap_save(request):
+    """Create or update a roadmap item."""
+    data = request.data
+    item_id = data.get("id")
+
+    if item_id:
+        try:
+            item = RoadmapItem.objects.get(id=item_id)
+        except RoadmapItem.DoesNotExist:
+            return Response({"error": "Roadmap item not found."}, status=404)
+    else:
+        item = RoadmapItem()
+
+    # Validate quarter format
+    quarter = data.get("quarter", "")
+    if quarter and not re.match(r'^Q[1-4]-\d{4}$', quarter):
+        return Response({"error": "Quarter must match format Q1-2026."}, status=400)
+
+    item.title = data.get("title", item.title or "Untitled")
+    item.description = data.get("description", item.description or "")
+    if quarter:
+        item.quarter = quarter
+    if "area" in data:
+        item.area = data["area"]
+    if "status" in data:
+        old_status = item.status
+        item.status = data["status"]
+        # Auto-set shipped_at when transitioning to shipped
+        if item.status == "shipped" and old_status != "shipped" and not item.shipped_at:
+            item.shipped_at = timezone.now()
+    if "tier" in data:
+        item.tier = data["tier"]
+    if "is_public" in data:
+        item.is_public = data["is_public"]
+    if "sort_order" in data:
+        item.sort_order = data["sort_order"]
+    if "change_request_id" in data:
+        item.change_request_id = data["change_request_id"] or None
+
+    item.save()
+    return Response({"ok": True, "id": str(item.id)})
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_roadmap_delete(request, item_id):
+    """Delete a roadmap item."""
+    try:
+        item = RoadmapItem.objects.get(id=item_id)
+    except RoadmapItem.DoesNotExist:
+        return Response({"error": "Roadmap item not found."}, status=404)
+    item.delete()
+    return Response({"ok": True})
+
+
+# ── Plan Documents ─────────────────────────────────────────────────────────
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_plans_list(request):
+    """List plan documents with optional filters."""
+    qs = PlanDocument.objects.all()
+
+    status = request.GET.get("status")
+    category = request.GET.get("category")
+
+    if status:
+        qs = qs.filter(status=status)
+    if category:
+        qs = qs.filter(category=category)
+
+    plans = []
+    for plan in qs:
+        plans.append({
+            "id": str(plan.id),
+            "title": plan.title,
+            "status": plan.status,
+            "category": plan.category,
+            "change_request_ids": plan.change_request_ids,
+            "created_at": plan.created_at.isoformat(),
+            "updated_at": plan.updated_at.isoformat(),
+        })
+
+    return Response({"plans": plans})
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_plans_get(request, plan_id):
+    """Get a single plan document with full body."""
+    try:
+        plan = PlanDocument.objects.get(id=plan_id)
+    except PlanDocument.DoesNotExist:
+        return Response({"error": "Plan not found."}, status=404)
+
+    return Response({
+        "id": str(plan.id),
+        "title": plan.title,
+        "body": plan.body,
+        "status": plan.status,
+        "category": plan.category,
+        "change_request_ids": plan.change_request_ids,
+        "created_at": plan.created_at.isoformat(),
+        "updated_at": plan.updated_at.isoformat(),
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_plans_save(request):
+    """Create or update a plan document."""
+    data = request.data
+    plan_id = data.get("id")
+
+    if plan_id:
+        try:
+            plan = PlanDocument.objects.get(id=plan_id)
+        except PlanDocument.DoesNotExist:
+            return Response({"error": "Plan not found."}, status=404)
+    else:
+        plan = PlanDocument()
+
+    plan.title = data.get("title", plan.title or "Untitled")
+    plan.body = data.get("body", plan.body or "")
+    if "status" in data:
+        plan.status = data["status"]
+    if "category" in data:
+        plan.category = data["category"]
+    if "change_request_ids" in data:
+        plan.change_request_ids = data["change_request_ids"]
+
+    plan.save()
+    return Response({"ok": True, "id": str(plan.id)})
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_plans_delete(request, plan_id):
+    """Delete a plan document."""
+    try:
+        plan = PlanDocument.objects.get(id=plan_id)
+    except PlanDocument.DoesNotExist:
+        return Response({"error": "Plan not found."}, status=404)
+    plan.delete()
+    return Response({"ok": True})
+
+
+# =========================================================================
+# Feature Planning — Initiative → Feature → Task hierarchy
+# =========================================================================
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_features_list(request):
+    """List initiatives with nested features. Supports initiative/status filters.
+
+    Default: shows only features from active initiatives (unless explicit filter).
+    """
+    init_filter = request.GET.get("initiative", "")
+    status_filter = request.GET.get("status", "")
+    show_all = request.GET.get("all", "")
+
+    initiatives = Initiative.objects.all()
+    features_qs = Feature.objects.select_related("initiative").all()
+
+    if init_filter:
+        features_qs = features_qs.filter(initiative__short_id=init_filter)
+    elif not show_all:
+        # Default: only show active initiatives' features
+        active_inits = Initiative.objects.filter(status="active")
+        if active_inits.exists():
+            features_qs = features_qs.filter(initiative__status="active")
+    if status_filter:
+        features_qs = features_qs.filter(status=status_filter)
+
+    init_data = []
+    for i in initiatives:
+        feat_count = i.features.count()
+        completed = i.features.filter(status="completed").count()
+        init_data.append({
+            "id": str(i.id),
+            "short_id": i.short_id,
+            "title": i.title,
+            "status": i.status,
+            "target_quarter": i.target_quarter,
+            "progress": i.progress,
+            "feature_count": feat_count,
+            "completed_count": completed,
+            "notes": i.notes,
+        })
+
+    feat_data = []
+    for f in features_qs:
+        dep_ids = list(f.depends_on.values_list("short_id", flat=True))
+        block_ids = list(f.blocks.values_list("short_id", flat=True))
+        feat_data.append({
+            "id": str(f.id),
+            "short_id": f.short_id,
+            "title": f.title,
+            "description": f.description,
+            "status": f.status,
+            "priority": f.priority,
+            "iso_clause": f.iso_clause,
+            "standards": f.standards,
+            "legacy_id": f.legacy_id,
+            "initiative_short_id": f.initiative.short_id,
+            "initiative_title": f.initiative.title,
+            "depends_on": dep_ids,
+            "blocks": block_ids,
+            "is_blocked": f.is_blocked,
+            "progress": f.progress,
+            "roadmap_item_id": str(f.roadmap_item_id) if f.roadmap_item_id else None,
+            "task_count": f.tasks.count(),
+            "tasks_completed": f.tasks.filter(status="completed").count(),
+            "created_at": f.created_at.isoformat(),
+            "updated_at": f.updated_at.isoformat(),
+        })
+
+    # Stats
+    total = Feature.objects.count()
+    by_status = {}
+    for s in Feature.Status.values:
+        c = Feature.objects.filter(status=s).count()
+        if c:
+            by_status[s] = c
+    blocked_count = sum(1 for f2 in Feature.objects.all() if f2.is_blocked)
+
+    return Response({
+        "initiatives": init_data,
+        "features": feat_data,
+        "stats": {
+            "total": total,
+            "by_status": by_status,
+            "blocked": blocked_count,
+            "initiatives_count": initiatives.count(),
+        },
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_features_get(request, feature_id):
+    """Get full feature detail with tasks."""
+    try:
+        f = Feature.objects.select_related("initiative").get(id=feature_id)
+    except Feature.DoesNotExist:
+        try:
+            f = Feature.objects.select_related("initiative").get(short_id=feature_id)
+        except Feature.DoesNotExist:
+            return Response({"error": "Feature not found."}, status=404)
+
+    tasks = []
+    for t in f.tasks.all():
+        tasks.append({
+            "id": str(t.id),
+            "short_id": t.short_id,
+            "title": t.title,
+            "description": t.description,
+            "status": t.status,
+            "task_type": t.task_type,
+            "sort_order": t.sort_order,
+            "change_request_id": str(t.change_request_id) if t.change_request_id else None,
+            "completed_at": t.completed_at.isoformat() if t.completed_at else None,
+        })
+
+    deps = [{"short_id": d.short_id, "title": d.title, "status": d.status}
+            for d in f.depends_on.all()]
+    blocks = [{"short_id": b.short_id, "title": b.title, "status": b.status}
+              for b in f.blocks.all()]
+
+    return Response({
+        "id": str(f.id),
+        "short_id": f.short_id,
+        "title": f.title,
+        "description": f.description,
+        "acceptance_criteria": f.acceptance_criteria,
+        "status": f.status,
+        "priority": f.priority,
+        "iso_clause": f.iso_clause,
+        "standards": f.standards,
+        "legacy_id": f.legacy_id,
+        "initiative_short_id": f.initiative.short_id,
+        "initiative_title": f.initiative.title,
+        "depends_on": deps,
+        "blocks": blocks,
+        "is_blocked": f.is_blocked,
+        "progress": f.progress,
+        "tasks": tasks,
+        "roadmap_item_id": str(f.roadmap_item_id) if f.roadmap_item_id else None,
+        "change_request_ids": f.change_request_ids,
+        "notes": f.notes,
+        "started_at": f.started_at.isoformat() if f.started_at else None,
+        "completed_at": f.completed_at.isoformat() if f.completed_at else None,
+        "created_at": f.created_at.isoformat(),
+        "updated_at": f.updated_at.isoformat(),
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_features_update_status(request, feature_id):
+    """Update feature or task status."""
+    try:
+        f = Feature.objects.get(id=feature_id)
+    except Feature.DoesNotExist:
+        return Response({"error": "Feature not found."}, status=404)
+
+    new_status = request.data.get("status", "")
+    valid = [c[0] for c in Feature.Status.choices]
+    if new_status not in valid:
+        return Response({"error": f"Invalid status. Valid: {valid}"}, status=400)
+
+    old_status = f.status
+    f.status = new_status
+    now = timezone.now()
+    if new_status == "completed" and not f.completed_at:
+        f.completed_at = now
+    if new_status == "in_progress" and not f.started_at:
+        f.started_at = now
+    f.save()
+    return Response({"ok": True, "old_status": old_status, "new_status": new_status})
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_tasks_update_status(request, task_id):
+    """Update task status."""
+    try:
+        t = PlanTask.objects.get(id=task_id)
+    except PlanTask.DoesNotExist:
+        return Response({"error": "Task not found."}, status=404)
+
+    new_status = request.data.get("status", "")
+    valid = [c[0] for c in PlanTask.Status.choices]
+    if new_status not in valid:
+        return Response({"error": f"Invalid status. Valid: {valid}"}, status=400)
+
+    old_status = t.status
+    t.status = new_status
+    if new_status == "completed" and not t.completed_at:
+        t.completed_at = timezone.now()
+    t.save()
+    return Response({"ok": True, "old_status": old_status, "new_status": new_status})
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_features_save(request, feature_id):
+    """Update feature fields (description, acceptance_criteria)."""
+    try:
+        f = Feature.objects.get(id=feature_id)
+    except Feature.DoesNotExist:
+        return Response({"error": "Feature not found."}, status=404)
+
+    if "description" in request.data:
+        f.description = request.data["description"]
+    if "acceptance_criteria" in request.data:
+        f.acceptance_criteria = request.data["acceptance_criteria"]
+    if "title" in request.data:
+        f.title = request.data["title"]
+    f.save()
+    return Response({"ok": True})
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_features_add_note(request, feature_id):
+    """Add a note to a feature. User notes auto-prefixed with $."""
+    try:
+        f = Feature.objects.get(id=feature_id)
+    except Feature.DoesNotExist:
+        return Response({"error": "Feature not found."}, status=404)
+
+    text = request.data.get("text", "").strip()
+    if not text:
+        return Response({"error": "Note text required."}, status=400)
+
+    is_user = request.data.get("user", False)
+    prefix = "$ " if is_user else ""
+    timestamp = timezone.now().strftime("%Y-%m-%d")
+    entry = f"[{timestamp}] {prefix}{text}"
+
+    if f.notes:
+        f.notes = f.notes.rstrip() + "\n" + entry
+    else:
+        f.notes = entry
+
+    f.save()
+    return Response({"ok": True, "entry": entry})

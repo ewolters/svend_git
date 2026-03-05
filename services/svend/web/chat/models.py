@@ -195,9 +195,9 @@ class Message(models.Model):
     # Pipeline metadata (for assistant messages)
     domain = models.CharField(max_length=50, blank=True)
     difficulty = models.FloatField(null=True, blank=True)
-    verified = models.BooleanField(null=True)
+    is_verified = models.BooleanField(null=True, db_column="verified")
     verification_confidence = models.FloatField(null=True, blank=True)
-    blocked = models.BooleanField(default=False)
+    is_blocked = models.BooleanField(default=False, db_column="blocked")
     block_reason = models.CharField(max_length=255, blank=True)
 
     # Reasoning trace (encrypted JSON)
@@ -259,7 +259,7 @@ class TraceLog(models.Model):
     user_id = models.UUIDField(null=True, blank=True)
 
     # Safety Router
-    safety_passed = models.BooleanField(default=True)
+    has_safety_passed = models.BooleanField(default=True, db_column="safety_passed")
     safety_confidence = models.FloatField(null=True, blank=True)
 
     # Intuition
@@ -273,7 +273,7 @@ class TraceLog(models.Model):
     reasoner_raw_output = EncryptedTextField(blank=True)
 
     # Verifier
-    verified = models.BooleanField(null=True)
+    is_verified = models.BooleanField(null=True, db_column="verified")
     verification_confidence = models.FloatField(null=True, blank=True)
 
     # Language Model (encrypted at rest)
@@ -282,9 +282,9 @@ class TraceLog(models.Model):
     response = EncryptedTextField(blank=True)
 
     # Gate decisions
-    gate_passed = models.BooleanField(default=True)
+    has_gate_passed = models.BooleanField(default=True, db_column="gate_passed")
     gate_reason = models.CharField(max_length=255, blank=True)
-    fallback_used = models.BooleanField(default=False)
+    has_fallback_used = models.BooleanField(default=False, db_column="fallback_used")
 
     # Timing breakdown (ms)
     safety_time_ms = models.IntegerField(null=True, blank=True)

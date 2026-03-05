@@ -51,7 +51,10 @@ urlpatterns = [
     # Internal telemetry (staff-only)
     path("internal/overview/", internal_views.api_overview, name="internal_overview"),
     path("internal/users/", internal_views.api_users, name="internal_users"),
-    path("internal/usage/", internal_views.api_usage, name="internal_usage"),
+    path("internal/dsw-analytics/", internal_views.api_dsw_analytics, name="internal_dsw_analytics"),
+    path("internal/hypothesis-health/", internal_views.api_hypothesis_health, name="internal_hypothesis_health"),
+    path("internal/anthropic/", internal_views.api_anthropic, name="internal_anthropic"),
+    path("internal/rate-limit-override/", internal_views.api_rate_limit_override, name="internal_rate_limit_override"),
     path("internal/performance/", internal_views.api_performance, name="internal_performance"),
     path("internal/business/", internal_views.api_business, name="internal_business"),
     path("internal/insights/", internal_views.api_insights, name="internal_insights"),
@@ -126,6 +129,44 @@ urlpatterns = [
     # Site analytics (staff-only)
     path("internal/site-analytics/", internal_views.api_site_analytics, name="internal_site_analytics"),
     path("internal/site-live/", internal_views.api_site_live, name="internal_site_live"),
+
+    # Infrastructure (Synara OS layer, staff-only)
+    path("internal/infra/", internal_views.api_infra, name="internal_infra"),
+    path("internal/audit-entries/", internal_views.api_audit_entries, name="internal_audit_entries"),
+
+    # Compliance (staff-only)
+    path("internal/compliance/", internal_views.api_compliance, name="internal_compliance"),
+    path("internal/compliance/run/", internal_views.api_compliance_run, name="internal_compliance_run"),
+    path("internal/compliance/publish/<uuid:report_id>/", internal_views.api_compliance_publish, name="internal_compliance_publish"),
+
+    # Change Management (staff-only, CHG-001)
+    path("internal/changes/", internal_views.api_change_management, name="internal_changes"),
+    path("internal/changes/create/", internal_views.api_change_create, name="internal_change_create"),
+    path("internal/changes/<uuid:change_id>/", internal_views.api_change_detail, name="internal_change_detail"),
+    path("internal/changes/<uuid:change_id>/transition/", internal_views.api_change_transition, name="internal_change_transition"),
+
+    # Standards library
+    path("internal/standards/", internal_views.api_standards, name="internal_standards"),
+
+    # Roadmap management (staff-only)
+    path("internal/roadmap/", internal_views.api_roadmap_list, name="internal_roadmap_list"),
+    path("internal/roadmap/save/", internal_views.api_roadmap_save, name="internal_roadmap_save"),
+    path("internal/roadmap/<uuid:item_id>/", internal_views.api_roadmap_get, name="internal_roadmap_get"),
+    path("internal/roadmap/<uuid:item_id>/delete/", internal_views.api_roadmap_delete, name="internal_roadmap_delete"),
+
+    # Plan documents (staff-only)
+    path("internal/plans/", internal_views.api_plans_list, name="internal_plans_list"),
+    path("internal/plans/save/", internal_views.api_plans_save, name="internal_plans_save"),
+    path("internal/plans/<uuid:plan_id>/", internal_views.api_plans_get, name="internal_plans_get"),
+    path("internal/plans/<uuid:plan_id>/delete/", internal_views.api_plans_delete, name="internal_plans_delete"),
+
+    # Feature planning (staff-only)
+    path("internal/features/", internal_views.api_features_list, name="internal_features_list"),
+    path("internal/features/<uuid:feature_id>/", internal_views.api_features_get, name="internal_features_get"),
+    path("internal/features/<uuid:feature_id>/status/", internal_views.api_features_update_status, name="internal_features_status"),
+    path("internal/features/<uuid:feature_id>/save/", internal_views.api_features_save, name="internal_features_save"),
+    path("internal/features/<uuid:feature_id>/note/", internal_views.api_features_add_note, name="internal_features_note"),
+    path("internal/tasks/<uuid:task_id>/status/", internal_views.api_tasks_update_status, name="internal_tasks_status"),
 
     # Site duration beacon (public — fired by sendBeacon, no auth)
     path("site-duration/", views.site_duration, name="site_duration"),

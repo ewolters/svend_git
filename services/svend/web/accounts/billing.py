@@ -315,7 +315,7 @@ def sync_subscription_from_stripe(subscription_id: str) -> Optional[Subscription
     sub.current_period_end = timezone.make_aware(
         datetime.fromtimestamp(period_end)
     ) if period_end else None
-    sub.cancel_at_period_end = stripe_sub.cancel_at_period_end
+    sub.is_cancel_at_period_end = stripe_sub.is_cancel_at_period_end
     sub.save()
 
     # Update user tier based on subscription status and price
@@ -327,12 +327,12 @@ def sync_subscription_from_stripe(subscription_id: str) -> Optional[Subscription
             logger.warning(f"Unknown Stripe price ID: {sub.stripe_price_id} — defaulting to FREE")
             tier = User.Tier.FREE
         user.tier = tier
-        user.subscription_active = True
+        user.is_subscription_active = True
         user.subscription_ends_at = sub.current_period_end
     else:
         user.tier = User.Tier.FREE
-        user.subscription_active = False
-    user.save(update_fields=["tier", "subscription_active", "subscription_ends_at"])
+        user.is_subscription_active = False
+    user.save(update_fields=["tier", "is_subscription_active", "subscription_ends_at"])
 
     return sub
 
@@ -521,9 +521,9 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
             # Downgrade user
             user = sub.user
             user.tier = User.Tier.FREE
-            user.subscription_active = False
+            user.is_subscription_active = False
             user.subscription_ends_at = None
-            user.save(update_fields=["tier", "subscription_active", "subscription_ends_at"])
+            user.save(update_fields=["tier", "is_subscription_active", "subscription_ends_at"])
 
         except Subscription.DoesNotExist:
             logger.warning(f"Subscription not found: {data['id']}")
@@ -540,8 +540,8 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
                 # Downgrade user to prevent free access on failed payment
                 user = sub.user
                 user.tier = User.Tier.FREE
-                user.subscription_active = False
-                user.save(update_fields=["tier", "subscription_active"])
+                user.is_subscription_active = False
+                user.save(update_fields=["tier", "is_subscription_active"])
                 logger.info(f"User {user.username} downgraded due to payment failure")
             except Subscription.DoesNotExist:
                 pass
@@ -573,7 +573,7 @@ def subscription_status(request: HttpRequest) -> JsonResponse:
             "status": sub.status,
             "is_active": sub.is_active,
             "current_period_end": sub.current_period_end.isoformat() if sub.current_period_end else None,
-            "cancel_at_period_end": sub.cancel_at_period_end,
+            "cancel_at_period_end": sub.is_cancel_at_period_end,
         }
 
     return JsonResponse(data)

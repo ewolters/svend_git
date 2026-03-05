@@ -3437,4 +3437,28 @@ def run_bayesian_analysis(df, analysis_id, config):
             },
         })
 
+        result["education"] = {
+            "title": "Understanding Bayesian Competing Risks",
+            "content": (
+                "<dl>"
+                "<dt>What is competing risks analysis?</dt>"
+                "<dd>When a unit can fail from multiple causes (e.g. bearing wear, electrical fault, "
+                "corrosion), competing risks analysis decomposes overall failure into cause-specific "
+                "contributions. Each failure mode 'competes' to be the first to cause failure.</dd>"
+                "<dt>How does the Bayesian model work?</dt>"
+                "<dd>A <em>Dirichlet-Multinomial</em> model estimates the probability of each failure "
+                "mode, while per-mode <em>Weibull</em> distributions estimate the time-to-failure "
+                "characteristics for each cause. The posterior captures uncertainty in both.</dd>"
+                "<dt>What is the Cumulative Incidence Function (CIF)?</dt>"
+                "<dd>The probability of failing from a specific cause by time t, accounting for "
+                "the presence of other competing causes. Unlike cause-specific hazards, CIFs "
+                "sum to the overall failure probability — giving a complete decomposition.</dd>"
+                "<dt>When to use this?</dt>"
+                "<dd>Warranty root cause decomposition, maintenance strategy design (which failure "
+                "mode to address first), product redesign prioritisation, or any reliability "
+                "analysis where multiple distinct failure mechanisms are at play.</dd>"
+                "</dl>"
+            ),
+        }
+
     return result

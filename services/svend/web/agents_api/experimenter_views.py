@@ -55,9 +55,9 @@ def _sanitize(obj):
         return obj
     return obj
 
-from experimenter.agent import ExperimenterAgent, ExperimentRequest
-from experimenter.doe import DOEGenerator, Factor
-from experimenter.stats import PowerAnalyzer, interpret_effect_size
+from agents.experimenter.agent import ExperimenterAgent, ExperimentRequest
+from agents.experimenter.doe import DOEGenerator, Factor
+from agents.experimenter.stats import PowerAnalyzer, interpret_effect_size
 
 
 def _compute_power_curve(test_type, alpha, power, groups):
