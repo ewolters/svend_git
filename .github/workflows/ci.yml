@@ -2,11 +2,94 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, iso-9001-modules]
+  pull_request:
+    branches: [main, iso-9001-modules]
   workflow_dispatch:
 
+env:
+  SVEND_SECRET_KEY: ci-test-key-not-for-production
+  SVEND_ENV: dev
+  SVEND_DATABASE_URL: postgres://svend:svend@localhost:5432/svend_ci
+  PYTHONDONTWRITEBYTECODE: "1"
+
 jobs:
-  test:
+  lint:
+    name: Ruff lint and format
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Hello from CI"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: pip install ruff
+      - run: ruff check services/svend/web/
+      - run: ruff format --check services/svend/web/
+
+  django-check:
+    name: Django check
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: svend
+          POSTGRES_PASSWORD: svend
+          POSTGRES_DB: svend_ci
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    defaults:
+      run:
+        working-directory: services/svend/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: pip install -e ".[dev,prod]" dj-database-url pip-audit
+      - run: python manage.py migrate
+      - run: python manage.py check --deploy
+        continue-on-error: true
+
+  compliance:
+    name: Compliance checks
+    runs-on: ubuntu-latest
+    needs: [lint]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: svend
+          POSTGRES_PASSWORD: svend
+          POSTGRES_DB: svend_ci
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    defaults:
+      run:
+        working-directory: services/svend/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: pip install -e ".[dev,prod]" dj-database-url pip-audit
+      - run: python manage.py migrate
+      - name: standards_compliance
+        run: python manage.py run_compliance --check=standards_compliance
+      - name: code_style
+        run: python manage.py run_compliance --check=code_style
+      - name: security_config
+        run: python manage.py run_compliance --check=security_config
+        continue-on-error: true
+      - name: dependency_vuln
+        run: python manage.py run_compliance --check=dependency_vuln
