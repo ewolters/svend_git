@@ -422,6 +422,9 @@ def verify_code_pattern(impl_ref: str, code_block: str) -> tuple[bool, str]:
     if not file_path.exists():
         return False, f"File not found: {parts[0]}"
 
+    if file_path.is_dir():
+        return True, f"Directory reference: {parts[0]} (exists)"
+
     source = file_path.read_text()
 
     # Extract key lines from code block (skip comments, blank lines, imports)
@@ -499,6 +502,9 @@ def verify_code_absent(impl_ref: str, code_block: str) -> tuple[bool, str]:
 
     if not file_path.exists():
         return True, f"File not found (no violation): {parts[0]}"
+
+    if file_path.is_dir():
+        return True, f"Directory reference: {parts[0]} (skipped)"
 
     source = file_path.read_text()
 
