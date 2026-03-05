@@ -3913,8 +3913,19 @@ def api_compliance_run(request):
     Cloudflare/gunicorn timeout on the full suite.
     """
     try:
-        from syn.audit.compliance import run_check, ALL_CHECKS
-        check_name = (request.data or {}).get("check")
+        from syn.audit.compliance import run_check, ALL_CHECKS, run_standards_tests_for
+        data = request.data or {}
+        check_name = data.get("check")
+        standard = data.get("standard")
+
+        # Per-standard test runner mode
+        if check_name == "standards_tests" and standard:
+            import time
+            start = time.time()
+            result = run_standards_tests_for(standard)
+            result["duration_ms"] = round((time.time() - start) * 1000)
+            result["ok"] = True
+            return Response(result)
 
         # Single check mode
         if check_name and check_name != "__all__":

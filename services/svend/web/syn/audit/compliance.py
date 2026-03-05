@@ -702,27 +702,19 @@ def check_standards_compliance():
     }
 
 
-@register("standards_test_runner", "processing_integrity", soc2_controls=["CC4.1"])
-def check_standards_test_runner():
-    """Run all linked tests from standards assertions (slow — ~5min)."""
+def run_standards_tests_for(standard_name):
+    """Run linked tests for a single standard (~15s). Called per-standard by the dashboard."""
     from syn.audit.standards import parse_all_standards, verify_assertion
 
-    assertions = parse_all_standards()
+    assertions = [a for a in parse_all_standards() if a.standard == standard_name]
     if not assertions:
-        return {
-            "status": "warning",
-            "details": {"message": "No standards found to parse"},
-            "soc2_controls": [],
-        }
+        return {"standard": standard_name, "status": "warning", "message": "No assertions found"}
 
     results = [verify_assertion(a, run_tests=True) for a in assertions]
 
-    tests_linked = tests_passed = tests_failed = tests_skipped = 0
-    seen_tests = set()
+    tests_passed = tests_failed = tests_skipped = 0
     for r in results:
         for tc in r.get("test_checks", []):
-            tests_linked += 1
-            seen_tests.add(tc.get("test", ""))
             if tc.get("ran"):
                 status = tc.get("status", "")
                 if status == "pass" or tc.get("passed"):
@@ -733,15 +725,12 @@ def check_standards_test_runner():
                     tests_failed += 1
 
     return {
+        "standard": standard_name,
         "status": "pass" if tests_failed == 0 else "fail",
-        "details": {
-            "tests_linked": tests_linked,
-            "tests_unique": len(seen_tests),
-            "tests_passed": tests_passed,
-            "tests_failed": tests_failed,
-            "tests_skipped": tests_skipped,
-        },
-        "soc2_controls": ["CC4.1"],
+        "assertions": len(assertions),
+        "tests_passed": tests_passed,
+        "tests_failed": tests_failed,
+        "tests_skipped": tests_skipped,
     }
 
 

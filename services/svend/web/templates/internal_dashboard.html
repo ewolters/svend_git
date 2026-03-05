@@ -1626,7 +1626,10 @@
     <div id="compliance-check-grid" style="display:flex;flex-direction:column;gap:4px;margin-bottom:1.5rem;"></div>
 
     <!-- Standards Coverage -->
-    <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Standards Coverage</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h3 style="margin:0;font-size:0.95rem;color:var(--text-primary);">Standards Coverage</h3>
+        <button id="btn-run-std-tests" onclick="runStandardsTests()" style="padding:6px 12px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:4px;cursor:pointer;font-size:0.72rem;font-weight:600;">Run Standards Tests</button>
+    </div>
     <div id="compliance-standards-section" style="margin-bottom:1.5rem;">
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;">
             <div class="chart-card" style="text-align:center;padding:1rem;">
@@ -3110,6 +3113,47 @@ async function runSingleCheck(checkName) {
     }
     btn.disabled = false;
     setTimeout(() => { btn.textContent = origText; btn.style.background = 'var(--accent-primary,#4a9f6e)'; }, 3000);
+}
+
+async function runStandardsTests() {
+    const btn = document.getElementById('btn-run-std-tests');
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+
+    // Get standard names from loaded compliance data
+    const byStd = (_complianceData && _complianceData.standards) ? _complianceData.standards.by_standard : null;
+    if (!byStd) {
+        btn.textContent = 'Load compliance first';
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        setTimeout(() => { btn.textContent = origText; }, 3000);
+        return;
+    }
+    const standards = Object.keys(byStd).sort();
+    const headers = {'Content-Type': 'application/json', 'X-CSRFToken': getCSRF()};
+    let passed = 0, failed = 0, errors = 0;
+
+    for (let i = 0; i < standards.length; i++) {
+        btn.textContent = `Testing ${standards[i]} (${i+1}/${standards.length})...`;
+        try {
+            const resp = await fetch('/api/internal/compliance/run/', {
+                method: 'POST', headers,
+                body: JSON.stringify({check: 'standards_tests', standard: standards[i]}),
+            });
+            const ct = resp.headers.get('content-type') || '';
+            if (!ct.includes('application/json')) { errors++; continue; }
+            const data = await resp.json();
+            if (data.ok && data.status === 'pass') { passed++; } else { failed++; }
+        } catch (e) { errors++; }
+    }
+    const errMsg = errors > 0 ? `, ${errors} timeout` : '';
+    btn.textContent = `Tests: ${passed}/${standards.length} passed${errMsg}`;
+    btn.style.color = (failed + errors) === 0 ? 'var(--accent-primary)' : 'var(--warning,#f59e0b)';
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    await loadCompliance();
+    setTimeout(() => { btn.textContent = origText; btn.style.color = 'var(--text-primary)'; }, 8000);
 }
 
 async function loadCompliance() {
