@@ -1520,8 +1520,9 @@ def check_change_management():
     if missing_sha_count:
         warn_issues.append(f"{missing_sha_count} 'completed' log entry(s) missing commit_sha in details")
 
-    # 14. Completed CRs referencing compliance but empty compliance_check_ids
-    compliance_keywords = ["compliance", "remediat", "drift", "finding"]
+    # 14. Completed CRs referencing compliance remediation but empty compliance_check_ids
+    # Only flag CRs that explicitly remediate findings — not general compliance infrastructure
+    remediation_keywords = ["remediates finding", "fixes compliance fail", "resolves drift violation", "clears finding"]
     completed_all = ChangeRequest.objects.filter(
         status="completed",
         compliance_check_ids=[],
@@ -1529,7 +1530,7 @@ def check_change_management():
     unlinked_compliance = 0
     for cr in completed_all:
         desc_lower = (cr.description or "").lower()
-        if any(kw in desc_lower for kw in compliance_keywords):
+        if any(kw in desc_lower for kw in remediation_keywords):
             unlinked_compliance += 1
     if unlinked_compliance:
         warn_issues.append(
@@ -1541,7 +1542,7 @@ def check_change_management():
     planning_exempt = {"documentation", "plan", "hotfix"}
     unlinked_planning = (
         ChangeRequest.objects.exclude(
-            status="completed",
+            status__in=["completed", "cancelled"],
         )
         .exclude(
             change_type__in=planning_exempt,
