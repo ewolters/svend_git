@@ -1945,6 +1945,19 @@ def compliance_page(request):
     except Exception:
         pass  # Fall back to cached value
 
+    # Re-evaluate sla_compliance status after live overlay so category summary stays consistent
+    if sla_check and sla_data["breached"] == 0 and sla_check.status != "pass":
+        sla_check.status = "pass"  # In-memory only — not saved to DB
+        # Update category summary
+        cat = sla_check.category
+        if cat in categories:
+            categories[cat]["passed"] += 1
+            categories[cat]["pass_rate"] = (
+                round(categories[cat]["passed"] / categories[cat]["total"] * 100) if categories[cat]["total"] else 0
+            )
+            categories[cat]["status"] = "passing" if categories[cat]["pass_rate"] >= 90 else "needs_attention"
+        checks_passed += 1
+
     # Overall pass rate: infrastructure checks + standard assertions
     # Warnings count against — only "pass" counts
     all_total = checks_total + standards_total
