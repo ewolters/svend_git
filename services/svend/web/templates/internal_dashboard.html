@@ -1569,9 +1569,22 @@
 
 <!-- Tab: Compliance -->
 <div class="tab-content" id="tab-compliance">
-    <!-- Run Compliance Button -->
-    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-        <button id="btn-run-compliance" onclick="runComplianceSuite()" style="padding:8px 16px;background:var(--accent-primary,#4a9f6e);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:600;">Run Compliance Suite</button>
+    <!-- Run Compliance Button + Selection Controls -->
+    <style>
+    .check-toggle{position:relative;width:36px;height:20px;display:inline-block;flex-shrink:0;}
+    .check-toggle input{opacity:0;width:0;height:0;position:absolute;}
+    .check-toggle .slider{position:absolute;inset:0;background:var(--bg-tertiary);border-radius:10px;transition:.2s;cursor:pointer;}
+    .check-toggle .slider:before{content:"";position:absolute;height:14px;width:14px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s;}
+    .check-toggle input:checked+.slider{background:var(--accent-primary,#4a9f6e);}
+    .check-toggle input:checked+.slider:before{transform:translateX(16px);}
+    </style>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="display:flex;gap:8px;align-items:center;">
+            <button onclick="toggleAllChecks(true)" style="padding:4px 10px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:4px;cursor:pointer;font-size:0.72rem;">All</button>
+            <button onclick="toggleAllChecks(false)" style="padding:4px 10px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:4px;cursor:pointer;font-size:0.72rem;">None</button>
+            <span id="check-selection-count" style="font-size:0.72rem;color:var(--text-dim);"></span>
+        </div>
+        <button id="btn-run-compliance" onclick="runComplianceSuite()" style="padding:8px 16px;background:var(--accent-primary,#4a9f6e);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:600;">Run Selected Checks</button>
     </div>
     <!-- KPI Cards -->
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem;">
@@ -1608,9 +1621,9 @@
         <div id="check-detail-content" style="font-size:0.8rem;"></div>
     </div>
 
-    <!-- Check Status Grid -->
+    <!-- Check Status List (toggle-able) -->
     <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Check Status</h3>
-    <div id="compliance-check-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-bottom:1.5rem;"></div>
+    <div id="compliance-check-grid" style="display:flex;flex-direction:column;gap:4px;margin-bottom:1.5rem;"></div>
 
     <!-- Standards Coverage -->
     <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Standards Coverage</h3>
@@ -2972,35 +2985,90 @@ let complianceTrendChart = null;
 
 let _complianceData = null;  // cache for drill-down
 
+function toggleAllChecks(on) {
+    document.querySelectorAll('#compliance-check-grid input[type="checkbox"]').forEach(cb => { cb.checked = on; });
+    updateSelectionCount();
+}
+
+function updateSelectionCount() {
+    const all = document.querySelectorAll('#compliance-check-grid input[type="checkbox"]');
+    const checked = document.querySelectorAll('#compliance-check-grid input[type="checkbox"]:checked');
+    const el = document.getElementById('check-selection-count');
+    if (el) el.textContent = checked.length + '/' + all.length + ' selected';
+}
+
+function updateCheckRow(checkName, status, durationMs) {
+    const row = document.getElementById('check-row-' + checkName);
+    if (!row) return;
+    const badge = row.querySelector('.check-status-badge');
+    if (badge) {
+        const colors = {pass: '#22c55e', fail: '#ef4444', warning: '#f59e0b', error: '#ef4444', timeout: '#ef4444'};
+        const labels = {pass: 'PASS', fail: 'FAIL', warning: 'WARN', error: 'ERR', timeout: 'TIMEOUT'};
+        badge.style.background = colors[status] || '#6b7280';
+        badge.textContent = labels[status] || status.toUpperCase();
+    }
+    const durEl = row.querySelector('.check-duration');
+    if (durEl && durationMs !== undefined) durEl.textContent = durationMs + 'ms';
+    const runEl = row.querySelector('.check-last-run');
+    if (runEl) runEl.textContent = 'just now';
+}
+
 async function runComplianceSuite() {
     const btn = document.getElementById('btn-run-compliance');
     const origText = btn.textContent;
     btn.disabled = true;
     btn.style.opacity = '0.6';
     const headers = {'Content-Type': 'application/json', 'X-CSRFToken': getCSRF()};
-    try {
-        // 1. Get list of checks
-        const listResp = await fetch('/api/internal/compliance/run/', {method: 'POST', headers});
-        const listData = await listResp.json();
-        if (!listData.ok) { throw new Error(listData.error || 'Failed to get check list'); }
-        const checks = listData.checks;
-        let passed = 0, failed = 0;
-        // 2. Run each check individually
-        for (let i = 0; i < checks.length; i++) {
-            btn.textContent = `Running ${i+1}/${checks.length}...`;
-            const resp = await fetch('/api/internal/compliance/run/', {
-                method: 'POST', headers, body: JSON.stringify({check: checks[i]}),
-            });
-            const data = await resp.json();
-            if (data.ok && data.status === 'pass') { passed++; } else { failed++; }
-        }
-        btn.textContent = `Done — ${passed}/${checks.length} passed`;
-        btn.style.background = failed === 0 ? 'var(--accent-primary,#4a9f6e)' : 'var(--warning,#f59e0b)';
-        await loadCompliance();
-    } catch (e) {
-        btn.textContent = 'Error: ' + e.message;
-        btn.style.background = 'var(--danger,#ef4444)';
+
+    // Collect only selected checks
+    const selected = [];
+    document.querySelectorAll('#compliance-check-grid input[type="checkbox"]:checked').forEach(cb => {
+        selected.push(cb.dataset.checkName);
+    });
+    if (selected.length === 0) {
+        btn.textContent = 'No checks selected';
+        btn.style.background = 'var(--warning,#f59e0b)';
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        setTimeout(() => { btn.textContent = origText; btn.style.background = 'var(--accent-primary,#4a9f6e)'; }, 3000);
+        return;
     }
+
+    let passed = 0, failed = 0, errors = 0;
+    for (let i = 0; i < selected.length; i++) {
+        btn.textContent = `Running ${i+1}/${selected.length}...`;
+        try {
+            const resp = await fetch('/api/internal/compliance/run/', {
+                method: 'POST', headers, body: JSON.stringify({check: selected[i]}),
+            });
+            // Guard against non-JSON responses (timeout returns HTML 504)
+            const ct = resp.headers.get('content-type') || '';
+            if (!ct.includes('application/json')) {
+                errors++;
+                updateCheckRow(selected[i], 'timeout', null);
+                continue;
+            }
+            const data = await resp.json();
+            if (data.ok && data.status === 'pass') {
+                passed++;
+                updateCheckRow(selected[i], 'pass', data.duration_ms);
+            } else if (data.ok && data.status === 'warning') {
+                passed++;
+                updateCheckRow(selected[i], 'warning', data.duration_ms);
+            } else {
+                failed++;
+                updateCheckRow(selected[i], data.status || 'fail', data.duration_ms);
+            }
+        } catch (e) {
+            errors++;
+            updateCheckRow(selected[i], 'error', null);
+        }
+    }
+    const total = selected.length;
+    const errMsg = errors > 0 ? `, ${errors} timeout` : '';
+    btn.textContent = `Done — ${passed}/${total} passed${errMsg}`;
+    btn.style.background = (failed + errors) === 0 ? 'var(--accent-primary,#4a9f6e)' : 'var(--warning,#f59e0b)';
+    await loadCompliance();
     btn.disabled = false;
     btn.style.opacity = '1';
     setTimeout(() => { btn.textContent = origText; btn.style.background = 'var(--accent-primary,#4a9f6e)'; }, 5000);
@@ -3017,6 +3085,15 @@ async function runSingleCheck(checkName) {
             headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCSRF()},
             body: JSON.stringify({check: checkName}),
         });
+        const ct = resp.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+            btn.textContent = 'TIMEOUT';
+            btn.style.background = '#ef4444';
+            updateCheckRow(checkName, 'timeout', null);
+            btn.disabled = false;
+            setTimeout(() => { btn.textContent = origText; btn.style.background = 'var(--accent-primary,#4a9f6e)'; }, 3000);
+            return;
+        }
         const data = await resp.json();
         if (data.ok) {
             btn.textContent = data.status.toUpperCase();
@@ -3195,26 +3272,34 @@ async function loadCompliance() {
             findingsSection.style.display = 'none';
         }
 
-        // Check status grid (clickable)
+        // Check status list (toggle rows)
         const grid = document.getElementById('compliance-check-grid');
         grid.innerHTML = '';
         (d.checks || []).forEach(c => {
             const colors = {pass: '#22c55e', fail: '#ef4444', warning: '#f59e0b', error: '#ef4444', pending: '#6b7280'};
             const labels = {pass: 'PASS', fail: 'FAIL', warning: 'WARN', error: 'ERR', pending: '—'};
-            const card = document.createElement('div');
-            card.className = 'chart-card';
-            card.style.cssText = 'padding:12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;';
-            card.onclick = () => showCheckDetail(c.check_name);
+            const row = document.createElement('div');
+            row.id = 'check-row-' + c.check_name;
+            row.className = 'chart-card';
+            row.style.cssText = 'padding:8px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;';
             const age = c.run_at ? timeAgo(c.run_at) : 'never';
-            card.innerHTML = `
-                <div>
-                    <div style="font-weight:600;font-size:0.82rem;">${c.check_name.replace(/_/g,' ')}</div>
-                    <div style="font-size:0.7rem;color:var(--text-dim);">${c.category} · ${age}</div>
+            const dur = c.duration_ms ? Math.round(c.duration_ms) + 'ms' : '—';
+            row.innerHTML = `
+                <label class="check-toggle" onclick="event.stopPropagation();">
+                    <input type="checkbox" checked data-check-name="${c.check_name}" onchange="updateSelectionCount()">
+                    <span class="slider"></span>
+                </label>
+                <div style="flex:1;min-width:0;" onclick="showCheckDetail('${c.check_name}')">
+                    <span style="font-weight:600;font-size:0.82rem;">${c.check_name.replace(/_/g,' ')}</span>
+                    <span style="font-size:0.7rem;color:var(--text-dim);margin-left:8px;">${c.category}</span>
                 </div>
-                <span style="background:${colors[c.status] || '#6b7280'};color:#fff;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:600;">${labels[c.status] || c.status}</span>
+                <span class="check-duration" style="font-size:0.7rem;color:var(--text-dim);white-space:nowrap;">${dur}</span>
+                <span class="check-last-run" style="font-size:0.7rem;color:var(--text-dim);white-space:nowrap;min-width:50px;text-align:right;">${age}</span>
+                <span class="check-status-badge" style="background:${colors[c.status] || '#6b7280'};color:#fff;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:600;white-space:nowrap;">${labels[c.status] || c.status}</span>
             `;
-            grid.appendChild(card);
+            grid.appendChild(row);
         });
+        updateSelectionCount();
 
         // Standards coverage (clickable bars)
         if (std.total_assertions) {

@@ -598,7 +598,7 @@ def _sync_drift_violations(assertions, results):
 
 @register("standards_compliance", "processing_integrity", soc2_controls=["CC4.1", "CC9.1"])
 def check_standards_compliance():
-    """Parse docs/standards/*.md and verify all assertions against implementations."""
+    """Parse docs/standards/*.md and verify assertions (impls, code, test existence — no execution)."""
     from syn.audit.standards import parse_all_standards, verify_assertion
 
     assertions = parse_all_standards()
@@ -609,7 +609,7 @@ def check_standards_compliance():
             "soc2_controls": [],
         }
 
-    results = [verify_assertion(a, run_tests=True) for a in assertions]
+    results = [verify_assertion(a, run_tests=False) for a in assertions]
     passed = sum(1 for r in results if r["status"] == "pass")
     failed = sum(1 for r in results if r["status"] == "fail")
     warnings = sum(1 for r in results if r["status"] == "warning")
@@ -699,6 +699,49 @@ def check_standards_compliance():
             "findings": findings,
         },
         "soc2_controls": sorted(all_controls),
+    }
+
+
+@register("standards_test_runner", "processing_integrity", soc2_controls=["CC4.1"])
+def check_standards_test_runner():
+    """Run all linked tests from standards assertions (slow — ~5min)."""
+    from syn.audit.standards import parse_all_standards, verify_assertion
+
+    assertions = parse_all_standards()
+    if not assertions:
+        return {
+            "status": "warning",
+            "details": {"message": "No standards found to parse"},
+            "soc2_controls": [],
+        }
+
+    results = [verify_assertion(a, run_tests=True) for a in assertions]
+
+    tests_linked = tests_passed = tests_failed = tests_skipped = 0
+    seen_tests = set()
+    for r in results:
+        for tc in r.get("test_checks", []):
+            tests_linked += 1
+            seen_tests.add(tc.get("test", ""))
+            if tc.get("ran"):
+                status = tc.get("status", "")
+                if status == "pass" or tc.get("passed"):
+                    tests_passed += 1
+                elif status == "skip":
+                    tests_skipped += 1
+                else:
+                    tests_failed += 1
+
+    return {
+        "status": "pass" if tests_failed == 0 else "fail",
+        "details": {
+            "tests_linked": tests_linked,
+            "tests_unique": len(seen_tests),
+            "tests_passed": tests_passed,
+            "tests_failed": tests_failed,
+            "tests_skipped": tests_skipped,
+        },
+        "soc2_controls": ["CC4.1"],
     }
 
 
