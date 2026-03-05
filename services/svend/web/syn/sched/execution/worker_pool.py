@@ -566,7 +566,7 @@ class WorkerPool:
                 started_at=result.started_at,
                 completed_at=result.completed_at,
                 duration_ms=result.duration_ms,
-                success=result.is_success,
+                is_success=result.is_success,
                 result=result.result,
                 error_message=result.error_message,
                 error_type=result.error_type,

@@ -144,7 +144,7 @@ def get_board(request, room_code):
             "pan_x": board.pan_x,
             "pan_y": board.pan_y,
             "version": board.version,
-            "voting_active": board.voting_active,
+            "voting_active": board.is_voting_active,
             "votes_per_user": board.votes_per_user,
             "vote_counts": vote_counts,
             "user_votes": guest_votes,
@@ -177,7 +177,7 @@ def get_board(request, room_code):
         "pan_x": board.pan_x,
         "pan_y": board.pan_y,
         "version": board.version,
-        "voting_active": board.voting_active,
+        "voting_active": board.is_voting_active,
         "votes_per_user": board.votes_per_user,
         "vote_counts": vote_counts,
         "user_votes": user_votes,
@@ -311,7 +311,7 @@ def toggle_voting(request, room_code):
     except json.JSONDecodeError:
         data = {}
 
-    board.voting_active = data.get("active", not board.voting_active)
+    board.is_voting_active = data.get("active", not board.is_voting_active)
     if "votes_per_user" in data:
         board.votes_per_user = data["votes_per_user"]
 
@@ -322,7 +322,7 @@ def toggle_voting(request, room_code):
     board.save()
 
     return JsonResponse({
-        "voting_active": board.voting_active,
+        "voting_active": board.is_voting_active,
         "votes_per_user": board.votes_per_user,
     })
 
@@ -333,7 +333,7 @@ def add_vote(request, room_code):
     """Add a dot vote to an element."""
     board = get_object_or_404(Board, room_code=room_code.upper())
 
-    if not board.voting_active:
+    if not board.is_voting_active:
         return JsonResponse({"error": "Voting is not active"}, status=400)
 
     try:

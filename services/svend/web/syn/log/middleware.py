@@ -7,22 +7,29 @@ Compliance: NIST SP 800-53 AU-2, AU-3 / ISO 27001 A.12.4.1
 This module provides:
 - CorrelationMiddleware: Propagates correlation_id through request lifecycle
 - RequestLoggingMiddleware: Logs request/response details
+- PerformanceMiddleware: HTTP telemetry — bucketed request metrics (SLA-001 §6)
+- AuditLoggingMiddleware: Creates audit log entries for sensitive operations
 
 Usage:
     Add to Django MIDDLEWARE:
         MIDDLEWARE = [
             'syn.log.middleware.CorrelationMiddleware',
-            'syn.log.middleware.RequestLoggingMiddleware',
+            'syn.log.middleware.PerformanceMiddleware',
             ...
         ]
 """
 
 import logging
+import random
+import re
+import threading
 import time
 import uuid
+from datetime import datetime, timedelta
 from typing import Callable
 
 from django.http import HttpRequest, HttpResponse
+from django.utils import timezone
 
 from syn.log.handlers import (
     set_correlation_id,
@@ -312,6 +319,166 @@ class RequestLoggingMiddleware:
 
         # Fall back to REMOTE_ADDR
         return request.META.get("REMOTE_ADDR", "unknown")
+
+
+# =============================================================================
+# Performance Middleware (SLA-001 §6 — HTTP Telemetry)
+# =============================================================================
+
+# UUID pattern for path normalization
+_UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I)
+_INT_ID_RE = re.compile(r"/(\d+)(/|$)")
+
+# Reservoir sample size per bucket
+_RESERVOIR_SIZE = 100
+
+# Buffer flush interval (seconds) — flush on bucket boundary
+_BUCKET_MINUTES = 5
+
+
+class PerformanceMiddleware:
+    """
+    HTTP request telemetry middleware — feeds the Performance dashboard and SLA measurement.
+
+    Standard: SLA-001 §6
+    Purpose: Times every request, normalizes paths, writes bucketed aggregates
+             to RequestMetric with reservoir sampling for percentile estimation.
+
+    Design:
+    - Buffers metrics in a thread-local list
+    - Flushes to DB on bucket boundary (every 5 minutes)
+    - Reservoir sampling (Algorithm R) keeps up to 100 duration samples per bucket
+    - Path normalization: /api/changes/UUID/ → /api/changes/<id>/
+
+    Position in MIDDLEWARE: Early (after WhiteNoise) to capture full chain timing.
+    """
+
+    EXCLUDE_PREFIXES = (
+        "/health/", "/ready/", "/live/", "/metrics/",
+        "/static/", "/media/", "/favicon.ico",
+    )
+
+    def __init__(self, get_response: Callable):
+        self.get_response = get_response
+        self._lock = threading.Lock()
+        self._buffer = []  # list of (bucket_start, method, path_pattern, status_class, duration_ms)
+        self._last_flush = time.monotonic()
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        path = request.path
+
+        # Skip excluded paths
+        if path.startswith(self.EXCLUDE_PREFIXES):
+            return self.get_response(request)
+
+        start = time.monotonic()
+        response = self.get_response(request)
+        duration_ms = (time.monotonic() - start) * 1000
+
+        # Normalize path and classify status
+        path_pattern = self._normalize_path(path)
+        status_code = response.status_code
+        status_class = f"{status_code // 100}xx"
+
+        # Buffer the metric
+        now = timezone.now()
+        bucket_start = now.replace(
+            minute=(now.minute // _BUCKET_MINUTES) * _BUCKET_MINUTES,
+            second=0, microsecond=0,
+        )
+
+        with self._lock:
+            self._buffer.append((
+                bucket_start, request.method, path_pattern,
+                status_class, duration_ms,
+            ))
+
+        # Flush if enough time has passed (~every 30 seconds to keep buffer small)
+        if time.monotonic() - self._last_flush > 30:
+            self._flush()
+
+        return response
+
+    def _normalize_path(self, path: str) -> str:
+        """Normalize path by replacing UUIDs and numeric IDs with <id>."""
+        normalized = _UUID_RE.sub("<id>", path)
+        normalized = _INT_ID_RE.sub(r"/<id>\2", normalized)
+        # Collapse trailing slashes
+        if not normalized.endswith("/"):
+            normalized += "/"
+        return normalized
+
+    def _flush(self):
+        """Flush buffered metrics to DB."""
+        with self._lock:
+            if not self._buffer:
+                return
+            to_flush = self._buffer[:]
+            self._buffer.clear()
+            self._last_flush = time.monotonic()
+
+        try:
+            self._write_metrics(to_flush)
+        except Exception:
+            logger.warning("PerformanceMiddleware: failed to flush metrics", exc_info=True)
+
+    def _write_metrics(self, records):
+        """Write buffered records to RequestMetric using update_or_create."""
+        from syn.log.models import RequestMetric
+
+        # Group by (bucket_start, method, path_pattern, status_class)
+        groups = {}
+        for bucket_start, method, path_pattern, status_class, duration_ms in records:
+            key = (bucket_start, method, path_pattern, status_class)
+            if key not in groups:
+                groups[key] = []
+            groups[key].append(duration_ms)
+
+        for (bucket_start, method, path_pattern, status_class), durations in groups.items():
+            try:
+                obj, created = RequestMetric.objects.get_or_create(
+                    bucket_start=bucket_start,
+                    method=method,
+                    path_pattern=path_pattern,
+                    status_class=status_class,
+                    defaults={
+                        "request_count": len(durations),
+                        "error_count": len(durations) if status_class == "5xx" else 0,
+                        "total_duration_ms": sum(durations),
+                        "min_duration_ms": min(durations),
+                        "max_duration_ms": max(durations),
+                        "duration_samples": durations[:_RESERVOIR_SIZE],
+                    },
+                )
+                if not created:
+                    # Update existing bucket
+                    obj.request_count += len(durations)
+                    if status_class == "5xx":
+                        obj.error_count += len(durations)
+                    obj.total_duration_ms += sum(durations)
+                    obj.min_duration_ms = min(obj.min_duration_ms, min(durations))
+                    obj.max_duration_ms = max(obj.max_duration_ms, max(durations))
+
+                    # Reservoir sampling
+                    samples = obj.duration_samples or []
+                    for d in durations:
+                        if len(samples) < _RESERVOIR_SIZE:
+                            samples.append(d)
+                        else:
+                            j = random.randint(0, obj.request_count - 1)
+                            if j < _RESERVOIR_SIZE:
+                                samples[j] = d
+                    obj.duration_samples = samples
+                    obj.save(update_fields=[
+                        "request_count", "error_count", "total_duration_ms",
+                        "min_duration_ms", "max_duration_ms", "duration_samples",
+                    ])
+            except Exception:
+                logger.warning(
+                    f"PerformanceMiddleware: failed to write bucket "
+                    f"{method} {path_pattern} {status_class}",
+                    exc_info=True,
+                )
 
 
 # =============================================================================

@@ -84,6 +84,16 @@ class HealthMetrics:
     idle_workers: int = 0
     tasks_in_flight: int = 0
 
+    @property
+    def running_tasks(self) -> int:
+        """Alias for tasks_in_flight (used by temporal controller)."""
+        return self.tasks_in_flight
+
+    @property
+    def worker_count(self) -> int:
+        """Total worker count (active + idle)."""
+        return self.active_workers + self.idle_workers
+
     # Latency Metrics
     avg_task_latency_ms: float = 0.0
     p95_task_latency_ms: float = 0.0
@@ -393,7 +403,7 @@ class SystemHealthMonitor:
             one_minute_ago = timezone.now() - timedelta(minutes=1)
             recent_executions = TaskExecution.objects.filter(
                 completed_at__gte=one_minute_ago,
-                success=True,
+                is_success=True,
             )
 
             if recent_executions.exists():

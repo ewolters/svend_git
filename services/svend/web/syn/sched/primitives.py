@@ -411,7 +411,7 @@ def get_queue_depth(
             completed_count = TaskExecution.objects.filter(
                 task__tenant_id=tenant_id,
                 completed_at__gte=five_minutes_ago,
-                success=True,
+                is_success=True,
             ).count()
             # Convert to tasks per minute
             processing_rate = round(completed_count / 5.0, 2)

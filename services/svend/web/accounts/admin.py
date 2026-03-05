@@ -25,8 +25,8 @@ class UserAdmin(BaseUserAdmin):
 
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = ["user", "status", "current_period_end", "cancel_at_period_end"]
-    list_filter = ["status", "cancel_at_period_end"]
+    list_display = ["user", "status", "current_period_end", "is_cancel_at_period_end"]
+    list_filter = ["status", "is_cancel_at_period_end"]
     search_fields = ["user__username", "user__email", "stripe_subscription_id"]
     readonly_fields = ["stripe_subscription_id", "created_at", "updated_at"]
 

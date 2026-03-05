@@ -356,7 +356,7 @@ def _auto_suggest_correlations(tenant, fiscal_year, accessible_sites):
                 "fiscal_year": fiscal_year,
                 "strength": strength,
                 "source": "auto",
-                "confirmed": False,
+                "is_confirmed": False,
             },
         )
 
@@ -414,14 +414,14 @@ def update_correlation(request):
             "fiscal_year": fiscal_year,
             "strength": strength,
             "source": "manual" if not confirm else XMatrixCorrelation.Source.AUTO,
-            "confirmed": True,
+            "is_confirmed": True,
         },
     )
 
     # If confirming an auto-suggestion, keep source as auto
     if confirm and not created:
-        corr.confirmed = True
-        corr.save(update_fields=["confirmed", "updated_at"])
+        corr.is_confirmed = True
+        corr.save(update_fields=["is_confirmed", "updated_at"])
 
     return JsonResponse({"success": True, "correlation": corr.to_dict()})
 
@@ -916,7 +916,7 @@ def rollover_fiscal_year(request):
                         "fiscal_year": to_year,
                         "strength": c.strength,
                         "source": "auto",
-                        "confirmed": False,
+                        "is_confirmed": False,
                     },
                 )
 

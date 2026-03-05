@@ -1310,7 +1310,7 @@ from .models import SectionProgress, AssessmentAttempt, LearnSession
 
 def _get_user_progress(user) -> dict:
     """Get user's course progress as {module_id: {section_id: {completed, completed_at}}}."""
-    rows = SectionProgress.objects.filter(user=user, completed=True)
+    rows = SectionProgress.objects.filter(user=user, is_completed=True)
     progress = {}
     for row in rows:
         progress.setdefault(row.module_id, {})[row.section_id] = {
@@ -1327,7 +1327,7 @@ def _mark_section_complete(user, module_id: str, section_id: str):
         module_id=module_id,
         section_id=section_id,
         defaults={
-            "completed": True,
+            "is_completed": True,
             "completed_at": timezone.now(),
         },
     )
@@ -1343,7 +1343,7 @@ def _get_assessment_data(user) -> dict:
         {
             "id": str(a.id),
             "score": a.score,
-            "passed": a.passed,
+            "passed": a.is_passed,
             "date": a.started_at.isoformat(),
         }
         for a in attempts[:10]
@@ -1388,9 +1388,9 @@ def _record_assessment_attempt(user, score: float, passed: bool):
     )
     if attempt:
         attempt.score = score
-        attempt.passed = passed
+        attempt.is_passed = passed
         attempt.completed_at = timezone.now()
-        attempt.save(update_fields=["score", "passed", "completed_at"])
+        attempt.save(update_fields=["score", "is_passed", "completed_at"])
     logger.info(f"User {user.id} scored {score:.0%} on assessment (passed={passed})")
 
 

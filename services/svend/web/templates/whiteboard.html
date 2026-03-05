@@ -4080,44 +4080,35 @@ function analyzeIR() {
     analysis.sort((a, b) => b.net - a.net);
 
     // Build results message
-    let msg = 'INTERRELATIONSHIP ANALYSIS\n';
-    msg += '═'.repeat(40) + '\n\n';
-    msg += 'Factor'.padEnd(20) + 'Out  In   Net\n';
-    msg += '─'.repeat(40) + '\n';
+    let msg = 'INTERRELATIONSHIP ANALYSIS\n\n';
 
     analysis.forEach(item => {
-        const label = item.text.substring(0, 18).padEnd(20);
-        const out = String(item.outgoing).padStart(3);
-        const inc = String(item.incoming).padStart(4);
         const net = (item.net >= 0 ? '+' : '') + item.net;
-        msg += `${label}${out} ${inc}   ${net}\n`;
+        msg += `${item.text}: Out=${item.outgoing}  In=${item.incoming}  Net=${net}\n`;
     });
-
-    msg += '─'.repeat(40) + '\n\n';
 
     // Identify drivers and outcomes
     const drivers = analysis.filter(a => a.net > 0);
     const outcomes = analysis.filter(a => a.net < 0);
     const neutral = analysis.filter(a => a.net === 0);
 
+    msg += '\n';
     if (drivers.length > 0) {
-        msg += '🔴 DRIVERS (more outgoing):\n';
-        drivers.forEach(d => msg += `   • ${d.text}\n`);
-        msg += '\n';
+        msg += 'DRIVERS (more outgoing):\n';
+        drivers.forEach(d => msg += `  - ${d.text} (net ${d.net > 0 ? '+' : ''}${d.net})\n`);
     }
 
     if (outcomes.length > 0) {
-        msg += '🔵 OUTCOMES (more incoming):\n';
-        outcomes.forEach(d => msg += `   • ${d.text}\n`);
-        msg += '\n';
+        msg += 'OUTCOMES (more incoming):\n';
+        outcomes.forEach(d => msg += `  - ${d.text} (net ${d.net})\n`);
     }
 
     if (neutral.length > 0) {
-        msg += '⚪ NEUTRAL (equal in/out):\n';
-        neutral.forEach(d => msg += `   • ${d.text}\n`);
+        msg += 'NEUTRAL:\n';
+        neutral.forEach(d => msg += `  - ${d.text}\n`);
     }
 
-    msg += '\n💡 Focus improvement efforts on DRIVERS\n   for maximum downstream impact.';
+    msg += '\nFocus improvement efforts on DRIVERS for maximum downstream impact.';
 
     alert(msg);
 
@@ -4616,8 +4607,8 @@ async function pollForUpdates() {
 
         const data = await response.json();
 
-        // Check if we need to update
-        if (data.version > serverVersion) {
+        // Check if we need to update — skip if we have unsaved local changes
+        if (data.version > serverVersion && !saveTimeout) {
             serverVersion = data.version;
             mergeServerState(data);
         }

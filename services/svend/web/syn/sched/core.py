@@ -708,7 +708,7 @@ class CognitiveScheduler:
         with transaction.atomic():
             # Find due schedules
             due_schedules = list(Schedule.objects.filter(
-                enabled=True,
+                is_enabled=True,
                 next_run_at__lte=now,
             ).select_for_update(skip_locked=True))
 
@@ -998,7 +998,7 @@ class CognitiveScheduler:
         """
         # Get schedule names
         schedule_names = list(
-            Schedule.objects.filter(enabled=True).values_list('schedule_id', flat=True)
+            Schedule.objects.filter(is_enabled=True).values_list('schedule_id', flat=True)
         )
 
         # Get task counts

@@ -22,6 +22,7 @@ class Command(BaseCommand):
         parser.add_argument("--check", type=str, help="Run a specific check by name")
         parser.add_argument("--report", action="store_true", help="Generate monthly report")
         parser.add_argument("--standards", action="store_true", help="Run standards checks with verbose per-assertion output")
+        parser.add_argument("--run-tests", action="store_true", help="Execute linked tests (use with --standards)")
 
     def handle(self, *args, **options):
         if options["report"]:
@@ -33,7 +34,7 @@ class Command(BaseCommand):
             return
 
         if options["standards"]:
-            self._run_standards_verbose()
+            self._run_standards_verbose(run_tests=options.get("run_tests", False))
             return
 
         if options["check"]:
@@ -66,7 +67,7 @@ class Command(BaseCommand):
             f"{warnings} warnings, {errors} errors"
         )
 
-    def _run_standards_verbose(self):
+    def _run_standards_verbose(self, run_tests=False):
         """Run standards checks with per-assertion detail."""
         from syn.audit.standards import parse_all_standards, verify_assertion
 
@@ -77,6 +78,7 @@ class Command(BaseCommand):
 
         current_std = ""
         passed = failed = warnings = 0
+        tests_linked = tests_passed = tests_failed = tests_skipped = tests_missing = 0
 
         for a in assertions:
             if a.standard != current_std:
@@ -84,7 +86,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"\n  {current_std}")
                 self.stdout.write("  " + "=" * 40)
 
-            result = verify_assertion(a)
+            result = verify_assertion(a, run_tests=run_tests)
             status = result["status"]
 
             if status == "pass":
@@ -112,8 +114,41 @@ class Command(BaseCommand):
                 mark = "ok" if cc["ok"] else "FAIL"
                 self.stdout.write(f"             code:{cc['type']}: [{mark}] {cc['message'][:70]}")
 
-        self.stdout.write(f"\n  Total: {len(assertions)} assertions — "
-                          f"{passed} passed, {failed} failed, {warnings} warnings")
+            # Show test results
+            for tc in result.get("test_checks", []):
+                tests_linked += 1
+                if tc.get("ran"):
+                    status = tc.get("status", "")
+                    if status == "pass" or tc.get("passed"):
+                        mark = "PASS"
+                        tests_passed += 1
+                    elif status == "skip":
+                        mark = "SKIP"
+                        tests_skipped += 1
+                    else:
+                        mark = "FAIL"
+                        tests_failed += 1
+                elif tc.get("status") == "skip":
+                    mark = "SKIP"
+                    tests_skipped += 1
+                elif tc.get("exists"):
+                    mark = "exists"
+                else:
+                    mark = "MISSING"
+                    tests_missing += 1
+                self.stdout.write(f"             test: [{mark}] {tc['test']}")
+
+        summary = (f"\n  Total: {len(assertions)} assertions — "
+                   f"{passed} passed, {failed} failed, {warnings} warnings")
+        if tests_linked > 0:
+            summary += f"\n  Tests: {tests_linked} linked"
+            if run_tests or tests_passed > 0:
+                summary += f", {tests_passed} passed, {tests_failed} failed"
+                if tests_skipped > 0:
+                    summary += f", {tests_skipped} skipped"
+            if tests_missing > 0:
+                summary += f", {tests_missing} missing"
+        self.stdout.write(summary)
 
     def _print_result(self, check):
         style = {

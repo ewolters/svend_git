@@ -13,9 +13,9 @@ import uuid
 
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from django.utils import timezone
 
 from syn.core.base_models import SynaraImmutableLog
-from django.utils import timezone
 
 
 class SysLogEntry(SynaraImmutableLog):
@@ -328,7 +328,7 @@ class DriftViolation(SynaraImmutableLog):
     Tracks violations of canonical architecture patterns with full forensic
     traceability, governance integration, and remediation tracking.
 
-    Standard: DRF-001 §7.2.1 - Drift Violation Schema
+    Standard: CMP-001 §5.6 - Drift Detection Lifecycle
     Compliance: SOC 2 CC7.2, ISO 27001 A.12.7
     """
 
@@ -353,6 +353,8 @@ class DriftViolation(SynaraImmutableLog):
         ("ENC-009", "ENC-009 - Primitive Pattern"),
         ("ENC-010", "ENC-010 - Test Coverage"),
         ("ENC-011", "ENC-011 - Tenant Isolation"),
+        ("STD", "STD - Standards Compliance"),
+        ("CAL", "CAL - Statistical Calibration"),
     ]
 
     # ========== Identity ==========
@@ -381,7 +383,7 @@ class DriftViolation(SynaraImmutableLog):
     )
 
     enforcement_check = models.CharField(
-        max_length=10,
+        max_length=20,
         choices=ENFORCEMENT_CHECK_CHOICES,
         db_index=True,
         help_text="Enforcement check that detected this violation"
@@ -562,6 +564,12 @@ class DriftViolation(SynaraImmutableLog):
         help_text="Notes about how the violation was resolved"
     )
 
+    # UUID chain backlink — which ChangeRequest remediates this violation
+    remediation_change_id = models.UUIDField(
+        null=True, blank=True, db_index=True,
+        help_text="UUID of the ChangeRequest that remediates this violation (CHG-001 §8.4)"
+    )
+
     class Meta(SynaraImmutableLog.Meta):
         db_table = "audit_drift_violation"
         ordering = ["-detected_at"]
@@ -595,14 +603,41 @@ class DriftViolation(SynaraImmutableLog):
             return False
         return timezone.now() > self.remediation_due_at
 
+    # Fields that may be updated post-creation (resolution tracking).
+    # All other fields are immutable per SynaraImmutableLog contract.
+    MUTABLE_FIELDS = {
+        "resolved_at", "resolved_by", "resolution_notes",
+        "remediation_change_id", "is_sla_breached",
+        "is_governance_escalated", "governance_judgment_id",
+    }
+
     def save(self, *args, **kwargs):
-        """Override save to compute derived fields."""
-        # Compute remediation due date if SLA is set
+        """Save with immutability enforcement + resolution field exemption.
+
+        New records: compute derived fields (SLA due date, breach status), then
+        delegate to SynaraImmutableLog.save() for hash chain computation.
+
+        Existing records: only MUTABLE_FIELDS may be updated. All others are
+        blocked per AUD-001 / 21 CFR Part 11 §11.10(e). Resolution updates
+        bypass the immutable base class via models.Model.save() directly.
+        """
+        if self.pk and self.__class__.objects.filter(pk=self.pk).exists():
+            # Existing record — only allow mutable field updates
+            update_fields = kwargs.get("update_fields")
+            if not update_fields or not set(update_fields).issubset(self.MUTABLE_FIELDS):
+                raise ValueError(
+                    f"DriftViolation records are immutable except for resolution fields: "
+                    f"{sorted(self.MUTABLE_FIELDS)}. Got: {update_fields}"
+                )
+            # Bypass SynaraImmutableLog.save() — go straight to models.Model.save()
+            models.Model.save(self, *args, **kwargs)
+            return
+
+        # New record — compute derived fields before creation
         if self.remediation_sla_hours and not self.remediation_due_at:
             from datetime import timedelta
             self.remediation_due_at = self.detected_at + timedelta(hours=self.remediation_sla_hours)
 
-        # Update SLA breach status
         if self.remediation_due_at and not self.resolved_at:
             self.is_sla_breached = timezone.now() > self.remediation_due_at
 
@@ -649,6 +684,12 @@ class ComplianceCheck(models.Model):
     run_at = models.DateTimeField(auto_now_add=True, db_index=True)
     tenant_id = models.UUIDField(null=True, blank=True, db_index=True)
 
+    # UUID chain backlink — which ChangeRequest remediates this finding
+    remediation_change_id = models.UUIDField(
+        null=True, blank=True, db_index=True,
+        help_text="UUID of the ChangeRequest that remediates this finding (CHG-001 §8.4)"
+    )
+
     class Meta:
         db_table = "syn_audit_compliance_check"
         ordering = ["-run_at"]
@@ -694,3 +735,810 @@ class ComplianceReport(models.Model):
 
     def __str__(self):
         return f"Compliance Report {self.period_start} - {self.period_end} ({self.pass_rate:.0f}%)"
+
+
+# ---------------------------------------------------------------------------
+# Change Management Models (CHG-001)
+# ---------------------------------------------------------------------------
+
+
+class ChangeRequest(models.Model):
+    """
+    Formal record of a proposed change to the codebase, infrastructure, or configuration.
+
+    Tracks the full lifecycle from planning through verification with linked logs,
+    risk assessments, and audit trail integration.
+
+    Standard: CHG-001 §4-§5
+    Compliance: SOC 2 CC8.1 (Change Management), NIST SP 800-53 CM-3
+    """
+
+    CHANGE_TYPE_CHOICES = [
+        ("feature", "Feature"),
+        ("enhancement", "Enhancement"),
+        ("bugfix", "Bug Fix"),
+        ("hotfix", "Hotfix"),
+        ("security", "Security"),
+        ("infrastructure", "Infrastructure"),
+        ("migration", "Migration"),
+        ("documentation", "Documentation"),
+        ("plan", "Plan"),
+        ("debt", "Debt Closure"),
+    ]
+
+    RISK_LEVEL_CHOICES = [
+        ("critical", "Critical"),
+        ("high", "High"),
+        ("medium", "Medium"),
+        ("low", "Low"),
+    ]
+
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("submitted", "Submitted"),
+        ("risk_assessed", "Risk Assessed"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+        ("in_progress", "In Progress"),
+        ("testing", "Testing"),
+        ("completed", "Completed"),
+        ("failed", "Failed"),
+        ("rolled_back", "Rolled Back"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    PRIORITY_CHOICES = [
+        ("critical", "Critical"),
+        ("high", "High"),
+        ("medium", "Medium"),
+        ("low", "Low"),
+    ]
+
+    # ========== Identity ==========
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    title = models.CharField(
+        max_length=255,
+        help_text="Short description of the change"
+    )
+
+    description = models.TextField(
+        help_text="Detailed description of what is being changed and why"
+    )
+
+    # ========== Classification ==========
+
+    change_type = models.CharField(
+        max_length=20,
+        choices=CHANGE_TYPE_CHOICES,
+        db_index=True,
+        help_text="Category of change (CHG-001 §4.1)"
+    )
+
+    risk_level = models.CharField(
+        max_length=10,
+        choices=RISK_LEVEL_CHOICES,
+        default="medium",
+        db_index=True,
+        help_text="Risk classification (CHG-001 §4.2)"
+    )
+
+    priority = models.CharField(
+        max_length=10,
+        choices=PRIORITY_CHOICES,
+        default="medium",
+        help_text="Priority level per DEBT-001.md"
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="draft",
+        db_index=True,
+        help_text="Current lifecycle state (CHG-001 §5.1)"
+    )
+
+    is_emergency = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Emergency change flag — bypasses normal approval (CHG-001 §9)"
+    )
+
+    # ========== Planning ==========
+
+    justification = models.TextField(
+        blank=True,
+        help_text="Business justification for the change"
+    )
+
+    affected_files = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of files to be modified"
+    )
+
+    implementation_plan = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Steps for implementing the change"
+    )
+
+    rollback_plan = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Steps for reverting the change if it fails"
+    )
+
+    testing_plan = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Steps for verifying the change after implementation"
+    )
+
+    # ========== Linking ==========
+
+    issue_url = models.URLField(
+        blank=True,
+        help_text="Link to source issue (GitHub, internal tracker)"
+    )
+
+    parent_change_id = models.UUIDField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Parent change request (for sub-tasks)"
+    )
+
+    related_change_ids = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of related change request UUIDs"
+    )
+
+    debt_item = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Reference to DEBT.md item being closed"
+    )
+
+    commit_shas = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Git commit SHAs associated with this change"
+    )
+
+    log_md_ref = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Reference to log.md section"
+    )
+
+    # ========== UUID Linking (Synara Convention) ==========
+
+    compliance_check_ids = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="UUIDs of ComplianceCheck records that triggered or relate to this change"
+    )
+
+    drift_violation_ids = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="UUIDs of DriftViolation records this change remediates"
+    )
+
+    audit_entry_ids = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="IDs of SysLogEntry records related to this change"
+    )
+
+    # ========== Lifecycle Timestamps ==========
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    # ========== Actors ==========
+
+    author = models.CharField(
+        max_length=255,
+        help_text="Who created the change request"
+    )
+
+    approver = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Who approved the change"
+    )
+
+    # ========== Correlation ==========
+
+    correlation_id = models.UUIDField(
+        default=uuid.uuid4,
+        db_index=True,
+        help_text="Correlation ID for audit trail linkage"
+    )
+
+    tenant_id = models.UUIDField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Tenant identifier for multi-tenant isolation"
+    )
+
+    class Meta:
+        db_table = "syn_audit_change_request"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["change_type", "-created_at"], name="chg_type_created"),
+            models.Index(fields=["status", "-created_at"], name="chg_status_created"),
+            models.Index(fields=["risk_level", "-created_at"], name="chg_risk_created"),
+            models.Index(fields=["is_emergency"], name="chg_emergency"),
+            models.Index(fields=["correlation_id"], name="chg_correlation"),
+            models.Index(fields=["author", "-created_at"], name="chg_author_created"),
+        ]
+        verbose_name = "Change Request"
+        verbose_name_plural = "Change Requests"
+
+    def __str__(self):
+        return f"[{self.change_type}] {self.title} ({self.status})"
+
+    # ========== Validation (CHG-001 §7.1.1) ==========
+
+    # Types exempt from most field requirements
+    EXEMPT_TYPES = {"documentation", "plan"}
+
+    # Types requiring rollback_plan
+    ROLLBACK_REQUIRED_TYPES = {"feature", "migration", "infrastructure", "security"}
+
+    # Types requiring multi-agent risk assessment (4 votes)
+    MULTI_AGENT_TYPES = {"feature", "migration"}
+
+    # ALL types requiring any risk assessment
+    RISK_ASSESSMENT_TYPES = {
+        "feature", "enhancement", "bugfix", "security",
+        "infrastructure", "migration", "debt",
+    }
+
+    # States that are "past approved" for enforcement purposes
+    PAST_APPROVED = {"approved", "in_progress", "testing", "completed"}
+
+    def clean(self):
+        """Validate fields required at draft creation (CHG-001 §7.1.1).
+
+        Called by full_clean(). Catches empty CRs at creation time.
+        Transition-level validation is in validate_for_transition().
+        """
+        from django.core.exceptions import ValidationError
+
+        errors = {}
+        if not self.title or len(self.title.strip()) < 10:
+            errors["title"] = "Title must be at least 10 characters."
+        if not self.description or len(self.description.strip()) < 20:
+            errors["description"] = "Description must be at least 20 characters."
+        if not self.author:
+            errors["author"] = "Author is required."
+        if errors:
+            raise ValidationError(errors)
+
+    def validate_for_transition(self, target_state):
+        """Validate fields required before transitioning to target_state.
+
+        Called by api_change_transition. Returns list of error strings.
+        Cumulative — checks all requirements up to the target state.
+        CHG-001 §7.1.1 enforcement.
+        """
+        errors = []
+        is_exempt = self.change_type in self.EXEMPT_TYPES
+
+        SUBMITTED_PLUS = {
+            "submitted", "risk_assessed", "approved",
+            "in_progress", "testing", "completed",
+        }
+        APPROVED_PLUS = {"approved", "in_progress", "testing", "completed"}
+
+        # submitted+ requirements
+        if target_state in SUBMITTED_PLUS and not is_exempt:
+            if not self.justification or not self.justification.strip():
+                errors.append("justification is required before submission")
+            if not self.affected_files:
+                errors.append("affected_files is required before submission")
+
+        # approved+ requirements
+        if target_state in APPROVED_PLUS:
+            if not is_exempt:
+                if not self.implementation_plan or self.implementation_plan == {}:
+                    errors.append(
+                        "implementation_plan is required before approval"
+                    )
+                if not self.testing_plan or self.testing_plan == {}:
+                    errors.append("testing_plan is required before approval")
+            if self.change_type in self.ROLLBACK_REQUIRED_TYPES:
+                if not self.rollback_plan or self.rollback_plan == {}:
+                    errors.append(
+                        "rollback_plan is required for this change type"
+                    )
+            if self.change_type in self.RISK_ASSESSMENT_TYPES:
+                if not self.risk_assessments.exists():
+                    errors.append(
+                        f"RiskAssessment required for {self.change_type} "
+                        f"before approval"
+                    )
+
+        # completed requirements
+        if target_state == "completed" and not is_exempt:
+            if not self.commit_shas:
+                errors.append("commit_shas required before completion")
+            if not self.log_md_ref:
+                errors.append("log_md_ref required before completion")
+
+        return errors
+
+    # ========== Linking Methods (CHG-001 §8.4/§8.5) ==========
+
+    def link_related(self, other_id, *, actor="system", message="", log=True):
+        """Bidirectionally link this CR to another CR.
+
+        Sets related_change_ids on both sides and creates ChangeLog entries
+        on both CRs. This is the ONLY correct way to link CRs — never
+        manipulate related_change_ids directly.
+
+        Args:
+            other_id: UUID string of the other ChangeRequest.
+            actor: Who is creating the link.
+            message: Optional context for the log entry.
+            log: Whether to create ChangeLog entries (default True).
+
+        Returns:
+            True if link was created, False if already linked.
+        """
+        other_str = str(other_id)
+        self_str = str(self.id)
+
+        # Already linked?
+        if other_str in (self.related_change_ids or []):
+            return False
+
+        # Forward
+        if not self.related_change_ids:
+            self.related_change_ids = []
+        self.related_change_ids.append(other_str)
+        self.save(update_fields=["related_change_ids", "updated_at"])
+
+        # Reverse
+        try:
+            other = ChangeRequest.objects.get(id=other_str)
+            if not other.related_change_ids:
+                other.related_change_ids = []
+            if self_str not in other.related_change_ids:
+                other.related_change_ids.append(self_str)
+                other.save(update_fields=["related_change_ids", "updated_at"])
+        except ChangeRequest.DoesNotExist:
+            pass  # External or future CR — forward link still valid
+
+        if log:
+            log_msg = message or f"Linked to CR {other_str[:8]}"
+            ChangeLog.objects.create(
+                change_request=self,
+                actor=actor,
+                action="linked",
+                message=log_msg,
+                details={"linked_cr": other_str, "direction": "bidirectional"},
+                from_state=self.status,
+                to_state=self.status,
+            )
+
+        return True
+
+    def link_compliance_checks(self, check_ids, *, actor="system", message=""):
+        """Bidirectionally link this CR to ComplianceCheck records (CHG-001 §8.5).
+
+        Sets compliance_check_ids on this CR and remediation_change_id on each
+        ComplianceCheck. Creates a single ChangeLog entry.
+
+        Args:
+            check_ids: List of ComplianceCheck UUID strings.
+            actor: Who is creating the link.
+            message: Optional context for the log entry.
+        """
+        from syn.audit.models import ComplianceCheck
+
+        self_str = str(self.id)
+        check_strs = [str(cid) for cid in check_ids]
+        check_names = []
+
+        # Merge into compliance_check_ids (no duplicates)
+        existing = set(self.compliance_check_ids or [])
+        new_ids = [cid for cid in check_strs if cid not in existing]
+        if not new_ids and all(cid in existing for cid in check_strs):
+            return  # Already fully linked
+
+        self.compliance_check_ids = list(existing | set(check_strs))
+        self.save(update_fields=["compliance_check_ids", "updated_at"])
+
+        # Reverse: set remediation_change_id on each check
+        for cid in check_strs:
+            try:
+                check = ComplianceCheck.objects.get(id=cid)
+                check.remediation_change_id = self_str
+                check.save(update_fields=["remediation_change_id"])
+                check_names.append(check.check_name)
+            except ComplianceCheck.DoesNotExist:
+                pass
+
+        ChangeLog.objects.create(
+            change_request=self,
+            actor=actor,
+            action="linked",
+            message=message or f"Linked {len(check_strs)} compliance check(s)",
+            details={
+                "compliance_check_ids": check_strs,
+                "check_names": check_names,
+            },
+            from_state=self.status,
+            to_state=self.status,
+        )
+
+    def link_drift_violations(self, violation_ids, *, actor="system", message=""):
+        """Bidirectionally link this CR to DriftViolation records.
+
+        Sets drift_violation_ids on this CR and remediation_change_id on each
+        DriftViolation. Creates a single ChangeLog entry.
+
+        Args:
+            violation_ids: List of DriftViolation UUID strings.
+            actor: Who is creating the link.
+            message: Optional context for the log entry.
+        """
+        from syn.audit.models import DriftViolation
+
+        self_str = str(self.id)
+        viol_strs = [str(vid) for vid in violation_ids]
+
+        existing = set(self.drift_violation_ids or [])
+        self.drift_violation_ids = list(existing | set(viol_strs))
+        self.save(update_fields=["drift_violation_ids", "updated_at"])
+
+        for vid in viol_strs:
+            try:
+                dv = DriftViolation.objects.get(id=vid)
+                dv.remediation_change_id = self_str
+                dv.save(update_fields=["remediation_change_id"])
+            except DriftViolation.DoesNotExist:
+                pass
+
+        ChangeLog.objects.create(
+            change_request=self,
+            actor=actor,
+            action="linked",
+            message=message or f"Linked {len(viol_strs)} drift violation(s)",
+            details={"drift_violation_ids": viol_strs},
+            from_state=self.status,
+            to_state=self.status,
+        )
+
+
+class ChangeLog(models.Model):
+    """
+    Immutable log entry recording a state transition or checkpoint in a change's lifecycle.
+
+    Every ChangeRequest state transition, risk assessment, approval, and verification
+    creates a ChangeLog entry forming an auditable chain.
+
+    Standard: CHG-001 §5.2, §8.1
+    Compliance: SOC 2 CC8.1, NIST SP 800-53 CM-3
+    """
+
+    ACTION_CHOICES = [
+        ("plan_created", "Plan Created"),
+        ("submitted", "Submitted"),
+        ("risk_assessed", "Risk Assessed"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+        ("implementation_started", "Implementation Started"),
+        ("testing_completed", "Testing Completed"),
+        ("completed", "Completed"),
+        ("failed", "Failed"),
+        ("rolled_back", "Rolled Back"),
+        ("cancelled", "Cancelled"),
+        ("comment", "Comment"),
+        ("linked", "Linked"),
+        ("retroactive_review", "Retroactive Review"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    change_request = models.ForeignKey(
+        ChangeRequest,
+        on_delete=models.CASCADE,
+        related_name="logs",
+        help_text="The change request this log entry belongs to"
+    )
+
+    timestamp = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        help_text="When this log entry was created"
+    )
+
+    actor = models.CharField(
+        max_length=255,
+        help_text="Who or what created this log entry"
+    )
+
+    action = models.CharField(
+        max_length=30,
+        choices=ACTION_CHOICES,
+        db_index=True,
+        help_text="Type of action being logged"
+    )
+
+    from_state = models.CharField(
+        max_length=30,
+        blank=True,
+        help_text="Previous state of the change request"
+    )
+
+    to_state = models.CharField(
+        max_length=30,
+        blank=True,
+        help_text="New state of the change request"
+    )
+
+    details = models.JSONField(
+        default=dict,
+        help_text="Structured details: commit_sha, log_md_ref, issue_url, test_results, etc."
+    )
+
+    message = models.TextField(
+        blank=True,
+        help_text="Human-readable description of what happened"
+    )
+
+    class Meta:
+        db_table = "syn_audit_change_log"
+        ordering = ["timestamp"]
+        indexes = [
+            models.Index(fields=["change_request", "timestamp"], name="chglog_request_time"),
+            models.Index(fields=["action", "-timestamp"], name="chglog_action_time"),
+        ]
+        verbose_name = "Change Log"
+        verbose_name_plural = "Change Logs"
+        default_permissions = ("add", "view")  # Immutable — no change/delete
+
+    def __str__(self):
+        return f"[{self.timestamp}] {self.action}: {self.message[:80]}" if self.message else f"[{self.timestamp}] {self.action}"
+
+    def save(self, *args, **kwargs):
+        """Enforce immutability — prevent updates to existing log entries."""
+        if self.pk and ChangeLog.objects.filter(pk=self.pk).exists():
+            raise ValidationError(
+                "Change log entries are immutable and cannot be modified. "
+                "Create a new entry instead. CHG-001 §5.2 violation."
+            )
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        """Block deletion — change logs are audit records."""
+        raise ValueError(
+            "Change log entries cannot be deleted. "
+            "CHG-001 §5.2 / SOC 2 CC8.1 violation: change audit trail must be preserved."
+        )
+
+
+class RiskAssessment(models.Model):
+    """
+    Risk analysis for a change request with multi-agent voting.
+
+    Evaluates impact across SOC 2 trust service categories:
+    Security, Availability, Processing Integrity, Confidentiality, Privacy.
+
+    Standard: CHG-001 §6
+    Compliance: SOC 2 CC3.4, NIST SP 800-53 CM-4
+    """
+
+    ASSESSMENT_TYPE_CHOICES = [
+        ("multi_agent", "Multi-Agent"),
+        ("single_agent", "Single Agent"),
+        ("expedited", "Expedited"),
+        ("automated", "Automated"),
+    ]
+
+    RECOMMENDATION_CHOICES = [
+        ("approve", "Approve"),
+        ("approve_with_conditions", "Approve with Conditions"),
+        ("reject", "Reject"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    change_request = models.ForeignKey(
+        ChangeRequest,
+        on_delete=models.CASCADE,
+        related_name="risk_assessments",
+        help_text="The change request being assessed"
+    )
+
+    assessment_type = models.CharField(
+        max_length=20,
+        choices=ASSESSMENT_TYPE_CHOICES,
+        help_text="Type of risk assessment performed"
+    )
+
+    # Aggregate risk scores (1-5 per dimension)
+    security_score = models.FloatField(default=0, help_text="Security risk score (1-5)")
+    availability_score = models.FloatField(default=0, help_text="Availability risk score (1-5)")
+    integrity_score = models.FloatField(default=0, help_text="Processing integrity risk score (1-5)")
+    confidentiality_score = models.FloatField(default=0, help_text="Confidentiality risk score (1-5)")
+    privacy_score = models.FloatField(default=0, help_text="Privacy risk score (1-5)")
+    overall_score = models.FloatField(default=0, help_text="Overall risk score (max of dimensions)")
+
+    overall_recommendation = models.CharField(
+        max_length=30,
+        choices=RECOMMENDATION_CHOICES,
+        default="approve",
+        help_text="Aggregate recommendation from all votes"
+    )
+
+    conditions = models.JSONField(
+        default=list,
+        help_text="Required conditions/mitigations if approve_with_conditions"
+    )
+
+    summary = models.TextField(
+        blank=True,
+        help_text="Human-readable summary of the risk assessment"
+    )
+
+    is_retroactive = models.BooleanField(
+        default=False,
+        help_text="True if this is a retroactive assessment for an emergency change"
+    )
+
+    assessed_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    assessed_by = models.CharField(
+        max_length=255,
+        default="system",
+        help_text="Who or what performed the assessment"
+    )
+
+    class Meta:
+        db_table = "syn_audit_risk_assessment"
+        ordering = ["-assessed_at"]
+        indexes = [
+            models.Index(fields=["change_request", "-assessed_at"], name="risk_change_time"),
+            models.Index(fields=["overall_recommendation"], name="risk_recommendation"),
+        ]
+        verbose_name = "Risk Assessment"
+        verbose_name_plural = "Risk Assessments"
+
+    def __str__(self):
+        return f"Risk Assessment for {self.change_request_id}: {self.overall_recommendation} ({self.overall_score:.1f})"
+
+    def compute_aggregate(self):
+        """Compute aggregate scores from agent votes."""
+        votes = self.votes.all()
+        if not votes:
+            return
+
+        scores = {"security": [], "availability": [], "integrity": [], "confidentiality": [], "privacy": []}
+        recommendations = []
+
+        for vote in votes:
+            risk_scores = vote.risk_scores or {}
+            for dim in scores:
+                if dim in risk_scores:
+                    scores[dim].append(risk_scores[dim])
+            recommendations.append(vote.recommendation)
+
+        # Per-dimension: average
+        self.security_score = sum(scores["security"]) / len(scores["security"]) if scores["security"] else 0
+        self.availability_score = sum(scores["availability"]) / len(scores["availability"]) if scores["availability"] else 0
+        self.integrity_score = sum(scores["integrity"]) / len(scores["integrity"]) if scores["integrity"] else 0
+        self.confidentiality_score = sum(scores["confidentiality"]) / len(scores["confidentiality"]) if scores["confidentiality"] else 0
+        self.privacy_score = sum(scores["privacy"]) / len(scores["privacy"]) if scores["privacy"] else 0
+
+        # Overall: max of dimensions
+        self.overall_score = max(
+            self.security_score, self.availability_score, self.integrity_score,
+            self.confidentiality_score, self.privacy_score
+        )
+
+        # Recommendation: majority vote, security_analyst has veto on reject
+        if any(v.recommendation == "reject" and v.agent_role == "security_analyst" for v in votes):
+            self.overall_recommendation = "reject"
+        elif recommendations.count("reject") > len(recommendations) / 2:
+            self.overall_recommendation = "reject"
+        elif recommendations.count("approve_with_conditions") > 0:
+            self.overall_recommendation = "approve_with_conditions"
+            # Merge conditions from all approve_with_conditions votes
+            all_conditions = []
+            for v in votes:
+                if v.recommendation == "approve_with_conditions" and v.conditions:
+                    all_conditions.extend(v.conditions)
+            self.conditions = all_conditions
+        else:
+            self.overall_recommendation = "approve"
+
+        self.save()
+
+
+class AgentVote(models.Model):
+    """
+    Individual agent assessment during multi-agent risk evaluation.
+
+    Each agent evaluates from a different role perspective to ensure
+    diverse risk coverage.
+
+    Standard: CHG-001 §6.2
+    Compliance: SOC 2 CC3.4 (Risk Assessment)
+    """
+
+    AGENT_ROLE_CHOICES = [
+        ("security_analyst", "Security Analyst"),
+        ("architect", "Architect"),
+        ("operations", "Operations"),
+        ("quality", "Quality"),
+    ]
+
+    RECOMMENDATION_CHOICES = [
+        ("approve", "Approve"),
+        ("approve_with_conditions", "Approve with Conditions"),
+        ("reject", "Reject"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    risk_assessment = models.ForeignKey(
+        RiskAssessment,
+        on_delete=models.CASCADE,
+        related_name="votes",
+        help_text="The risk assessment this vote belongs to"
+    )
+
+    agent_role = models.CharField(
+        max_length=30,
+        choices=AGENT_ROLE_CHOICES,
+        help_text="Role perspective of the voting agent"
+    )
+
+    recommendation = models.CharField(
+        max_length=30,
+        choices=RECOMMENDATION_CHOICES,
+        help_text="Agent's recommendation"
+    )
+
+    risk_scores = models.JSONField(
+        default=dict,
+        help_text="Risk scores per dimension: {security: 1-5, availability: 1-5, ...}"
+    )
+
+    rationale = models.TextField(
+        help_text="Structured justification for the recommendation"
+    )
+
+    conditions = models.JSONField(
+        default=list,
+        help_text="Required mitigations if approve_with_conditions"
+    )
+
+    voted_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "syn_audit_agent_vote"
+        ordering = ["voted_at"]
+        indexes = [
+            models.Index(fields=["risk_assessment", "agent_role"], name="vote_assessment_role"),
+        ]
+        verbose_name = "Agent Vote"
+        verbose_name_plural = "Agent Votes"
+
+    def __str__(self):
+        return f"[{self.agent_role}] {self.recommendation}"

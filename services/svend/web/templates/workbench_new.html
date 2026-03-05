@@ -7056,7 +7056,7 @@ async function explainSelection(el, obsIndices) {
         });
         if (resp.explanation) {
             let expHtml = `<div class="dsw-explanation"><strong>Pattern:</strong> ${resp.explanation}`;
-            if (currentWorkbench && currentWorkbench.id) {
+            if (currentWorkbench && currentWorkbench.id && currentProjectId) {
                 expHtml += `<br><button class="dsw-sel-btn dsw-create-hyp" style="margin-top:0.4rem;">Create Hypothesis</button>`;
             }
             expHtml += `</div>`;
@@ -7077,6 +7077,7 @@ async function explainSelection(el, obsIndices) {
 // Create hypothesis from selection explanation (Phase C: C1)
 async function createHypothesisFromSelection(explanation, obsIndices, btn) {
     if (!currentWorkbench || !currentWorkbench.id) { showToast('Load a workbench first'); return; }
+    if (!currentProjectId) { showToast('Load or create a study before adding hypotheses'); return; }
     if (btn) { btn.disabled = true; btn.textContent = 'Creating\u2026'; }
     try {
         const { data } = await apiPost(`/api/synara/${currentWorkbench.id}/hypotheses/add/`, {
@@ -7148,7 +7149,15 @@ function renderStatsOutput(result, title) {
     let html = '';
 
     // ── 1. Narrative block (prose, charts-first philosophy) ──
-    if (result.narrative && result.narrative.trim()) {
+    if (result.narrative && typeof result.narrative === 'object') {
+        const n = result.narrative;
+        html += `<div class="dsw-narrative">`;
+        if (n.verdict) html += `<div class="dsw-verdict">${n.verdict}</div>`;
+        if (n.body) html += `<div class="dsw-narrative-body">${n.body}</div>`;
+        if (n.chart_guidance) html += `<div class="dsw-chart-guidance">${n.chart_guidance}</div>`;
+        if (n.next_steps) html += `<div class="dsw-next">${n.next_steps}</div>`;
+        html += `</div>`;
+    } else if (result.narrative && typeof result.narrative === 'string' && result.narrative.trim()) {
         html += `<div class="dsw-narrative">${result.narrative}</div>`;
     } else if (result.guide_observation) {
         // Auto-generate narrative from guide_observation for consistency
@@ -7158,10 +7167,13 @@ function renderStatsOutput(result, title) {
     // ── 1b. Evidence Grade badge ──
     if (result.evidence_grade) {
         const eg = result.evidence_grade;
-        const gradeClass = eg.grade.toLowerCase();
+        // evidence_grade may be a string ("Strong") or dict ({grade, rationale})
+        const grade = typeof eg === 'string' ? eg : eg.grade;
+        const rationale = typeof eg === 'string' ? (result.evidence_rationale || '') : (eg.rationale || '');
+        const gradeClass = grade.toLowerCase();
         html += `<div class="dsw-evidence-grade dsw-grade-${gradeClass}">`;
-        html += `<span class="dsw-grade-label">${eg.grade} Evidence</span>`;
-        html += `<span class="dsw-grade-rationale">${eg.rationale}</span>`;
+        html += `<span class="dsw-grade-label">${grade} Evidence</span>`;
+        if (rationale) html += `<span class="dsw-grade-rationale">${rationale}</span>`;
         html += `</div>`;
     }
 
@@ -7229,7 +7241,7 @@ function renderStatsOutput(result, title) {
             .replace(/<<COLOR:warning>>(.*?)<<\/COLOR>>/g, '<span class="color-warning">$1</span>')
             .replace(/<<COLOR:danger>>(.*?)<<\/COLOR>>/g, '<span class="color-danger">$1</span>')
             .replace(/<<COLOR:bad>>(.*?)<<\/COLOR>>/g, '<span class="color-danger">$1</span>');
-        const hasNarrative = (result.narrative && result.narrative.trim()) || result.guide_observation;
+        const hasNarrative = (result.narrative && (typeof result.narrative === 'object' || (typeof result.narrative === 'string' && result.narrative.trim()))) || result.guide_observation;
         const detailsOpen = hasNarrative ? '' : ' open';
         summaryHtml = `<details class="dsw-details"${detailsOpen}>
             <summary class="dsw-details-toggle">Statistical Details</summary>
@@ -7344,7 +7356,7 @@ function renderStatsOutput(result, title) {
     }
 
     // Show "Link to hypothesis" prompt if workbench has Synara context
-    if (currentWorkbench && currentWorkbench.id && result.guide_observation) {
+    if (currentWorkbench && currentWorkbench.id && currentProjectId && result.guide_observation) {
         appendLinkHypothesisPrompt(blockId, result.guide_observation, title);
     }
 
@@ -10250,6 +10262,10 @@ function renderSynaraSignals(signals) {
 async function synaraAddHypothesis() {
     if (!currentWorkbench || !currentWorkbench.id) {
         showToast('Load a workbench first');
+        return;
+    }
+    if (!currentProjectId) {
+        showToast('Load or create a study before adding hypotheses');
         return;
     }
     const desc = prompt('Hypothesis description (If X, then Y because Z):');

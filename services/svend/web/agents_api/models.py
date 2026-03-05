@@ -1,5 +1,6 @@
 """Agents API models."""
 
+import secrets
 import uuid
 
 from django.conf import settings
@@ -10,6 +11,7 @@ from django.db.models.signals import post_delete
 from django.dispatch import receiver
 
 from core.encryption import EncryptedTextField
+from syn.core.base_models import SynaraImmutableLog
 
 
 class Workflow(models.Model):
@@ -165,7 +167,7 @@ class AgentLog(models.Model):
     agent = models.CharField(max_length=50)  # researcher, coder, writer, etc.
     action = models.CharField(max_length=50)  # invoke, complete, error
     latency_ms = models.IntegerField(null=True)  # Time taken
-    success = models.BooleanField(default=True)
+    is_success = models.BooleanField(default=True, db_column="success")
     error_message = models.TextField(blank=True)
     metadata = models.TextField(blank=True)  # JSON for extra context
     created_at = models.DateTimeField(auto_now_add=True)
@@ -938,12 +940,52 @@ def check_rate_limit(user):
     from django.utils import timezone
 
     tier = getattr(user, 'subscription_tier', 'FREE') or 'FREE'
-    limit = LLM_RATE_LIMITS.get(tier.upper(), LLM_RATE_LIMITS["FREE"])
+    overrides = RateLimitOverride.get_overrides()
+    if tier.upper() in overrides:
+        limit = overrides[tier.upper()]["llm"]
+    else:
+        limit = LLM_RATE_LIMITS.get(tier.upper(), LLM_RATE_LIMITS["FREE"])
 
     usage = LLMUsage.get_daily_usage(user, timezone.now().date())
     current = usage['total_requests'] or 0
 
     return (current < limit, limit - current, limit)
+
+
+class RateLimitOverride(models.Model):
+    """Runtime-configurable rate limit overrides (staff-editable from dashboard)."""
+    tier = models.CharField(max_length=20, unique=True)
+    daily_llm_limit = models.PositiveIntegerField(help_text="Max LLM requests/day")
+    daily_query_limit = models.PositiveIntegerField(help_text="Max query requests/day")
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
+    )
+
+    class Meta:
+        db_table = "agents_api_ratelimitoverride"
+
+    def __str__(self):
+        return f"{self.tier}: LLM={self.daily_llm_limit}, Query={self.daily_query_limit}"
+
+    def save(self, *args, **kwargs):
+        from django.core.cache import cache
+        super().save(*args, **kwargs)
+        cache.delete("rate_limit_overrides")
+
+    @classmethod
+    def get_overrides(cls):
+        """Cache-backed lookup. Returns {tier: {llm: N, query: N}}."""
+        from django.core.cache import cache
+        key = "rate_limit_overrides"
+        result = cache.get(key)
+        if result is None:
+            result = {
+                o.tier: {"llm": o.daily_llm_limit, "query": o.daily_query_limit}
+                for o in cls.objects.all()
+            }
+            cache.set(key, result, 300)
+        return result
 
 
 # =============================================================================
@@ -990,7 +1032,7 @@ class Board(models.Model):
     pan_y = models.FloatField(default=0.0)
 
     # Voting state
-    voting_active = models.BooleanField(default=False)
+    is_voting_active = models.BooleanField(default=False, db_column="voting_active")
     votes_per_user = models.IntegerField(default=3)
 
     # Timestamps
@@ -1367,6 +1409,10 @@ class FMEA(models.Model):
         DESIGN = "design", "Design FMEA"
         SYSTEM = "system", "System FMEA"
 
+    class ScoringMethod(models.TextChoices):
+        RPN = "rpn", "Risk Priority Number"
+        AP = "ap", "Action Priority (AIAG/VDA)"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     owner = models.ForeignKey(
@@ -1387,6 +1433,7 @@ class FMEA(models.Model):
     description = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     fmea_type = models.CharField(max_length=20, choices=FMEAType.choices, default=FMEAType.PROCESS)
+    scoring_method = models.CharField(max_length=10, choices=ScoringMethod.choices, default=ScoringMethod.RPN)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -1409,6 +1456,7 @@ class FMEA(models.Model):
             "description": self.description,
             "status": self.status,
             "fmea_type": self.fmea_type,
+            "scoring_method": self.scoring_method,
             "rows": [r.to_dict() for r in rows],
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
@@ -1422,6 +1470,18 @@ class FMEARow(models.Model):
         NOT_STARTED = "not_started", "Not Started"
         IN_PROGRESS = "in_progress", "In Progress"
         COMPLETE = "complete", "Complete"
+
+    class FailureModeClass(models.TextChoices):
+        FORM = "form", "Form"
+        FIT = "fit", "Fit"
+        FUNCTION = "function", "Function"
+        SAFETY = "safety", "Safety"
+        REGULATORY = "regulatory", "Regulatory"
+
+    class ControlType(models.TextChoices):
+        PREVENT = "prevent", "Prevention"
+        DETECT = "detect", "Detection"
+        BOTH = "both", "Prevention & Detection"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     fmea = models.ForeignKey(FMEA, on_delete=models.CASCADE, related_name="rows")
@@ -1437,6 +1497,14 @@ class FMEARow(models.Model):
     cause = models.TextField(blank=True)
     occurrence = models.IntegerField(default=1, validators=[MinValueValidator(1), MaxValueValidator(10)])
     current_controls = models.TextField(blank=True)
+    prevention_controls = models.TextField(blank=True)
+    detection_controls = models.TextField(blank=True)
+    failure_mode_class = models.CharField(
+        max_length=20, choices=FailureModeClass.choices, blank=True,
+    )
+    control_type = models.CharField(
+        max_length=20, choices=ControlType.choices, blank=True,
+    )
     detection = models.IntegerField(default=1, validators=[MinValueValidator(1), MaxValueValidator(10)])
 
     # Computed: severity * occurrence * detection
@@ -1478,20 +1546,78 @@ class FMEARow(models.Model):
         return f"{self.failure_mode} (RPN={self.rpn})"
 
     def save(self, *args, **kwargs):
-        # Clamp S/O/D to valid range (1-10) before computing RPN
-        self.severity = max(1, min(10, self.severity or 1))
-        self.occurrence = max(1, min(10, self.occurrence or 1))
-        self.detection = max(1, min(10, self.detection or 1))
+        from django.core.exceptions import ValidationError
+        # Validate S/O/D range (1-10) — reject invalid instead of silent clamp
+        for field_name in ("severity", "occurrence", "detection"):
+            val = getattr(self, field_name)
+            if val is None:
+                setattr(self, field_name, 1)
+            elif not (1 <= val <= 10):
+                raise ValidationError({field_name: f"Must be 1-10, got {val}"})
         self.rpn = self.severity * self.occurrence * self.detection
-        if self.revised_severity and self.revised_occurrence and self.revised_detection:
-            self.revised_severity = max(1, min(10, self.revised_severity))
-            self.revised_occurrence = max(1, min(10, self.revised_occurrence))
-            self.revised_detection = max(1, min(10, self.revised_detection))
+        # Revised scores: require all three or none
+        revised = [self.revised_severity, self.revised_occurrence, self.revised_detection]
+        has_revised = [v is not None for v in revised]
+        if any(has_revised) and not all(has_revised):
+            raise ValidationError("Revised scores must set all three (S/O/D) or none")
+        if all(has_revised):
+            for field_name in ("revised_severity", "revised_occurrence", "revised_detection"):
+                val = getattr(self, field_name)
+                if not (1 <= val <= 10):
+                    raise ValidationError({field_name: f"Must be 1-10, got {val}"})
             self.revised_rpn = self.revised_severity * self.revised_occurrence * self.revised_detection
+        else:
+            self.revised_rpn = None
         super().save(*args, **kwargs)
 
+    @staticmethod
+    def compute_action_priority(severity, occurrence, detection):
+        """Compute AIAG/VDA Action Priority (H/M/L) from S, O, D scores.
+
+        Returns one of: 'H' (High), 'M' (Medium), 'L' (Low).
+        Based on AIAG/VDA FMEA Handbook 1st Edition AP lookup table.
+        """
+        s, o, d = severity, occurrence, detection
+        # High priority cases
+        if s >= 9:
+            if o >= 4:
+                return "H"
+            if o >= 2 and d >= 2:
+                return "H"
+            if o >= 2:
+                return "H"
+        if s >= 7:
+            if o >= 5:
+                return "H"
+            if o >= 4 and d >= 4:
+                return "H"
+        if s >= 5:
+            if o >= 8:
+                return "H"
+        # Medium priority cases
+        if s >= 9:
+            return "M"
+        if s >= 7:
+            if o >= 3:
+                return "M"
+            if o >= 2 and d >= 4:
+                return "M"
+        if s >= 5:
+            if o >= 5:
+                return "M"
+            if o >= 4 and d >= 4:
+                return "M"
+        if s >= 4:
+            if o >= 7:
+                return "M"
+        if s >= 2:
+            if o >= 8 and d >= 7:
+                return "M"
+        # Everything else is Low
+        return "L"
+
     def to_dict(self):
-        return {
+        d = {
             "id": str(self.id),
             "fmea_id": str(self.fmea_id),
             "sort_order": self.sort_order,
@@ -1502,8 +1628,13 @@ class FMEARow(models.Model):
             "cause": self.cause,
             "occurrence": self.occurrence,
             "current_controls": self.current_controls,
+            "prevention_controls": self.prevention_controls,
+            "detection_controls": self.detection_controls,
+            "failure_mode_class": self.failure_mode_class,
+            "control_type": self.control_type,
             "detection": self.detection,
             "rpn": self.rpn,
+            "action_priority": self.compute_action_priority(self.severity, self.occurrence, self.detection),
             "recommended_action": self.recommended_action,
             "action_owner": self.action_owner,
             "action_status": self.action_status,
@@ -1515,6 +1646,7 @@ class FMEARow(models.Model):
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
+        return d
 
 
 # =============================================================================
@@ -1533,9 +1665,24 @@ class RCASession(models.Model):
 
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
-        IN_PROGRESS = "in_progress", "In Progress"
-        REVIEW = "review", "Under Review"
-        COMPLETE = "complete", "Complete"
+        INVESTIGATING = "investigating", "Investigating"
+        ROOT_CAUSE_IDENTIFIED = "root_cause_identified", "Root Cause Identified"
+        VERIFIED = "verified", "Verified"
+        CLOSED = "closed", "Closed"
+
+    VALID_TRANSITIONS = {
+        "draft": ["investigating"],
+        "investigating": ["root_cause_identified", "draft"],
+        "root_cause_identified": ["verified", "investigating"],
+        "verified": ["closed", "investigating"],
+        "closed": ["investigating"],  # reopen
+    }
+
+    TRANSITION_REQUIREMENTS = {
+        "root_cause_identified": ["root_cause"],
+        "verified": ["countermeasure"],
+        "closed": ["evaluation"],
+    }
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
@@ -1578,9 +1725,10 @@ class RCASession(models.Model):
     root_cause = models.TextField(blank=True, help_text="Stated root cause")
     countermeasure = models.TextField(blank=True, help_text="Proposed countermeasure")
     evaluation = models.TextField(blank=True, help_text="Final AI evaluation of the analysis")
+    reopen_reason = models.TextField(blank=True, help_text="Reason for reopening a closed session")
 
     # Status
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+    status = models.CharField(max_length=25, choices=Status.choices, default=Status.DRAFT)
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -1601,6 +1749,28 @@ class RCASession(models.Model):
 
     def __str__(self):
         return f"RCA: {self.title or self.event[:50]} ({self.status})"
+
+    def validate_transition(self, new_status, reopen_reason=""):
+        """Validate a status transition against the state machine.
+
+        Returns (is_valid: bool, error_message: str).
+        """
+        allowed = self.VALID_TRANSITIONS.get(self.status, [])
+        if new_status not in allowed:
+            return False, f"Cannot transition from '{self.status}' to '{new_status}'. Allowed: {allowed}"
+
+        # Check field requirements for the target state
+        required_fields = self.TRANSITION_REQUIREMENTS.get(new_status, [])
+        for field in required_fields:
+            if not getattr(self, field, "").strip():
+                return False, f"Field '{field}' is required before transitioning to '{new_status}'"
+
+        # Reopening from closed requires a reason
+        if self.status == "closed" and new_status == "investigating":
+            if not reopen_reason.strip():
+                return False, "Reopening a closed session requires a reopen_reason"
+
+        return True, ""
 
     def generate_embedding(self):
         """Generate and store embedding for this RCA session."""
@@ -1638,6 +1808,7 @@ class RCASession(models.Model):
             "root_cause": self.root_cause,
             "countermeasure": self.countermeasure,
             "evaluation": self.evaluation,
+            "reopen_reason": self.reopen_reason,
             "status": self.status,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
@@ -1770,8 +1941,12 @@ class ValueStreamMap(models.Model):
 
         For steps in work centers (parallel machines), uses effective cycle time:
         effective_CT = 1 / sum(1/CT_i) for all machines in the work center.
+
+        PCE = value-add time / total lead time. Changeover time is NVA and
+        included in total lead time but NOT in value-add process time.
         """
-        total_ct = 0.0  # Cycle time in seconds
+        total_ct = 0.0  # Value-add cycle time in seconds
+        total_changeover = 0.0  # Changeover/setup time in seconds (NVA)
         total_wait = 0.0  # Wait time in days
 
         # Group steps by work center
@@ -1780,6 +1955,8 @@ class ValueStreamMap(models.Model):
 
         for step in self.process_steps:
             ct = step.get("cycle_time", 0) or 0
+            co = step.get("changeover_time", 0) or 0
+            total_changeover += co
             wc_id = step.get("work_center_id")
             if wc_id:
                 wc_steps.setdefault(wc_id, []).append(ct)
@@ -1800,9 +1977,12 @@ class ValueStreamMap(models.Model):
             total_wait += days
 
         self.total_process_time = total_ct
-        self.total_lead_time = total_wait + (total_ct / 86400)  # Convert CT to days
+        # Total lead time includes changeover (NVA) in addition to process time and wait
+        total_active_seconds = total_ct + total_changeover
+        self.total_lead_time = total_wait + (total_active_seconds / 86400)
 
         if self.total_lead_time > 0:
+            # PCE = value-add time / total lead time (changeover is NOT value-add)
             self.pce = (total_ct / 86400 / self.total_lead_time) * 100
         else:
             self.pce = 0
@@ -1881,7 +2061,7 @@ class SectionProgress(models.Model):
     )
     module_id = models.CharField(max_length=64)
     section_id = models.CharField(max_length=64)
-    completed = models.BooleanField(default=False)
+    is_completed = models.BooleanField(default=False, db_column="completed")
     completed_at = models.DateTimeField(null=True, blank=True)
     time_spent_seconds = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -1898,11 +2078,11 @@ class SectionProgress(models.Model):
         ]
         indexes = [
             models.Index(fields=["user", "module_id"]),
-            models.Index(fields=["user", "completed"]),
+            models.Index(fields=["user", "is_completed"]),
         ]
 
     def __str__(self):
-        status = "done" if self.completed else "in progress"
+        status = "done" if self.is_completed else "in progress"
         return f"{self.user} — {self.module_id}/{self.section_id} ({status})"
 
 
@@ -1918,7 +2098,7 @@ class AssessmentAttempt(models.Model):
     questions = models.JSONField(default=list)  # Full question set with answers
     answers = models.JSONField(default=dict)  # User's submitted answers
     score = models.FloatField(null=True, blank=True)
-    passed = models.BooleanField(default=False)
+    is_passed = models.BooleanField(default=False, db_column="passed")
     started_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
@@ -1927,7 +2107,7 @@ class AssessmentAttempt(models.Model):
         ordering = ["-started_at"]
         indexes = [
             models.Index(fields=["user", "-started_at"]),
-            models.Index(fields=["user", "passed"]),
+            models.Index(fields=["user", "is_passed"]),
         ]
 
     def __str__(self):
@@ -2401,6 +2581,24 @@ class ActionItem(models.Model):
         db_table = "action_items"
         ordering = ["sort_order", "start_date"]
 
+    def save(self, *args, **kwargs):
+        # Cycle detection: walk the depends_on chain, reject if it loops back
+        if self.depends_on_id:
+            if self.depends_on_id == self.pk:
+                raise ValueError("ActionItem cannot depend on itself")
+            visited = {self.pk}
+            current_id = self.depends_on_id
+            while current_id:
+                if current_id in visited:
+                    raise ValueError("Circular dependency detected in ActionItem chain")
+                visited.add(current_id)
+                try:
+                    parent = ActionItem.objects.only("depends_on_id").get(pk=current_id)
+                    current_id = parent.depends_on_id
+                except ActionItem.DoesNotExist:
+                    break
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.title
 
@@ -2422,6 +2620,219 @@ class ActionItem(models.Model):
             "source_id": str(self.source_id) if self.source_id else None,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
+        }
+
+
+# =============================================================================
+# Resource Management Models (QMS-002)
+# =============================================================================
+
+
+class Employee(models.Model):
+    """CI participant / contact within a tenant.
+
+    Employees are non-user personnel records. A facilitator with a Svend
+    account has ``user_link`` set; a team member on the plant floor who
+    participates via email does not.  One record per person per tenant,
+    deduplicated by email.
+
+    Standard: QMS-002 §2.1
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant", on_delete=models.CASCADE, related_name="employees",
+    )
+    name = models.CharField(max_length=255)
+    email = models.EmailField()
+    role = models.CharField(max_length=255, blank=True)
+    department = models.CharField(max_length=255, blank=True)
+    site = models.ForeignKey(
+        Site, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="employees",
+    )
+    user_link = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="employee_profile",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "hoshin_employees"
+        unique_together = [("tenant", "email")]
+
+    def __str__(self):
+        return f"{self.name} ({self.email})"
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "tenant_id": str(self.tenant_id),
+            "name": self.name,
+            "email": self.email,
+            "role": self.role,
+            "department": self.department,
+            "site_id": str(self.site_id) if self.site_id else None,
+            "user_link_id": str(self.user_link_id) if self.user_link_id else None,
+            "is_active": self.is_active,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+class ResourceCommitment(models.Model):
+    """Employee assignment to a HoshinProject with date range and role.
+
+    Status lifecycle: requested → confirmed → active → completed
+    (or declined from requested/confirmed).
+
+    Standard: QMS-002 §2.2
+    """
+
+    ROLE_CHOICES = [
+        ("facilitator", "Facilitator"),
+        ("team_member", "Team Member"),
+        ("sponsor", "Sponsor"),
+        ("process_owner", "Process Owner"),
+        ("subject_expert", "Subject Expert"),
+    ]
+
+    STATUS_CHOICES = [
+        ("requested", "Requested"),
+        ("confirmed", "Confirmed"),
+        ("active", "Active"),
+        ("completed", "Completed"),
+        ("declined", "Declined"),
+    ]
+
+    VALID_TRANSITIONS = {
+        "requested": {"confirmed", "declined"},
+        "confirmed": {"active", "declined"},
+        "active": {"completed"},
+    }
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(
+        Employee, on_delete=models.CASCADE, related_name="commitments",
+    )
+    project = models.ForeignKey(
+        HoshinProject, on_delete=models.CASCADE, related_name="commitments",
+    )
+    role = models.CharField(max_length=30, choices=ROLE_CHOICES)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    hours_per_day = models.DecimalField(max_digits=4, decimal_places=1, default=8)
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default="requested",
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+        related_name="requested_commitments",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "hoshin_resource_commitments"
+
+    def __str__(self):
+        return f"{self.employee.name} → {self.project.project.title} ({self.role})"
+
+    @classmethod
+    def check_availability(cls, employee, start_date, end_date, exclude_id=None):
+        """Return overlapping commitments for the given employee and date range."""
+        qs = cls.objects.filter(
+            employee=employee,
+            start_date__lt=end_date,
+            end_date__gt=start_date,
+        ).exclude(status__in=("completed", "declined"))
+        if exclude_id:
+            qs = qs.exclude(pk=exclude_id)
+        return qs
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "employee_id": str(self.employee_id),
+            "employee_name": self.employee.name,
+            "project_id": str(self.project_id),
+            "project_title": self.project.project.title,
+            "role": self.role,
+            "start_date": self.start_date.isoformat(),
+            "end_date": self.end_date.isoformat(),
+            "hours_per_day": float(self.hours_per_day),
+            "status": self.status,
+            "requested_by_id": str(self.requested_by_id) if self.requested_by_id else None,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+class ActionToken(models.Model):
+    """Secure, time-limited, single-use, action-scoped access for non-users.
+
+    Tokens are cryptographically random (secrets.token_urlsafe ≥32 bytes),
+    expire after 72 hours or first use (whichever first), and are
+    action-scoped — a confirm_availability token cannot update project data.
+
+    Standard: QMS-002 §2.3, SEC-001
+    """
+
+    ACTION_CHOICES = [
+        ("confirm_availability", "Confirm Availability"),
+        ("decline", "Decline"),
+        ("update_progress", "Update Progress"),
+        ("view_dashboard", "View Dashboard"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(
+        Employee, on_delete=models.CASCADE, related_name="action_tokens",
+    )
+    action_type = models.CharField(max_length=30, choices=ACTION_CHOICES)
+    scoped_to = models.JSONField(default=dict)
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "hoshin_action_tokens"
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = secrets.token_urlsafe(32)
+        if not self.expires_at:
+            from django.utils import timezone
+            from datetime import timedelta
+            self.expires_at = timezone.now() + timedelta(hours=72)
+        super().save(*args, **kwargs)
+
+    @property
+    def is_valid(self):
+        from django.utils import timezone
+        return self.used_at is None and self.expires_at > timezone.now()
+
+    def use(self):
+        from django.utils import timezone
+        self.used_at = timezone.now()
+        self.save(update_fields=["used_at"])
+
+    def __str__(self):
+        return f"Token({self.action_type}) → {self.employee.name}"
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "employee_id": str(self.employee_id),
+            "employee_name": self.employee.name,
+            "action_type": self.action_type,
+            "scoped_to": self.scoped_to,
+            "is_valid": self.is_valid,
+            "expires_at": self.expires_at.isoformat(),
+            "created_at": self.created_at.isoformat(),
         }
 
 
@@ -2930,8 +3341,9 @@ class XMatrixCorrelation(models.Model):
     source = models.CharField(
         max_length=10, choices=Source.choices, default=Source.MANUAL,
     )
-    confirmed = models.BooleanField(
+    is_confirmed = models.BooleanField(
         default=False,
+        db_column="confirmed",
         help_text="Auto-suggested correlations start unconfirmed; clicking confirms",
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -2955,7 +3367,7 @@ class XMatrixCorrelation(models.Model):
             "col_id": str(self.col_id),
             "strength": self.strength,
             "source": self.source,
-            "confirmed": self.confirmed,
+            "confirmed": self.is_confirmed,
         }
 
 
@@ -3172,6 +3584,192 @@ class NCRStatusChange(models.Model):
         }
 
 
+class CAPAReport(models.Model):
+    """Corrective and Preventive Action per ISO 9001 §10.2 / FDA 21 CFR 820.90.
+
+    Standalone model extracted from generic Report. Tracks the full CAPA lifecycle
+    from containment through verification, with source linking to NCRs, audit
+    findings, SPC alarms, and other QMS triggers.
+    """
+
+    class SourceType(models.TextChoices):
+        NCR = "ncr", "Nonconformance Record"
+        AUDIT_FINDING = "audit_finding", "Audit Finding"
+        CUSTOMER_COMPLAINT = "customer_complaint", "Customer Complaint"
+        SPC_ALARM = "spc_alarm", "SPC Alarm"
+        MANAGEMENT_REVIEW = "management_review", "Management Review"
+        SUPPLIER_ISSUE = "supplier_issue", "Supplier Issue"
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        CONTAINMENT = "containment", "Containment"
+        INVESTIGATION = "investigation", "Investigation"
+        CORRECTIVE = "corrective", "Corrective Action"
+        VERIFICATION = "verification", "Verification"
+        CLOSED = "closed", "Closed"
+
+    class Priority(models.TextChoices):
+        CRITICAL = "critical", "Critical"
+        HIGH = "high", "High"
+        MEDIUM = "medium", "Medium"
+        LOW = "low", "Low"
+
+    TRANSITIONS = {
+        "draft": {"containment"},
+        "containment": {"draft", "investigation"},
+        "investigation": {"containment", "corrective"},
+        "corrective": {"investigation", "verification"},
+        "verification": {"corrective", "closed"},
+        "closed": {"verification"},
+    }
+
+    TRANSITION_REQUIRES = {
+        "investigation": ["containment_action"],
+        "corrective": ["root_cause"],
+        "verification": ["corrective_action", "preventive_action"],
+        "closed": ["verification_result"],
+    }
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="capa_reports",
+    )
+    project = models.ForeignKey(
+        "core.Project", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="capa_reports",
+    )
+
+    title = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+    priority = models.CharField(max_length=20, choices=Priority.choices, default=Priority.MEDIUM)
+
+    source_type = models.CharField(max_length=30, choices=SourceType.choices, blank=True)
+    source_id = models.UUIDField(null=True, blank=True, help_text="UUID of the source record")
+
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="assigned_capas",
+    )
+    due_date = models.DateField(null=True, blank=True)
+
+    containment_action = models.TextField(blank=True)
+    root_cause = models.TextField(blank=True)
+    corrective_action = models.TextField(blank=True)
+    preventive_action = models.TextField(blank=True)
+    verification_method = models.TextField(blank=True)
+    verification_result = models.TextField(blank=True)
+
+    effectiveness_check_date = models.DateField(null=True, blank=True)
+    is_recurrence_checked = models.BooleanField(default=False, db_column="recurrence_check")
+    cost_of_poor_quality = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+    )
+
+    rca_session = models.ForeignKey(
+        "agents_api.RCASession", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="capa_reports",
+    )
+
+    closed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "iso_capas"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["owner", "status"]),
+            models.Index(fields=["source_type", "source_id"]),
+        ]
+        verbose_name = "CAPA Report"
+
+    def __str__(self):
+        return f"CAPA: {self.title} ({self.priority})"
+
+    def can_transition(self, new_status):
+        """Check if transition is valid and requirements are met."""
+        allowed = self.TRANSITIONS.get(self.status, set())
+        if new_status not in allowed:
+            return False, f"Cannot transition from '{self.status}' to '{new_status}'"
+        for field in self.TRANSITION_REQUIRES.get(new_status, []):
+            if not getattr(self, field, "").strip():
+                return False, f"'{field}' is required to transition to '{new_status}'"
+        return True, ""
+
+    def to_dict(self):
+        d = {
+            "id": str(self.id),
+            "title": self.title,
+            "description": self.description,
+            "status": self.status,
+            "priority": self.priority,
+            "source_type": self.source_type,
+            "source_id": str(self.source_id) if self.source_id else None,
+            "containment_action": self.containment_action,
+            "root_cause": self.root_cause,
+            "corrective_action": self.corrective_action,
+            "preventive_action": self.preventive_action,
+            "verification_method": self.verification_method,
+            "verification_result": self.verification_result,
+            "effectiveness_check_date": str(self.effectiveness_check_date) if self.effectiveness_check_date else None,
+            "recurrence_check": self.is_recurrence_checked,
+            "cost_of_poor_quality": str(self.cost_of_poor_quality) if self.cost_of_poor_quality else None,
+            "due_date": str(self.due_date) if self.due_date else None,
+            "assigned_to": None,
+            "closed_at": self.closed_at.isoformat() if self.closed_at else None,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "project_id": str(self.project_id) if self.project_id else None,
+            "rca_session_id": str(self.rca_session_id) if self.rca_session_id else None,
+        }
+        if self.assigned_to:
+            d["assigned_to"] = {
+                "id": self.assigned_to_id,
+                "name": getattr(self.assigned_to, "display_name", "") or self.assigned_to.email,
+            }
+        try:
+            d["status_changes"] = [
+                sc.to_dict() for sc in self.status_changes.order_by("created_at")
+            ]
+        except Exception:
+            d["status_changes"] = []
+        return d
+
+
+class CAPAStatusChange(models.Model):
+    """Status change history for CAPA reports."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    capa = models.ForeignKey(
+        CAPAReport, on_delete=models.CASCADE,
+        related_name="status_changes",
+    )
+    from_status = models.CharField(max_length=20)
+    to_status = models.CharField(max_length=20)
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True,
+    )
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "iso_capa_status_changes"
+        ordering = ["created_at"]
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "from_status": self.from_status,
+            "to_status": self.to_status,
+            "changed_by": (self.changed_by.display_name or self.changed_by.email) if self.changed_by else None,
+            "note": self.note,
+            "created_at": self.created_at.isoformat(),
+        }
+
+
 class InternalAudit(models.Model):
     """Internal audit scheduler per ISO 9001 clause 9.2."""
 
@@ -3253,7 +3851,7 @@ class AuditFinding(models.Model):
     evidence = models.TextField(blank=True)
     corrective_action = models.TextField(blank=True)
     due_date = models.DateField(null=True, blank=True)
-    resolved = models.BooleanField(default=False)
+    is_resolved = models.BooleanField(default=False, db_column="resolved")
     status = models.CharField(max_length=30, choices=Status.choices, default=Status.OPEN)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -3276,7 +3874,7 @@ class AuditFinding(models.Model):
             "evidence": self.evidence,
             "corrective_action": self.corrective_action,
             "due_date": str(self.due_date) if self.due_date else None,
-            "resolved": self.resolved,
+            "resolved": self.is_resolved,
             "status": self.status,
             "ncr_id": str(self.ncr_id) if self.ncr_id else None,
         }
@@ -3295,6 +3893,15 @@ class TrainingRequirement(models.Model):
     iso_clause = models.CharField(max_length=20, blank=True, help_text="e.g. 7.2, 8.5.1")
     frequency_months = models.IntegerField(default=0, help_text="0 = one-time")
     is_mandatory = models.BooleanField(default=False)
+    document = models.ForeignKey(
+        "agents_api.ControlledDocument", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="training_requirements",
+        help_text="Linked controlled document (nullable for informal training)",
+    )
+    document_version = models.CharField(
+        max_length=20, blank=True,
+        help_text="Document version when training was last aligned",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -3316,6 +3923,9 @@ class TrainingRequirement(models.Model):
             "iso_clause": self.iso_clause,
             "frequency_months": self.frequency_months,
             "is_mandatory": self.is_mandatory,
+            "document_id": str(self.document_id) if self.document_id else None,
+            "document_title": str(self.document) if self.document_id else None,
+            "document_version": self.document_version,
             "completion_rate": round(complete / total * 100) if total else 0,
             "expiring_soon": expiring,
             "records": [r.to_dict() for r in records],
@@ -3339,6 +3949,13 @@ class TrainingRecord(models.Model):
     completed_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
+    competency_level = models.IntegerField(
+        default=0,
+        help_text="TWI competency: 0=None, 1=Awareness, 2=Supervised, 3=Competent, 4=Trainer",
+    )
+    artifacts = models.ManyToManyField(
+        "files.UserFile", blank=True, related_name="training_records",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -3352,15 +3969,35 @@ class TrainingRecord(models.Model):
         from datetime import timedelta
         return self.expires_at <= timezone.now() + timedelta(days=30)
 
+    @property
+    def certification_status(self):
+        """Compute certification status from status + expires_at (TRN-001 §3)."""
+        from django.utils import timezone
+        from datetime import timedelta
+        if self.status in ("not_started", "in_progress"):
+            return "incomplete"
+        if self.status == "expired":
+            return "expired"
+        if self.status == "complete":
+            if self.expires_at and self.expires_at <= timezone.now():
+                return "expired"
+            if self.expires_at and self.expires_at <= timezone.now() + timedelta(days=30):
+                return "expiring"
+            return "current"
+        return "incomplete"
+
     def to_dict(self):
         d = {
             "id": str(self.id),
             "employee_name": self.employee_name,
             "employee_email": self.employee_email,
             "status": self.status,
+            "competency_level": self.competency_level,
+            "certification_status": self.certification_status,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
             "notes": self.notes,
+            "artifact_ids": [str(f.id) for f in self.artifacts.all()] if self.pk else [],
             "changes": [],
         }
         try:
@@ -4069,3 +4706,154 @@ class ISOSection(models.Model):
         else:
             d["image_url"] = None
         return d
+
+
+# =============================================================================
+# Electronic Signatures — 21 CFR Part 11 (FEAT-003)
+# =============================================================================
+
+
+class ElectronicSignature(SynaraImmutableLog):
+    """Electronic signature per FDA 21 CFR Part 11 and ISO 9001:2015 §7.5.3.
+
+    Immutable record of a user's authenticated approval, rejection, review,
+    authorship, or witnessing of a QMS document. Each signature:
+    - Requires re-authentication (password re-entry) at signing time
+    - Captures document state snapshot for traceability
+    - Participates in hash chain for tamper detection
+    - Records IP and user agent for forensic trail
+
+    Compliance:
+    - 21 CFR Part 11 §11.50: Signature manifestations (signer, date, meaning)
+    - 21 CFR Part 11 §11.70: Signature/record linking
+    - 21 CFR Part 11 §11.10(e): Audit trail integrity
+    - 21 CFR Part 11 §11.10(c): Accurate record copies (document snapshot)
+    - ISO 9001:2015 §7.5.3: Control of documented information
+    """
+
+    class Meaning(models.TextChoices):
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+        REVIEWED = "reviewed", "Reviewed"
+        AUTHORED = "authored", "Authored"
+        WITNESSED = "witnessed", "Witnessed"
+
+    # === Signature-specific fields ===
+
+    signer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="electronic_signatures",
+    )
+
+    document_type = models.CharField(
+        max_length=30,
+        db_index=True,
+        help_text="Signable type key (ncr, capa, document, review, audit, training, fmea)",
+    )
+
+    document_id = models.UUIDField(
+        db_index=True,
+        help_text="UUID of the signed document",
+    )
+
+    meaning = models.CharField(
+        max_length=20,
+        choices=Meaning.choices,
+        help_text="21 CFR Part 11 §11.50: signature meaning",
+    )
+
+    user_agent = models.TextField(
+        blank=True,
+        default="",
+        help_text="Browser/client user agent at signing time",
+    )
+
+    class Meta(SynaraImmutableLog.Meta):
+        db_table = "iso_electronic_signatures"
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["signer", "document_type", "document_id", "meaning"],
+                name="unique_signature_per_meaning",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["document_type", "document_id"],
+                name="idx_esig_doc",
+            ),
+            models.Index(
+                fields=["signer", "created_at"],
+                name="idx_esig_signer_time",
+            ),
+            models.Index(
+                fields=["tenant_id", "created_at"],
+                name="idx_esig_tenant_time",
+            ),
+        ]
+        default_permissions = ("add", "view")
+
+    def __str__(self):
+        return f"E-Sig: {self.actor} {self.meaning} {self.document_type}/{self.document_id}"
+
+    def _compute_hash_chain(self):
+        """Override to add select_for_update for concurrent safety."""
+        import json as _json
+        from django.db import transaction
+        with transaction.atomic():
+            previous = (
+                self.__class__.objects
+                .select_for_update()
+                .filter(tenant_id=self.tenant_id)
+                .order_by("-created_at")
+                .first()
+            )
+            if previous:
+                self.previous_hash = previous.entry_hash
+            self.entry_hash = self._compute_entry_hash()
+
+    def _compute_entry_hash(self) -> str:
+        """Include signature-specific fields in hash for tamper detection."""
+        import hashlib
+        import json as _json
+        data = {
+            "correlation_id": str(self.correlation_id),
+            "parent_correlation_id": str(self.parent_correlation_id) if self.parent_correlation_id else "",
+            "tenant_id": str(self.tenant_id),
+            "event_name": self.event_name,
+            "actor": self.actor,
+            "before_snapshot": _json.dumps(self.before_snapshot, sort_keys=True),
+            "after_snapshot": _json.dumps(self.after_snapshot, sort_keys=True),
+            "changes": _json.dumps(self.changes, sort_keys=True),
+            "reason": self.reason,
+            "previous_hash": self.previous_hash,
+            # Signature-specific fields included in hash
+            "signer_id": str(self.signer_id),
+            "document_type": self.document_type,
+            "document_id": str(self.document_id),
+            "meaning": self.meaning,
+        }
+        data_json = _json.dumps(data, sort_keys=True)
+        return hashlib.sha256(data_json.encode("utf-8")).hexdigest()
+
+    def to_dict(self):
+        signer_name = ""
+        if self.signer_id:
+            try:
+                u = self.signer
+                signer_name = getattr(u, "display_name", "") or u.email
+            except Exception:
+                signer_name = str(self.signer_id)
+        return {
+            "id": str(self.id),
+            "signer": {"id": self.signer_id, "name": signer_name},
+            "document_type": self.document_type,
+            "document_id": str(self.document_id),
+            "meaning": self.meaning,
+            "reason": self.reason,
+            "actor_ip": self.actor_ip,
+            "entry_hash": self.entry_hash,
+            "previous_hash": self.previous_hash,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

@@ -17,7 +17,7 @@ from api.landing_views import (
     svend_vs_minitab_view, svend_vs_jmp_view, education_view, partnerships_view,
     ci_hub_view, mdi_playbook_view, hoshin_playbook_view,
     kaizen_playbook_view, five_s_playbook_view, lsw_playbook_view,
-    vsm_playbook_view,
+    vsm_playbook_view, roadmap_view,
 )
 from api.models import BlogPost, WhitePaper
 from api.whitepaper_views import whitepaper_list, whitepaper_detail, whitepaper_pdf
@@ -59,7 +59,10 @@ class StaticSitemap(Sitemap):
                 "/kaizen-execution-guide/",
                 "/5s-operational-excellence/",
                 "/leadership-standard-work/",
-                "/value-stream-mapping-methodology/"]
+                "/value-stream-mapping-methodology/",
+                "/partnerships/",
+                "/compliance/",
+                "/roadmap/"]
 
     def location(self, item):
         return item
@@ -188,6 +191,9 @@ urlpatterns = [
     path("leadership-standard-work/", lsw_playbook_view, name="lsw_playbook"),
     path("value-stream-mapping-methodology/", vsm_playbook_view, name="vsm_playbook"),
 
+    # Public roadmap
+    path("roadmap/", roadmap_view, name="roadmap"),
+
     # Compliance (public, no auth — trust signal for prospects)
     path("compliance/", compliance_page, name="compliance"),
     path("compliance/data/", compliance_data, name="compliance_data"),
@@ -224,12 +230,17 @@ urlpatterns = [
     path("api/rca/", include("agents_api.rca_urls")),  # Root cause analysis critique
     path("api/fmea/", include("agents_api.fmea_urls")),  # FMEA with Bayesian evidence linking
     path("api/hoshin/", include("agents_api.hoshin_urls")),  # Hoshin Kanri CI (Enterprise)
+    path("api/qms/", include("agents_api.qms_urls")),  # QMS cross-module dashboard (Phase 3)
     path("api/iso/", include("agents_api.iso_urls")),  # ISO 9001 QMS (Team/Enterprise)
+    path("api/notifications/", include("notifications.urls")),  # NTF-001
+    path("api/capa/", include("agents_api.capa_urls")),  # CAPA standalone (ISO 10.2, FEAT-004)
     path("api/iso-docs/", include("agents_api.iso_doc_urls")),  # ISO Document Creator
     path("api/actions/", include("agents_api.action_urls")),  # Shared action item update/delete
     path("api/core/", include("core.urls")),  # Projects, hypotheses, evidence, knowledge graph
     path("api/workbench/", include("workbench.urls")),
     path("chat/", include("chat.urls")),
+    path("action/<str:token>/", include("agents_api.token_urls")),  # ActionToken (QMS-002, no auth)
+    path("ntf/<str:token>/", include("notifications.token_urls")),  # NotificationToken (NTF-001 §5.2, no auth)
     path("", include("accounts.urls")),  # Billing endpoints
 
     # Password reset

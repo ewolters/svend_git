@@ -3,6 +3,7 @@
 #
 # Creates a gzip-compressed, AES-256 encrypted pg_dump.
 # Retention: 30 days. Run daily via systemd timer.
+# Off-site: Pushes encrypted backup to Backblaze B2 (if configured).
 #
 # Usage:
 #   ./backup_db.sh              # Create backup
@@ -13,10 +14,15 @@ set -euo pipefail
 BACKUP_DIR="$HOME/backups/svend"
 DB_NAME="svend"
 DB_USER="svend"
+DB_HOST="127.0.0.1"
 RETENTION_DAYS=30
 KEYFILE="$HOME/.svend_encryption_key"
+PGPASSFILE="$HOME/.pgpass"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="${BACKUP_DIR}/svend_${TIMESTAMP}.sql.gz.enc"
+
+# Backblaze B2 off-site backup (set B2_BUCKET to enable)
+B2_BUCKET="${B2_BUCKET:-}"
 
 mkdir -p "$BACKUP_DIR"
 
@@ -45,7 +51,7 @@ if [[ "${1:-}" == "--restore" ]]; then
         -pass "file:${KEYFILE}" \
         -in "$RESTORE_FILE" \
     | gunzip \
-    | psql -U "$DB_USER" -d "$DB_NAME"
+    | psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME"
 
     echo "Restore complete."
     exit 0
@@ -59,7 +65,7 @@ fi
 
 echo "Backing up database: $DB_NAME"
 
-pg_dump -U "$DB_USER" "$DB_NAME" \
+pg_dump -h "$DB_HOST" -U "$DB_USER" "$DB_NAME" \
     | gzip \
     | openssl enc -aes-256-cbc -pbkdf2 \
         -pass "file:${KEYFILE}" \
@@ -75,10 +81,27 @@ fi
 SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
 echo "Backup created: $BACKUP_FILE ($SIZE)"
 
-# ── Prune old backups ─────────────────────────────────────────────────
+# ── Push to Backblaze B2 ──────────────────────────────────────────────
+if [[ -n "$B2_BUCKET" ]] && command -v b2 &>/dev/null; then
+    echo "Uploading to B2: $B2_BUCKET"
+    FILENAME=$(basename "$BACKUP_FILE")
+    if b2 upload-file "$B2_BUCKET" "$BACKUP_FILE" "$FILENAME"; then
+        echo "B2 upload complete: $FILENAME"
+    else
+        echo "WARNING: B2 upload failed — local backup is safe"
+    fi
+
+    # B2 retention: use bucket lifecycle rules (set once during setup)
+    # b2 update-bucket --lifecycleRules '[{"daysFromUploadingToHiding":30,"daysFromHidingToDeleting":1,"fileNamePrefix":"svend_"}]' $B2_BUCKET
+    # No script-side pruning needed — B2 handles it automatically
+elif [[ -n "$B2_BUCKET" ]]; then
+    echo "WARNING: B2_BUCKET set but b2 CLI not found — skipping off-site backup"
+fi
+
+# ── Prune old local backups ───────────────────────────────────────────
 PRUNED=$(find "$BACKUP_DIR" -name "svend_*.sql.gz.enc" -mtime +${RETENTION_DAYS} -delete -print | wc -l)
 if [[ "$PRUNED" -gt 0 ]]; then
-    echo "Pruned $PRUNED backup(s) older than ${RETENTION_DAYS} days"
+    echo "Pruned $PRUNED local backup(s) older than ${RETENTION_DAYS} days"
 fi
 
 echo "Done."

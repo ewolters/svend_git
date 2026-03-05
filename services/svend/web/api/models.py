@@ -131,7 +131,7 @@ class WhitePaper(models.Model):
     status = models.CharField(
         max_length=10, choices=Status.choices, default=Status.DRAFT, db_index=True
     )
-    gated = models.BooleanField(default=True, help_text="Require email to download")
+    is_gated = models.BooleanField(default=True, db_column="gated", help_text="Require email to download")
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -318,7 +318,7 @@ class EmailRecipient(models.Model):
     sent_at = models.DateTimeField(auto_now_add=True)
     opened_at = models.DateTimeField(null=True, blank=True)
     clicked_at = models.DateTimeField(null=True, blank=True)
-    failed = models.BooleanField(default=False)
+    has_failed = models.BooleanField(default=False, db_column="failed")
 
     class Meta:
         db_table = "email_recipients"
@@ -384,7 +384,7 @@ class ExperimentAssignment(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="experiment_assignments")
     variant = models.CharField(max_length=50)
     assigned_at = models.DateTimeField(auto_now_add=True)
-    converted = models.BooleanField(default=False)
+    has_converted = models.BooleanField(default=False, db_column="converted")
     converted_at = models.DateTimeField(null=True, blank=True)
     conversion_value = models.FloatField(null=True, blank=True)  # for revenue metrics
 
@@ -532,6 +532,7 @@ class CRMLead(models.Model):
         DEMO = "demo", "Demo"
         TRIAL = "trial", "Trial"
         CUSTOMER = "customer", "Customer"
+        PARTNER = "partner", "Partner"
         CHURNED = "churned", "Churned"
         LOST = "lost", "Lost"
         BOUNCED = "bounced", "Bounced"
@@ -547,7 +548,7 @@ class CRMLead(models.Model):
     stage = models.CharField(max_length=20, choices=Stage.choices, default=Stage.PROSPECT, db_index=True)
     notes = models.TextField(blank=True)
     tags = models.JSONField(default=list, blank=True)
-    email_opted_out = models.BooleanField(default=False)
+    is_email_opted_out = models.BooleanField(default=False, db_column="email_opted_out")
     last_contacted_at = models.DateTimeField(null=True, blank=True)
     next_followup_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -615,3 +616,384 @@ class OutreachEnrollment(models.Model):
 
     def __str__(self):
         return f"{self.lead.name} → {self.sequence.name} (step {self.current_step})"
+
+
+class RoadmapItem(models.Model):
+    """Public product roadmap item managed from the internal dashboard."""
+
+    class Area(models.TextChoices):
+        DSW = "dsw", "Decision Science Workbench"
+        QMS = "qms", "Quality Management"
+        PLATFORM = "platform", "Platform"
+        WORKBENCH = "workbench", "Workbench"
+        FORGE = "forge", "Forge"
+        LEARN = "learn", "Learn"
+        BILLING = "billing", "Billing"
+        INFRASTRUCTURE = "infrastructure", "Infrastructure"
+
+    class Status(models.TextChoices):
+        PLANNED = "planned", "Planned"
+        IN_PROGRESS = "in_progress", "In Progress"
+        SHIPPED = "shipped", "Shipped"
+        DEFERRED = "deferred", "Deferred"
+        CANCELLED = "cancelled", "Cancelled"
+
+    class Tier(models.TextChoices):
+        FREE = "free", "Free"
+        PROFESSIONAL = "professional", "Professional"
+        TEAM = "team", "Team"
+        ENTERPRISE = "enterprise", "Enterprise"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    area = models.CharField(max_length=20, choices=Area.choices, db_index=True)
+    quarter = models.CharField(max_length=7, db_index=True)
+    status = models.CharField(
+        max_length=15, choices=Status.choices, default=Status.PLANNED, db_index=True,
+    )
+    tier = models.CharField(
+        max_length=15, choices=Tier.choices, default=Tier.FREE,
+    )
+    is_public = models.BooleanField(default=True, db_index=True)
+    sort_order = models.IntegerField(default=0)
+    shipped_at = models.DateTimeField(null=True, blank=True)
+    change_request_id = models.UUIDField(null=True, blank=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "roadmap_items"
+        ordering = ["quarter", "sort_order", "-created_at"]
+        indexes = [
+            models.Index(fields=["quarter", "status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.quarter} | {self.title} ({self.status})"
+
+
+class PlanDocument(models.Model):
+    """Specs and plans managed from the internal dashboard with markdown editor."""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        ACTIVE = "active", "Active"
+        ARCHIVED = "archived", "Archived"
+
+    class Category(models.TextChoices):
+        SPEC = "spec", "Spec"
+        PLAN = "plan", "Plan"
+        RFC = "rfc", "RFC"
+        RETRO = "retro", "Retro"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=200)
+    body = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.DRAFT, db_index=True,
+    )
+    category = models.CharField(
+        max_length=10, choices=Category.choices, default=Category.PLAN, db_index=True,
+    )
+    change_request_ids = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "plan_documents"
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"[{self.category}] {self.title} ({self.status})"
+
+
+# =============================================================================
+# Planning System — Initiative → Feature → Task hierarchy
+# Design: docs/planning/PLANNING_SYSTEM_DESIGN.md
+# =============================================================================
+
+
+class Initiative(models.Model):
+    """
+    Strategic planning initiative — a themed phase of work.
+
+    Short ID: INIT-<seq> (e.g., INIT-003).
+    Contains features. Progress computed from child feature status.
+    """
+
+    class Status(models.TextChoices):
+        PLANNED = "planned", "Planned"
+        ACTIVE = "active", "Active"
+        COMPLETED = "completed", "Completed"
+        ON_HOLD = "on_hold", "On Hold"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    short_id = models.CharField(
+        max_length=10, unique=True, db_index=True, editable=False,
+        help_text="Human-readable ID: INIT-001, INIT-002, ..."
+    )
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=15, choices=Status.choices, default=Status.PLANNED, db_index=True,
+    )
+    target_quarter = models.CharField(
+        max_length=7, blank=True,
+        help_text="Target quarter: Q1-2026, Q2-2026, etc."
+    )
+    sort_order = models.IntegerField(default=0)
+    notes = models.TextField(
+        blank=True,
+        help_text="Free-form notes. User notes prefixed with $ to distinguish from Claude's."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "planning_initiatives"
+        ordering = ["sort_order", "-created_at"]
+
+    def save(self, *args, **kwargs):
+        if not self.short_id:
+            last = (
+                Initiative.objects
+                .filter(short_id__startswith="INIT-")
+                .order_by("-short_id")
+                .first()
+            )
+            seq = 1
+            if last:
+                try:
+                    seq = int(last.short_id.split("-")[1]) + 1
+                except (IndexError, ValueError):
+                    pass
+            self.short_id = f"INIT-{seq:03d}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"[{self.short_id}] {self.title} ({self.status})"
+
+    @property
+    def progress(self):
+        """Percentage of child features completed."""
+        total = self.features.count()
+        if not total:
+            return 0
+        completed = self.features.filter(status="completed").count()
+        return round(completed / total * 100)
+
+
+class Feature(models.Model):
+    """
+    A deliverable capability tracked through planning → implementation.
+
+    Short ID: FEAT-<seq> (e.g., FEAT-042).
+    Links to initiatives, standards, ISO clauses, and ChangeRequests.
+    Supports dependency DAG via depends_on M2M.
+    """
+
+    class Status(models.TextChoices):
+        BACKLOG = "backlog", "Backlog"
+        PLANNED = "planned", "Planned"
+        IN_PROGRESS = "in_progress", "In Progress"
+        BLOCKED = "blocked", "Blocked"
+        COMPLETED = "completed", "Completed"
+        DEFERRED = "deferred", "Deferred"
+        CANCELLED = "cancelled", "Cancelled"
+
+    class Priority(models.TextChoices):
+        CRITICAL = "critical", "Critical"
+        HIGH = "high", "High"
+        MEDIUM = "medium", "Medium"
+        LOW = "low", "Low"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    short_id = models.CharField(
+        max_length=10, unique=True, db_index=True, editable=False,
+        help_text="Human-readable ID: FEAT-001, FEAT-002, ..."
+    )
+
+    # Identity
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    acceptance_criteria = models.TextField(
+        blank=True,
+        help_text="What must be true for this feature to be complete"
+    )
+
+    # Classification
+    initiative = models.ForeignKey(
+        Initiative, on_delete=models.CASCADE, related_name="features",
+    )
+    status = models.CharField(
+        max_length=15, choices=Status.choices, default=Status.BACKLOG, db_index=True,
+    )
+    priority = models.CharField(
+        max_length=10, choices=Priority.choices, default=Priority.MEDIUM, db_index=True,
+    )
+
+    # Standards & compliance
+    iso_clause = models.CharField(
+        max_length=20, blank=True, db_index=True,
+        help_text="ISO 9001 clause (e.g., §7.5, §10.2)"
+    )
+    standards = models.JSONField(
+        default=list, blank=True,
+        help_text="Standards this implements: ['SIG-001', 'QMS-001']"
+    )
+
+    # Dependencies (DAG)
+    depends_on = models.ManyToManyField(
+        "self", symmetrical=False, related_name="blocks", blank=True,
+    )
+
+    # Cross-references
+    roadmap_item_id = models.UUIDField(
+        null=True, blank=True, db_index=True,
+        help_text="Public RoadmapItem UUID"
+    )
+    change_request_ids = models.JSONField(
+        default=list, blank=True,
+        help_text="ChangeRequest UUIDs linked to this feature"
+    )
+    legacy_id = models.CharField(
+        max_length=20, blank=True, db_index=True,
+        help_text="ID from master plan (e.g., E3-001)"
+    )
+    notes = models.TextField(
+        blank=True,
+        help_text="Free-form notes. User notes prefixed with $ to distinguish from Claude's."
+    )
+
+    # Timestamps
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "planning_features"
+        ordering = ["initiative", "priority", "-created_at"]
+        indexes = [
+            models.Index(fields=["initiative", "status"]),
+            models.Index(fields=["iso_clause"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.short_id:
+            last = (
+                Feature.objects
+                .filter(short_id__startswith="FEAT-")
+                .order_by("-short_id")
+                .first()
+            )
+            seq = 1
+            if last:
+                try:
+                    seq = int(last.short_id.split("-")[1]) + 1
+                except (IndexError, ValueError):
+                    pass
+            self.short_id = f"FEAT-{seq:03d}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"[{self.short_id}] {self.title} ({self.status})"
+
+    @property
+    def progress(self):
+        """Percentage of child tasks completed."""
+        total = self.tasks.count()
+        if not total:
+            return 0
+        completed = self.tasks.filter(status="completed").count()
+        return round(completed / total * 100)
+
+    @property
+    def is_blocked(self):
+        """True if any dependency is not completed."""
+        return self.depends_on.exclude(status="completed").exists()
+
+
+class PlanTask(models.Model):
+    """
+    Implementation work item within a feature.
+
+    Short ID: TASK-<seq> (e.g., TASK-117).
+    When work begins, a ChangeRequest is created and linked.
+    """
+
+    class Status(models.TextChoices):
+        TODO = "todo", "To Do"
+        IN_PROGRESS = "in_progress", "In Progress"
+        IN_REVIEW = "in_review", "In Review"
+        COMPLETED = "completed", "Completed"
+        CANCELLED = "cancelled", "Cancelled"
+
+    class TaskType(models.TextChoices):
+        MODEL = "model", "Model/Migration"
+        API = "api", "API Endpoint"
+        VIEW = "view", "View/Template"
+        STANDARD = "standard", "Standard (documentation)"
+        TEST = "test", "Test"
+        INTEGRATION = "integration", "Integration"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    short_id = models.CharField(
+        max_length=10, unique=True, db_index=True, editable=False,
+        help_text="Human-readable ID: TASK-001, TASK-002, ..."
+    )
+
+    # Identity
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+
+    # Classification
+    feature = models.ForeignKey(
+        Feature, on_delete=models.CASCADE, related_name="tasks",
+    )
+    status = models.CharField(
+        max_length=15, choices=Status.choices, default=Status.TODO, db_index=True,
+    )
+    task_type = models.CharField(
+        max_length=15, choices=TaskType.choices, default=TaskType.MODEL, db_index=True,
+    )
+    sort_order = models.IntegerField(default=0)
+
+    # Execution link
+    change_request_id = models.UUIDField(
+        null=True, blank=True, db_index=True,
+        help_text="ChangeRequest UUID (created when work begins)"
+    )
+
+    # Timestamps
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "planning_tasks"
+        ordering = ["feature", "sort_order", "-created_at"]
+        indexes = [
+            models.Index(fields=["feature", "status"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.short_id:
+            last = (
+                PlanTask.objects
+                .filter(short_id__startswith="TASK-")
+                .order_by("-short_id")
+                .first()
+            )
+            seq = 1
+            if last:
+                try:
+                    seq = int(last.short_id.split("-")[1]) + 1
+                except (IndexError, ValueError):
+                    pass
+            self.short_id = f"TASK-{seq:03d}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"[{self.short_id}] {self.title} ({self.status})"

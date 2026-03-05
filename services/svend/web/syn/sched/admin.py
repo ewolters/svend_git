@@ -16,12 +16,13 @@ This module provides Django admin views for:
 The admin panel serves as Synara's operational control center.
 """
 
+from datetime import timedelta
+
 from django.contrib import admin
 from django.db.models import Count, Avg
-from django.utils.html import format_html
 from django.urls import reverse
 from django.utils import timezone
-from datetime import timedelta
+from django.utils.html import format_html
 
 from .models import (
     CognitiveTask,
@@ -197,7 +198,7 @@ class TaskExecutionAdmin(admin.ModelAdmin):
         'started_at',
     )
     list_filter = (
-        'success',
+        'is_success',
         'worker_id',
     )
     search_fields = (
@@ -214,7 +215,7 @@ class TaskExecutionAdmin(admin.ModelAdmin):
         'completed_at',
         'duration_ms',
         'worker_id',
-        'success',
+        'is_success',
         'result',
         'error_message',
         'error_type',
@@ -232,7 +233,7 @@ class TaskExecutionAdmin(admin.ModelAdmin):
     task_link.short_description = 'Task'
 
     def success_badge(self, obj):
-        if obj.success:
+        if obj.is_success:
             return format_html('<span style="color: green;">✓</span>')
         return format_html('<span style="color: red;">✗</span>')
     success_badge.short_description = 'OK'
@@ -267,7 +268,7 @@ class ScheduleAdmin(admin.ModelAdmin):
         'run_count',
     )
     list_filter = (
-        'enabled',
+        'is_enabled',
         'schedule_type',
         'queue',
     )
@@ -287,7 +288,7 @@ class ScheduleAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Identity', {
-            'fields': ('schedule_id', 'name', 'task_name', 'tenant_id', 'enabled')
+            'fields': ('schedule_id', 'name', 'task_name', 'tenant_id', 'is_enabled')
         }),
         ('Schedule Pattern', {
             'fields': ('schedule_type', 'cron_expression', 'interval_seconds'),
@@ -305,7 +306,7 @@ class ScheduleAdmin(admin.ModelAdmin):
     )
 
     def enabled_badge(self, obj):
-        if obj.enabled:
+        if obj.is_enabled:
             return format_html('<span style="color: green;">●</span> Enabled')
         return format_html('<span style="color: gray;">○</span> Disabled')
     enabled_badge.short_description = 'Status'
@@ -324,12 +325,12 @@ class ScheduleAdmin(admin.ModelAdmin):
 
     @admin.action(description='Enable selected schedules')
     def enable_schedules(self, request, queryset):
-        count = queryset.update(enabled=True)
+        count = queryset.update(is_enabled=True)
         self.message_user(request, f'{count} schedule(s) enabled.')
 
     @admin.action(description='Disable selected schedules')
     def disable_schedules(self, request, queryset):
-        count = queryset.update(enabled=False)
+        count = queryset.update(is_enabled=False)
         self.message_user(request, f'{count} schedule(s) disabled.')
 
     @admin.action(description='Trigger now')
@@ -616,7 +617,7 @@ class SchedulerAdminSite(admin.AdminSite):
                 ).count(),
                 'dlq_pending': DeadLetterEntry.objects.filter(status='pending').count(),
                 'circuits_open': CircuitBreakerState.objects.filter(state='open').count(),
-                'schedules_enabled': Schedule.objects.filter(enabled=True).count(),
+                'schedules_enabled': Schedule.objects.filter(is_enabled=True).count(),
             }
         except Exception:
             pass

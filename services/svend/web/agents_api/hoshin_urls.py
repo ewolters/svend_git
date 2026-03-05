@@ -36,6 +36,7 @@ urlpatterns = [
     # Dashboard, calendar & reference
     path("dashboard/", views.hoshin_dashboard, name="hoshin_dashboard"),
     path("calendar/", views.hoshin_calendar_view, name="hoshin_calendar"),
+    path("calendar/facilitators/", views.hoshin_calendar_facilitators, name="hoshin_calendar_facilitators"),
     path("calculation-methods/", views.list_calculation_methods, name="hoshin_calc_methods"),
     path("test-formula/", views.test_formula, name="hoshin_test_formula"),
 
@@ -58,4 +59,18 @@ urlpatterns = [
 
     # VSM Lifecycle
     path("vsm/<uuid:vsm_id>/promote/", views_xm.promote_vsm, name="xmatrix_vsm_promote"),
+
+    # Intelligence Layer (Phase 3)
+    path("sites/<uuid:site_id>/alignment/", views.alignment_analysis, name="hoshin_alignment"),
+
+    # Employees (QMS-002)
+    path("employees/", views.list_create_employees, name="hoshin_employees"),
+    path("employees/import/", views.employees_import, name="hoshin_employees_import"),
+    path("employees/<uuid:emp_id>/", views.employee_detail, name="hoshin_employee_detail"),
+    path("employees/<uuid:emp_id>/availability/", views.employee_availability, name="hoshin_employee_availability"),
+    path("employees/<uuid:emp_id>/timeline/", views.employee_timeline, name="hoshin_employee_timeline"),
+
+    # Resource Commitments (QMS-002)
+    path("commitments/", views.list_create_commitments, name="hoshin_commitments"),
+    path("commitments/<uuid:commitment_id>/", views.commitment_detail, name="hoshin_commitment_detail"),
 ]

@@ -420,7 +420,7 @@ class DashboardService:
                 "id": s.schedule_id,
                 "name": s.name,
                 "task": s.task_name,
-                "enabled": s.enabled,
+                "enabled": s.is_enabled,
                 "expression": s.expression,
                 "last_run": time_since_last or "never",
                 "next_run": time_to_next or "not scheduled",

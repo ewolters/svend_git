@@ -1164,7 +1164,7 @@ class Command(BaseCommand):
                 row_id=row_id, col_id=col_id,
                 strength=strength,
                 source=XMatrixCorrelation.Source.MANUAL,
-                confirmed=True,
+                is_confirmed=True,
             )
         self.stdout.write(self.style.SUCCESS(f"Created {len(correlations)} X-Matrix correlations"))
 

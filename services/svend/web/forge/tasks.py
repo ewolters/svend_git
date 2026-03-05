@@ -15,9 +15,9 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-# Result storage path
-RESULTS_DIR = Path(settings.BASE_DIR) / "forge_results"
-RESULTS_DIR.mkdir(exist_ok=True)
+# Result storage path (under media/ to avoid polluting web root)
+RESULTS_DIR = Path(settings.BASE_DIR) / "media" / "forge"
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # =============================================================================

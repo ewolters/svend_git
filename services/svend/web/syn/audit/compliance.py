@@ -1,7 +1,7 @@
 """
 Automated compliance check implementations.
 
-Provides 12 checks covering SOC 2 trust service categories:
+Provides 25 checks covering SOC 2 trust service categories:
 Security, Availability, Confidentiality, Processing Integrity, Privacy.
 
 Checks run on a rotating daily schedule via syn.sched.
@@ -9,11 +9,16 @@ Checks run on a rotating daily schedule via syn.sched.
 Compliance: SOC 2 CC4.1 (COSO Principle 16: Monitoring Activities)
 """
 
+import ast
 import json
 import logging
+import os
+import re as _re
 import subprocess
+import sys
 import time
 from datetime import date, timedelta
+from pathlib import Path
 
 from django.conf import settings
 from django.utils import timezone
@@ -27,21 +32,44 @@ logger = logging.getLogger(__name__)
 ALL_CHECKS = {}  # populated by @register below
 
 
-def register(name, category):
-    """Decorator to register a compliance check function."""
+def register(name, category, soc2_controls=None):
+    """Decorator to register a compliance check function.
+
+    Args:
+        name: Unique check identifier.
+        category: SOC 2 trust service category.
+        soc2_controls: Declared SOC 2 control IDs (auto-discovered by views).
+    """
     def decorator(fn):
+        fn.soc2_controls = soc2_controls or []
         ALL_CHECKS[name] = (fn, category)
         return fn
     return decorator
 
 
+def get_check_soc2_controls(name):
+    """Return declared SOC 2 controls for a specific check."""
+    if name in ALL_CHECKS:
+        fn, _cat = ALL_CHECKS[name]
+        return getattr(fn, "soc2_controls", [])
+    return []
+
+
+def get_all_soc2_controls():
+    """Return all SOC 2 controls declared across registered checks."""
+    controls = set()
+    for fn, _cat in ALL_CHECKS.values():
+        controls.update(getattr(fn, "soc2_controls", []))
+    return sorted(controls)
+
+
 # Critical checks run every day; others rotate by weekday (0=Mon)
-DAILY_CRITICAL = ["audit_integrity", "access_logging", "security_config", "standards_compliance", "change_management"]
+DAILY_CRITICAL = ["audit_integrity", "access_logging", "security_config", "standards_compliance", "change_management", "sla_compliance"]
 WEEKDAY_ROTATION = {
-    0: ["dependency_vuln", "ssl_tls"],
-    1: ["encryption_status", "password_policy"],
-    2: ["permission_coverage", "backup_freshness"],
-    3: ["data_retention"],
+    0: ["dependency_vuln", "ssl_tls", "log_completeness", "security_headers"],
+    1: ["encryption_status", "password_policy", "session_security", "secret_management"],
+    2: ["permission_coverage", "backup_freshness", "error_handling", "incident_readiness", "symbol_coverage", "output_quality"],
+    3: ["data_retention", "rate_limiting", "code_style", "roadmap", "statistical_calibration"],
     4: ["dependency_vuln", "ssl_tls"],
 }
 
@@ -50,7 +78,7 @@ WEEKDAY_ROTATION = {
 # Individual checks
 # ---------------------------------------------------------------------------
 
-@register("audit_integrity", "processing_integrity")
+@register("audit_integrity", "processing_integrity", soc2_controls=["CC7.2", "CC7.3"])
 def check_audit_integrity():
     """Verify audit log hash chain integrity and check for unresolved violations."""
     from syn.audit.models import IntegrityViolation
@@ -78,7 +106,7 @@ def check_audit_integrity():
     }
 
 
-@register("security_config", "security")
+@register("security_config", "security", soc2_controls=["CC6.1"])
 def check_security_config():
     """Validate Django security settings are production-hardened."""
     issues = []
@@ -116,7 +144,7 @@ def check_security_config():
     }
 
 
-@register("dependency_vuln", "security")
+@register("dependency_vuln", "security", soc2_controls=["CC7.1"])
 def check_dependency_vuln():
     """Scan installed packages for known vulnerabilities using pip-audit."""
     try:
@@ -179,7 +207,7 @@ def check_dependency_vuln():
         }
 
 
-@register("encryption_status", "confidentiality")
+@register("encryption_status", "confidentiality", soc2_controls=["CC6.1"])
 def check_encryption_status():
     """Verify encryption settings: password hashers, field encryption key, DB SSL."""
     issues = []
@@ -217,7 +245,7 @@ def check_encryption_status():
     }
 
 
-@register("permission_coverage", "security")
+@register("permission_coverage", "security", soc2_controls=["CC6.3"])
 def check_permission_coverage():
     """Verify API endpoints have authentication requirements."""
     from django.urls import URLResolver, URLPattern
@@ -226,6 +254,7 @@ def check_permission_coverage():
         "health", "email_track_open", "email_track_click", "email_unsubscribe",
         "site_duration", "funnel_event", "compliance", "compliance_data",
         "whiteboard_guest_name",  # Guest whiteboard access (token-authenticated)
+        "notification_type_unsubscribe",  # Signed-token unsubscribe (no session auth)
     }
 
     try:
@@ -295,7 +324,7 @@ def check_permission_coverage():
         }
 
 
-@register("access_logging", "security")
+@register("access_logging", "security", soc2_controls=["CC7.2"])
 def check_access_logging():
     """Verify audit logging middleware is active and producing entries."""
     from syn.audit.models import SysLogEntry
@@ -332,7 +361,7 @@ def check_access_logging():
     }
 
 
-@register("backup_freshness", "availability")
+@register("backup_freshness", "availability", soc2_controls=["A1.2"])
 def check_backup_freshness():
     """Check for recent database backup evidence."""
     from pathlib import Path
@@ -374,7 +403,7 @@ def check_backup_freshness():
     }
 
 
-@register("password_policy", "security")
+@register("password_policy", "security", soc2_controls=["CC6.1"])
 def check_password_policy():
     """Validate password policy configuration."""
     validators = getattr(settings, "AUTH_PASSWORD_VALIDATORS", [])
@@ -411,7 +440,7 @@ def check_password_policy():
     }
 
 
-@register("data_retention", "privacy")
+@register("data_retention", "privacy", soc2_controls=["P4.2"])
 def check_data_retention():
     """Verify data retention policies are being enforced."""
     from syn.audit.models import IntegrityViolation
@@ -448,7 +477,7 @@ def check_data_retention():
     }
 
 
-@register("ssl_tls", "confidentiality")
+@register("ssl_tls", "confidentiality", soc2_controls=["CC6.7"])
 def check_ssl_tls():
     """Verify TLS/HSTS/CSP configuration."""
     issues = []
@@ -488,7 +517,86 @@ def check_ssl_tls():
     }
 
 
-@register("standards_compliance", "processing_integrity")
+# ---------------------------------------------------------------------------
+# Drift violation helpers (CMP-001 §5.6)
+# ---------------------------------------------------------------------------
+
+DRIFT_SEVERITY_MAP = {
+    "fail": "HIGH",
+    "warning": "MEDIUM",
+}
+
+DRIFT_SLA_HOURS = {
+    "CRITICAL": 4,
+    "HIGH": 24,
+    "MEDIUM": 72,
+    "LOW": 168,
+}
+
+
+def _compute_drift_signature(standard, check_id, section):
+    """Deterministic hash for deduplication. Same assertion = same signature."""
+    import hashlib
+    payload = f"{standard}:{check_id}:{section}"
+    return hashlib.sha256(payload.encode()).hexdigest()[:32]
+
+
+def _sync_drift_violations(assertions, results):
+    """Create/resolve DriftViolation records based on assertion results.
+
+    Runs in its own transaction.atomic() so drift records persist even if
+    something downstream fails or rolls back. CMP-001 §5.6.
+    """
+    from django.db import transaction
+    from django.utils import timezone as tz
+    from syn.audit.models import DriftViolation
+
+    # Collect all signatures from current run (for auto-resolution)
+    current_signatures = {}
+    for a, r in zip(assertions, results):
+        sig = _compute_drift_signature(a.standard, a.check_id, a.section)
+        current_signatures[sig] = (a, r)
+
+    with transaction.atomic():
+        # 1. Create violations for failures/warnings
+        for sig, (a, r) in current_signatures.items():
+            if r["status"] not in DRIFT_SEVERITY_MAP:
+                continue  # pass — no violation needed
+            # Check if unresolved violation already exists
+            if DriftViolation.objects.filter(drift_signature=sig, resolved_at__isnull=True).exists():
+                continue  # idempotent — already tracked
+            severity = DRIFT_SEVERITY_MAP[r["status"]]
+            sla_hours = DRIFT_SLA_HOURS.get(severity)
+            DriftViolation.objects.create(
+                drift_signature=sig,
+                severity=severity,
+                enforcement_check="STD",
+                file_path=f"docs/standards/{a.standard}.md",
+                violation_message=f"[{a.check_id}] {a.text[:200]}",
+                detected_by="compliance_runner",
+                remediation_sla_hours=sla_hours,
+            )
+
+        # 2. Auto-resolve violations for assertions that now pass
+        passing_sigs = {
+            sig for sig, (a, r) in current_signatures.items()
+            if r["status"] == "pass"
+        }
+        if passing_sigs:
+            now = tz.now()
+            open_violations = DriftViolation.objects.filter(
+                drift_signature__in=passing_sigs,
+                resolved_at__isnull=True,
+                enforcement_check="STD",
+            )
+            for dv in open_violations:
+                dv.resolved_at = now
+                dv.resolved_by = "compliance_runner"
+                dv.resolution_notes = "Auto-resolved: assertion now passes"
+                dv.save(update_fields=["resolved_at", "resolved_by", "resolution_notes"])
+
+
+@register("standards_compliance", "processing_integrity", soc2_controls=["CC4.1", "CC9.1"])
 def check_standards_compliance():
     """Parse docs/standards/*.md and verify all assertions against implementations."""
     from syn.audit.standards import parse_all_standards, verify_assertion
@@ -501,7 +609,7 @@ def check_standards_compliance():
             "soc2_controls": [],
         }
 
-    results = [verify_assertion(a) for a in assertions]
+    results = [verify_assertion(a, run_tests=True) for a in assertions]
     passed = sum(1 for r in results if r["status"] == "pass")
     failed = sum(1 for r in results if r["status"] == "fail")
     warnings = sum(1 for r in results if r["status"] == "warning")
@@ -524,6 +632,7 @@ def check_standards_compliance():
             "status": r["status"],
             "impl_checks": r.get("impl_checks", []),
             "code_checks": r.get("code_checks", []),
+            "test_checks": r.get("test_checks", []),
         })
 
     # Collect all SOC 2 controls
@@ -538,9 +647,39 @@ def check_standards_compliance():
          "standard": r["standard"], "section": r.get("section", ""),
          "status": r["status"],
          "impl_checks": r.get("impl_checks", []),
-         "code_checks": r.get("code_checks", [])}
+         "code_checks": r.get("code_checks", []),
+         "test_checks": r.get("test_checks", [])}
         for r in results if r["status"] in ("fail", "warning")
     ]
+
+    # Aggregate test stats
+    tests_linked = tests_exist = tests_missing = 0
+    tests_passed = tests_failed = tests_skipped = 0
+    seen_tests = set()
+    for r in results:
+        for tc in r.get("test_checks", []):
+            tests_linked += 1
+            test_path = tc.get("test", "")
+            seen_tests.add(test_path)
+            if tc.get("exists"):
+                tests_exist += 1
+            else:
+                tests_missing += 1
+            if tc.get("ran"):
+                status = tc.get("status", "")
+                if status == "pass" or tc.get("passed"):
+                    tests_passed += 1
+                elif status == "skip":
+                    tests_skipped += 1
+                else:
+                    tests_failed += 1
+    tests_unique = len(seen_tests)
+
+    # Sync drift violations (CMP-001 §5.6) — own transaction
+    try:
+        _sync_drift_violations(assertions, results)
+    except Exception as e:
+        logger.warning("Drift violation sync failed: %s", e)
 
     return {
         "status": "pass" if failed == 0 else "fail",
@@ -549,6 +688,13 @@ def check_standards_compliance():
             "passed": passed,
             "failed": failed,
             "warnings": warnings,
+            "tests_linked": tests_linked,
+            "tests_unique": tests_unique,
+            "tests_exist": tests_exist,
+            "tests_missing": tests_missing,
+            "tests_passed": tests_passed,
+            "tests_failed": tests_failed,
+            "tests_skipped": tests_skipped,
             "by_standard": by_standard,
             "findings": findings,
         },
@@ -556,24 +702,63 @@ def check_standards_compliance():
     }
 
 
-@register("change_management", "processing_integrity")
+@register("change_management", "processing_integrity", soc2_controls=["CC8.1", "CC3.4"])
 def check_change_management():
-    """Verify change management process adherence per CHG-001.
+    """Verify change management process adherence per CHG-001 v1.6.
 
-    Checks:
-    - Recent changes have associated ChangeRequest records
-    - Emergency changes have retroactive risk assessments within 24h
-    - Completed changes have log entries for key checkpoints
-    - No changes stuck in in_progress for >7 days without updates
+    14 checks with FAIL/WARNING severity classification.
+    CHG-001 §7.1.1 enforcement — field requirements, risk assessment gates,
+    commit traceability, log chain completeness.
+
+    FAIL-level (SOC 2 violations):
+      1. Emergency changes without retroactive RA >24h
+      2. Feature/migration past approved without RA
+      3. CRs with empty description
+
+    Note: commit_shas and log_md_ref are WARNING for historical CRs
+    (genuinely unrecoverable) but FAIL-gated for new CRs via
+    validate_for_transition() at the API layer.
+
+    WARNING-level (process gaps):
+      6. Changes stuck in_progress >7 days
+      7. Completed changes missing 'completed' log entry
+      8. Submitted+ CRs missing justification
+      9. Approved+ CRs missing implementation_plan
+     10. Approved+ CRs missing rollback_plan (rollback-required types)
+     11. In_progress+ CRs missing testing_plan
+     12. Enhancement/bugfix/security/infrastructure/debt past approved without RA
+     13. ChangeLog 'completed' entries missing commit_sha in details
+     14. Completed CRs with compliance language but empty compliance_check_ids
     """
-    from syn.audit.models import ChangeRequest, ChangeLog, RiskAssessment
+    from syn.audit.models import ChangeRequest, ChangeLog
 
-    issues = []
+    fail_issues = []
+    warn_issues = []
     now = timezone.now()
     seven_days_ago = now - timedelta(days=7)
     twenty_four_hours_ago = now - timedelta(hours=24)
 
-    # Check 1: Emergency changes without retroactive risk assessment >24h old
+    # Type classifications
+    CODE_TYPES = [
+        "feature", "enhancement", "bugfix", "hotfix", "security",
+        "infrastructure", "migration", "debt",
+    ]
+    EXEMPT_TYPES = ["documentation", "plan"]
+    ROLLBACK_TYPES = ["feature", "migration", "infrastructure", "security"]
+    MULTI_AGENT_TYPES = ["feature", "migration"]
+    SINGLE_AGENT_TYPES = [
+        "enhancement", "bugfix", "security", "infrastructure", "debt",
+    ]
+    PAST_APPROVED = ["approved", "in_progress", "testing", "completed"]
+    SUBMITTED_PLUS = [
+        "submitted", "risk_assessed", "approved",
+        "in_progress", "testing", "completed",
+    ]
+    IN_PROGRESS_PLUS = ["in_progress", "testing", "completed"]
+
+    # ── FAIL checks ──
+
+    # 1. Emergency changes without retroactive risk assessment >24h
     emergency_unreviewed = ChangeRequest.objects.filter(
         is_emergency=True,
         created_at__lt=twenty_four_hours_ago,
@@ -583,63 +768,906 @@ def check_change_management():
         status__in=["cancelled", "draft"],
     )
     if emergency_unreviewed.exists():
-        issues.append(
-            f"{emergency_unreviewed.count()} emergency change(s) missing retroactive risk assessment (>24h)"
+        fail_issues.append(
+            f"{emergency_unreviewed.count()} emergency change(s) missing "
+            f"retroactive risk assessment (>24h)"
         )
 
-    # Check 2: Changes stuck in_progress >7 days
+    # 2. Feature/migration past approved without risk assessment
+    unassessed_critical = ChangeRequest.objects.filter(
+        change_type__in=MULTI_AGENT_TYPES,
+        status__in=PAST_APPROVED,
+    ).exclude(
+        risk_assessments__isnull=False,
+    )
+    if unassessed_critical.exists():
+        fail_issues.append(
+            f"{unassessed_critical.count()} feature/migration change(s) "
+            f"approved without risk assessment"
+        )
+
+    # 3. Completed code CRs missing commit_shas
+    #    Pre-enforcement CRs have genuinely unrecoverable commit_shas.
+    #    New CRs are FAIL-gated via validate_for_transition().
+    #    Historical gaps are WARNING; going forward they are blocked at API.
+    completed_code = ChangeRequest.objects.filter(
+        status="completed",
+        change_type__in=CODE_TYPES,
+    )
+    missing_commits = completed_code.filter(commit_shas=[])
+    if missing_commits.exists():
+        warn_issues.append(
+            f"{missing_commits.count()} completed code CR(s) missing "
+            f"commit_shas — CR→git traceability gap"
+        )
+
+    # 4. Completed code CRs missing log_md_ref (same — historical gap)
+    missing_log_ref = completed_code.filter(log_md_ref="")
+    if missing_log_ref.exists():
+        warn_issues.append(
+            f"{missing_log_ref.count()} completed code CR(s) missing "
+            f"log_md_ref — CR→log.md traceability gap"
+        )
+
+    # 5. CRs with empty description
+    empty_desc = ChangeRequest.objects.filter(description="").exclude(
+        status__in=["cancelled", "draft"],
+    )
+    if empty_desc.exists():
+        fail_issues.append(
+            f"{empty_desc.count()} CR(s) with empty description"
+        )
+
+    # ── WARNING checks ──
+
+    # 6. Changes stuck in_progress >7 days
     stale_changes = ChangeRequest.objects.filter(
         status="in_progress",
         updated_at__lt=seven_days_ago,
     )
     if stale_changes.exists():
-        issues.append(
-            f"{stale_changes.count()} change(s) stuck in 'in_progress' for >7 days"
+        warn_issues.append(
+            f"{stale_changes.count()} change(s) stuck in 'in_progress' "
+            f"for >7 days"
         )
 
-    # Check 3: Completed changes missing key log entries
+    # 7. Completed changes missing 'completed' log entry
     recent_completed = ChangeRequest.objects.filter(
         status="completed",
-        completed_at__gte=seven_days_ago,
-    ).exclude(change_type__in=["documentation", "plan"])
+    ).exclude(change_type__in=EXEMPT_TYPES)
     for cr in recent_completed:
         log_actions = set(cr.logs.values_list("action", flat=True))
         if "completed" not in log_actions:
-            issues.append(f"Change '{cr.title}' completed without 'completed' log entry")
+            warn_issues.append(
+                f"Change '{cr.title[:50]}' completed without "
+                f"'completed' log entry"
+            )
 
-    # Check 4: Feature/migration changes without risk assessment
-    unassessed = ChangeRequest.objects.filter(
-        change_type__in=["feature", "migration"],
-        status__in=["approved", "in_progress", "testing", "completed"],
+    # 8. Submitted+ CRs missing justification (non-exempt)
+    missing_justification = ChangeRequest.objects.filter(
+        status__in=SUBMITTED_PLUS,
+        justification="",
+    ).exclude(change_type__in=EXEMPT_TYPES)
+    if missing_justification.exists():
+        warn_issues.append(
+            f"{missing_justification.count()} submitted+ CR(s) missing "
+            f"justification"
+        )
+
+    # 9. Approved+ CRs missing implementation_plan (non-exempt)
+    missing_impl_plan = ChangeRequest.objects.filter(
+        status__in=PAST_APPROVED,
+        implementation_plan={},
+    ).exclude(change_type__in=EXEMPT_TYPES)
+    if missing_impl_plan.exists():
+        warn_issues.append(
+            f"{missing_impl_plan.count()} approved+ CR(s) missing "
+            f"implementation_plan"
+        )
+
+    # 10. Approved+ CRs missing rollback_plan (rollback-required types)
+    missing_rollback = ChangeRequest.objects.filter(
+        status__in=PAST_APPROVED,
+        change_type__in=ROLLBACK_TYPES,
+        rollback_plan={},
+    )
+    if missing_rollback.exists():
+        warn_issues.append(
+            f"{missing_rollback.count()} approved+ CR(s) missing "
+            f"rollback_plan (feature/migration/infrastructure/security)"
+        )
+
+    # 11. In_progress+ CRs missing testing_plan (non-exempt)
+    missing_testing = ChangeRequest.objects.filter(
+        status__in=IN_PROGRESS_PLUS,
+        testing_plan={},
+    ).exclude(change_type__in=EXEMPT_TYPES)
+    if missing_testing.exists():
+        warn_issues.append(
+            f"{missing_testing.count()} in_progress+ CR(s) missing "
+            f"testing_plan"
+        )
+
+    # 12. Enhancement/bugfix/security/infrastructure/debt past approved
+    #     without risk assessment (single-agent required)
+    unassessed_single = ChangeRequest.objects.filter(
+        change_type__in=SINGLE_AGENT_TYPES,
+        status__in=PAST_APPROVED,
     ).exclude(
         risk_assessments__isnull=False,
     )
-    if unassessed.exists():
-        issues.append(
-            f"{unassessed.count()} feature/migration change(s) approved without risk assessment"
+    if unassessed_single.exists():
+        warn_issues.append(
+            f"{unassessed_single.count()} enhancement/bugfix/security/"
+            f"infrastructure/debt CR(s) approved without risk assessment"
         )
 
-    # Stats
+    # 13. ChangeLog 'completed' entries missing commit_sha in details
+    completed_logs_no_sha = ChangeLog.objects.filter(
+        action="completed",
+    ).exclude(
+        change_request__change_type__in=EXEMPT_TYPES,
+    )
+    missing_sha_count = 0
+    for log in completed_logs_no_sha:
+        details = log.details if isinstance(log.details, dict) else {}
+        if not details.get("commit_sha"):
+            missing_sha_count += 1
+    if missing_sha_count:
+        warn_issues.append(
+            f"{missing_sha_count} 'completed' log entry(s) missing "
+            f"commit_sha in details"
+        )
+
+    # 14. Completed CRs referencing compliance but empty compliance_check_ids
+    compliance_keywords = ["compliance", "remediat", "drift", "finding"]
+    completed_all = ChangeRequest.objects.filter(
+        status="completed",
+        compliance_check_ids=[],
+    )
+    unlinked_compliance = 0
+    for cr in completed_all:
+        desc_lower = (cr.description or "").lower()
+        if any(kw in desc_lower for kw in compliance_keywords):
+            unlinked_compliance += 1
+    if unlinked_compliance:
+        warn_issues.append(
+            f"{unlinked_compliance} completed CR(s) reference compliance "
+            f"but have empty compliance_check_ids"
+        )
+
+    # ── Stats and field completeness ──
+
     total_changes = ChangeRequest.objects.count()
     active_changes = ChangeRequest.objects.filter(
-        status__in=["draft", "submitted", "risk_assessed", "approved", "in_progress", "testing"]
+        status__in=[
+            "draft", "submitted", "risk_assessed", "approved",
+            "in_progress", "testing",
+        ]
     ).count()
 
-    status = "pass"
-    if any("emergency" in i for i in issues) or any("without risk assessment" in i for i in issues):
+    all_code_crs = ChangeRequest.objects.filter(change_type__in=CODE_TYPES)
+    code_total = all_code_crs.count() or 1  # avoid /0
+
+    field_completeness = {
+        "commit_shas": f"{all_code_crs.exclude(commit_shas=[]).count()}/{code_total}",
+        "log_md_ref": f'{all_code_crs.exclude(log_md_ref="").count()}/{code_total}',
+        "rollback_plan": f"{all_code_crs.exclude(rollback_plan={}).count()}/{code_total}",
+        "testing_plan": f"{all_code_crs.exclude(testing_plan={}).count()}/{code_total}",
+        "implementation_plan": f"{all_code_crs.exclude(implementation_plan={}).count()}/{code_total}",
+        "justification": f'{all_code_crs.exclude(justification="").count()}/{code_total}',
+        "risk_assessment": f"{sum(1 for cr in all_code_crs if cr.risk_assessments.exists())}/{code_total}",
+    }
+
+    # ── Determine status ──
+
+    all_issues = (
+        [f"[FAIL] {i}" for i in fail_issues]
+        + [f"[WARN] {i}" for i in warn_issues]
+    )
+
+    if fail_issues:
         status = "fail"
-    elif issues:
+    elif warn_issues:
         status = "warning"
+    else:
+        status = "pass"
 
     return {
         "status": status,
         "details": {
             "total_changes": total_changes,
             "active_changes": active_changes,
-            "issues": issues,
+            "issues": all_issues,
+            "fail_count": len(fail_issues),
+            "warn_count": len(warn_issues),
+            "field_completeness": field_completeness,
         },
         "soc2_controls": ["CC8.1", "CC3.4"],
     }
+
+
+@register("session_security", "security", soc2_controls=["CC6.1", "CC6.6"])
+def check_session_security():
+    """Validate session lifecycle controls (SOC 2 CC6.1/CC6.6, ISO A.9.4, NIST AC-12)."""
+    issues = []
+
+    # Session timeout — Django default is 2 weeks (1209600s), should be ≤8h for production
+    age = getattr(settings, "SESSION_COOKIE_AGE", 1209600)
+    if age > 28800:
+        issues.append(f"SESSION_COOKIE_AGE is {age}s ({age // 3600}h) — recommended ≤ 28800 (8h)")
+
+    # Browser close should end session
+    if not getattr(settings, "SESSION_EXPIRE_AT_BROWSER_CLOSE", False):
+        issues.append("SESSION_EXPIRE_AT_BROWSER_CLOSE is False — sessions persist after browser close")
+
+    # Session cookie flags (cross-check with security_config)
+    if not getattr(settings, "SESSION_COOKIE_SECURE", False) and not settings.DEBUG:
+        issues.append("SESSION_COOKIE_SECURE is False in production")
+    if not getattr(settings, "SESSION_COOKIE_HTTPONLY", False):
+        issues.append("SESSION_COOKIE_HTTPONLY is False")
+
+    # Session engine — database-backed is preferred for server-side invalidation
+    engine = getattr(settings, "SESSION_ENGINE", "django.contrib.sessions.backends.db")
+    if "signed_cookies" in engine:
+        issues.append("Session engine uses signed_cookies — no server-side invalidation possible")
+
+    status = "pass" if not issues else "warning"
+    return {
+        "status": status,
+        "details": {
+            "issues": issues,
+            "session_cookie_age": age,
+            "session_engine": engine,
+            "checks_passed": 5 - len(issues),
+            "total_checks": 5,
+        },
+        "soc2_controls": ["CC6.1", "CC6.6"],
+    }
+
+
+@register("error_handling", "processing_integrity", soc2_controls=["CC7.2", "CC7.5"])
+def check_error_handling():
+    """Validate error envelope and info leak prevention (SOC 2 CC7.2/CC7.5, ISO A.12.4, NIST SI-11)."""
+    issues = []
+
+    middleware = getattr(settings, "MIDDLEWARE", [])
+
+    # ErrorEnvelopeMiddleware must be active
+    has_error_envelope = any("ErrorEnvelope" in m for m in middleware)
+    if not has_error_envelope:
+        issues.append("ErrorEnvelopeMiddleware not found in MIDDLEWARE — unhandled exceptions may leak stack traces")
+
+    # DEBUG must be False in production
+    if settings.DEBUG:
+        issues.append("DEBUG is True — stack traces visible to users")
+
+    # DEBUG_PROPAGATE_EXCEPTIONS should be False
+    if getattr(settings, "DEBUG_PROPAGATE_EXCEPTIONS", False):
+        issues.append("DEBUG_PROPAGATE_EXCEPTIONS is True — exceptions bypass error envelope")
+
+    # Check for custom error templates (warning only)
+    from pathlib import Path
+    template_dir = Path(settings.BASE_DIR) / "templates"
+    missing_templates = []
+    for code in ["400", "403", "404", "500"]:
+        if not (template_dir / f"{code}.html").exists():
+            missing_templates.append(f"{code}.html")
+    if missing_templates:
+        issues.append(f"Missing custom error templates: {', '.join(missing_templates)} — Django defaults may leak info")
+
+    status = "pass" if not issues else ("fail" if any("DEBUG is True" in i or "ErrorEnvelope" in i for i in issues) else "warning")
+    return {
+        "status": status,
+        "details": {
+            "issues": issues,
+            "error_envelope_active": has_error_envelope,
+            "debug_mode": settings.DEBUG,
+            "missing_error_templates": missing_templates,
+        },
+        "soc2_controls": ["CC7.2", "CC7.5"],
+    }
+
+
+@register("rate_limiting", "security", soc2_controls=["CC6.2", "CC3.3"])
+def check_rate_limiting():
+    """Validate brute force protection (SOC 2 CC6.2/CC3.3, ISO A.9.4, NIST AC-7)."""
+    issues = []
+
+    # Check DRF throttle configuration
+    drf = getattr(settings, "REST_FRAMEWORK", {})
+    throttle_classes = drf.get("DEFAULT_THROTTLE_CLASSES", [])
+    throttle_rates = drf.get("DEFAULT_THROTTLE_RATES", {})
+
+    has_throttle = len(throttle_classes) > 0
+    if not has_throttle:
+        issues.append("No DEFAULT_THROTTLE_CLASSES configured in REST_FRAMEWORK")
+
+    has_rates = len(throttle_rates) > 0
+    if not has_rates:
+        issues.append("No DEFAULT_THROTTLE_RATES configured in REST_FRAMEWORK")
+
+    # Check NUM_PROXIES is set (needed for correct IP detection behind proxy)
+    num_proxies = drf.get("NUM_PROXIES", 0)
+    if num_proxies == 0:
+        issues.append("REST_FRAMEWORK NUM_PROXIES is 0 — rate limiting may use spoofable X-Forwarded-For")
+
+    # Check middleware for any rate limiting
+    middleware = getattr(settings, "MIDDLEWARE", [])
+    has_rate_middleware = any("ratelimit" in m.lower() or "throttle" in m.lower() for m in middleware)
+
+    status = "pass" if not issues else ("fail" if not has_throttle else "warning")
+    return {
+        "status": status,
+        "details": {
+            "issues": issues,
+            "throttle_classes": [c.split(".")[-1] for c in throttle_classes],
+            "throttle_rates": throttle_rates,
+            "num_proxies": num_proxies,
+            "rate_middleware": has_rate_middleware,
+        },
+        "soc2_controls": ["CC6.2", "CC3.3"],
+    }
+
+
+@register("secret_management", "confidentiality", soc2_controls=["CC6.1"])
+def check_secret_management():
+    """Validate credential hygiene (SOC 2 CC6.1, ISO A.10.1, NIST SC-12)."""
+    issues = []
+
+    # Check that settings.py uses config object (not hardcoded)
+    settings_path = Path(settings.BASE_DIR) / "svend" / "settings.py"
+    hardcoded_secrets = False
+    if settings_path.exists():
+        content = settings_path.read_text()
+        # SECRET_KEY should reference config, not be a literal string
+        import re
+        if re.search(r'SECRET_KEY\s*=\s*["\']', content):
+            issues.append("SECRET_KEY appears hardcoded in settings.py (should use config/env)")
+            hardcoded_secrets = True
+        # Check for hardcoded API keys
+        for pattern in [r'ANTHROPIC_API_KEY\s*=\s*["\']sk-', r'STRIPE_SECRET\s*=\s*["\']sk_']:
+            if re.search(pattern, content):
+                issues.append("API key appears hardcoded in settings.py")
+                hardcoded_secrets = True
+
+    # Field encryption key must be configured
+    fek = getattr(settings, "FIELD_ENCRYPTION_KEY", None)
+    if not fek:
+        issues.append("FIELD_ENCRYPTION_KEY is not configured")
+
+    # Check for .env file in project root (ok if covered by .gitignore)
+    env_file = Path(settings.BASE_DIR) / ".env"
+    env_in_gitignore = False
+    gitignore_path = Path(settings.BASE_DIR) / ".gitignore"
+    if gitignore_path.exists():
+        env_in_gitignore = ".env" in gitignore_path.read_text()
+    if env_file.exists() and not env_in_gitignore:
+        issues.append(".env file found in project root and NOT in .gitignore — risk of committing secrets")
+
+    # SECRET_KEY strength
+    sk = getattr(settings, "SECRET_KEY", "")
+    if len(sk) < 50:
+        issues.append(f"SECRET_KEY length is {len(sk)} (recommended ≥50)")
+
+    status = "pass" if not issues else ("fail" if hardcoded_secrets else "warning")
+    return {
+        "status": status,
+        "details": {
+            "issues": issues,
+            "field_encryption_configured": bool(fek),
+            "secret_key_length": len(sk),
+            "env_file_present": env_file.exists(),
+            "hardcoded_secrets_found": hardcoded_secrets,
+        },
+        "soc2_controls": ["CC6.1"],
+    }
+
+
+@register("log_completeness", "security", soc2_controls=["CC7.2"])
+def check_log_completeness():
+    """Validate logging pipeline health (SOC 2 CC7.2, ISO A.12.4.2, NIST AU-9/AU-12)."""
+    issues = []
+
+    logging_config = getattr(settings, "LOGGING", {})
+
+    # Check handlers exist
+    handlers = logging_config.get("handlers", {})
+    if not handlers:
+        issues.append("No logging handlers configured")
+
+    # Check for file handler (persistence)
+    has_file_handler = any(
+        "FileHandler" in h.get("class", "") or "RotatingFileHandler" in h.get("class", "")
+        for h in handlers.values()
+    )
+    if not has_file_handler:
+        issues.append("No file-based log handler — logs not persisted to disk")
+
+    # Check for security logger
+    loggers = logging_config.get("loggers", {})
+    has_audit_logger = "syn.audit" in loggers
+    if not has_audit_logger:
+        issues.append("No syn.audit logger configured — audit events may not be captured")
+
+    # Check root logger level (should not be DEBUG in production)
+    root = logging_config.get("root", {})
+    root_level = root.get("level", "WARNING")
+    if root_level == "DEBUG" and not settings.DEBUG:
+        issues.append("Root logger level is DEBUG in production — excessive logging, potential info leak")
+
+    # Check log files are writable
+    unwritable = []
+    for name, handler in handlers.items():
+        filename = handler.get("filename")
+        if filename:
+            log_path = Path(filename)
+            if log_path.parent.exists() and not os.access(str(log_path.parent), os.W_OK):
+                unwritable.append(str(filename))
+    if unwritable:
+        issues.append(f"Log directories not writable: {', '.join(unwritable)}")
+
+    # Check CorrelationMiddleware position (should be before AuditLoggingMiddleware)
+    middleware = getattr(settings, "MIDDLEWARE", [])
+    corr_idx = next((i for i, m in enumerate(middleware) if "CorrelationMiddleware" in m), -1)
+    audit_idx = next((i for i, m in enumerate(middleware) if "AuditLoggingMiddleware" in m), -1)
+    if corr_idx >= 0 and audit_idx >= 0 and corr_idx > audit_idx:
+        issues.append("CorrelationMiddleware should be before AuditLoggingMiddleware in MIDDLEWARE")
+
+    status = "pass" if not issues else ("fail" if not handlers else "warning")
+    return {
+        "status": status,
+        "details": {
+            "issues": issues,
+            "handler_count": len(handlers),
+            "logger_count": len(loggers),
+            "has_file_handler": has_file_handler,
+            "has_audit_logger": has_audit_logger,
+            "root_level": root_level,
+        },
+        "soc2_controls": ["CC7.2"],
+    }
+
+
+@register("security_headers", "security", soc2_controls=["CC6.1"])
+def check_security_headers():
+    """Validate HTTP security headers beyond TLS (SOC 2 CC6.1, ISO A.13.1, NIST SC-8)."""
+    issues = []
+
+    # X-Frame-Options (clickjacking protection)
+    xfo = getattr(settings, "X_FRAME_OPTIONS", "SAMEORIGIN")
+    if xfo not in ("DENY", "SAMEORIGIN"):
+        issues.append(f"X_FRAME_OPTIONS is '{xfo}' — should be DENY or SAMEORIGIN")
+
+    # Referrer-Policy
+    rp = getattr(settings, "SECURE_REFERRER_POLICY", None)
+    if not rp and not settings.DEBUG:
+        issues.append("SECURE_REFERRER_POLICY is not set — browser sends full Referer header")
+
+    # Cross-Origin-Opener-Policy
+    coop = getattr(settings, "SECURE_CROSS_ORIGIN_OPENER_POLICY", None)
+    if not coop and not settings.DEBUG:
+        issues.append("SECURE_CROSS_ORIGIN_OPENER_POLICY is not set")
+
+    # CSRF trusted origins — should not contain wildcards
+    csrf_origins = getattr(settings, "CSRF_TRUSTED_ORIGINS", [])
+    for origin in csrf_origins:
+        if "*" in origin:
+            issues.append(f"CSRF_TRUSTED_ORIGINS contains wildcard: {origin}")
+
+    # CORS origins — should not allow all
+    cors_all = getattr(settings, "CORS_ALLOW_ALL_ORIGINS", False)
+    if cors_all:
+        issues.append("CORS_ALLOW_ALL_ORIGINS is True — any origin can make credentialed requests")
+
+    # CSP policy presence (check for key directives)
+    csp = getattr(settings, "CONTENT_SECURITY_POLICY", {})
+    if csp:
+        if "'none'" not in csp.get("object-src", []):
+            issues.append("CSP object-src does not include 'none' — plugin execution possible")
+        if "'self'" not in csp.get("base-uri", []):
+            issues.append("CSP base-uri does not include 'self' — base tag injection possible")
+    else:
+        if not settings.DEBUG:
+            issues.append("CONTENT_SECURITY_POLICY not configured")
+
+    status = "pass" if not issues else ("fail" if cors_all else "warning")
+    return {
+        "status": status,
+        "details": {
+            "issues": issues,
+            "x_frame_options": xfo,
+            "referrer_policy": rp,
+            "cross_origin_opener_policy": coop,
+            "cors_allow_all": cors_all,
+            "csp_configured": bool(csp),
+        },
+        "soc2_controls": ["CC6.1"],
+    }
+
+
+@register("incident_readiness", "processing_integrity", soc2_controls=["CC7.4"])
+def check_incident_readiness():
+    """Validate incident response preparedness (SOC 2 CC7.4, ISO A.16.1, NIST IR-1/IR-8)."""
+    issues = []
+
+    # Check incident response documentation exists
+    standards_dir = Path(settings.BASE_DIR).parent.parent.parent / "docs"
+    ir_paths = [
+        standards_dir / "compliance" / "policies" / "incident-response.md",
+        standards_dir / "compliance" / "incident-response.md",
+    ]
+    ir_found = any(p.exists() for p in ir_paths)
+    if not ir_found:
+        issues.append("Incident response policy not found in docs/compliance/policies/")
+
+    # Check emergency change process documented (CHG-001 §9)
+    chg_path = standards_dir / "standards" / "CHG-001.md"
+    chg_has_emergency = False
+    if chg_path.exists():
+        content = chg_path.read_text()
+        chg_has_emergency = "emergency" in content.lower() and "retroactive" in content.lower()
+    if not chg_has_emergency:
+        issues.append("CHG-001 does not document emergency change process with retroactive review")
+
+    # Check BCDR documentation exists
+    bcdr_paths = [
+        standards_dir / "compliance" / "policies" / "bcdr.md",
+        standards_dir / "compliance" / "bcdr.md",
+    ]
+    bcdr_found = any(p.exists() for p in bcdr_paths)
+    if not bcdr_found:
+        issues.append("Business continuity / disaster recovery policy not found")
+
+    # Check recent emergency changes have retroactive review
+    try:
+        from syn.audit.models import ChangeRequest
+        from django.utils import timezone
+        from datetime import timedelta
+        cutoff = timezone.now() - timedelta(days=30)
+        emergencies = ChangeRequest.objects.filter(
+            is_emergency=True,
+            created_at__gte=cutoff,
+        ).exclude(status__in=["cancelled", "draft"])
+
+        unreviewed = 0
+        for e in emergencies:
+            has_retro = e.risk_assessments.filter(is_retroactive=True).exists()
+            if not has_retro:
+                unreviewed += 1
+        if unreviewed > 0:
+            issues.append(f"{unreviewed} emergency change(s) in last 30d without retroactive risk assessment")
+    except Exception:
+        pass  # Models may not be available in all contexts
+
+    status = "pass" if not issues else ("fail" if not ir_found else "warning")
+    return {
+        "status": status,
+        "details": {
+            "issues": issues,
+            "incident_response_doc": ir_found,
+            "emergency_process_documented": chg_has_emergency,
+            "bcdr_doc": bcdr_found,
+        },
+        "soc2_controls": ["CC7.4"],
+    }
+
+
+@register("sla_compliance", "availability", soc2_controls=["CC9.2", "CC4.1"])
+def check_sla_compliance():
+    """Measure all SLA definitions against operational data (SLA-001, SOC 2 CC9.2/CC4.1)."""
+    from syn.audit.standards import parse_all_sla_definitions
+
+    sla_defs = parse_all_sla_definitions()
+    if not sla_defs:
+        return {
+            "status": "warning",
+            "details": {"error": "No SLA definitions found in standards"},
+            "soc2_controls": ["CC9.2", "CC4.1"],
+        }
+
+    results = []
+    for sla in sla_defs:
+        measurement = _measure_sla(sla)
+        results.append(measurement)
+
+    # Determine overall status: fail if any critical SLA breached, warning if non-critical breached
+    critical_breach = any(r["status"] == "breach" and r["severity"] == "critical" for r in results)
+    any_breach = any(r["status"] == "breach" for r in results)
+
+    total = len(results)
+    met = sum(1 for r in results if r["status"] == "met")
+    breached = sum(1 for r in results if r["status"] == "breach")
+    unmeasurable = sum(1 for r in results if r["status"] == "unmeasurable")
+
+    if critical_breach:
+        status = "fail"
+    elif any_breach:
+        status = "warning"
+    else:
+        status = "pass"
+
+    return {
+        "status": status,
+        "details": {
+            "total_slas": total,
+            "met": met,
+            "breached": breached,
+            "unmeasurable": unmeasurable,
+            "sla_results": results,
+        },
+        "soc2_controls": ["CC9.2", "CC4.1"],
+    }
+
+
+def _measure_sla(sla):
+    """Dispatch measurement by metric type. Returns dict with status and current_value."""
+    base = {
+        "sla_id": sla.sla_id,
+        "description": sla.description,
+        "metric": sla.metric,
+        "target": sla.target,
+        "window": sla.window,
+        "severity": sla.severity,
+        "measurement": sla.measurement,
+        "standard": sla.standard,
+        "section": sla.section,
+    }
+
+    if sla.measurement == "manual":
+        base["status"] = "unmeasurable"
+        base["current_value"] = None
+        base["reason"] = "Manual measurement — requires operational verification"
+        return base
+
+    try:
+        dispatch = {
+            "availability": _measure_availability,
+            "durability": _measure_durability,
+            "compliance": _measure_compliance_rate,
+            "change_velocity": _measure_change_velocity,
+            "response_time": _measure_response_time,
+            "incident_response": _measure_incident_response,
+        }
+        fn = dispatch.get(sla.metric)
+        if fn:
+            result = fn(sla)
+            base.update(result)
+        else:
+            base["status"] = "unmeasurable"
+            base["current_value"] = None
+            base["reason"] = f"Unknown metric type: {sla.metric}"
+    except Exception as e:
+        base["status"] = "unmeasurable"
+        base["current_value"] = None
+        base["reason"] = f"Measurement error: {str(e)[:200]}"
+
+    return base
+
+
+def _parse_target(target_str):
+    """Parse target string like '99.9%', '2000ms', '24h', '168h' into (value, unit)."""
+    import re as _re
+    m = _re.match(r"([\d.]+)\s*(%|ms|h|d|s)", target_str)
+    if not m:
+        return None, None
+    return float(m.group(1)), m.group(2)
+
+
+def _measure_availability(sla):
+    """Measure availability via compliance check run success rate as proxy (derived)."""
+    from syn.audit.models import ComplianceCheck
+
+    now = timezone.now()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    # Use compliance check execution as uptime proxy: if the system ran checks, it was up
+    total_runs = ComplianceCheck.objects.filter(run_at__gte=month_start).count()
+    if total_runs == 0:
+        return {"status": "unmeasurable", "current_value": None, "reason": "No compliance runs this month yet"}
+
+    # Days with at least one check run vs days elapsed
+    from django.db.models.functions import TruncDate
+    from django.db.models import Count
+    days_with_runs = (
+        ComplianceCheck.objects
+        .filter(run_at__gte=month_start)
+        .annotate(day=TruncDate("run_at"))
+        .values("day")
+        .distinct()
+        .count()
+    )
+    days_elapsed = max((now - month_start).days, 1)
+    availability_pct = (days_with_runs / days_elapsed) * 100
+
+    target_val, _ = _parse_target(sla.target)
+    if target_val is None:
+        return {"status": "unmeasurable", "current_value": None, "reason": f"Cannot parse target: {sla.target}"}
+
+    return {
+        "status": "met" if availability_pct >= target_val else "breach",
+        "current_value": f"{availability_pct:.1f}%",
+    }
+
+
+def _measure_durability(sla):
+    """Measure durability SLAs — delegates to backup_freshness for RPO."""
+    if "rpo" in sla.sla_id or "recovery-point" in sla.sla_id:
+        # Check backup freshness: is the latest backup within target hours?
+        from syn.audit.models import ComplianceCheck
+        latest_backup = (
+            ComplianceCheck.objects
+            .filter(check_name="backup_freshness", status="pass")
+            .order_by("-run_at")
+            .first()
+        )
+        if not latest_backup:
+            return {"status": "unmeasurable", "current_value": None, "reason": "No backup_freshness check results"}
+
+        target_val, unit = _parse_target(sla.target)
+        if unit == "h" and target_val:
+            hours_since = (timezone.now() - latest_backup.run_at).total_seconds() / 3600
+            return {
+                "status": "met" if hours_since <= target_val else "breach",
+                "current_value": f"{hours_since:.1f}h",
+            }
+
+    # RTO and other durability SLAs are manual
+    return {"status": "unmeasurable", "current_value": None, "reason": "Requires operational verification"}
+
+
+def _measure_compliance_rate(sla):
+    """Measure compliance check pass rate for the current month."""
+    from syn.audit.models import ComplianceCheck
+
+    now = timezone.now()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    checks = ComplianceCheck.objects.filter(run_at__gte=month_start)
+    total = checks.count()
+    if total == 0:
+        return {"status": "unmeasurable", "current_value": None, "reason": "No checks this month"}
+
+    passed = checks.filter(status="pass").count()
+    rate = (passed / total) * 100
+
+    target_val, _ = _parse_target(sla.target)
+    if target_val is None:
+        return {"status": "unmeasurable", "current_value": None, "reason": f"Cannot parse target: {sla.target}"}
+
+    return {
+        "status": "met" if rate >= target_val else "breach",
+        "current_value": f"{rate:.1f}%",
+    }
+
+
+def _measure_change_velocity(sla):
+    """Measure change management SLAs: emergency retro review, post-incident review, stale changes."""
+    from syn.audit.models import ChangeRequest
+    from datetime import timedelta
+
+    now = timezone.now()
+    target_val, unit = _parse_target(sla.target)
+    if target_val is None or unit != "h":
+        return {"status": "unmeasurable", "current_value": None, "reason": f"Cannot parse target: {sla.target}"}
+
+    target_hours = target_val
+
+    if "retro" in sla.sla_id or "emergency" in sla.sla_id:
+        # Emergency changes without retroactive risk assessment within target hours
+        cutoff = now - timedelta(days=30)
+        emergencies = ChangeRequest.objects.filter(
+            is_emergency=True,
+            created_at__gte=cutoff,
+        ).exclude(status__in=["cancelled", "draft"])
+
+        violations = 0
+        for cr in emergencies:
+            has_retro = cr.risk_assessments.filter(is_retroactive=True).exists()
+            if not has_retro:
+                age_hours = (now - cr.created_at).total_seconds() / 3600
+                if age_hours > target_hours:
+                    violations += 1
+
+        return {
+            "status": "met" if violations == 0 else "breach",
+            "current_value": f"{violations} violation(s)",
+        }
+
+    elif "post-incident" in sla.sla_id:
+        # Post-incident review within target hours
+        cutoff = now - timedelta(days=30)
+        emergencies = ChangeRequest.objects.filter(
+            is_emergency=True,
+            created_at__gte=cutoff,
+            status="completed",
+        )
+
+        violations = 0
+        for cr in emergencies:
+            # Check if a review log entry exists within target hours of completion
+            from syn.audit.models import ChangeLog
+            completion_log = cr.logs.filter(action="completed").order_by("created_at").first()
+            if completion_log:
+                review_log = cr.logs.filter(
+                    action__in=["review", "post_incident_review"],
+                    created_at__lte=completion_log.created_at + timedelta(hours=target_hours),
+                ).exists()
+                if not review_log:
+                    violations += 1
+
+        return {
+            "status": "met" if violations == 0 else "breach",
+            "current_value": f"{violations} violation(s)",
+        }
+
+    elif "stale" in sla.sla_id:
+        # Changes stuck in in_progress beyond target hours
+        stale_cutoff = now - timedelta(hours=target_hours)
+        stale = ChangeRequest.objects.filter(
+            status="in_progress",
+            updated_at__lt=stale_cutoff,
+        ).count()
+
+        return {
+            "status": "met" if stale == 0 else "breach",
+            "current_value": f"{stale} stale CR(s)",
+        }
+
+    return {"status": "unmeasurable", "current_value": None, "reason": "Unrecognized change_velocity SLA"}
+
+
+def _measure_response_time(sla):
+    """Response time SLAs — measured from RequestMetric bucketed telemetry."""
+    from syn.log.models import RequestMetric
+
+    now = timezone.now()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    buckets = RequestMetric.objects.filter(
+        bucket_start__gte=month_start, bucket_start__lt=now,
+    )
+    if not buckets.exists():
+        return {
+            "status": "unmeasurable", "current_value": None,
+            "reason": "No request metrics recorded yet this month",
+        }
+
+    # Merge all reservoir samples for the month
+    all_samples = []
+    for b in buckets.only("duration_samples"):
+        all_samples.extend(b.duration_samples or [])
+
+    if not all_samples:
+        return {
+            "status": "unmeasurable", "current_value": None,
+            "reason": "No duration samples available",
+        }
+
+    target_value, target_unit = _parse_target(sla.target)
+
+    # Determine percentile from sla_id (p99 vs p95)
+    pct = 99 if "p99" in sla.sla_id else 95
+
+    sorted_s = sorted(all_samples)
+    n = len(sorted_s)
+    k = (n - 1) * (pct / 100)
+    f_idx = int(k)
+    c_idx = min(f_idx + 1, n - 1)
+    current_ms = sorted_s[f_idx] + (k - f_idx) * (sorted_s[c_idx] - sorted_s[f_idx])
+
+    met = current_ms <= target_value
+    return {
+        "status": "met" if met else "breach",
+        "current_value": f"{current_ms:.0f}ms",
+        "target": sla.target,
+        "percentile": f"p{pct}",
+        "sample_count": len(all_samples),
+    }
+
+
+def _measure_incident_response(sla):
+    """Incident response SLAs — requires incident management system."""
+    return {"status": "unmeasurable", "current_value": None, "reason": "Incident tracking system not yet implemented"}
 
 
 # ---------------------------------------------------------------------------
@@ -824,3 +1852,2014 @@ def generate_monthly_report():
         f"pass_rate={pass_rate:.1f}%, total={total}"
     )
     return report
+
+
+# ---------------------------------------------------------------------------
+# Code Style Check (STY-001)
+# ---------------------------------------------------------------------------
+
+# Directories to skip when scanning for style violations
+_STYLE_SKIP_DIRS = {"__pycache__", "migrations", "staticfiles", "media", "node_modules"}
+
+# snake_case pattern for files and functions
+_SNAKE_RE = _re.compile(r"^[a-z_][a-z0-9_]*$")
+
+# PascalCase pattern for classes (allow _ prefix for private classes)
+_PASCAL_RE = _re.compile(r"^_?[A-Z][a-zA-Z0-9]*$")
+
+# File name pattern (lowercase_snake.py, allow _ prefix for private modules)
+_FILE_SNAKE_RE = _re.compile(r"^_?[a-z][a-z0-9_]*\.py$")
+
+
+def _should_skip_path(path):
+    """Check if a path should be skipped for style scanning."""
+    return any(skip in path.parts for skip in _STYLE_SKIP_DIRS)
+
+
+def _scan_file_names(web_root):
+    """Check all .py files match lowercase_snake.py pattern.
+
+    STY-001 §4.1: All Python files use lowercase_snake naming.
+    Skips migrations/, __pycache__/, staticfiles/, media/.
+    """
+    violations = []
+    for py_file in sorted(web_root.rglob("*.py")):
+        if _should_skip_path(py_file):
+            continue
+        name = py_file.name
+        if name == "__init__.py":
+            continue
+        # Skip config files with dots (e.g., gunicorn.conf.py)
+        if "." in name.replace(".py", ""):
+            continue
+        if not _FILE_SNAKE_RE.match(name):
+            violations.append({
+                "file": str(py_file.relative_to(web_root)),
+                "violation": f"File '{name}' does not match lowercase_snake.py",
+            })
+    return violations
+
+
+def _scan_class_names(web_root):
+    """AST-based: all class names must be PascalCase.
+
+    STY-001 §4.2: Classes use PascalCase naming.
+    """
+    violations = []
+    for py_file in sorted(web_root.rglob("*.py")):
+        if _should_skip_path(py_file):
+            continue
+        try:
+            source = py_file.read_text(errors="ignore")
+            tree = ast.parse(source, filename=str(py_file))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef):
+                if not _PASCAL_RE.match(node.name):
+                    violations.append({
+                        "file": str(py_file.relative_to(web_root)),
+                        "class": node.name,
+                        "line": node.lineno,
+                    })
+    return violations
+
+
+def _scan_function_names(web_root):
+    """AST-based: all function names must be lowercase_snake.
+
+    STY-001 §4.3: Functions and methods use lowercase_snake naming.
+    Excludes dunder methods (__init__, __str__, etc.).
+    """
+    violations = []
+    for py_file in sorted(web_root.rglob("*.py")):
+        if _should_skip_path(py_file):
+            continue
+        try:
+            source = py_file.read_text(errors="ignore")
+            tree = ast.parse(source, filename=str(py_file))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                name = node.name
+                # Skip dunder methods
+                if name.startswith("__") and name.endswith("__"):
+                    continue
+                # Skip standard unittest/Django lifecycle methods (camelCase by design)
+                if name in ("setUp", "tearDown", "setUpClass", "tearDownClass",
+                            "setUpTestData", "addCleanup"):
+                    continue
+                if not _SNAKE_RE.match(name):
+                    violations.append({
+                        "file": str(py_file.relative_to(web_root)),
+                        "function": name,
+                        "line": node.lineno,
+                    })
+    return violations
+
+
+def _check_module_docstrings(web_root):
+    """AST-based: every .py file (except empty __init__.py) has a module docstring.
+
+    STY-001 §6.1: Module-level docstring as first statement.
+    """
+    missing = []
+    for py_file in sorted(web_root.rglob("*.py")):
+        if _should_skip_path(py_file):
+            continue
+        try:
+            source = py_file.read_text(errors="ignore")
+        except Exception:
+            continue
+        # Skip empty __init__.py files
+        if py_file.name == "__init__.py" and not source.strip():
+            continue
+        try:
+            tree = ast.parse(source, filename=str(py_file))
+        except SyntaxError:
+            continue
+        docstring = ast.get_docstring(tree)
+        if not docstring:
+            missing.append({
+                "file": str(py_file.relative_to(web_root)),
+            })
+    return missing
+
+
+def _check_import_order(web_root):
+    """Check imports follow stdlib -> third-party -> local ordering.
+
+    STY-001 §5: Three-group import convention.
+    Scans ALL .py files in the project.
+    """
+    # Get stdlib module names
+    if hasattr(sys, "stdlib_module_names"):
+        stdlib_names = sys.stdlib_module_names
+    else:
+        # Python < 3.10 fallback
+        stdlib_names = set(sys.builtin_module_names)
+
+    violations = []
+    for fpath in sorted(web_root.rglob("*.py")):
+        if _should_skip_path(fpath):
+            continue
+        try:
+            source = fpath.read_text(errors="ignore")
+            tree = ast.parse(source, filename=str(fpath))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+
+        # Extract top-level import nodes
+        imports = []
+        for node in ast.iter_child_nodes(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    root_mod = alias.name.split(".")[0]
+                    imports.append((node.lineno, root_mod, "import"))
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    root_mod = node.module.split(".")[0]
+                else:
+                    root_mod = ""
+                level = node.level or 0
+                if level > 0:
+                    imports.append((node.lineno, f".{root_mod}", "relative"))
+                else:
+                    imports.append((node.lineno, root_mod, "from"))
+
+        if not imports:
+            continue
+
+        # Classify each import
+        prev_group = 0
+        for lineno, mod, kind in imports:
+            if kind == "relative" or mod.startswith("."):
+                group = 3  # local/relative
+            elif mod in stdlib_names:
+                group = 1  # stdlib
+            elif mod in ("syn", "core", "agents_api", "api", "accounts",
+                         "chat", "workbench", "forge", "files", "tempora",
+                         "agents", "inference", "svend_config"):
+                group = 3  # local
+            else:
+                group = 2  # third-party
+
+            if group < prev_group:
+                violations.append({
+                    "file": str(fpath.relative_to(web_root)),
+                    "line": lineno,
+                    "violation": f"Import '{mod}' (group {group}) after group {prev_group}",
+                })
+                break  # One violation per file is enough
+            prev_group = group
+
+    return violations
+
+
+def _check_wildcard_imports(web_root):
+    """Check for wildcard imports (from X import *).
+
+    STY-001 §5.2: No wildcard imports.
+    """
+    violations = []
+    for py_file in sorted(web_root.rglob("*.py")):
+        if _should_skip_path(py_file):
+            continue
+        try:
+            source = py_file.read_text(errors="ignore")
+            tree = ast.parse(source, filename=str(py_file))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                for alias in node.names:
+                    if alias.name == "*":
+                        violations.append({
+                            "file": str(py_file.relative_to(web_root)),
+                            "line": node.lineno,
+                            "module": node.module or "",
+                        })
+    return violations
+
+
+def _check_model_field_naming(web_root):
+    """Check Django model fields follow DAT-001 §7 naming conventions.
+
+    Rules:
+    - BooleanField must have is_ prefix (tracked as debt — migration required)
+    - ForeignKey must NOT have _fk suffix
+    - JSONField must NOT use mutable defaults ([] or {})
+    """
+    _BOOL_RE = _re.compile(r"^(is|has|can)_[a-z]")
+    violations = {"boolean_prefix": [], "fk_suffix": [], "mutable_default": []}
+
+    model_dirs = [
+        web_root / "agents_api",
+        web_root / "core",
+        web_root / "accounts",
+        web_root / "api",
+        web_root / "chat",
+        web_root / "files",
+        web_root / "forge",
+        web_root / "workbench",
+        web_root / "syn",
+    ]
+
+    for model_dir in model_dirs:
+        for py_file in sorted(model_dir.rglob("*.py")):
+            if _should_skip_path(py_file):
+                continue
+            # Only check model files (models.py or files inside models/ dirs)
+            if py_file.stem != "models" and "models" not in py_file.parts:
+                continue
+            try:
+                source = py_file.read_text(errors="ignore")
+                tree = ast.parse(source, filename=str(py_file))
+            except (SyntaxError, UnicodeDecodeError):
+                continue
+
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ClassDef):
+                    continue
+                for item in node.body:
+                    if not isinstance(item, ast.Assign):
+                        continue
+                    if not item.targets:
+                        continue
+                    target = item.targets[0]
+                    if not isinstance(target, ast.Name):
+                        continue
+                    field_name = target.id
+                    call = item.value
+                    if not isinstance(call, ast.Call):
+                        continue
+
+                    # Get field type name
+                    func = call.func
+                    if isinstance(func, ast.Attribute):
+                        field_type = func.attr
+                    elif isinstance(func, ast.Name):
+                        field_type = func.id
+                    else:
+                        continue
+
+                    rel_path = str(py_file.relative_to(web_root))
+
+                    # BooleanField / NullBooleanField must have is_ prefix
+                    if field_type in ("BooleanField", "NullBooleanField"):
+                        if not _BOOL_RE.match(field_name):
+                            violations["boolean_prefix"].append({
+                                "file": rel_path,
+                                "line": item.lineno,
+                                "field": field_name,
+                                "class": node.name,
+                            })
+
+                    # ForeignKey must NOT have _fk suffix
+                    if field_type == "ForeignKey" and field_name.endswith("_fk"):
+                        violations["fk_suffix"].append({
+                            "file": rel_path,
+                            "line": item.lineno,
+                            "field": field_name,
+                            "class": node.name,
+                        })
+
+                    # JSONField must NOT use mutable defaults
+                    if field_type == "JSONField":
+                        for kw in call.keywords:
+                            if kw.arg == "default":
+                                if isinstance(kw.value, (ast.List, ast.Dict)):
+                                    violations["mutable_default"].append({
+                                        "file": rel_path,
+                                        "line": item.lineno,
+                                        "field": field_name,
+                                        "class": node.name,
+                                    })
+
+    return violations
+
+
+@register("code_style", "processing_integrity", soc2_controls=["CC8.1"])
+def check_code_style():
+    """STY-001: Code style & naming conventions enforcement.
+
+    Scans .py files for naming violations (files, classes, functions),
+    missing docstrings, import order issues, wildcard imports, URL kebab-case,
+    timestamp field naming, and class docstrings.
+
+    Status: fail on file/class naming violations, warning on function/docstring/import issues.
+
+    Compliance: STY-001 (Code Style), SOC 2 CC8.1
+    """
+    web_root = Path(settings.BASE_DIR)
+
+    file_violations = _scan_file_names(web_root)
+    class_violations = _scan_class_names(web_root)
+    function_violations = _scan_function_names(web_root)
+    missing_docstrings = _check_module_docstrings(web_root)
+    import_violations = _check_import_order(web_root)
+    wildcard_violations = _check_wildcard_imports(web_root)
+    field_violations = _check_model_field_naming(web_root)
+    url_violations = _check_arch_url_kebab_case(web_root)
+    timestamp_violations = _check_arch_timestamp_naming(web_root)
+    class_docstring_violations = _scan_class_docstrings(web_root)
+
+    total = (len(file_violations) + len(class_violations) + len(function_violations)
+             + len(missing_docstrings) + len(import_violations) + len(wildcard_violations)
+             + len(field_violations["fk_suffix"]) + len(field_violations["mutable_default"])
+             + len(url_violations) + len(timestamp_violations))
+
+    # Count scanned files
+    files_scanned = sum(1 for _ in web_root.rglob("*.py") if not _should_skip_path(_))
+
+    # Determine status: fail on hard violations, warning on debt items
+    hard_fail = (file_violations or class_violations or wildcard_violations
+                 or field_violations["fk_suffix"] or field_violations["mutable_default"]
+                 or field_violations["boolean_prefix"] or url_violations)
+    soft_warn = (function_violations or missing_docstrings or import_violations
+                 or timestamp_violations or class_docstring_violations)
+
+    if hard_fail:
+        status = "fail"
+    elif soft_warn:
+        status = "warning"
+    else:
+        status = "pass"
+
+    return {
+        "status": status,
+        "details": {
+            "files_scanned": files_scanned,
+            "file_naming_violations": file_violations[:20],
+            "class_naming_violations": class_violations[:20],
+            "function_naming_violations": function_violations[:20],
+            "missing_docstrings": missing_docstrings[:20],
+            "import_order_violations": import_violations[:20],
+            "wildcard_import_violations": wildcard_violations[:20],
+            "boolean_field_violations": field_violations["boolean_prefix"][:20],
+            "fk_suffix_violations": field_violations["fk_suffix"][:20],
+            "mutable_default_violations": field_violations["mutable_default"][:20],
+            "url_kebab_violations": url_violations[:20],
+            "timestamp_naming_violations": timestamp_violations[:20],
+            "class_docstring_violations": class_docstring_violations[:20],
+            "total_violations": total,
+        },
+        "soc2_controls": ["CC8.1"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Architecture Map Check (MAP-001)
+# ---------------------------------------------------------------------------
+
+_GIT_ROOT = Path(settings.BASE_DIR).parent.parent.parent  # /home/eric/kjerne
+_MAP_STANDARDS_DIR = _GIT_ROOT / "docs" / "standards"
+
+# Non-standard codes that match the standard ID regex but aren't standards
+_NON_STANDARD_CODES = {
+    # Crypto/encoding algorithms
+    "SHA-256", "SHA-384", "SHA-512", "AES-256", "AES-128",
+    "TLS-128", "RSA-256", "UTF-008",
+    # HTTP status codes
+    "HTTP-200", "HTTP-400", "HTTP-401", "HTTP-403", "HTTP-404", "HTTP-500",
+    # Process/anti-pattern IDs (not standards)
+    "DEBT-001", "DOC-002",
+    "AP-003",  # Anti-pattern sub-number within CONFIG-001-AP-003
+    "BOOT-001", "BOOT-005",  # Dev/prod bootstrap process IDs
+    # Error/boundary sub-codes (SRX-CFG-001, SRX-DB-001)
+    "CFG-001", "DB-001",
+    # Enforcement check type choices (DriftViolation.enforcement_check)
+    "ENC-002", "ENC-003", "ENC-004", "ENC-005", "ENC-006",
+    "ENC-007", "ENC-008", "ENC-009", "ENC-010", "ENC-011",
+    # Scheduler primitive config IDs (PCONF-SCH-101 etc.)
+    "SCH-101", "SCH-103", "SCH-201", "SCH-202", "SCH-501",
+    # System/invariant control codes (SYS-200 INV-008)
+    "SYS-200", "INV-001", "INV-008", "INV-011",
+    # Placeholder
+    "XXX-001",
+    # Planning system IDs (INIT-xxx, FEAT-xxx, TASK-xxx) — not standards
+    "INIT-003", "INIT-009",
+    # Calibration case IDs (CAL-INF-001 etc.)
+    "INF-001",
+}
+
+
+def _parse_map_table(map_path, table_marker):
+    """Parse a GFM pipe table following a <!-- table: marker --> tag.
+
+    Returns list of dicts with lowercase, stripped header keys.
+    """
+    try:
+        lines = map_path.read_text().split("\n")
+    except Exception:
+        return []
+
+    # Find the marker line
+    marker_line = f"<!-- table: {table_marker} -->"
+    start = None
+    for i, line in enumerate(lines):
+        if marker_line in line:
+            start = i + 1
+            break
+    if start is None:
+        return []
+
+    # Find header row (first pipe-delimited row after marker)
+    header_idx = None
+    for i in range(start, min(start + 5, len(lines))):
+        if i < len(lines) and "|" in lines[i] and not lines[i].strip().startswith("<!--"):
+            header_idx = i
+            break
+    if header_idx is None:
+        return []
+
+    headers = [h.strip().strip("*").lower() for h in lines[header_idx].split("|") if h.strip()]
+
+    # Skip separator row (|---|---|...)
+    data_start = header_idx + 2
+
+    results = []
+    for i in range(data_start, len(lines)):
+        line = lines[i].strip()
+        if not line or line.startswith("#") or line.startswith("---"):
+            break
+        if "|" not in line:
+            break
+        cells = [c.strip() for c in line.split("|") if c.strip() != ""]
+        if len(cells) >= len(headers):
+            row = {}
+            for j, key in enumerate(headers):
+                row[key] = cells[j] if j < len(cells) else ""
+            results.append(row)
+    return results
+
+
+def _git_head_sha():
+    """Get current HEAD commit SHA, or None on failure."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True, text=True, timeout=10,
+            cwd=str(_GIT_ROOT),
+        )
+        return result.stdout.strip() if result.returncode == 0 else None
+    except Exception:
+        return None
+
+
+def _git_head_author():
+    """Get HEAD commit author, or None on failure."""
+    try:
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%an"],
+            capture_output=True, text=True, timeout=10,
+            cwd=str(_GIT_ROOT),
+        )
+        return result.stdout.strip() if result.returncode == 0 else None
+    except Exception:
+        return None
+
+
+def _git_changed_files(since_hours=24):
+    """Get files changed in last N hours via git log."""
+    try:
+        result = subprocess.run(
+            ["git", "log", f"--since={since_hours} hours ago",
+             "--name-only", "--pretty=format:"],
+            capture_output=True, text=True, timeout=30,
+            cwd=str(_GIT_ROOT),
+        )
+        if result.returncode == 0:
+            return list(set(f for f in result.stdout.strip().split("\n") if f))
+        return []
+    except Exception:
+        return []
+
+
+_STANDARD_ID_RE = _re.compile(r"\b([A-Z]{2,6}-\d{3,4})\b")
+
+
+def _scan_phantom_references(registry_ids, scan_root):
+    """Find standard ID references in .py files not in registry.
+
+    Returns list of {"id", "file"} for unregistered references.
+    """
+    unregistered = []
+    seen = set()
+
+    for py_file in scan_root.rglob("*.py"):
+        # Skip noise directories
+        parts = py_file.parts
+        if "__pycache__" in parts or "migrations" in parts:
+            continue
+
+        try:
+            content = py_file.read_text(errors="ignore")
+        except Exception:
+            continue
+
+        for match in _STANDARD_ID_RE.finditer(content):
+            code = match.group(1)
+            if code in registry_ids or code in _NON_STANDARD_CODES:
+                continue
+            key = (code, str(py_file))
+            if key not in seen:
+                seen.add(key)
+                rel_path = str(py_file.relative_to(scan_root))
+                unregistered.append({"id": code, "file": rel_path})
+
+    return unregistered
+
+
+def _find_unmapped_modules(module_paths, web_root):
+    """Find directories with .py files not covered by module map.
+
+    Returns list of unmapped directory paths (relative to web_root).
+    """
+    unmapped = []
+
+    # Check syn/ subdirectories
+    syn_dir = web_root / "syn"
+    if syn_dir.exists():
+        for subdir in sorted(syn_dir.iterdir()):
+            if not subdir.is_dir() or subdir.name.startswith("__"):
+                continue
+            has_py = any(subdir.rglob("*.py"))
+            if not has_py:
+                continue
+            rel = f"syn/{subdir.name}/"
+            if not any(mp.startswith(rel) or mp == rel for mp in module_paths):
+                unmapped.append(rel)
+
+    # Check top-level app directories (those with __init__.py or apps.py)
+    for subdir in sorted(web_root.iterdir()):
+        if not subdir.is_dir() or subdir.name.startswith((".", "__")):
+            continue
+        if subdir.name in ("syn", "static", "staticfiles", "media", "logs",
+                           "forge_results", "templates", "__pycache__"):
+            continue
+        has_init = (subdir / "__init__.py").exists() or (subdir / "apps.py").exists()
+        if not has_init:
+            continue
+        rel = f"{subdir.name}/"
+        if not any(mp.startswith(rel) or mp == rel for mp in module_paths):
+            unmapped.append(rel)
+
+    return unmapped
+
+
+def _check_mapped_paths_exist(module_map, web_root):
+    """Verify all module map paths exist on disk.
+
+    Returns list of {"module_path"} for missing paths.
+    """
+    missing = []
+    for entry in module_map:
+        mod_path = entry.get("module", "").rstrip("/")
+        if not mod_path or mod_path == "—":
+            continue
+        full = web_root / mod_path
+        if not full.exists():
+            missing.append({"module_path": mod_path})
+    return missing
+
+
+def _map_files_to_standards(changed_files, module_map):
+    """Map changed file paths to affected standards via module map prefix matching.
+
+    changed_files: paths relative to git root (e.g., "services/svend/web/syn/audit/compliance.py")
+    module_map: parsed table with "module" and "standards" keys
+
+    Returns dict: {standard_id: [file1, file2, ...]}.
+    """
+    web_prefix = "services/svend/web/"
+    affected = {}
+
+    for fpath in changed_files:
+        # Normalize to web-relative path
+        if fpath.startswith(web_prefix):
+            rel = fpath[len(web_prefix):]
+        else:
+            continue
+
+        for entry in module_map:
+            mod_path = entry.get("module", "").rstrip("/")
+            if not mod_path or mod_path == "—":
+                continue
+            if rel.startswith(mod_path):
+                standards_str = entry.get("standards", "")
+                for std_id in [s.strip() for s in standards_str.split(",")]:
+                    if std_id and std_id != "—":
+                        affected.setdefault(std_id, []).append(fpath)
+                break
+
+    return affected
+
+
+def _sync_map_drift_violations(findings, commit_sha, author):
+    """Create DriftViolation records for architecture map findings.
+
+    Uses own transaction.atomic() so drift records persist regardless
+    of what happens downstream.
+    """
+    import hashlib
+    from django.db import transaction
+    from django.utils import timezone as tz
+    from syn.audit.models import DriftViolation
+
+    severity_map = {
+        "registry_drift": "HIGH",
+        "phantom_drift": "MEDIUM",
+        "coverage_drift": "LOW",
+        "file_drift": "MEDIUM",
+    }
+
+    with transaction.atomic():
+        for f in findings:
+            payload = f"{f['type']}:{f.get('id', '')}:{f.get('module', '')}:{f.get('file', '')}"
+            sig = hashlib.sha256(payload.encode()).hexdigest()[:32]
+
+            if DriftViolation.objects.filter(
+                drift_signature=sig, resolved_at__isnull=True
+            ).exists():
+                continue
+
+            severity = severity_map.get(f["type"], "MEDIUM")
+            sla_hours = DRIFT_SLA_HOURS.get(severity)
+
+            DriftViolation.objects.create(
+                drift_signature=sig,
+                severity=severity,
+                enforcement_check="STD",
+                file_path=f.get("file", f.get("module", "MAP-001")),
+                violation_message=f["message"],
+                detected_by="architecture_map_check",
+                git_commit_sha=commit_sha or "",
+                git_author=author or "",
+                remediation_sla_hours=sla_hours,
+            )
+
+
+@register("architecture_map", "processing_integrity", soc2_controls=["CC7.2", "CC3.1"])
+def check_architecture_map():
+    """MAP-001: Architecture map enforcement.
+
+    Parses the standards registry and module map tables from MAP-001.md,
+    then verifies:
+    1. All APPROVED standards have .md files
+    2. No unregistered phantom standard references in codebase
+    3. All module map paths exist on disk
+    4. All syn/ modules are mapped
+    5. Git change tracking: identifies affected standards
+
+    SOC 2: CC7.2 (System Activity Monitoring)
+    ISO 27001: A.8.1 (Inventory of Assets)
+    """
+    map_path = _MAP_STANDARDS_DIR / "MAP-001.md"
+    if not map_path.exists():
+        return {
+            "status": "fail",
+            "details": {"message": "MAP-001.md not found in docs/standards/"},
+            "soc2_controls": ["CC7.2"],
+        }
+
+    web_root = Path(settings.BASE_DIR)
+    findings = []
+
+    # 1. Parse tables
+    registry = _parse_map_table(map_path, "standards-registry")
+    module_map = _parse_map_table(map_path, "module-map")
+
+    if not registry:
+        return {
+            "status": "fail",
+            "details": {"message": "Could not parse standards-registry table from MAP-001.md"},
+            "soc2_controls": ["CC7.2"],
+        }
+
+    # 2. Verify APPROVED standards have files
+    missing_files = []
+    for entry in registry:
+        if entry.get("status") == "APPROVED" and entry.get("file", "—") != "—":
+            file_path = _GIT_ROOT / entry["file"]
+            if not file_path.exists():
+                missing_files.append(entry["id"])
+                findings.append({
+                    "type": "registry_drift",
+                    "id": entry["id"],
+                    "file": entry["file"],
+                    "message": f"APPROVED standard {entry['id']} file not found: {entry['file']}",
+                })
+
+    # 3. Scan for unregistered phantom references
+    registry_ids = {e.get("id", "") for e in registry}
+    phantoms = _scan_phantom_references(registry_ids, web_root / "syn")
+    for p in phantoms:
+        findings.append({
+            "type": "phantom_drift",
+            "id": p["id"],
+            "file": p["file"],
+            "message": f"Unregistered standard reference {p['id']} in syn/{p['file']}",
+        })
+
+    # Deduplicate phantom IDs for summary
+    phantom_ids = sorted(set(p["id"] for p in phantoms))
+
+    # 4. Check module map paths exist
+    missing_paths = _check_mapped_paths_exist(module_map, web_root)
+    for mp in missing_paths:
+        findings.append({
+            "type": "file_drift",
+            "module": mp["module_path"],
+            "message": f"Mapped module path no longer exists: {mp['module_path']}",
+        })
+
+    # 5. Find unmapped modules
+    module_paths = [e.get("module", "") for e in module_map]
+    unmapped = _find_unmapped_modules(module_paths, web_root)
+    for u in unmapped:
+        findings.append({
+            "type": "coverage_drift",
+            "module": u,
+            "message": f"Unmapped module directory: {u}",
+        })
+
+    # 6. Git change tracking
+    commit_sha = _git_head_sha()
+    commit_author = _git_head_author()
+    changed_files = _git_changed_files()
+    affected_standards = _map_files_to_standards(changed_files, module_map)
+
+    # 7. Create DriftViolation records
+    try:
+        _sync_map_drift_violations(findings, commit_sha, commit_author)
+    except Exception as e:
+        logger.warning("Architecture map drift sync failed: %s", e)
+
+    # Determine status
+    has_registry_drift = any(f["type"] == "registry_drift" for f in findings)
+
+    if has_registry_drift:
+        status = "fail"
+    elif findings:
+        status = "warning"
+    else:
+        status = "pass"
+
+    approved_count = sum(1 for e in registry if e.get("status") == "APPROVED")
+    phantom_count = sum(1 for e in registry if e.get("status") == "PHANTOM")
+
+    return {
+        "status": status,
+        "details": {
+            "registry_entries": len(registry),
+            "approved_count": approved_count,
+            "phantom_count": phantom_count,
+            "module_map_entries": len(module_map),
+            "missing_standard_files": missing_files,
+            "unregistered_phantoms": phantom_ids,
+            "unmapped_modules": unmapped,
+            "missing_mapped_paths": [mp["module_path"] for mp in missing_paths],
+            "git_commit": commit_sha,
+            "git_author": commit_author,
+            "changed_files_count": len(changed_files),
+            "affected_standards": {k: v for k, v in affected_standards.items()},
+            "findings": findings,
+        },
+        "soc2_controls": ["CC7.2", "CC3.1"],
+    }
+
+
+# ── ARCH-001: Architecture & Structure ──────────────────────────────────
+
+_ARCH_REQUIRED_DIRS = [
+    "svend", "syn", "syn/core", "syn/audit", "syn/log", "syn/api",
+    "syn/err", "syn/sched", "core", "accounts", "agents_api", "api",
+    "chat", "workbench", "forge", "files", "svend_config", "templates",
+    "static", "ops",
+]
+
+_ARCH_PROHIBITED_DIRS = ["tempora", "forge_results"]
+
+_ARCH_FEATURE_APPS = {"agents_api", "chat", "workbench", "forge", "files", "inference"}
+
+_ARCH_ALLOWED_ROOT_FILES = {
+    "manage.py", "pyproject.toml", "gunicorn.conf.py",
+    ".gitignore", ".env", ".env.example", ".env.production", "Caddyfile",
+}
+
+_ARCH_EMPTY_DIR_SKIP = {"migrations", "__pycache__", "media", "logs", "staticfiles", "node_modules"}
+
+_ARCH_FILE_SIZE_WARN = 2000
+_ARCH_FILE_SIZE_FAIL = 3000
+# Known large files tracked in .kjerne/DEBT.md — exempt from hard fail
+_ARCH_KNOWN_LARGE_FILES = {
+    "agents_api/dsw_views.py",
+    "agents_api/models.py",
+    "agents_api/learn_content.py",
+    "agents_api/pbs_engine.py",
+    "agents_api/dsw/stats.py",
+    "agents_api/dsw/ml.py",
+    "agents_api/dsw/spc.py",
+    "agents_api/dsw/bayesian.py",
+    "api/internal_views.py",
+    "syn/audit/compliance.py",
+}
+
+_ARCH_FILES_PER_APP_WARN = 20
+_ARCH_FILES_PER_APP_FAIL = 30
+# Known apps exceeding file count limits — tracked in DEBT.md
+_ARCH_KNOWN_LARGE_APPS = {"agents_api"}
+
+# Directory naming pattern
+_DIR_SNAKE_RE = _re.compile(r"^[a-z][a-z0-9_]*$")
+
+# Known cross-app import exemptions (documented in ARCH-001 §5.2)
+_ARCH_CROSS_IMPORT_EXEMPT_FILES = {
+    "management",  # Management commands may cross boundaries
+    "tests",       # Test files may import from any layer
+}
+
+# Known core/ layer boundary exemptions
+_ARCH_CORE_LAYER_EXEMPT = {
+    "seed_nlp_demo.py",  # Management command — crosses boundaries by design
+    "views.py",          # core/views.py project detail aggregates agents_api models (existing debt)
+}
+
+# Known timestamp fields that don't follow _at convention (tracked as debt)
+_ARCH_KNOWN_TIMESTAMP_EXCEPTIONS = {
+    "action_time",        # Django LogEntry (built-in)
+    "expire_date",        # Django Session (built-in)
+    "date_joined",        # Django User (built-in)
+    "last_login",         # Django User (built-in)
+    "current_period_start",  # Billing interval boundary
+    "current_period_end",    # Billing interval boundary
+    "period_start",       # Usage interval boundary
+    "period_end",         # Usage interval boundary
+    "scheduled_for",      # Onboarding scheduling
+    "last_accessed",      # Cache access timestamp
+    "last_seen",          # Presence tracking
+    "last_run",           # Scheduler last execution
+    "bucket_start",       # Metrics time bucket
+    "timestamp",          # Audit log (SysLogEntry, ChangeLog, LogEntry legacy)
+    "deadline",           # Task deadline
+}
+
+
+def _check_arch_dir_naming(web_root):
+    """ARCH-001/STY-001 §4.1: Directories use lowercase_snake naming."""
+    violations = []
+    for d in sorted(web_root.rglob("*")):
+        if not d.is_dir():
+            continue
+        if any(s in d.parts for s in _STYLE_SKIP_DIRS):
+            continue
+        if d.name.startswith("."):
+            continue
+        if not _DIR_SNAKE_RE.match(d.name):
+            violations.append(str(d.relative_to(web_root)))
+    return violations
+
+
+def _check_arch_nested_duplicates(web_root):
+    """ARCH-001 §10: No nested duplicate directories (e.g., agents/agents/)."""
+    duplicates = []
+    for d in sorted(web_root.rglob("*")):
+        if not d.is_dir():
+            continue
+        if any(s in d.parts for s in _STYLE_SKIP_DIRS):
+            continue
+        if d.name == d.parent.name and d.parent != web_root:
+            duplicates.append(str(d.relative_to(web_root)))
+    return duplicates
+
+
+def _check_arch_files_per_app(web_root):
+    """ARCH-001 §7: Files per app growth boundaries."""
+    oversized = []
+    app_dirs = [
+        "accounts", "agents_api", "api", "chat", "core",
+        "files", "forge", "inference", "workbench",
+    ]
+    for app in app_dirs:
+        app_dir = web_root / app
+        if not app_dir.is_dir():
+            continue
+        count = sum(
+            1 for f in app_dir.rglob("*.py")
+            if "__pycache__" not in f.parts and "migrations" not in f.parts
+        )
+        if count > _ARCH_FILES_PER_APP_WARN:
+            severity = "fail" if count > _ARCH_FILES_PER_APP_FAIL else "warning"
+            if app in _ARCH_KNOWN_LARGE_APPS:
+                severity = "warning"  # Known debt
+            oversized.append({"app": app, "files": count, "severity": severity})
+    return oversized
+
+
+def _check_arch_core_layer(web_root):
+    """ARCH-001 §5: core/ must not import from feature apps."""
+    violations = []
+    core_dir = web_root / "core"
+    if not core_dir.is_dir():
+        return violations
+    for py_file in core_dir.rglob("*.py"):
+        if "__pycache__" in py_file.parts or "migrations" in py_file.parts:
+            continue
+        if "tests" in py_file.parts or py_file.name.startswith("test_"):
+            continue
+        if py_file.name in _ARCH_CORE_LAYER_EXEMPT:
+            continue
+        try:
+            source = py_file.read_text(errors="ignore")
+            tree = ast.parse(source, filename=str(py_file))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name.split(".")[0] in _ARCH_FEATURE_APPS:
+                        violations.append({
+                            "file": str(py_file.relative_to(web_root)),
+                            "line": node.lineno,
+                            "import": alias.name,
+                        })
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                if node.module.split(".")[0] in _ARCH_FEATURE_APPS:
+                    violations.append({
+                        "file": str(py_file.relative_to(web_root)),
+                        "line": node.lineno,
+                        "import": node.module,
+                    })
+    return violations
+
+
+def _check_arch_cross_imports(web_root):
+    """ARCH-001 §5: Feature apps should not import from each other."""
+    violations = []
+    for app in _ARCH_FEATURE_APPS:
+        app_dir = web_root / app
+        if not app_dir.is_dir():
+            continue
+        other_apps = _ARCH_FEATURE_APPS - {app}
+        for py_file in app_dir.rglob("*.py"):
+            if "__pycache__" in py_file.parts or "migrations" in py_file.parts:
+                continue
+            if "tests" in py_file.parts or py_file.name.startswith("test_"):
+                continue
+            if "management" in py_file.parts:
+                continue
+            try:
+                source = py_file.read_text(errors="ignore")
+                tree = ast.parse(source, filename=str(py_file))
+            except (SyntaxError, UnicodeDecodeError):
+                continue
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        target = alias.name.split(".")[0]
+                        if target in other_apps:
+                            violations.append({
+                                "file": str(py_file.relative_to(web_root)),
+                                "line": node.lineno,
+                                "import": alias.name,
+                                "from_app": app,
+                                "to_app": target,
+                            })
+                elif isinstance(node, ast.ImportFrom) and node.module:
+                    target = node.module.split(".")[0]
+                    if target in other_apps:
+                        violations.append({
+                            "file": str(py_file.relative_to(web_root)),
+                            "line": node.lineno,
+                            "import": node.module,
+                            "from_app": app,
+                            "to_app": target,
+                        })
+    return violations
+
+
+# Django built-in URL segments that use underscores (can't be changed)
+_URL_KEBAB_EXEMPT_SEGMENTS = {
+    "password_reset",    # Django auth views
+    "password_change",   # Django auth views
+}
+
+
+def _check_arch_url_kebab_case(web_root):
+    """STY-001 §4.1: URL path segments use kebab-case (no underscores)."""
+    violations = []
+    for urls_file in web_root.rglob("urls.py"):
+        if "__pycache__" in urls_file.parts or "migrations" in urls_file.parts:
+            continue
+        try:
+            source = urls_file.read_text(errors="ignore")
+        except OSError:
+            continue
+        for i, line in enumerate(source.splitlines(), 1):
+            # Match path("segment_with_underscore/", ...) patterns
+            match = _re.search(r'path\(["\']([^"\']+)["\']', line)
+            if not match:
+                continue
+            url_path = match.group(1)
+            # Strip path parameters
+            cleaned = _re.sub(r'<[^>]+>', '', url_path)
+            segments = [s for s in cleaned.split('/') if s]
+            for seg in segments:
+                if '_' in seg and seg not in _URL_KEBAB_EXEMPT_SEGMENTS:
+                    violations.append({
+                        "file": str(urls_file.relative_to(web_root)),
+                        "line": i,
+                        "url": url_path,
+                        "segment": seg,
+                    })
+                    break
+    return violations
+
+
+def _check_arch_timestamp_naming(web_root):
+    """STY-001 §4.4: DateTimeField names should end in _at suffix."""
+    violations = []
+    for py_file in web_root.rglob("*.py"):
+        if _should_skip_path(py_file):
+            continue
+        if py_file.name != "models.py" and "models" not in py_file.parent.name:
+            continue
+        try:
+            source = py_file.read_text(errors="ignore")
+            tree = ast.parse(source, filename=str(py_file))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            for item in ast.walk(node):
+                if not isinstance(item, ast.Assign):
+                    continue
+                for target in item.targets:
+                    if not isinstance(target, ast.Name):
+                        continue
+                    if not isinstance(item.value, ast.Call):
+                        continue
+                    func = item.value.func
+                    func_name = ""
+                    if isinstance(func, ast.Attribute):
+                        func_name = func.attr
+                    elif isinstance(func, ast.Name):
+                        func_name = func.id
+                    if func_name == "DateTimeField":
+                        field_name = target.id
+                        if field_name in _ARCH_KNOWN_TIMESTAMP_EXCEPTIONS:
+                            continue
+                        if not field_name.endswith("_at"):
+                            violations.append({
+                                "file": str(py_file.relative_to(web_root)),
+                                "class": node.name,
+                                "field": field_name,
+                            })
+    return violations
+
+
+def _scan_class_docstrings(web_root):
+    """STY-001 §6.2: All classes should have docstrings."""
+    violations = []
+    for py_file in web_root.rglob("*.py"):
+        if _should_skip_path(py_file):
+            continue
+        if py_file.name.startswith("test_") or "tests" in py_file.parts:
+            continue
+        try:
+            source = py_file.read_text(errors="ignore")
+            tree = ast.parse(source, filename=str(py_file))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        for node in ast.iter_child_nodes(tree):
+            if isinstance(node, ast.ClassDef):
+                docstring = ast.get_docstring(node)
+                if not docstring:
+                    violations.append({
+                        "file": str(py_file.relative_to(web_root)),
+                        "class": node.name,
+                        "line": node.lineno,
+                    })
+    return violations
+
+
+# Test file detection patterns
+_TEST_FILE_RE = _re.compile(r"^test_[a-z][a-z0-9_]*\.py$")
+_TEST_FILE_LEGACY_RE = _re.compile(r"^[a-z][a-z0-9_]*_tests\.py$")
+
+
+def _check_arch_test_placement(web_root):
+    """ARCH-001 §6: Test files must live in tests/ directories."""
+    violations = []
+    for py_file in web_root.rglob("*.py"):
+        if "__pycache__" in py_file.parts or "migrations" in py_file.parts:
+            continue
+        if "staticfiles" in py_file.parts or "media" in py_file.parts:
+            continue
+        name = py_file.name
+        # Is this a test file?
+        is_test = (
+            _TEST_FILE_RE.match(name)
+            or _TEST_FILE_LEGACY_RE.match(name)
+            or name == "tests.py"
+        )
+        if not is_test:
+            continue
+        # Must be inside a tests/ directory
+        if "tests" in py_file.relative_to(web_root).parts:
+            continue
+        violations.append(str(py_file.relative_to(web_root)))
+    return violations
+
+
+def _check_arch_test_init(web_root):
+    """ARCH-001 §6: tests/ directories must have __init__.py for discovery."""
+    missing = []
+    for tests_dir in web_root.rglob("tests"):
+        if not tests_dir.is_dir():
+            continue
+        if "__pycache__" in tests_dir.parts or "migrations" in tests_dir.parts:
+            continue
+        if "staticfiles" in tests_dir.parts or "media" in tests_dir.parts:
+            continue
+        # Must have at least one .py file to count as a test package
+        py_files = list(tests_dir.glob("*.py"))
+        if not py_files:
+            continue
+        if not (tests_dir / "__init__.py").exists():
+            missing.append(str(tests_dir.relative_to(web_root)))
+    return missing
+
+
+def _check_arch_testcase_in_prod(web_root):
+    """ARCH-001 §6: TestCase subclasses must not appear in non-test files."""
+    violations = []
+    for py_file in web_root.rglob("*.py"):
+        if _should_skip_path(py_file):
+            continue
+        name = py_file.name
+        # Skip actual test files
+        if name.startswith("test_") or name.endswith("_tests.py") or name == "tests.py":
+            continue
+        if "tests" in py_file.parts:
+            continue
+        try:
+            source = py_file.read_text(errors="ignore")
+            tree = ast.parse(source, filename=str(py_file))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        for node in ast.iter_child_nodes(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            for base in node.bases:
+                base_name = ""
+                if isinstance(base, ast.Name):
+                    base_name = base.id
+                elif isinstance(base, ast.Attribute):
+                    base_name = base.attr
+                if base_name in ("TestCase", "SimpleTestCase", "TransactionTestCase", "LiveServerTestCase"):
+                    violations.append({
+                        "file": str(py_file.relative_to(web_root)),
+                        "class": node.name,
+                        "line": node.lineno,
+                        "base": base_name,
+                    })
+    return violations
+
+
+def _check_arch_required_dirs(web_root):
+    """ARCH-001 §4: Verify required directories exist."""
+    missing = []
+    for d in _ARCH_REQUIRED_DIRS:
+        if not (web_root / d).is_dir():
+            missing.append(d)
+    return missing
+
+
+def _check_arch_prohibited_dirs(web_root):
+    """ARCH-001 §8: No prohibited directories."""
+    found = []
+    for d in _ARCH_PROHIBITED_DIRS:
+        if (web_root / d).is_dir():
+            found.append(d)
+    return found
+
+
+def _check_arch_empty_dirs(web_root):
+    """ARCH-001 §8: No empty directories."""
+    empty = []
+    for dirpath in sorted(web_root.rglob("*")):
+        if not dirpath.is_dir():
+            continue
+        if any(skip in dirpath.parts for skip in _ARCH_EMPTY_DIR_SKIP):
+            continue
+        if dirpath.name.startswith("__"):
+            continue
+        children = list(dirpath.iterdir())
+        if not children:
+            empty.append(str(dirpath.relative_to(web_root)))
+    return empty
+
+
+def _check_arch_layer_boundaries(web_root):
+    """ARCH-001 §5: syn/ must not import from feature apps."""
+    violations = []
+    syn_dir = web_root / "syn"
+    for py_file in syn_dir.rglob("*.py"):
+        if "__pycache__" in py_file.parts or "migrations" in py_file.parts:
+            continue
+        # Exempt compliance.py, test files, and svend_tasks.py (they introspect all layers)
+        if py_file.name == "compliance.py" and "audit" in py_file.parts:
+            continue
+        if py_file.name == "svend_tasks.py" and "sched" in py_file.parts:
+            continue
+        if "tests" in py_file.parts or py_file.name.startswith("test_"):
+            continue
+        try:
+            source = py_file.read_text(errors="ignore")
+            tree = ast.parse(source, filename=str(py_file))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    mod_root = alias.name.split(".")[0]
+                    if mod_root in _ARCH_FEATURE_APPS:
+                        violations.append({
+                            "file": str(py_file.relative_to(web_root)),
+                            "line": node.lineno,
+                            "import": alias.name,
+                        })
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                mod_root = node.module.split(".")[0]
+                if mod_root in _ARCH_FEATURE_APPS:
+                    violations.append({
+                        "file": str(py_file.relative_to(web_root)),
+                        "line": node.lineno,
+                        "import": node.module,
+                    })
+    return violations
+
+
+def _check_arch_file_sizes(web_root):
+    """ARCH-001 §7: File size growth boundaries."""
+    oversized = []
+    for py_file in web_root.rglob("*.py"):
+        if "__pycache__" in py_file.parts or "migrations" in py_file.parts:
+            continue
+        if "staticfiles" in py_file.parts:
+            continue
+        try:
+            line_count = sum(1 for _ in py_file.open(errors="ignore"))
+        except OSError:
+            continue
+        if line_count > _ARCH_FILE_SIZE_WARN:
+            rel_path = str(py_file.relative_to(web_root))
+            if line_count > _ARCH_FILE_SIZE_FAIL and rel_path in _ARCH_KNOWN_LARGE_FILES:
+                severity = "warning"  # Known debt — tracked in DEBT.md
+            elif line_count > _ARCH_FILE_SIZE_FAIL:
+                severity = "fail"
+            else:
+                severity = "warning"
+            oversized.append({
+                "file": rel_path,
+                "lines": line_count,
+                "severity": severity,
+            })
+    return oversized
+
+
+def _check_arch_root_files(web_root):
+    """ARCH-001 §10: No unexpected files at web root."""
+    unexpected = []
+    for item in sorted(web_root.iterdir()):
+        if item.is_dir():
+            continue
+        if item.name in _ARCH_ALLOWED_ROOT_FILES:
+            continue
+        if item.name.startswith("."):
+            continue
+        unexpected.append(item.name)
+    return unexpected
+
+
+@register("architecture", "processing_integrity", soc2_controls=["CC7.2", "CC8.1"])
+def check_architecture():
+    """ARCH-001: Architecture & structure enforcement.
+
+    Validates canonical directory structure, prohibited directories,
+    layer boundaries, file size limits, root file hygiene,
+    directory naming, nested duplicates, files per app, and cross-imports.
+
+    SOC 2: CC7.2 (System Component Inventory)
+    ISO 27001: A.8.1 (Asset Inventory)
+    """
+    web_root = Path(settings.BASE_DIR)
+
+    missing_dirs = _check_arch_required_dirs(web_root)
+    prohibited_dirs = _check_arch_prohibited_dirs(web_root)
+    empty_dirs = _check_arch_empty_dirs(web_root)
+    layer_violations = _check_arch_layer_boundaries(web_root)
+    oversized_files = _check_arch_file_sizes(web_root)
+    unexpected_root = _check_arch_root_files(web_root)
+    dir_naming = _check_arch_dir_naming(web_root)
+    nested_dupes = _check_arch_nested_duplicates(web_root)
+    files_per_app = _check_arch_files_per_app(web_root)
+    core_layer = _check_arch_core_layer(web_root)
+    cross_imports = _check_arch_cross_imports(web_root)
+    test_placement = _check_arch_test_placement(web_root)
+    test_init = _check_arch_test_init(web_root)
+    testcase_in_prod = _check_arch_testcase_in_prod(web_root)
+
+    hard_fail = (
+        missing_dirs or prohibited_dirs or layer_violations
+        or dir_naming or nested_dupes or core_layer
+        or test_init or testcase_in_prod
+        or any(f["severity"] == "fail" for f in oversized_files)
+        or any(f["severity"] == "fail" for f in files_per_app)
+    )
+    soft_warn = (
+        empty_dirs or unexpected_root or cross_imports
+        or test_placement
+        or any(f["severity"] == "warning" for f in oversized_files)
+        or any(f["severity"] == "warning" for f in files_per_app)
+    )
+
+    if hard_fail:
+        status = "fail"
+    elif soft_warn:
+        status = "warning"
+    else:
+        status = "pass"
+
+    return {
+        "status": status,
+        "details": {
+            "missing_required_dirs": missing_dirs,
+            "prohibited_dirs_found": prohibited_dirs,
+            "empty_dirs": empty_dirs[:20],
+            "layer_boundary_violations": layer_violations[:20],
+            "oversized_files": oversized_files[:20],
+            "unexpected_root_files": unexpected_root,
+            "dir_naming_violations": dir_naming[:20],
+            "nested_duplicate_dirs": nested_dupes[:20],
+            "files_per_app": files_per_app,
+            "core_layer_violations": core_layer[:20],
+            "cross_import_violations": cross_imports[:20],
+            "test_placement_violations": test_placement[:20],
+            "test_init_missing": test_init,
+            "testcase_in_prod_code": testcase_in_prod[:20],
+        },
+        "soc2_controls": ["CC7.2", "CC8.1"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Caching Check (CACHE-001)
+# ---------------------------------------------------------------------------
+
+_CACHE_REQUIRED_MIDDLEWARE = "accounts.middleware.NoCacheDynamicMiddleware"
+_CACHE_WHITENOISE_MIDDLEWARE = "whitenoise.middleware.WhiteNoiseMiddleware"
+_CACHE_WHITENOISE_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# In-memory caches that must have max-size constants
+_CACHE_MEMORY_BOUNDS = {
+    "agents_api/dsw_views.py": "MODEL_CACHE_MAX_SIZE",
+    "agents_api/problem_views.py": "_INTERVIEW_CACHE_MAX",
+    "agents_api/spc_views.py": "_CACHE_MAX_SIZE",
+    "agents_api/synara_views.py": "_SYNARA_CACHE_MAX",
+}
+
+# CDN version pin pattern: @major.minor or /major.minor.patch/ (cdnjs format)
+_CDN_VERSION_RE = _re.compile(r"@\d+\.\d+|/\d+\.\d+\.\d+/")
+
+
+def _check_cache_middleware(web_root):
+    """CACHE-001 §4: NoCacheDynamicMiddleware in MIDDLEWARE."""
+    middleware = getattr(settings, "MIDDLEWARE", [])
+    issues = []
+    if _CACHE_REQUIRED_MIDDLEWARE not in middleware:
+        issues.append("NoCacheDynamicMiddleware not in MIDDLEWARE")
+    if _CACHE_WHITENOISE_MIDDLEWARE not in middleware:
+        issues.append("WhiteNoiseMiddleware not in MIDDLEWARE")
+    else:
+        # Check ordering: WhiteNoise must come before NoCacheDynamic
+        wn_idx = middleware.index(_CACHE_WHITENOISE_MIDDLEWARE)
+        if _CACHE_REQUIRED_MIDDLEWARE in middleware:
+            nc_idx = middleware.index(_CACHE_REQUIRED_MIDDLEWARE)
+            if wn_idx > nc_idx:
+                issues.append("WhiteNoiseMiddleware must be before NoCacheDynamicMiddleware")
+    return issues
+
+
+def _check_cache_whitenoise_storage():
+    """CACHE-001 §4.2: WhiteNoise uses CompressedManifestStaticFilesStorage."""
+    storages = getattr(settings, "STORAGES", {})
+    backend = storages.get("staticfiles", {}).get("BACKEND", "")
+    if backend != _CACHE_WHITENOISE_STORAGE:
+        return [f"staticfiles backend is '{backend}', expected '{_CACHE_WHITENOISE_STORAGE}'"]
+    return []
+
+
+def _check_cache_memory_bounds(web_root):
+    """CACHE-001 §6: In-memory caches have max size bounds."""
+    missing = []
+    for rel_path, constant_name in _CACHE_MEMORY_BOUNDS.items():
+        full_path = web_root / rel_path
+        if not full_path.exists():
+            continue
+        source = full_path.read_text(errors="ignore")
+        if constant_name not in source:
+            missing.append({"file": rel_path, "expected_constant": constant_name})
+    return missing
+
+
+def _check_cache_cdn_versions(web_root):
+    """CACHE-001 §8: CDN script/link tags have version pins."""
+    violations = []
+    templates_dir = web_root / "templates"
+    if not templates_dir.is_dir():
+        return violations
+    cdn_pattern = _re.compile(r'(?:src|href)=["\']https?://(?:cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com)/([^"\']+)["\']')
+    for html_file in templates_dir.rglob("*.html"):
+        source = html_file.read_text(errors="ignore")
+        for i, line in enumerate(source.splitlines(), 1):
+            for match in cdn_pattern.finditer(line):
+                url_path = match.group(1)
+                if not _CDN_VERSION_RE.search(url_path):
+                    violations.append({
+                        "file": str(html_file.relative_to(web_root)),
+                        "line": i,
+                        "url": match.group(0),
+                    })
+    return violations
+
+
+def _check_cache_idempotency_ttl():
+    """CACHE-001 §5: Idempotency cache has bounded TTL."""
+    try:
+        from syn.api.middleware import IDEMPOTENCY_TTL_HOURS
+        if IDEMPOTENCY_TTL_HOURS > 48:
+            return [f"IDEMPOTENCY_TTL_HOURS={IDEMPOTENCY_TTL_HOURS} exceeds 48h maximum"]
+    except ImportError:
+        return ["Cannot import IDEMPOTENCY_TTL_HOURS from syn.api.middleware"]
+    return []
+
+
+@register("caching", "security", soc2_controls=["CC6.1", "CC7.2"])
+def check_caching():
+    """CACHE-001: Caching patterns & HTTP cache control.
+
+    Validates middleware presence, static file storage backend,
+    in-memory cache bounds, CDN version pins, and idempotency TTL.
+
+    SOC 2: CC6.1 (Logical Access Security)
+    OWASP: Cache Poisoning Prevention
+    """
+    web_root = Path(settings.BASE_DIR)
+
+    middleware_issues = _check_cache_middleware(web_root)
+    storage_issues = _check_cache_whitenoise_storage()
+    memory_issues = _check_cache_memory_bounds(web_root)
+    cdn_issues = _check_cache_cdn_versions(web_root)
+    idempotency_issues = _check_cache_idempotency_ttl()
+
+    hard_fail = middleware_issues or storage_issues or memory_issues
+    soft_warn = cdn_issues or idempotency_issues
+
+    if hard_fail:
+        status = "fail"
+    elif soft_warn:
+        status = "warning"
+    else:
+        status = "pass"
+
+    return {
+        "status": status,
+        "details": {
+            "middleware_issues": middleware_issues,
+            "storage_issues": storage_issues,
+            "memory_bound_issues": memory_issues,
+            "cdn_version_issues": cdn_issues[:20],
+            "idempotency_issues": idempotency_issues,
+        },
+        "soc2_controls": ["CC6.1", "CC7.2"],
+    }
+
+
+@register("roadmap", "processing_integrity", soc2_controls=["CC9.1"])
+def check_roadmap():
+    """Verify roadmap hygiene per RDM-001."""
+    from api.models import RoadmapItem
+
+    issues = []
+    now = timezone.now()
+    month = now.month
+    year = now.year
+    q_num = (month - 1) // 3 + 1
+    current_q = f"Q{q_num}-{year}"
+
+    if q_num == 4:
+        next_q = f"Q1-{year + 1}"
+    else:
+        next_q = f"Q{q_num + 1}-{year}"
+
+    def _quarter_to_tuple(q_str):
+        try:
+            parts = q_str.split("-")
+            return (int(parts[1]), int(parts[0][1]))
+        except (IndexError, ValueError):
+            return (9999, 9)
+
+    current_tuple = _quarter_to_tuple(current_q)
+
+    # Check 1: Stale items — past-quarter items still "planned"
+    stale = []
+    for item in RoadmapItem.objects.filter(status="planned"):
+        if _quarter_to_tuple(item.quarter) < current_tuple:
+            stale.append(f"{item.quarter}: {item.title}")
+    if stale:
+        issues.append(f"{len(stale)} item(s) in past quarters still 'planned': {', '.join(stale[:3])}")
+
+    # Check 2: Shipped items missing shipped_at
+    missing_shipped = RoadmapItem.objects.filter(status="shipped", shipped_at__isnull=True).count()
+    if missing_shipped:
+        issues.append(f"{missing_shipped} shipped item(s) missing shipped_at timestamp")
+
+    # Check 3: Empty upcoming quarter
+    upcoming_count = RoadmapItem.objects.filter(quarter=next_q).count()
+    if upcoming_count == 0:
+        issues.append(f"No roadmap items for upcoming quarter {next_q}")
+
+    total = RoadmapItem.objects.count()
+    public = RoadmapItem.objects.filter(is_public=True).count()
+
+    status = "pass"
+    if stale:
+        status = "fail"
+    elif issues:
+        status = "warning"
+
+    return {
+        "status": status,
+        "details": {
+            "total_items": total,
+            "public_items": public,
+            "current_quarter": current_q,
+            "next_quarter": next_q,
+            "issues": issues,
+        },
+        "soc2_controls": ["CC9.1"],
+    }
+
+
+@register("symbol_coverage", "processing_integrity", soc2_controls=["CC8.1", "CC4.1"])
+def check_symbol_coverage():
+    """Non-gameable symbol-level governance metric.
+
+    AST-walks all production .py files to inventory every public top-level
+    function and class.  Only symbol-level <!-- impl: file.py:Symbol --> hooks
+    count — file-level hooks are explicitly skipped.  Each symbol is classified:
+
+      covered           — impl hook on assertion that also has test hooks
+      specified_untested — impl hook but assertion lacks test hooks
+      ungoverned        — no impl hook references this symbol
+
+    Risk score per file = ungoverned_loc * 1.0 + specified_untested_loc * 0.5
+    """
+    import ast
+    import os
+
+    from syn.audit.standards import parse_all_standards
+
+    issues = []
+    web_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+    # ------------------------------------------------------------------
+    # Step 1: Build symbol inventory from production .py files via AST
+    # ------------------------------------------------------------------
+    skip_dirs = {"migrations", "__pycache__", ".git", "node_modules", ".venv"}
+    all_symbols = {}  # "rel_path:Name" -> {kind, loc, file, name}
+
+    def _loc_range(filepath, start, end):
+        """Count non-blank, non-comment lines within a line range."""
+        try:
+            with open(filepath) as fh:
+                lines = fh.readlines()
+            count = 0
+            for i in range(start - 1, min(end, len(lines))):
+                s = lines[i].strip()
+                if s and not s.startswith("#"):
+                    count += 1
+            return count
+        except Exception:
+            return 0
+
+    for root, dirs, files in os.walk(web_root):
+        dirs[:] = [d for d in dirs if d not in skip_dirs]
+        for f in files:
+            if not f.endswith(".py"):
+                continue
+            if f.startswith("__init__"):
+                continue
+            if "test" in f.lower():
+                continue
+            full_path = os.path.join(root, f)
+            rel = os.path.relpath(full_path, web_root)
+
+            try:
+                with open(full_path) as fh:
+                    source = fh.read()
+                tree = ast.parse(source)
+            except (SyntaxError, UnicodeDecodeError, OSError):
+                continue
+
+            for node in ast.iter_child_nodes(tree):
+                if isinstance(node, ast.ClassDef):
+                    if node.name.startswith("_"):
+                        continue
+                    loc = _loc_range(full_path, node.lineno, node.end_lineno)
+                    if loc > 0:
+                        all_symbols[f"{rel}:{node.name}"] = {
+                            "kind": "class", "loc": loc,
+                            "file": rel, "name": node.name,
+                        }
+                elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    if node.name.startswith("_"):
+                        continue
+                    loc = _loc_range(full_path, node.lineno, node.end_lineno)
+                    if loc > 0:
+                        all_symbols[f"{rel}:{node.name}"] = {
+                            "kind": "function", "loc": loc,
+                            "file": rel, "name": node.name,
+                        }
+
+    # ------------------------------------------------------------------
+    # Step 2: Map symbol-level impl hooks to assertions
+    # ------------------------------------------------------------------
+    assertions = parse_all_standards()
+    governed = set()   # keys with impl hook (may lack tests)
+    covered_set = set()  # keys where assertion also has test hooks
+
+    for a in assertions:
+        has_tests = len(a.tests) > 0
+        for impl_ref in a.impls:
+            impl_ref = impl_ref.strip()
+            if ":" not in impl_ref:
+                continue  # file-level hook — skip entirely
+            file_part, symbol_part = impl_ref.split(":", 1)
+            # Class.method hooks resolve to the class
+            top_symbol = symbol_part.split(".")[0]
+            key = f"{file_part}:{top_symbol}"
+
+            governed.add(key)
+            if has_tests:
+                covered_set.add(key)
+
+    # ------------------------------------------------------------------
+    # Step 3: Classify every symbol into buckets
+    # ------------------------------------------------------------------
+    covered = {}
+    specified = {}
+    ungoverned = {}
+
+    for key, info in all_symbols.items():
+        if key in covered_set:
+            covered[key] = info
+        elif key in governed:
+            specified[key] = info
+        else:
+            ungoverned[key] = info
+
+    # ------------------------------------------------------------------
+    # Step 4: Aggregate by file and module
+    # ------------------------------------------------------------------
+    total_symbols = len(all_symbols)
+    total_loc = sum(s["loc"] for s in all_symbols.values())
+    covered_loc = sum(s["loc"] for s in covered.values())
+    specified_loc = sum(s["loc"] for s in specified.values())
+    ungoverned_loc = sum(s["loc"] for s in ungoverned.values())
+
+    covered_pct = round(len(covered) / total_symbols * 100, 1) if total_symbols else 0
+    covered_loc_pct = round(covered_loc / total_loc * 100, 1) if total_loc else 0
+
+    # Per-file risk
+    file_risk = {}
+    for key, info in all_symbols.items():
+        f = info["file"]
+        if f not in file_risk:
+            file_risk[f] = {
+                "ungoverned_loc": 0, "specified_untested_loc": 0,
+                "covered_loc": 0, "total_loc": 0, "total_symbols": 0,
+                "covered_symbols": 0, "specified_symbols": 0,
+                "ungoverned_symbols": 0,
+            }
+        fr = file_risk[f]
+        fr["total_loc"] += info["loc"]
+        fr["total_symbols"] += 1
+        if key in covered:
+            fr["covered_loc"] += info["loc"]
+            fr["covered_symbols"] += 1
+        elif key in specified:
+            fr["specified_untested_loc"] += info["loc"]
+            fr["specified_symbols"] += 1
+        else:
+            fr["ungoverned_loc"] += info["loc"]
+            fr["ungoverned_symbols"] += 1
+
+    for fr in file_risk.values():
+        fr["risk_score"] = round(
+            fr["ungoverned_loc"] * 1.0 + fr["specified_untested_loc"] * 0.5, 1
+        )
+
+    top_risk = sorted(
+        [{"file": f, **fr} for f, fr in file_risk.items()],
+        key=lambda x: -x["risk_score"],
+    )[:20]
+
+    # Per-module breakdown
+    by_module = {}
+    for f, fr in file_risk.items():
+        module = f.split("/")[0] if "/" in f else "root"
+        if module not in by_module:
+            by_module[module] = {
+                "total_loc": 0, "covered_loc": 0,
+                "specified_untested_loc": 0, "ungoverned_loc": 0,
+                "total_symbols": 0, "covered_symbols": 0,
+                "specified_symbols": 0, "ungoverned_symbols": 0,
+            }
+        bm = by_module[module]
+        for k in list(bm.keys()):
+            bm[k] += fr.get(k, 0)
+
+    module_list = []
+    for mod in sorted(by_module.keys()):
+        d = by_module[mod]
+        d["module"] = mod
+        d["covered_pct"] = round(
+            d["covered_symbols"] / d["total_symbols"] * 100, 1
+        ) if d["total_symbols"] else 0
+        module_list.append(d)
+
+    total_risk = round(ungoverned_loc * 1.0 + specified_loc * 0.5, 1)
+
+    # ------------------------------------------------------------------
+    # Step 5: Status (percentage thresholds)
+    # ------------------------------------------------------------------
+    if covered_pct < 30:
+        issues.append(f"Symbol coverage {covered_pct}% below 30% threshold")
+        status = "fail"
+    elif covered_pct < 50:
+        issues.append(f"Symbol coverage {covered_pct}% below 50% target")
+        status = "warning"
+    else:
+        status = "pass"
+
+    return {
+        "status": status,
+        "details": {
+            "total_symbols": total_symbols,
+            "covered_symbols": len(covered),
+            "specified_untested_symbols": len(specified),
+            "ungoverned_symbols": len(ungoverned),
+            "total_loc": total_loc,
+            "covered_loc": covered_loc,
+            "specified_untested_loc": specified_loc,
+            "ungoverned_loc": ungoverned_loc,
+            "covered_pct": covered_pct,
+            "covered_loc_pct": covered_loc_pct,
+            "risk_score": total_risk,
+            "by_module": module_list,
+            "top_risk": top_risk,
+            "issues": issues,
+        },
+        "soc2_controls": ["CC8.1", "CC4.1"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Statistical Calibration (STAT-001 §15)
+# ---------------------------------------------------------------------------
+
+@register("statistical_calibration", "processing_integrity",
+          soc2_controls=["CC4.1"])
+def check_statistical_calibration():
+    """Run statistical calibration — feed known reference data through analysis
+    functions and verify outputs within tolerance.
+
+    Standard: STAT-001 §15
+    Compliance: SOC 2 CC4.1, ISO 9001:2015 §8.5.1
+    """
+    issues = []
+    try:
+        from agents_api.calibration import run_calibration
+        cal = run_calibration()
+    except Exception as e:
+        return {
+            "status": "error",
+            "details": {"error": str(e), "cases_run": 0, "pass_rate": 0},
+            "soc2_controls": ["CC4.1"],
+        }
+
+    cases_run = cal["cases_run"]
+    pass_rate = cal["pass_rate"]
+    drift_cases = cal["drift_cases"]
+
+    # Create DriftViolation for each failed case
+    if drift_cases:
+        try:
+            from syn.audit.models import DriftViolation
+            for case_id in drift_cases:
+                # Find the case result for detail
+                case_detail = next((r for r in cal["results"] if r["case_id"] == case_id), {})
+                severity = "HIGH" if len(drift_cases) > 3 else "MEDIUM"
+                DriftViolation.objects.create(
+                    enforcement_check="CAL",
+                    severity=severity,
+                    file_path="agents_api/calibration.py",
+                    description=f"Calibration case {case_id} failed: {case_detail.get('description', '')}",
+                    expected_pattern=f"All calibration expectations pass for {case_id}",
+                    actual_pattern=f"Failed checks: {[c for c in case_detail.get('checks', []) if not c.get('passed')]}",
+                )
+        except Exception as e:
+            issues.append(f"Could not create DriftViolation: {e}")
+
+    # Determine status
+    if pass_rate >= 100:
+        status = "pass"
+    elif pass_rate >= 80:
+        status = "warning"
+        issues.append(f"{len(drift_cases)} calibration case(s) failed: {drift_cases}")
+    else:
+        status = "fail"
+        issues.append(f"Calibration pass rate {pass_rate}% below 80% threshold")
+
+    return {
+        "status": status,
+        "details": {
+            "cases_run": cases_run,
+            "cases_passed": cal["cases_passed"],
+            "pass_rate": pass_rate,
+            "seed": cal["seed"],
+            "drift_cases": drift_cases,
+            "results": cal["results"],
+            "issues": issues,
+        },
+        "soc2_controls": ["CC4.1"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Output Quality (QUAL-001)
+# ---------------------------------------------------------------------------
+
+@register("output_quality", "processing_integrity",
+          soc2_controls=["CC4.1", "CC7.2"])
+def check_output_quality():
+    """Verify output quality infrastructure per QUAL-001.
+
+    Validates that:
+    - _validate_statistics_bounds exists in standardize.py
+    - standardize_output is called in dispatch.py
+    - REQUIRED_FIELDS has expected keys
+    - Calibration pool has ≥15 cases across ≥5 categories
+    - Bounded metrics list matches QUAL-001 §6.2 spec
+
+    Standard: QUAL-001 §6, §10
+    Compliance: SOC 2 CC4.1, CC7.2
+    """
+    import inspect
+    issues = []
+    status = "pass"
+
+    # 1. Verify _validate_statistics_bounds exists in standardize.py
+    try:
+        from agents_api.dsw.standardize import _validate_statistics_bounds
+        sig = inspect.signature(_validate_statistics_bounds)
+        params = list(sig.parameters.keys())
+        if "result" not in params:
+            issues.append("_validate_statistics_bounds missing 'result' parameter")
+    except ImportError:
+        issues.append("Cannot import _validate_statistics_bounds from standardize.py")
+        status = "fail"
+
+    # 2. Verify standardize_output is called in dispatch.py
+    try:
+        import agents_api.dsw.dispatch as dispatch_mod
+        source = inspect.getsource(dispatch_mod)
+        if "standardize_output" not in source:
+            issues.append("standardize_output not called in dispatch.py")
+            status = "fail"
+    except Exception as e:
+        issues.append(f"Cannot inspect dispatch.py: {e}")
+
+    # 3. Verify REQUIRED_FIELDS has expected keys
+    try:
+        from agents_api.dsw.standardize import REQUIRED_FIELDS
+        expected_keys = {"summary", "plots", "narrative", "education",
+                         "diagnostics", "guide_observation", "evidence_grade",
+                         "bayesian_shadow", "what_if"}
+        missing = expected_keys - set(REQUIRED_FIELDS.keys())
+        if missing:
+            issues.append(f"REQUIRED_FIELDS missing keys: {sorted(missing)}")
+            status = "fail"
+    except ImportError:
+        issues.append("Cannot import REQUIRED_FIELDS from standardize.py")
+        status = "fail"
+
+    # 4. Verify bounded metrics match QUAL-001 §6.2
+    try:
+        from agents_api.dsw.standardize import (
+            _BOUNDED_METRICS, _POSITIVE_METRICS, _FINITE_METRICS,
+        )
+        # p_value must be bounded [0, 1]
+        p_keys = [keys for keys, lo, hi in _BOUNDED_METRICS
+                   if "p_value" in keys]
+        if not p_keys:
+            issues.append("_BOUNDED_METRICS missing p_value entry")
+            status = "fail"
+        # bf10 must be positive
+        if "bf10" not in _POSITIVE_METRICS:
+            issues.append("_POSITIVE_METRICS missing bf10")
+            status = "fail"
+        # cpk must be finite
+        if "cpk" not in _FINITE_METRICS:
+            issues.append("_FINITE_METRICS missing cpk")
+            status = "fail"
+    except ImportError:
+        issues.append("Cannot import bounded metrics from standardize.py")
+        status = "fail"
+
+    # 5. Verify calibration pool size and category coverage
+    try:
+        from agents_api.calibration import REFERENCE_POOL
+        pool_size = len(REFERENCE_POOL)
+        categories = {c.category for c in REFERENCE_POOL}
+        if pool_size < 15:
+            issues.append(f"Calibration pool has {pool_size} cases, need ≥15")
+            if status == "pass":
+                status = "warning"
+        if len(categories) < 5:
+            issues.append(
+                f"Calibration pool covers {len(categories)} categories "
+                f"({sorted(categories)}), need ≥5"
+            )
+            if status == "pass":
+                status = "warning"
+    except ImportError:
+        issues.append("Cannot import REFERENCE_POOL from calibration.py")
+        if status == "pass":
+            status = "warning"
+
+    return {
+        "status": status,
+        "details": {
+            "issues": issues,
+            "checks_performed": 5,
+            "bounds_validation": status != "fail",
+        },
+        "soc2_controls": ["CC4.1", "CC7.2"],
+    }

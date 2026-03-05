@@ -270,7 +270,7 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
             # Methodology
             "methodology", "current_phase", "phase_history", "can_experiment",
             # Interview
-            "interview_state", "interview_completed",
+            "interview_state", "is_interview_completed",
             # Resolution
             "resolution_summary", "resolution_actions", "resolution_verification", "resolution_confidence",
             # Metadata

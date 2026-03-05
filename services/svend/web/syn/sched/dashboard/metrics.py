@@ -604,14 +604,14 @@ class SchedulerMetricsCollector:
                 )
 
                 ttm.total_executions = executions.count()
-                ttm.successful_executions = executions.filter(success=True).count()
-                ttm.failed_executions = executions.filter(success=False).count()
+                ttm.successful_executions = executions.filter(is_success=True).count()
+                ttm.failed_executions = executions.filter(is_success=False).count()
 
                 if ttm.total_executions > 0:
                     ttm.success_rate = ttm.successful_executions / ttm.total_executions
 
                 # Duration stats
-                successful = executions.filter(success=True, duration_ms__isnull=False)
+                successful = executions.filter(is_success=True, duration_ms__isnull=False)
                 if successful.exists():
                     durations = list(successful.values_list('duration_ms', flat=True))
                     durations.sort()
@@ -626,11 +626,11 @@ class SchedulerMetricsCollector:
                 if last_exec:
                     ttm.last_execution = last_exec.completed_at
 
-                last_success = executions.filter(success=True).order_by('-completed_at').first()
+                last_success = executions.filter(is_success=True).order_by('-completed_at').first()
                 if last_success:
                     ttm.last_success = last_success.completed_at
 
-                last_failure = executions.filter(success=False).order_by('-completed_at').first()
+                last_failure = executions.filter(is_success=False).order_by('-completed_at').first()
                 if last_failure:
                     ttm.last_failure = last_failure.completed_at
 
@@ -649,7 +649,7 @@ class SchedulerMetricsCollector:
                     schedule_id=schedule.schedule_id,
                     name=schedule.name,
                     task_name=schedule.task_name,
-                    enabled=schedule.enabled,
+                    enabled=schedule.is_enabled,
                     schedule_type=schedule.schedule_type,
                     expression=schedule.cron_expression or str(schedule.interval_seconds) + "s",
                     last_run_at=schedule.last_run_at,

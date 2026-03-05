@@ -53,7 +53,7 @@ class Subscription(models.Model):
     # Billing period
     current_period_start = models.DateTimeField(null=True, blank=True)
     current_period_end = models.DateTimeField(null=True, blank=True)
-    cancel_at_period_end = models.BooleanField(default=False)
+    is_cancel_at_period_end = models.BooleanField(default=False, db_column="cancel_at_period_end")
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -149,7 +149,7 @@ class User(AbstractUser):
     stripe_customer_id_hash = models.CharField(max_length=64, blank=True, db_index=True)
 
     # Legacy fields (kept for backwards compat, use Subscription model instead)
-    subscription_active = models.BooleanField(default=False)
+    is_subscription_active = models.BooleanField(default=False, db_column="subscription_active")
     subscription_ends_at = models.DateTimeField(null=True, blank=True)
 
     # === Future features (nullable, no migration needed to enable) ===
@@ -190,9 +190,9 @@ class User(AbstractUser):
     onboarding_completed_at = models.DateTimeField(null=True, blank=True)
 
     # Email verification (token stored as SHA-256 hash)
-    email_verified = models.BooleanField(default=False)
+    is_email_verified = models.BooleanField(default=False, db_column="email_verified")
     email_verification_token = models.CharField(max_length=64, blank=True, db_index=True)
-    email_opted_out = models.BooleanField(default=False)
+    is_email_opted_out = models.BooleanField(default=False, db_column="email_opted_out")
 
     class Meta:
         db_table = "users"
@@ -285,8 +285,8 @@ If you didn't create this account, you can ignore this email.
     def verify_email(self, token: str) -> bool:
         """Verify email with token. Compares hash of input to stored hash."""
         if self.email_verification_token and self.email_verification_token == hash_token(token):
-            self.email_verified = True
+            self.is_email_verified = True
             self.email_verification_token = ""
-            self.save(update_fields=["email_verified", "email_verification_token"])
+            self.save(update_fields=["is_email_verified", "email_verification_token"])
             return True
         return False

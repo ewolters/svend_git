@@ -23,6 +23,8 @@ Track technical debt here. Review weekly.
 
 [CORE] Phase 3 pending — remove JSON blobs entirely, drop Problem.hypotheses/evidence/dead_ends/probable_causes fields. Blocked until all Problems have core_project FK | Added: 2026-02-06 | Priority: P3
 
+[STY] ~~24 BooleanField fields missing `is_` prefix (DAT-001 §7.4)~~ **RESOLVED** — 27 fields renamed across agents_api, accounts, api, chat, core, workbench, syn/sched, tempora with db_column preservation (zero DB migration). All references updated (~200 across ~30 files). Compliance check at 0 violations. CR 2c9dce5c. | Added: 2026-03-03 | Resolved: 2026-03-04
+
 ### Git / Repo Hygiene
 
 [REPO] ~~Hardcoded /home/eric/ paths~~ **RESOLVED** — all code files (.py, .sh, .service) now use portable paths ($HOME, %h, Path(__file__), SCRIPT_DIR). Only doc/markdown references remain (historical). | Added: 2026-02-06 | Resolved: 2026-03-03 | Commit: pending

@@ -29,84 +29,52 @@ The Kjerne lab follows 5S principles adapted for software development.
 
 ```
 ~/kjerne/
-├── core/                           # SHARED utilities
-│   ├── llm.py                      # LLM loading (Qwen, Claude via Anthropic)
-│   ├── quality.py                  # Quality framework
-│   ├── bayesian.py                 # Unified BayesianUpdater
-│   ├── reasoning.py                # Reasoning graph
-│   ├── intent.py                   # Intent parsing
-│   ├── executor.py                 # Tool execution
-│   ├── context.py                  # Context management
-│   ├── sources.py                  # Source tracking
-│   ├── search.py                   # Search utilities
-│   └── verifier.py                 # Verification logic
+├── docs/                              # All documentation
+│   ├── standards/                     # Kjerne Standards Library (24 standards)
+│   ├── compliance/                    # SOC 2 controls, policies
+│   ├── planning/                      # Roadmaps, migration plans
+│   └── reference/                     # Strategy docs, whitepapers
 │
-├── services/svend/                 # The Svend product
-│   ├── agents/agents/              # Agent implementations
-│   │   ├── experimenter/           # DOE agent (agent.py, doe.py, stats.py)
-│   │   ├── guide/                  # Interview/decision guide
-│   │   ├── writer/                 # Writing agent
-│   │   ├── reviewer/               # Review agent
-│   │   ├── researcher/             # Research agent
-│   │   └── coder/                  # Code execution agent
+├── services/svend/                    # The Svend product
+│   ├── agents/                        # DOE agent module
+│   │   └── experimenter/              # Power analysis, DOE design
 │   │
-│   ├── web/                        # Django web application
+│   ├── web/                           # Django web application (ARCH-001)
 │   │   ├── manage.py
-│   │   ├── svend/                  # Django project (settings.py, urls.py)
+│   │   ├── svend/                     # Django project (settings.py, urls.py)
 │   │   │
-│   │   ├── accounts/               # Auth, billing, permissions
-│   │   │   ├── models.py           # User, Subscription, InviteCode
-│   │   │   ├── constants.py        # Tier, TIER_FEATURES, TIER_LIMITS
-│   │   │   ├── permissions.py      # Access control decorators
-│   │   │   └── billing.py          # Stripe webhook integration
+│   │   ├── syn/                       # Synara infrastructure layer
+│   │   │   ├── core/                  # Base models, secrets, versioning
+│   │   │   ├── log/                   # Logging middleware, formatters
+│   │   │   ├── api/                   # API middleware, error envelope
+│   │   │   ├── err/                   # Error hierarchy, retry, circuit breaker
+│   │   │   ├── sched/                 # Task scheduler (syn.sched)
+│   │   │   └── audit/                 # Audit & compliance subsystem
 │   │   │
-│   │   ├── api/                    # Chat API + auth endpoints
-│   │   │   └── views.py            # me(), login(), register(), update_profile()
-│   │   │
-│   │   ├── agents_api/             # Analysis & tool endpoints (15 modules)
-│   │   │   ├── dsw_views.py        # Statistical engine (200+ analyses)
-│   │   │   ├── spc_views.py        # SPC / control charts
-│   │   │   ├── experimenter_views.py  # DOE
-│   │   │   ├── synara_views.py     # Bayesian belief engine
-│   │   │   ├── whiteboard_views.py # Collaborative whiteboard
-│   │   │   ├── a3_views.py         # A3 problem-solving reports
-│   │   │   ├── vsm_views.py        # Value stream mapping
-│   │   │   ├── rca_views.py        # Root cause analysis
-│   │   │   ├── forecast_views.py   # Time series forecasting
-│   │   │   ├── learn_views.py      # Learning center (10 modules, 47 sections)
-│   │   │   ├── guide_views.py      # AI guide (Enterprise)
-│   │   │   ├── hoshin_views.py     # Hoshin Kanri CI (Enterprise)
-│   │   │   ├── triage_views.py     # Data triage
-│   │   │   ├── workflow_views.py   # Workflows
-│   │   │   ├── problem_views.py    # Problem management
-│   │   │   ├── synara/             # Synara engine (belief.py, dsl.py, kernel.py)
-│   │   │   ├── models.py           # Problem, VSM, HoshinProject, ActionItem
-│   │   │   └── learn_content.py    # Learning curriculum content
-│   │   │
-│   │   ├── core/                   # Target data models
-│   │   │   └── models/
-│   │   │       ├── project.py      # Project, Dataset, ExperimentDesign
-│   │   │       └── hypothesis.py   # Hypothesis, Evidence, EvidenceLink
-│   │   │
-│   │   ├── chat/                   # Chat/conversation models
-│   │   ├── workbench/              # Knowledge graph views
-│   │   ├── inference/              # LLM pipeline (Qwen, cognition)
-│   │   ├── forge/                  # Synthetic data (Forge)
-│   │   ├── files/                  # File management
-│   │   └── templates/              # Django templates (40+ HTML files)
+│   │   ├── core/                      # Target data models (Project, Hypothesis, Evidence)
+│   │   ├── accounts/                  # Auth, billing, permissions
+│   │   ├── agents_api/                # Analysis & tool endpoints (15+ modules)
+│   │   ├── api/                       # Content, automation, internal dashboard
+│   │   ├── chat/                      # LLM conversation system
+│   │   ├── workbench/                 # Unified workbench platform
+│   │   ├── forge/                     # Synthetic data generation
+│   │   ├── files/                     # File storage and sharing
+│   │   ├── inference/                 # ML inference (Qwen, cognition)
+│   │   ├── svend_config/              # Environment configuration
+│   │   ├── templates/                 # Django HTML templates (~100)
+│   │   ├── static/                    # Source static files
+│   │   └── ops/                       # Deployment scripts, systemd configs
 │   │
-│   └── site/                       # Landing page (svend.ai)
+│   └── site/                          # Landing page (svend.ai)
 │
-├── .kjerne/                        # Meta-tooling
-│   ├── config.json                 # Lab version, service versions
-│   ├── DEBT.md                     # Technical debt tracker
-│   └── snapshots/                  # Point-in-time snapshots
+├── .kjerne/                           # Meta-tooling
+│   ├── config.json                    # Lab config
+│   ├── DEBT.md                        # Technical debt tracker
+│   └── snapshots/                     # Point-in-time snapshots
 │
-├── CLAUDE.md                       # Project context for AI assistants
-├── STANDARD.md                     # This file
-├── log.md                          # Change log (all edits)
-├── DEBT-001.md                     # Debt closure process
-└── DSW_gaps.md                     # Competitive gap analysis vs Minitab/JMP
+├── CLAUDE.md                          # Project context for AI assistants
+├── STANDARD.md                        # This file
+└── log.md                             # Change log (all edits)
 ```
 
 **Naming Conventions:**

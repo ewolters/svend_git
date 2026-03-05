@@ -59,7 +59,7 @@ function renderPowerCurve(curve, currentD) {
         {
             x: ds, y: ns, type: 'scatter', mode: 'lines',
             name: 'Required n',
-            line: { color: '#60a5fa', width: 2.5 },
+            line: { color: getComputedStyle(document.documentElement).getPropertyValue('--accent-blue').trim() || '#4a9faf', width: 2.5 },
             hovertemplate: 'Effect size: %{x:.2f}<br>Sample size: %{y}<extra></extra>',
         },
     ];
@@ -69,8 +69,8 @@ function renderPowerCurve(curve, currentD) {
         traces.push({
             x: [currentD], y: [currentN], type: 'scatter', mode: 'markers',
             name: 'Current',
-            marker: { color: '#f97316', size: 12, symbol: 'circle',
-                      line: { color: '#fff', width: 2 } },
+            marker: { color: getComputedStyle(document.documentElement).getPropertyValue('--accent-orange').trim() || '#e89547', size: 12, symbol: 'circle',
+                      line: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#e8efe8', width: 2 } },
             hovertemplate: 'd=%{x:.2f}, n=%{y}<extra></extra>',
         });
     }
@@ -82,7 +82,7 @@ function renderPowerCurve(curve, currentD) {
         showlegend: false,
         paper_bgcolor: 'rgba(0,0,0,0)',
         plot_bgcolor: 'rgba(0,0,0,0)',
-        font: { color: '#e2e8f0', size: 11 },
+        font: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#e8efe8', size: 11 },
         shapes: [
             // Reference lines for Small/Medium/Large
             { type: 'line', x0: 0.2, x1: 0.2, y0: 0, y1: 1, yref: 'paper',

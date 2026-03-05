@@ -149,17 +149,23 @@ def verify_chain_integrity(tenant_id: str) -> Dict[str, Any]:
                     {"type": "chain_break", "entry_id": entry.id, "message": f"Chain break at entry {entry.id}"}
                 )
 
-            # Verify sequential IDs (no gaps)
+            # Check for ID gaps — but distinguish benign sequence gaps
+            # (PostgreSQL auto-increment consumed by rolled-back transactions)
+            # from actual missing entries (hash chain broken across gap).
             if previous_entry is not None:
                 expected_id = previous_entry.id + 1
                 if entry.id != expected_id:
-                    violations.append(
-                        {
-                            "type": "missing_entry",
-                            "entry_id": entry.id,
-                            "message": f"Gap in chain: expected ID {expected_id}, got {entry.id}",
-                        }
-                    )
+                    # Only flag as violation if hash chain is also broken across the gap.
+                    # If previous_hash matches the prior entry's current_hash, the chain
+                    # is continuous despite the ID gap — this is a benign sequence gap.
+                    if entry.previous_hash != previous_entry.current_hash:
+                        violations.append(
+                            {
+                                "type": "missing_entry",
+                                "entry_id": entry.id,
+                                "message": f"Gap in chain with broken hash link: expected ID {expected_id}, got {entry.id}",
+                            }
+                        )
 
             previous_entry = entry
 

@@ -3,7 +3,7 @@
 {% block title %}Security & Compliance - SVEND{% endblock %}
 
 {% block extra_head %}
-<meta name="description" content="SVEND's security and compliance posture. Automated daily checks, SOC 2 control coverage, and monthly compliance reports.">
+<meta name="description" content="SVEND's security and compliance posture. {{ current_checks|length }} automated daily checks, {{ standards|length }} internal standards with {{ standards_total }} machine-readable assertions, {{ tests_linked }} linked tests, SOC 2 control coverage.">
 <style>
     .compliance-container {
         max-width: 960px;
@@ -33,11 +33,31 @@
         width: 120px;
         height: 120px;
         border-radius: 50%;
-        border: 3px solid var(--accent-primary);
+        border: 3px solid {% if current_pass_rate >= 90 %}var(--accent-primary){% else %}var(--warning, #f59e0b){% endif %};
         margin: 1.5rem auto;
         font-size: 2rem;
         font-weight: 700;
+        color: {% if current_pass_rate >= 90 %}var(--accent-primary){% else %}var(--warning, #f59e0b){% endif %};
+    }
+    .summary-row {
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        margin: 1.5rem 0 2rem;
+        flex-wrap: wrap;
+    }
+    .summary-stat {
+        text-align: center;
+    }
+    .summary-stat .number {
+        font-size: 1.6rem;
+        font-weight: 700;
         color: var(--accent-primary);
+    }
+    .summary-stat .label {
+        font-size: 0.75rem;
+        color: var(--text-dim);
+        margin-top: 2px;
     }
     .category-grid {
         display: grid;
@@ -69,6 +89,123 @@
     }
     .status-passing { color: var(--accent-primary); }
     .status-needs_attention { color: var(--warning, #f59e0b); }
+    .section-box {
+        margin-top: 2.5rem;
+        padding: 1.5rem;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+    }
+    .section-box h2 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+    .check-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 8px;
+    }
+    .check-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        background: var(--bg-secondary, var(--bg-tertiary));
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 0.8rem;
+    }
+    .check-status {
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--text-primary, #e8efe8);
+    }
+    .standards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 10px;
+    }
+    .standard-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 14px;
+        background: var(--bg-secondary, var(--bg-tertiary));
+        border: 1px solid var(--border);
+        border-radius: 6px;
+    }
+    .standard-card .std-name {
+        font-size: 0.82rem;
+        font-weight: 600;
+    }
+    .standard-card .std-desc {
+        font-size: 0.7rem;
+        color: var(--text-dim);
+        margin-top: 2px;
+    }
+    .standard-card .std-stats {
+        text-align: right;
+        white-space: nowrap;
+    }
+    .standard-card .std-rate {
+        font-size: 0.9rem;
+        font-weight: 700;
+    }
+    .standard-card .std-count {
+        font-size: 0.65rem;
+        color: var(--text-dim);
+    }
+    .sla-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 10px;
+    }
+    .sla-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 14px;
+        background: var(--bg-secondary, var(--bg-tertiary));
+        border: 1px solid var(--border);
+        border-radius: 6px;
+    }
+    .sla-card .sla-desc {
+        font-size: 0.82rem;
+        font-weight: 600;
+    }
+    .sla-card .sla-target {
+        font-size: 0.7rem;
+        color: var(--text-dim);
+        margin-top: 2px;
+    }
+    .sla-card .sla-status {
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--text-primary, #e8efe8);
+        white-space: nowrap;
+    }
+    .sla-summary {
+        display: flex;
+        gap: 1.5rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+    .sla-summary .sla-kpi {
+        text-align: center;
+    }
+    .sla-summary .sla-kpi-value {
+        font-size: 1.3rem;
+        font-weight: 700;
+    }
+    .sla-summary .sla-kpi-label {
+        font-size: 0.7rem;
+        color: var(--text-dim);
+    }
     .framework-badges {
         display: flex;
         gap: 12px;
@@ -84,14 +221,6 @@
         font-weight: 500;
         color: var(--text-secondary);
         background: var(--bg-tertiary);
-    }
-    .reports-section {
-        margin-top: 2.5rem;
-    }
-    .reports-section h2 {
-        font-size: 1.1rem;
-        font-weight: 600;
-        margin-bottom: 1rem;
     }
     .report-table {
         width: 100%;
@@ -109,58 +238,10 @@
         padding: 8px 12px;
         border-bottom: 1px solid var(--border);
     }
-    .checks-section {
-        margin-top: 2.5rem;
-    }
-    .checks-section h2 {
-        font-size: 1.1rem;
-        font-weight: 600;
-        margin-bottom: 1rem;
-    }
-    .check-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 8px;
-    }
-    .check-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px 12px;
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        font-size: 0.8rem;
-    }
-    .check-status {
-        padding: 2px 8px;
-        border-radius: 10px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: #fff;
-    }
-    .soc2-coverage {
-        text-align: center;
-        margin: 2rem 0;
-        padding: 1.5rem;
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-    }
-    .soc2-coverage .number {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--accent-primary);
-    }
     .last-updated {
         text-align: center;
         margin-top: 2rem;
         font-size: 0.75rem;
-        color: var(--text-dim);
-    }
-    .empty-state {
-        text-align: center;
-        padding: 3rem;
         color: var(--text-dim);
     }
 </style>
@@ -171,49 +252,88 @@
     <div class="compliance-header">
         <h1>Security & Compliance</h1>
         <p>
-            SVEND runs automated compliance checks daily across security, availability,
-            confidentiality, and data integrity controls. Results are aggregated into
-            monthly reports with independent verification.
+            SVEND runs {{ current_checks|length }} automated compliance checks daily and audits against
+            {{ standards|length }} internal standards with {{ standards_total }} machine-readable assertions
+            backed by {{ tests_unique }} unique test methods ({{ tests_linked }} assertion-to-test links).
+            This page shows real-time results &mdash; not curated summaries.
         </p>
     </div>
 
-    {% if report %}
+    <!-- Current State -->
     <div style="text-align:center;">
-        <div class="pass-badge">{{ report.pass_rate|floatformat:0 }}%</div>
+        <div class="pass-badge">{{ current_pass_rate }}%</div>
         <div style="color:var(--text-dim);font-size:0.82rem;">
-            Overall Pass Rate · {{ report.period_start|date:"M Y" }}
+            Current Pass Rate &middot; {{ current_passed }}/{{ current_total }} checks passing
         </div>
     </div>
 
-    <!-- SOC 2 Coverage -->
-    <div class="soc2-coverage">
-        <div class="number">{{ report.public_report.soc2_controls_covered|default:"—" }}</div>
-        <div style="color:var(--text-dim);font-size:0.85rem;">SOC 2 controls verified by automated checks</div>
+    <!-- Summary Stats -->
+    <div class="summary-row">
+        <div class="summary-stat">
+            <div class="number">{{ current_total }}</div>
+            <div class="label">Automated Checks</div>
+        </div>
+        <div class="summary-stat">
+            <div class="number">{{ standards_total }}</div>
+            <div class="label">Standard Assertions</div>
+        </div>
+        <div class="summary-stat">
+            <div class="number">{{ tests_unique }}</div>
+            <div class="label">Unique Test Methods</div>
+            <div style="font-size:0.7rem;color:var(--text-dim);margin-top:2px;">{{ tests_linked }} assertion links</div>
+        </div>
+        <div class="summary-stat">
+            <div class="number">{{ soc2_controls_count }}</div>
+            <div class="label">SOC 2 Controls</div>
+        </div>
+        <div class="summary-stat">
+            <div class="number">{{ standards|length }}</div>
+            <div class="label">Internal Standards</div>
+        </div>
     </div>
 
+    {% if tests_linked > 0 %}
+    <!-- Test Results -->
+    <div style="text-align:center;margin-bottom:2rem;">
+        <div style="display:inline-flex;gap:1.5rem;align-items:center;padding:0.75rem 1.5rem;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:8px;font-size:0.85rem;">
+            <span><span style="color:var(--accent-primary);font-weight:700;">{{ tests_passed }}</span> <span style="color:var(--text-dim);">passing</span></span>
+            {% if tests_failed > 0 %}<span><span style="color:var(--error, #d06060);font-weight:700;">{{ tests_failed }}</span> <span style="color:var(--text-dim);">failed</span></span>{% endif %}
+            <span><span style="color:var(--text-dim);font-weight:700;">{{ tests_skipped }}</span> <span style="color:var(--text-dim);">require test DB</span></span>
+        </div>
+        <div style="max-width:400px;margin:8px auto 0;height:6px;background:var(--bg-secondary);border-radius:3px;overflow:hidden;display:flex;">
+            <div style="height:100%;background:var(--accent-primary, #4a9f6e);width:{% widthratio tests_passed tests_linked 100 %}%;"></div>
+            {% if tests_failed > 0 %}<div style="height:100%;background:var(--error, #d06060);width:{% widthratio tests_failed tests_linked 100 %}%;"></div>{% endif %}
+            <div style="height:100%;background:var(--text-dim, #7a8f7a);width:{% widthratio tests_skipped tests_linked 100 %}%;"></div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Categories -->
-    {% if report.public_report.categories %}
-    <div class="category-grid" id="category-grid">
-        {% for cat_name, cat_data in report.public_report.categories.items %}
+    {% if categories %}
+    <div class="category-grid">
+        {% for cat_name, cat_data in categories.items %}
         <div class="category-card">
             <h3>{{ cat_name }}</h3>
-            <div class="rate status-{{ cat_data.status }}">{{ cat_data.pass_rate }}%</div>
-            <div class="label">{{ cat_data.status|title }}</div>
+            <div class="rate status-{% if cat_data.pass_rate >= 90 %}passing{% else %}needs_attention{% endif %}">{{ cat_data.pass_rate }}%</div>
+            <div class="label">{{ cat_data.passed }}/{{ cat_data.total }} passing</div>
         </div>
         {% endfor %}
     </div>
     {% endif %}
 
-    <!-- Checks -->
-    {% if report.public_report.checks %}
-    <div class="checks-section">
-        <h2>Automated Checks</h2>
+    <!-- Infrastructure Checks -->
+    {% if current_checks %}
+    <div class="section-box">
+        <h2>Infrastructure Checks</h2>
+        <p style="font-size:0.82rem;color:var(--text-dim);margin-bottom:1rem;">
+            Run daily at 02:00 UTC against SOC 2 Trust Services Criteria.
+        </p>
         <div class="check-grid">
-            {% for check_name, check_data in report.public_report.checks.items %}
+            {% for check in current_checks %}
             <div class="check-item">
-                <span style="text-transform:capitalize;">{{ check_name }}</span>
-                <span class="check-status" style="background:{% if check_data.status == 'passing' %}#22c55e{% else %}#f59e0b{% endif %};">
-                    {{ check_data.pass_rate }}%
+                <span>{{ check.check_name }}</span>
+                <span class="check-status" style="background:{% if check.status == 'pass' %}var(--accent-primary, #4a9f6e){% elif check.status == 'warning' %}var(--warning, #e89547){% else %}var(--error, #d06060){% endif %};">
+                    {{ check.status|upper }}
                 </span>
             </div>
             {% endfor %}
@@ -221,11 +341,105 @@
     </div>
     {% endif %}
 
-    {% else %}
-    <div class="empty-state">
-        <p>Compliance monitoring is active. The first published report will appear here.</p>
+    <!-- Standards Library -->
+    {% if standards %}
+    <div class="section-box">
+        <h2>Standards Library</h2>
+        <p style="font-size:0.82rem;color:var(--text-dim);margin-bottom:1rem;">
+            {{ standards|length }} internal standards define {{ standards_total }} machine-readable assertions
+            that are parsed and verified automatically. {{ standards_passed }}/{{ standards_total }} currently passing.
+        </p>
+        <div class="standards-grid">
+            {% for std_name, std_data in standards.items %}
+            <div class="standard-card">
+                <div>
+                    <div class="std-name">{{ std_name }}</div>
+                    <div class="std-desc">{{ std_data.description }}</div>
+                </div>
+                <div class="std-stats">
+                    {% if std_data.total > 0 %}
+                    <div class="std-rate" style="color:{% if std_data.pass_rate >= 90 %}var(--accent-primary){% else %}var(--warning, #f59e0b){% endif %};">{{ std_data.pass_rate }}%</div>
+                    <div class="std-count">{{ std_data.passed }}/{{ std_data.total }} assertions{% if std_data.tests_ran > 0 %} · {{ std_data.tests_passed }}/{{ std_data.tests_ran }} tests{% elif std_data.tests_total > 0 %} · {{ std_data.tests_total }} tests{% endif %}</div>
+                    {% else %}
+                    <div class="std-rate" style="color:var(--text-dim);">&mdash;</div>
+                    <div class="std-count">No assertions</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
     {% endif %}
+
+    <!-- Service Level Agreements -->
+    {% if sla_data.total > 0 %}
+    <div class="section-box">
+        <h2>Service Level Agreements</h2>
+        <p style="font-size:0.82rem;color:var(--text-dim);margin-bottom:1rem;">
+            {{ sla_data.total }} SLAs defined across availability, performance, durability, incident response, compliance, and change management.
+            Measured automatically where possible; honestly reported as unmeasurable where not.
+        </p>
+        <div class="sla-summary">
+            <div class="sla-kpi">
+                <div class="sla-kpi-value">{{ sla_data.total }}</div>
+                <div class="sla-kpi-label">Total SLAs</div>
+            </div>
+            <div class="sla-kpi">
+                <div class="sla-kpi-value" style="color:var(--accent-primary);">{{ sla_data.met }}</div>
+                <div class="sla-kpi-label">Met</div>
+            </div>
+            {% if sla_data.breached > 0 %}
+            <div class="sla-kpi">
+                <div class="sla-kpi-value" style="color:var(--error, #d06060);">{{ sla_data.breached }}</div>
+                <div class="sla-kpi-label">Breached</div>
+            </div>
+            {% endif %}
+            <div class="sla-kpi">
+                <div class="sla-kpi-value" style="color:var(--text-dim);">{{ sla_data.unmeasurable }}</div>
+                <div class="sla-kpi-label">Unmeasurable</div>
+            </div>
+        </div>
+        <div class="sla-grid">
+            {% for sla in sla_data.slas %}
+            <div class="sla-card">
+                <div>
+                    <div class="sla-desc">{{ sla.description }}</div>
+                    <div class="sla-target">Target: {{ sla.target }} ({{ sla.window }}){% if sla.current_value %} &middot; Current: {{ sla.current_value }}{% endif %}</div>
+                </div>
+                <span class="sla-status" style="background:{% if sla.status == 'met' %}var(--accent-primary, #4a9f6e){% elif sla.status == 'breach' %}var(--error, #d06060){% else %}var(--text-dim, #888){% endif %};">
+                    {% if sla.status == 'met' %}MET{% elif sla.status == 'breach' %}BREACH{% else %}N/A{% endif %}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- How It Works -->
+    <div class="section-box">
+        <h2>How This Works</h2>
+        <p style="font-size:0.85rem;color:var(--text-secondary);line-height:1.7;margin-bottom:1rem;">
+            Most companies treat compliance as a periodic exercise. We automated it.
+            Every day at 02:00 UTC, Svend runs {{ current_checks|length }} infrastructure checks against SOC 2 Trust Services Criteria,
+            verifies {{ standards_total }} assertions across {{ standards|length }} internal standards,
+            and executes {{ tests_linked }} linked tests.
+            Results are published here &mdash; no cherry-picking, no manual curation.
+        </p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;font-size:0.82rem;">
+            <div style="display:flex;align-items:flex-start;gap:8px;">
+                <span style="color:var(--accent-primary);font-weight:700;font-size:1.1rem;">&#x2713;</span>
+                <div><strong>Automated daily checks</strong><br><span style="color:var(--text-dim);">No manual intervention &mdash; runs whether we remember or not</span></div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:8px;">
+                <span style="color:var(--accent-primary);font-weight:700;font-size:1.1rem;">&#x2713;</span>
+                <div><strong>Machine-readable standards</strong><br><span style="color:var(--text-dim);">{{ standards_total }} assertions + {{ tests_linked }} tests parsed from internal docs and verified against code</span></div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:8px;">
+                <span style="color:var(--accent-primary);font-weight:700;font-size:1.1rem;">&#x2713;</span>
+                <div><strong>Encrypted off-site backups</strong><br><span style="color:var(--text-dim);">AES-256 encrypted, daily to Backblaze B2 with automated retention</span></div>
+            </div>
+        </div>
+    </div>
 
     <!-- Framework Badges -->
     <div class="framework-badges">
@@ -234,22 +448,17 @@
         <span class="framework-badge">NIST SP 800-53</span>
     </div>
 
-    <!-- Reports Table -->
-    <div class="reports-section" id="reports-section"></div>
+    <!-- Historical Reports Table -->
+    <div class="section-box" id="reports-section" style="background:transparent;border:none;padding:0;"></div>
 
     <div class="last-updated">
-        {% if report %}
-        Last report: {{ report.generated_at|date:"M d, Y" }}
-        {% else %}
-        Automated compliance checks run daily at 02:00 UTC
-        {% endif %}
+        Automated compliance checks run daily at 02:00 UTC{% if last_check_run %} &mdash; last run {{ last_check_run|timesince }} ago{% endif %}
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Load published reports dynamically for the table
 fetch('/compliance/data/')
     .then(r => r.json())
     .then(data => {
@@ -257,7 +466,8 @@ fetch('/compliance/data/')
         if (reports.length === 0) return;
 
         const section = document.getElementById('reports-section');
-        let html = '<h2>Monthly Reports</h2><table class="report-table"><thead><tr>';
+        let html = '<h2 style="font-size:1.1rem;font-weight:600;margin-bottom:1rem;">Historical Reports</h2>';
+        html += '<table class="report-table"><thead><tr>';
         html += '<th>Period</th><th>Pass Rate</th><th>Checks Run</th>';
         html += '</tr></thead><tbody>';
 
@@ -265,7 +475,7 @@ fetch('/compliance/data/')
             const rate = r.pass_rate.toFixed(1);
             const color = r.pass_rate >= 90 ? 'var(--accent-primary)' : 'var(--warning, #f59e0b)';
             html += `<tr>
-                <td>${r.period_start} — ${r.period_end}</td>
+                <td>${r.period_start} &mdash; ${r.period_end}</td>
                 <td style="font-weight:600;color:${color};">${rate}%</td>
                 <td>${r.total_checks}</td>
             </tr>`;

@@ -163,7 +163,7 @@ def log_agent_action(user, agent, action, latency_ms=None, success=True, error_m
             agent=agent,
             action=action,
             latency_ms=latency_ms,
-            success=success,
+            is_success=success,
             error_message=error_message,
             metadata=json.dumps(metadata) if metadata else "",
         )
@@ -2313,6 +2313,67 @@ def _bayesian_shadow(shadow_type, **kwargs):
                 return None
             log_bf10 = 0.5 * (chi2_stat - dof * np.log(n_obs))
             bf10 = float(np.exp(np.clip(log_bf10, -500, 500)))
+
+        elif shadow_type == "regression":
+            # BIC-approximated BF for regression (null vs full model)
+            r_squared = float(kwargs["r_squared"])
+            n_obs = int(kwargs["n_obs"])
+            k_predictors = int(kwargs["k_predictors"])
+            if n_obs <= k_predictors + 1 or r_squared < 0:
+                return None
+            ss_total = float(kwargs.get("ss_total", 1.0))
+            ss_res = ss_total * (1 - r_squared)
+            if ss_res <= 0:
+                ss_res = 1e-10
+            bic_h0 = n_obs * np.log(ss_total / n_obs) + 1 * np.log(n_obs)
+            bic_h1 = n_obs * np.log(ss_res / n_obs) + (k_predictors + 1) * np.log(n_obs)
+            bf10 = float(np.exp(np.clip((bic_h0 - bic_h1) / 2, -500, 500)))
+            ci_dict = {
+                "param": "R²",
+                "estimate": round(r_squared, 4),
+                "ci_low": None,
+                "ci_high": None,
+                "level": 0.95,
+            }
+            interp_parts.append(f"R² = {r_squared:.3f} with {k_predictors} predictors")
+
+        elif shadow_type == "variance":
+            # BIC-based BF for F-test (variance ratio)
+            f_stat = float(kwargs["f_stat"])
+            df1 = int(kwargs["df1"])
+            df2 = int(kwargs["df2"])
+            n_obs = int(kwargs.get("n_obs", df1 + df2 + 2))
+            if df1 < 1 or df2 < 1:
+                return None
+            # Chi2 approximation: F ~ chi2/df ratio
+            chi2_approx = f_stat * df1
+            log_bf10 = 0.5 * (chi2_approx - df1 * np.log(n_obs))
+            bf10 = float(np.exp(np.clip(log_bf10, -500, 500)))
+            interp_parts.append(f"F({df1},{df2}) = {f_stat:.2f}")
+
+        elif shadow_type == "nonparametric":
+            # Effect-size conversion BF for nonparametric tests
+            # Converts r or eta² to approximate BF via normal approx
+            effect_r = float(kwargs.get("effect_r", 0))
+            n_obs = int(kwargs["n_obs"])
+            if n_obs < 4:
+                return None
+            # Fisher z-transform for r
+            z_r = 0.5 * np.log((1 + abs(effect_r)) / (1 - min(abs(effect_r), 0.999)))
+            se_z = 1 / np.sqrt(n_obs - 3) if n_obs > 3 else 1.0
+            # Approximate BF from z-score (Wetzels & Wagenmakers 2012)
+            z_score = z_r / se_z
+            # BF10 ≈ exp(z²/2) / sqrt(n) for moderate effects
+            log_bf10 = 0.5 * z_score ** 2 - 0.5 * np.log(n_obs)
+            bf10 = float(np.exp(np.clip(log_bf10, -500, 500)))
+            ci_dict = {
+                "param": "effect r",
+                "estimate": round(effect_r, 4),
+                "ci_low": round(float(np.tanh(z_r - 1.96 * se_z)), 4),
+                "ci_high": round(float(np.tanh(z_r + 1.96 * se_z)), 4),
+                "level": 0.95,
+            }
+            interp_parts.append(f"95% CrI for r: [{ci_dict['ci_low']:.3f}, {ci_dict['ci_high']:.3f}]")
 
         else:
             return None

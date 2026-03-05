@@ -17,13 +17,18 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from accounts.permissions import require_team
+from django.db import IntegrityError
 
 from accounts.models import User
+from accounts.permissions import require_team
 from core.models import Project, Evidence, StudyAction
+from notifications.helpers import notify
 
 from .evidence_bridge import create_tool_evidence
+
 from .models import (
+    CAPAReport,
+    ElectronicSignature,
     NonconformanceRecord,
     NCRStatusChange,
     InternalAudit,
@@ -416,6 +421,17 @@ def ncr_detail(request, ncr_id):
             note=data.get("status_note", ""),
         )
 
+        # NTF-001 §10.1 — notify assignee of NCR assignment during transition
+        if ncr.assigned_to and ncr.assigned_to != request.user:
+            notify(
+                recipient=ncr.assigned_to,
+                notification_type="ncr_assigned",
+                title=f"NCR {ncr.title[:80]} assigned to you",
+                message=f"Status: {new_status}.",
+                entity_type="ncr",
+                entity_id=ncr.id,
+            )
+
         if new_status == "closed" and not ncr.closed_at:
             ncr.closed_at = timezone.now()
 
@@ -442,7 +458,17 @@ def ncr_detail(request, ncr_id):
     if "assigned_to" in data and not new_status:
         if data["assigned_to"]:
             try:
-                ncr.assigned_to = User.objects.get(id=data["assigned_to"])
+                assignee = User.objects.get(id=data["assigned_to"])
+                ncr.assigned_to = assignee
+                # NTF-001 §10.1 — notify new assignee (standalone assignment)
+                if assignee != request.user:
+                    notify(
+                        recipient=assignee,
+                        notification_type="ncr_assigned",
+                        title=f"NCR {ncr.title[:80]} assigned to you",
+                        entity_type="ncr",
+                        entity_id=ncr.id,
+                    )
             except User.DoesNotExist:
                 pass
         else:
@@ -780,6 +806,16 @@ def training_list_create(request):
         frequency_months=data.get("frequency_months", 0),
         is_mandatory=data.get("is_mandatory", False),
     )
+    # Link to controlled document if provided
+    doc_id = data.get("document_id")
+    if doc_id:
+        try:
+            doc = ControlledDocument.objects.get(id=doc_id, owner=user)
+            req.document = doc
+            req.document_version = doc.current_version
+            req.save()
+        except ControlledDocument.DoesNotExist:
+            pass
     return JsonResponse(req.to_dict(), status=201)
 
 
@@ -803,8 +839,51 @@ def training_detail(request, req_id):
     for field in ["name", "description", "iso_clause", "frequency_months", "is_mandatory"]:
         if field in data:
             setattr(req, field, data[field])
+    # Handle document linkage
+    if "document_id" in data:
+        doc_id = data["document_id"]
+        if doc_id:
+            try:
+                doc = ControlledDocument.objects.get(id=doc_id, owner=request.user)
+                req.document = doc
+                req.document_version = doc.current_version
+            except ControlledDocument.DoesNotExist:
+                pass
+        else:
+            req.document = None
+            req.document_version = ""
     req.save()
     return JsonResponse(req.to_dict())
+
+
+@require_team
+@require_http_methods(["POST", "DELETE"])
+def training_record_files(request, record_id):
+    """Attach or detach artifact files from a training record."""
+    try:
+        record = TrainingRecord.objects.get(
+            id=record_id, requirement__owner=request.user,
+        )
+    except TrainingRecord.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    data = json.loads(request.body)
+    file_id = data.get("file_id")
+    if not file_id:
+        return JsonResponse({"error": "file_id required"}, status=400)
+
+    from files.models import UserFile
+    try:
+        uf = UserFile.objects.get(id=file_id, user=request.user)
+    except UserFile.DoesNotExist:
+        return JsonResponse({"error": "File not found"}, status=404)
+
+    if request.method == "POST":
+        record.artifacts.add(uf)
+    else:
+        record.artifacts.remove(uf)
+
+    return JsonResponse({"ok": True, "artifact_ids": [str(f.id) for f in record.artifacts.all()]})
 
 
 @require_team
@@ -822,6 +901,7 @@ def training_record_create(request, req_id):
         employee_name=data.get("employee_name", ""),
         employee_email=data.get("employee_email", ""),
         status=data.get("status", "not_started"),
+        competency_level=max(0, min(4, int(data.get("competency_level", 0)))),
     )
 
     # If marking complete, set completed_at and compute expires_at
@@ -888,6 +968,11 @@ def training_record_update(request, record_id):
             old_val = getattr(record, field)
             log_change(field, old_val, data[field])
             setattr(record, field, data[field])
+
+    if "competency_level" in data:
+        new_level = max(0, min(4, int(data["competency_level"])))
+        log_change("competency_level", record.competency_level, new_level)
+        record.competency_level = new_level
 
     if "status" in data:
         old_status = record.status
@@ -1108,6 +1193,23 @@ def document_detail(request, doc_id):
                 doc.current_version = ".".join(parts)
             except (ValueError, IndexError):
                 doc.current_version = old_version + ".1"
+
+            # Flag completed training records linked to this document for retraining
+            # Loop individually to fire audit trail (bulk .update() bypasses save/signals)
+            flagged_records = TrainingRecord.objects.filter(
+                requirement__document=doc,
+                status="complete",
+            )
+            for rec in flagged_records:
+                TrainingRecordChange.objects.create(
+                    record=rec,
+                    field_name="status",
+                    old_value="complete",
+                    new_value="expired",
+                    changed_by=request.user,
+                )
+                rec.status = "expired"
+                rec.save(update_fields=["status"])
 
         doc.status = new_status
 
@@ -1366,9 +1468,9 @@ def _get_study_context(project):
 @require_team
 @require_http_methods(["POST"])
 def study_raise_capa(request):
-    """Create a CAPA report from a Study.
+    """Create a CAPA from a Study (standalone CAPAReport).
 
-    Pre-fills problem description and root cause from Study evidence.
+    Pre-fills description and root cause from Study evidence.
     Creates StudyAction for traceability.
     """
     project, data, err = _get_study_for_action(request)
@@ -1376,38 +1478,34 @@ def study_raise_capa(request):
         return err
 
     context = _get_study_context(project)
-    type_def = REPORT_TYPES["capa"]
     title = data.get("title", f"CAPA — {project.title}")
 
-    # Initialize sections with pre-fill from study context
-    sections = {s["key"]: "" for s in type_def["sections"]}
-    sections["problem_description"] = context["problem"]
-    if context["root_cause"]:
-        sections["root_cause_analysis"] = context["root_cause"]
-
-    report = Report.objects.create(
+    capa = CAPAReport.objects.create(
         owner=request.user,
         project=project,
-        report_type="capa",
         title=title,
-        sections=sections,
+        description=context["problem"],
+        root_cause=context["root_cause"] or "",
+        priority=data.get("priority", "medium"),
+        source_type=data.get("source_type", ""),
+        source_id=data.get("source_id") or None,
     )
 
     StudyAction.objects.create(
         project=project,
         action_type="raise_capa",
-        target_type="report",
-        target_id=report.id,
+        target_type="capa",
+        target_id=capa.id,
         notes=f"CAPA raised from Study: {project.title}",
         created_by=request.user,
     )
 
-    project.log_event("capa_raised", f"CAPA report created: {report.title}", user=request.user)
-    logger.info("Study %s: raised CAPA report %s", project.id, report.id)
+    project.log_event("capa_raised", f"CAPA created: {capa.title}", user=request.user)
+    logger.info("Study %s: raised CAPA %s", project.id, capa.id)
     return JsonResponse({
         "ok": True,
         "action": "raise_capa",
-        "report": report.to_dict(),
+        "capa": capa.to_dict(),
     }, status=201)
 
 
@@ -1600,3 +1698,195 @@ def study_flag_fmea_update(request):
         "fmea_id": str(fmea.id),
         "fmea_title": fmea.title,
     }, status=201)
+
+
+# =============================================================================
+# Electronic Signatures — 21 CFR Part 11 (FEAT-003)
+# =============================================================================
+
+# Model → (class, owner_field) for document resolution
+_SIGNABLE_MODELS = {
+    "ncr": (NonconformanceRecord, "owner"),
+    "capa": (CAPAReport, "owner"),
+    "document": (ControlledDocument, "owner"),
+    "review": (ManagementReview, "owner"),
+    "audit": (InternalAudit, "owner"),
+    "training": (TrainingRecord, "requirement__owner"),
+    "fmea": (FMEA, "owner"),
+}
+
+
+def _get_client_ip(request):
+    """Extract client IP from request headers."""
+    xff = request.META.get("HTTP_X_FORWARDED_FOR")
+    if xff:
+        return xff.split(",")[0].strip()
+    xri = request.META.get("HTTP_X_REAL_IP")
+    if xri:
+        return xri
+    return request.META.get("REMOTE_ADDR", "unknown")
+
+
+def _resolve_tenant_id(user):
+    """Get tenant_id for a user, or None for individual users."""
+    from core.models import Membership
+    m = Membership.objects.filter(user=user).first()
+    return m.tenant_id if m else None
+
+
+@require_team
+@require_http_methods(["GET", "POST"])
+def signature_list_or_sign(request):
+    """List signatures (GET) or create a new electronic signature (POST).
+
+    POST requires re-authentication per 21 CFR Part 11 §11.100.
+    """
+    user = request.user
+
+    if request.method == "GET":
+        tenant_id = _resolve_tenant_id(user)
+        if tenant_id:
+            sigs = ElectronicSignature.objects.filter(tenant_id=tenant_id)
+        else:
+            sigs = ElectronicSignature.objects.filter(signer=user)
+
+        doc_type = request.GET.get("document_type")
+        doc_id = request.GET.get("document_id")
+        if doc_type:
+            sigs = sigs.filter(document_type=doc_type)
+        if doc_id:
+            sigs = sigs.filter(document_id=doc_id)
+
+        return JsonResponse([s.to_dict() for s in sigs[:200]], safe=False)
+
+    # POST — sign
+    data = json.loads(request.body)
+    document_type = data.get("document_type", "")
+    document_id = data.get("document_id", "")
+    meaning = data.get("meaning", "")
+    password = data.get("password", "")
+    reason = data.get("reason", "")
+
+    # Validate required fields
+    if not document_type or not document_id or not meaning:
+        return JsonResponse(
+            {"error": "document_type, document_id, and meaning are required"},
+            status=400,
+        )
+    if not password:
+        return JsonResponse({"error": "password is required for signing"}, status=400)
+
+    # Validate document_type
+    if document_type not in _SIGNABLE_MODELS:
+        return JsonResponse(
+            {"error": f"Invalid document_type: {document_type}. Valid: {', '.join(_SIGNABLE_MODELS.keys())}"},
+            status=400,
+        )
+
+    # Validate meaning
+    valid_meanings = [c[0] for c in ElectronicSignature.Meaning.choices]
+    if meaning not in valid_meanings:
+        return JsonResponse(
+            {"error": f"Invalid meaning: {meaning}. Valid: {', '.join(valid_meanings)}"},
+            status=400,
+        )
+
+    # Re-authenticate (21 CFR Part 11 §11.100)
+    if not user.check_password(password):
+        return JsonResponse({"error": "Password verification failed"}, status=403)
+
+    # Rejection requires reason (21 CFR Part 11 §11.50)
+    if meaning == "rejected" and not reason:
+        return JsonResponse({"error": "Reason is required for rejection"}, status=400)
+
+    # Resolve document
+    model_cls, owner_field = _SIGNABLE_MODELS[document_type]
+    try:
+        doc = model_cls.objects.get(id=document_id, **{owner_field: user})
+    except model_cls.DoesNotExist:
+        return JsonResponse({"error": "Document not found"}, status=404)
+
+    # Capture document snapshot (CFR §11.10(c))
+    doc_snapshot = doc.to_dict() if hasattr(doc, "to_dict") else {"id": str(doc.id)}
+
+    # Resolve tenant
+    tenant_id = _resolve_tenant_id(user)
+    client_ip = _get_client_ip(request)
+    user_agent_str = request.META.get("HTTP_USER_AGENT", "")
+
+    # Create signature
+    try:
+        sig = ElectronicSignature(
+            signer=user,
+            document_type=document_type,
+            document_id=document_id,
+            meaning=meaning,
+            reason=reason,
+            user_agent=user_agent_str,
+            # SynaraImmutableLog fields
+            event_name=f"esig.{document_type}.{meaning}",
+            actor=user.email,
+            actor_ip=client_ip,
+            tenant_id=tenant_id,
+            after_snapshot=doc_snapshot,
+        )
+        sig.save()
+    except IntegrityError:
+        return JsonResponse(
+            {"error": "You have already signed this document with this meaning"},
+            status=409,
+        )
+
+    logger.info(
+        "E-Sig: %s signed %s/%s as %s",
+        user.email, document_type, document_id, meaning,
+    )
+
+    # NTF-001 §10.1 — notify document owner of new signature
+    doc_owner = getattr(doc, "owner", None)
+    if doc_owner:
+        notify(
+            recipient=doc_owner,
+            notification_type="esig_request",
+            title=f"E-signature ({meaning}) on {document_type} recorded",
+            message=f"Signed by {user.email}.",
+            entity_type=document_type,
+            entity_id=document_id,
+        )
+
+    return JsonResponse(sig.to_dict(), status=201)
+
+
+@require_team
+@require_http_methods(["GET"])
+def signature_verify(request, sig_id):
+    """Verify integrity of a single electronic signature."""
+    try:
+        sig = ElectronicSignature.objects.get(id=sig_id)
+    except ElectronicSignature.DoesNotExist:
+        return JsonResponse({"error": "Signature not found"}, status=404)
+
+    # Access check
+    tenant_id = _resolve_tenant_id(request.user)
+    if tenant_id:
+        if sig.tenant_id != tenant_id:
+            return JsonResponse({"error": "Not found"}, status=404)
+    else:
+        if sig.signer_id != request.user.id:
+            return JsonResponse({"error": "Not found"}, status=404)
+
+    is_valid = sig.verify_integrity()
+    return JsonResponse({
+        "id": str(sig.id),
+        "is_valid": is_valid,
+        "entry_hash": sig.entry_hash,
+    })
+
+
+@require_team
+@require_http_methods(["GET"])
+def signature_verify_chain(request):
+    """Verify hash chain integrity for all signatures in the tenant."""
+    tenant_id = _resolve_tenant_id(request.user)
+    result = ElectronicSignature.verify_chain(tenant_id=tenant_id)
+    return JsonResponse(result)

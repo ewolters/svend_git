@@ -226,36 +226,12 @@ class SessionCache:
 
 
 # =============================================================================
-# Tempora Integration - Cache cleanup task
+# Cache cleanup task (syn.sched)
 # =============================================================================
-
-def register_cache_cleanup_task():
-    """Register the cache cleanup task with Tempora.
-
-    Call this during app startup to schedule periodic cache cleanup.
-    """
-    try:
-        from tempora.scheduler import Scheduler
-
-        scheduler = Scheduler()
-
-        # Schedule cleanup every 5 minutes
-        scheduler.schedule_recurring(
-            task_name="cache.cleanup",
-            handler=cleanup_expired_cache,
-            interval_minutes=5,
-            description="Clean up expired session cache entries",
-        )
-        logger.info("Cache cleanup task registered with Tempora")
-
-    except ImportError:
-        logger.warning("Tempora not available, cache cleanup disabled")
-    except Exception as e:
-        logger.error(f"Failed to register cache cleanup task: {e}")
 
 
 def cleanup_expired_cache():
-    """Tempora task handler for cache cleanup."""
+    """Cache cleanup handler. Register via syn.sched if recurring cleanup is needed."""
     deleted = SessionCache.clear_expired()
     logger.info(f"Cache cleanup: removed {deleted} expired entries")
     return {"deleted": deleted}

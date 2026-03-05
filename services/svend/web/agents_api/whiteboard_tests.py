@@ -203,7 +203,7 @@ class BoardGetTest(WhiteboardTestBase):
     def test_get_board_includes_vote_counts(self):
         board_data = self._create_board()
         board = Board.objects.get(room_code=board_data["room_code"])
-        board.voting_active = True
+        board.is_voting_active = True
         board.save()
         BoardVote.objects.create(board=board, user=self.owner, element_id="el-1")
         resp = self._auth_get(f"/api/whiteboard/boards/{board_data['room_code']}/")
@@ -452,10 +452,10 @@ class VotingTest(WhiteboardTestBase):
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()["voting_active"])
         self.board.refresh_from_db()
-        self.assertTrue(self.board.voting_active)
+        self.assertTrue(self.board.is_voting_active)
 
     def test_toggle_voting_off(self):
-        self.board.voting_active = True
+        self.board.is_voting_active = True
         self.board.save()
         resp = self._auth_post(
             f"/api/whiteboard/boards/{self.room}/voting/",
@@ -481,7 +481,7 @@ class VotingTest(WhiteboardTestBase):
         self.assertEqual(resp.json()["votes_per_user"], 5)
 
     def test_clear_votes(self):
-        self.board.voting_active = True
+        self.board.is_voting_active = True
         self.board.save()
         BoardVote.objects.create(board=self.board, user=self.owner, element_id="el-1")
         resp = self._auth_post(
@@ -492,7 +492,7 @@ class VotingTest(WhiteboardTestBase):
         self.assertEqual(BoardVote.objects.filter(board=self.board).count(), 0)
 
     def test_add_vote(self):
-        self.board.voting_active = True
+        self.board.is_voting_active = True
         self.board.save()
         resp = self._auth_post(
             f"/api/whiteboard/boards/{self.room}/vote/",
@@ -513,7 +513,7 @@ class VotingTest(WhiteboardTestBase):
         self.assertIn("not active", resp.json()["error"])
 
     def test_vote_limit(self):
-        self.board.voting_active = True
+        self.board.is_voting_active = True
         self.board.votes_per_user = 2
         self.board.save()
         self._auth_post(f"/api/whiteboard/boards/{self.room}/vote/", {"element_id": "el-1"})
@@ -526,7 +526,7 @@ class VotingTest(WhiteboardTestBase):
         self.assertIn("limit", resp.json()["error"].lower())
 
     def test_duplicate_vote_rejected(self):
-        self.board.voting_active = True
+        self.board.is_voting_active = True
         self.board.save()
         self._auth_post(f"/api/whiteboard/boards/{self.room}/vote/", {"element_id": "el-1"})
         resp = self._auth_post(
@@ -537,7 +537,7 @@ class VotingTest(WhiteboardTestBase):
         self.assertIn("Already voted", resp.json()["error"])
 
     def test_remove_vote(self):
-        self.board.voting_active = True
+        self.board.is_voting_active = True
         self.board.save()
         self._auth_post(f"/api/whiteboard/boards/{self.room}/vote/", {"element_id": "el-1"})
         resp = self._auth_delete(
@@ -554,7 +554,7 @@ class VotingTest(WhiteboardTestBase):
         self.assertEqual(resp.status_code, 404)
 
     def test_missing_element_id(self):
-        self.board.voting_active = True
+        self.board.is_voting_active = True
         self.board.save()
         resp = self._auth_post(
             f"/api/whiteboard/boards/{self.room}/vote/", {},
@@ -761,7 +761,7 @@ class GuestVotingTest(WhiteboardTestBase):
         bd = self._create_board("Vote Guest Board")
         self.room = bd["room_code"]
         self.board = Board.objects.get(room_code=self.room)
-        self.board.voting_active = True
+        self.board.is_voting_active = True
         self.board.save()
 
     def test_edit_vote_guest_can_vote(self):

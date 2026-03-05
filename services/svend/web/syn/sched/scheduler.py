@@ -89,7 +89,7 @@ def schedule_task(
             interval_seconds=interval_seconds or 0,
             priority=priority,
             queue=queue,
-            enabled=True,
+            is_enabled=True,
             next_run_at=next_run,
             **cron_fields,
         )

@@ -333,7 +333,7 @@ class Project(models.Model):
 
     # Interview/onboarding state
     interview_state = models.JSONField(null=True, blank=True)
-    interview_completed = models.BooleanField(default=False)
+    is_interview_completed = models.BooleanField(default=False, db_column="interview_completed")
 
     # Append-only changelog — [{ts, action, detail, user}]
     changelog = models.JSONField(default=list, blank=True)

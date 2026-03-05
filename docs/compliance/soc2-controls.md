@@ -1,6 +1,6 @@
 # SOC 2 Control Matrix — Svend Platform
 
-**Last Updated:** 2026-03-03
+**Last Updated:** 2026-03-03 (Synara migration re-audit)
 
 Status key: **Met** = control operating | **Partial** = control exists with gaps | **Gap** = control not yet implemented
 
@@ -30,7 +30,7 @@ Status key: **Met** = control operating | **Partial** = control exists with gaps
 |---|---|---|---|---|---|
 | CC3.1 | Specifies suitable objectives | Platform roadmap and architecture documented; TSC scope defined | Eric | `ARCHITECTURE.md`, this folder | **Met** |
 | CC3.2 | Identifies and analyzes risk | Security debt tracked with priority levels (P0-P3); gap analysis performed | Eric | `.kjerne/DEBT.md`, `gap-analysis.md` | **Partial** — needs formal risk register with likelihood/impact scoring |
-| CC3.3 | Considers potential for fraud | Input validation on all API endpoints; CSRF protection; rate limiting per tier | Eric | Django views, `permissions.py` | **Partial** — no formal fraud risk assessment |
+| CC3.3 | Considers potential for fraud | Input validation on all API endpoints; CSRF protection; rate limiting per tier; Synara DSL parser rejects injection-like inputs; LLM prompt injection hardened with structured message separation | Eric | Django views, `permissions.py`, `synara/dsl.py`, `synara/llm_interface.py` | **Partial** — no formal fraud risk assessment |
 | CC3.4 | Identifies and assesses changes | All infrastructure changes logged; manual review before deploy | Eric | `log.md` | **Partial** — no automated change detection |
 
 ## CC4 — Monitoring Activities
@@ -55,11 +55,11 @@ Status key: **Met** = control operating | **Partial** = control exists with gaps
 | CC6.1 | Implements logical access security | SSH key-only access; fail2ban; application behind Cloudflare Tunnel (no direct port exposure) | Eric | `fail2ban-svend.conf`, Cloudflare config | **Met** |
 | CC6.2 | Authenticates users prior to access | Email/password authentication; email verification required; session-based auth | Eric | `accounts/models.py`, `accounts/views.py` | **Partial** — no MFA |
 | CC6.3 | Manages access to infrastructure | Single admin (Eric); SSH key-only; systemd service isolation | Eric | Server config | **Met** — single operator, full control |
-| CC6.4 | Restricts logical access to software | Tier-based feature gating; org-level role checks; per-resource ownership validation | Eric | `permissions.py` | **Met** |
+| CC6.4 | Restricts logical access to software | Tier-based feature gating; org-level role checks; per-resource ownership validation; IDOR audit completed across Synara endpoints (2026-03) | Eric | `permissions.py`, `synara_views.py` | **Met** |
 | CC6.5 | Restricts physical access | Server located in controlled environment | Eric | Physical access controls | **Met** |
 | CC6.6 | Manages system access during lifecycle | User accounts deactivated on subscription end; org invites expire in 7 days | Eric | `accounts/models.py`, `tenant.py` | **Partial** — no formal offboarding/deprovisioning workflow |
 | CC6.7 | Manages changes to infrastructure | All infra changes logged in `log.md` with git commits; DEBT tracker for planned changes | Eric | `log.md`, `.kjerne/DEBT.md` | **Partial** — manual process |
-| CC6.8 | Manages security vulnerabilities | Security issues tracked as P0/P1 in DEBT.md; prompt injection mitigations; IDOR fixes applied | Eric | `.kjerne/DEBT.md`, `log.md` | **Partial** — no automated vulnerability scanning |
+| CC6.8 | Manages security vulnerabilities | Security issues tracked as P0/P1 in DEBT.md; prompt injection hardened (Synara LLM interface, DSL parser); IDOR audit completed (Synara migration 2026-03); cache bounds enforced | Eric | `.kjerne/DEBT.md`, `log.md`, `synara/` | **Partial** — no automated vulnerability scanning |
 
 ## CC7 — System Operations
 
@@ -88,7 +88,7 @@ Status key: **Met** = control operating | **Partial** = control exists with gaps
 
 | ID | Criterion | Control Description | Owner | Evidence Location | Status |
 |---|---|---|---|---|---|
-| A1.1 | Manages capacity | systemd memory limit (4GB); CPU quota (200%); Gunicorn worker auto-scaling; request timeout (120s) | Eric | systemd units, `gunicorn.conf.py` | **Partial** — no auto-scaling, no capacity monitoring/alerting |
+| A1.1 | Manages capacity | systemd memory limit (4GB); CPU quota (200%); Gunicorn worker auto-scaling; request timeout (120s); Synara graph cache bounded (max 1000 entries, 30-min TTL) | Eric | systemd units, `gunicorn.conf.py`, `synara/` | **Partial** — no auto-scaling, no capacity monitoring/alerting |
 | A1.2 | Manages environmental threats | Cloudflare DDoS protection; fail2ban; UFW firewall | Eric | Cloudflare config, `fail2ban-svend.conf` | **Met** |
 | A1.3 | Manages recovery operations | Daily encrypted backups (AES-256); 30-day retention; documented restore procedure | Eric | `backup_db.sh`, systemd timer | **Partial** — backups on same machine, no off-site replication, no tested recovery |
 
@@ -96,9 +96,9 @@ Status key: **Met** = control operating | **Partial** = control exists with gaps
 
 | ID | Criterion | Control Description | Owner | Evidence Location | Status |
 |---|---|---|---|---|---|
-| PI1.1 | Uses quality information | Input validation on all API endpoints; type coercion in triage; data profiling in DSW | Eric | View functions, `triage_views.py` | **Met** |
+| PI1.1 | Uses quality information | Input validation on all API endpoints; type coercion in triage; data profiling in DSW; Synara DSL parser validates syntax before evaluation (no eval/exec) | Eric | View functions, `triage_views.py`, `synara/dsl.py` | **Met** |
 | PI1.2 | System processes data accurately | 200+ statistical analyses with scipy/statsmodels; Plotly visualization; results reproducible via random seed | Eric | `dsw/`, `spc.py` | **Met** |
-| PI1.3 | System processes data completely | Transaction-based processing; Django ORM atomic operations | Eric | Django views | **Partial** — no end-to-end data integrity checksums |
+| PI1.3 | System processes data completely | Transaction-based processing; Django ORM atomic operations; Synara belief graph uses transaction-scoped saves with FK cascade (no orphaned data on partial failure) | Eric | Django views, `synara_views.py` | **Partial** — no end-to-end data integrity checksums |
 | PI1.4 | System outputs are complete and accurate | JSON response format; Plotly traces with full statistical output; confidence intervals reported | Eric | DSW views | **Met** |
 | PI1.5 | Handles input/processing errors | HTTP status codes; structured error responses; rate limit feedback | Eric | View functions | **Met** |
 

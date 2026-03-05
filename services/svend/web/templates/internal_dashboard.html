@@ -352,6 +352,87 @@
         from { opacity: 0; transform: translateX(20px); }
         to { opacity: 1; transform: translateX(0); }
     }
+
+    /* Standards list nav items */
+    .std-item {
+        padding: 10px 14px;
+        cursor: pointer;
+        border-bottom: 1px solid var(--border);
+        transition: background 0.1s;
+    }
+    .std-item:hover { background: var(--bg-secondary); }
+    .std-item.active { background: var(--accent-primary); color: #fff; }
+    .std-item.active .std-item-title { color: #fff; }
+    .std-item.active .std-item-meta { color: rgba(255,255,255,0.7); }
+    .std-item-code { font-family: 'JetBrains Mono','Fira Code',monospace; font-size: 0.8rem; font-weight: 700; }
+    .std-item-title { font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .std-item-meta { font-size: 0.65rem; color: var(--text-dim); margin-top: 3px; display: flex; gap: 8px; align-items: center; }
+    .std-item-badge {
+        font-size: 0.6rem; font-weight: 600; padding: 1px 6px; border-radius: 8px;
+        text-transform: uppercase; letter-spacing: 0.3px;
+    }
+    .std-item-badge.approved { background: rgba(34,197,94,0.15); color: #22c55e; }
+    .std-item-badge.draft { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .std-item-badge.deprecated { background: rgba(239,68,68,0.15); color: #ef4444; }
+
+    /* GitHub-style markdown rendering */
+    .std-markdown { font-size: 0.88rem; line-height: 1.7; color: var(--text-primary); }
+    .std-markdown h1 { font-size: 1.6rem; font-weight: 700; margin: 1.5rem 0 0.8rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .std-markdown h2 { font-size: 1.3rem; font-weight: 700; margin: 1.8rem 0 0.6rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .std-markdown h3 { font-size: 1.05rem; font-weight: 600; margin: 1.4rem 0 0.4rem; }
+    .std-markdown h4 { font-size: 0.95rem; font-weight: 600; margin: 1.2rem 0 0.3rem; }
+    .std-markdown p { margin: 0.6rem 0; }
+    .std-markdown ul, .std-markdown ol { margin: 0.4rem 0; padding-left: 1.8rem; }
+    .std-markdown li { margin: 0.2rem 0; }
+    .std-markdown blockquote {
+        margin: 0.8rem 0; padding: 0.5rem 1rem;
+        border-left: 4px solid var(--accent-primary);
+        background: var(--bg-secondary); border-radius: 0 4px 4px 0;
+        color: var(--text-dim); font-style: italic;
+    }
+    .std-markdown code {
+        font-family: 'JetBrains Mono','Fira Code',monospace; font-size: 0.82rem;
+        background: var(--bg-secondary); padding: 2px 6px; border-radius: 3px;
+    }
+    .std-markdown pre {
+        background: var(--bg-secondary); padding: 1rem; border-radius: 6px;
+        overflow-x: auto; margin: 0.8rem 0; border: 1px solid var(--border);
+    }
+    .std-markdown pre code { background: none; padding: 0; font-size: 0.8rem; }
+    .std-markdown table {
+        width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.82rem;
+    }
+    .std-markdown th {
+        text-align: left; padding: 8px 10px; border-bottom: 2px solid var(--border);
+        font-weight: 600; background: var(--bg-secondary);
+    }
+    .std-markdown td { padding: 6px 10px; border-bottom: 1px solid var(--border); }
+    .std-markdown tr:hover td { background: var(--bg-secondary); }
+    .std-markdown hr { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+    .std-markdown a { color: var(--accent-primary); text-decoration: none; }
+    .std-markdown a:hover { text-decoration: underline; }
+    .std-markdown strong { font-weight: 600; }
+    .std-markdown img { max-width: 100%; border-radius: 4px; }
+
+    /* Change list nav items (mirrors std-item) */
+    .chg-item { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    .chg-item:hover { background: var(--bg-secondary); }
+    .chg-item.active { background: var(--accent-primary); color: #fff; }
+    .chg-item.active .chg-item-title { color: #fff; }
+    .chg-item.active .chg-item-meta { color: rgba(255,255,255,0.7); }
+    .chg-item-title { font-size: 0.8rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chg-item-meta { font-size: 0.65rem; color: var(--text-dim); margin-top: 3px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .chg-badge { font-size: 0.6rem; font-weight: 600; padding: 1px 6px; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.3px; display: inline-block; }
+    .chg-section { margin-bottom: 1.5rem; }
+    .chg-section-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); margin-bottom: 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .chg-dim-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 6px; margin-bottom: 0.75rem; }
+    .chg-dim-card { text-align: center; padding: 8px 4px; background: var(--bg-secondary); border-radius: 6px; border: 1px solid var(--border); }
+    .chg-vote { padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .chg-vote:last-child { border-bottom: none; }
+    .chg-timeline-entry { padding: 10px 0; border-bottom: 1px solid var(--border); display: flex; gap: 10px; }
+    .chg-timeline-bar { min-width: 3px; border-radius: 2px; flex-shrink: 0; }
+    .chg-file-list { list-style: none; padding: 0; margin: 0; }
+    .chg-file-list li { font-family: 'JetBrains Mono','Fira Code',monospace; font-size: 0.8rem; padding: 3px 8px; background: var(--bg-secondary); border-radius: 3px; margin-bottom: 4px; display: inline-block; margin-right: 6px; }
 </style>
 
 <div class="toast-container" id="toast-container"></div>
@@ -412,23 +493,96 @@
     </div>
 </div>
 
-<!-- Tab: Usage -->
-<div class="tab-content" id="tab-usage">
+<!-- Tab: DSW Analytics -->
+<div class="tab-content" id="tab-dsw">
+    <div class="kpi-row">
+        <div class="kpi-card"><div class="kpi-value" id="dsw-kpi-analyses">—</div><div class="kpi-label">DSW Analyses</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="dsw-kpi-results">—</div><div class="kpi-label">Saved Results</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="dsw-kpi-top-type">—</div><div class="kpi-label">Top Type</div></div>
+    </div>
     <div class="chart-grid">
-        <div class="chart-card full-width"><h3>Requests per Day</h3><canvas id="chart-requests"></canvas></div>
-        <div class="chart-card"><h3>Domain / Tool Popularity</h3><canvas id="chart-domains"></canvas></div>
-        <div class="chart-card"><h3>Tokens Consumed per Day</h3><canvas id="chart-tokens"></canvas></div>
-        <div class="chart-card full-width"><h3>Error Rate Trend</h3><canvas id="chart-errors"></canvas></div>
+        <div class="chart-card full-width"><h3>Analysis Volume per Day</h3><canvas id="chart-dsw-volume"></canvas></div>
+        <div class="chart-card"><h3>Result Type Popularity</h3><canvas id="chart-dsw-types"></canvas></div>
+        <div class="chart-card"><h3>Endpoint Popularity</h3><canvas id="chart-dsw-endpoints"></canvas></div>
+    </div>
+    <div class="chart-card full-width" style="margin-top:1rem;">
+        <h3>Top Users by Saved Results</h3>
+        <table style="width:100%;border-collapse:collapse;">
+            <thead><tr style="border-bottom:2px solid var(--border);">
+                <th style="text-align:left;padding:6px 8px;">User</th>
+                <th style="text-align:right;padding:6px 8px;">Results</th>
+            </tr></thead>
+            <tbody id="dsw-top-users"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Tab: Hypothesis Health -->
+<div class="tab-content" id="tab-hypotheses">
+    <div class="kpi-row">
+        <div class="kpi-card"><div class="kpi-value" id="hyp-kpi-projects">—</div><div class="kpi-label">Projects</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="hyp-kpi-hypotheses">—</div><div class="kpi-label">Hypotheses</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="hyp-kpi-evidence">—</div><div class="kpi-label">Evidence</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="hyp-kpi-orphans">—</div><div class="kpi-label">Orphan Hypotheses</div></div>
+    </div>
+    <div class="chart-grid">
+        <div class="chart-card"><h3>Project Status</h3><canvas id="chart-project-status"></canvas></div>
+        <div class="chart-card"><h3>Hypothesis Status</h3><canvas id="chart-hyp-status"></canvas></div>
+        <div class="chart-card"><h3>Evidence Sources</h3><canvas id="chart-ev-sources"></canvas></div>
+        <div class="chart-card"><h3>Link Directions</h3><canvas id="chart-link-dirs"></canvas></div>
+    </div>
+    <div class="chart-card full-width" style="margin-top:1rem;">
+        <h3>Recent Projects</h3>
+        <table style="width:100%;border-collapse:collapse;">
+            <thead><tr style="border-bottom:2px solid var(--border);">
+                <th style="text-align:left;padding:6px 8px;">Title</th>
+                <th style="text-align:left;padding:6px 8px;">Status</th>
+                <th style="text-align:right;padding:6px 8px;">Hypotheses</th>
+                <th style="text-align:right;padding:6px 8px;">Updated</th>
+            </tr></thead>
+            <tbody id="hyp-recent-projects"></tbody>
+        </table>
     </div>
 </div>
 
 <!-- Tab: Performance -->
 <div class="tab-content" id="tab-performance">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <h3 style="margin:0;">HTTP Telemetry</h3>
+        <div style="display:flex;gap:.5rem;">
+            <button class="perf-range-btn" data-days="1" style="padding:.3rem .8rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;">24h</button>
+            <button class="perf-range-btn active" data-days="7" style="padding:.3rem .8rem;border:1px solid var(--accent);border-radius:4px;background:var(--accent);color:var(--surface);cursor:pointer;">7d</button>
+            <button class="perf-range-btn" data-days="30" style="padding:.3rem .8rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;">30d</button>
+        </div>
+    </div>
+    <div class="kpi-row" id="perf-kpi-row">
+        <div class="kpi-card"><div class="kpi-value" id="perf-kpi-reqs">—</div><div class="kpi-label">Requests Today</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="perf-kpi-errors">—</div><div class="kpi-label">Error Rate</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="perf-kpi-p95">—</div><div class="kpi-label">p95 Latency</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="perf-kpi-avg">—</div><div class="kpi-label">Avg Latency</div></div>
+    </div>
+    <!-- SLA badges -->
+    <div id="perf-sla-badges" style="display:flex;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;"></div>
     <div class="chart-grid">
-        <div class="chart-card full-width"><h3>Average Response Time (ms)</h3><canvas id="chart-latency"></canvas></div>
-        <div class="chart-card"><h3>Pipeline Stage Breakdown (avg ms)</h3><canvas id="chart-stages"></canvas></div>
-        <div class="chart-card"><h3>Gate Pass Rate</h3><canvas id="chart-gates"></canvas></div>
-        <div class="chart-card"><h3>Errors by Stage</h3><canvas id="chart-error-stages"></canvas></div>
+        <div class="chart-card full-width"><h3>Latency Trend</h3><canvas id="chart-latency"></canvas></div>
+        <div class="chart-card"><h3>Error Rate</h3><canvas id="chart-error-rate"></canvas></div>
+        <div class="chart-card"><h3>Request Volume</h3><canvas id="chart-volume"></canvas></div>
+    </div>
+    <!-- Slow endpoints table -->
+    <div class="chart-card full-width" style="margin-top:1rem;">
+        <h3>Slow Endpoints (Top 10)</h3>
+        <div style="overflow-x:auto;">
+            <table id="perf-slow-table" style="width:100%;border-collapse:collapse;font-size:.85rem;">
+                <thead><tr style="border-bottom:1px solid var(--border);text-align:left;">
+                    <th style="padding:.5rem;">Method</th>
+                    <th style="padding:.5rem;">Path</th>
+                    <th style="padding:.5rem;text-align:right;">Avg (ms)</th>
+                    <th style="padding:.5rem;text-align:right;">p95 (ms)</th>
+                    <th style="padding:.5rem;text-align:right;">Count</th>
+                </tr></thead>
+                <tbody id="perf-slow-tbody"></tbody>
+            </table>
+        </div>
     </div>
 </div>
 
@@ -1140,6 +1294,7 @@
                 <option value="demo">Demo</option>
                 <option value="trial">Trial</option>
                 <option value="customer">Customer</option>
+                <option value="partner">Partner</option>
                 <option value="churned">Churned</option>
                 <option value="lost">Lost</option>
                 <option value="bounced">Bounced</option>
@@ -1268,7 +1423,7 @@
                     </div>
                     <div style="margin-top:12px;display:flex;gap:8px;align-items:center;">
                         <button onclick="sendBulkCampaign()" id="crm-campaign-send-btn" style="padding:8px 24px;background:#065f46;color:#d1fae5;border:1px solid #10b981;border-radius:4px;cursor:pointer;font-size:0.85rem;font-weight:600;">Confirm & Send to <span id="crm-campaign-send-count">0</span> leads</button>
-                        <span style="font-size:0.7rem;color:var(--text-dim);">Sends staggered 5s apart via tempora</span>
+                        <span style="font-size:0.7rem;color:var(--text-dim);">Sends staggered 5s apart via syn.sched</span>
                     </div>
                 </div>
             </div>
@@ -1375,8 +1530,49 @@
     </div>
 </div>
 
+<!-- Tab: Anthropic -->
+<div class="tab-content" id="tab-anthropic">
+    <div class="kpi-row">
+        <div class="kpi-card"><div class="kpi-value" id="ant-kpi-requests">—</div><div class="kpi-label">Total Requests</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="ant-kpi-tokens">—</div><div class="kpi-label">Total Tokens</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="ant-kpi-models">—</div><div class="kpi-label">Models Used</div></div>
+    </div>
+    <div class="chart-grid">
+        <div class="chart-card full-width"><h3>Daily Token Consumption</h3><canvas id="chart-ant-tokens"></canvas></div>
+        <div class="chart-card"><h3>Model Distribution</h3><canvas id="chart-ant-models"></canvas></div>
+        <div class="chart-card">
+            <h3>Top Consumers</h3>
+            <table style="width:100%;border-collapse:collapse;">
+                <thead><tr style="border-bottom:2px solid var(--border);">
+                    <th style="text-align:left;padding:6px 8px;">User</th>
+                    <th style="text-align:right;padding:6px 8px;">Requests</th>
+                    <th style="text-align:right;padding:6px 8px;">Tokens</th>
+                </tr></thead>
+                <tbody id="ant-top-consumers"></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="chart-card full-width" style="margin-top:1rem;">
+        <h3>Rate Limits <span style="font-size:.75rem;color:var(--text-dim);">(click a value to edit)</span></h3>
+        <table style="width:100%;border-collapse:collapse;" id="ant-rate-limits-table">
+            <thead><tr style="border-bottom:2px solid var(--border);">
+                <th style="text-align:left;padding:6px 8px;">Tier</th>
+                <th style="text-align:right;padding:6px 8px;">Default</th>
+                <th style="text-align:right;padding:6px 8px;">Current Limit</th>
+                <th style="text-align:center;padding:6px 8px;">Override</th>
+                <th style="padding:6px 8px;"></th>
+            </tr></thead>
+            <tbody id="ant-rate-limits"></tbody>
+        </table>
+    </div>
+</div>
+
 <!-- Tab: Compliance -->
 <div class="tab-content" id="tab-compliance">
+    <!-- Run Compliance Button -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+        <button id="btn-run-compliance" onclick="runComplianceSuite()" style="padding:8px 16px;background:var(--accent-primary,#4a9f6e);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:600;">Run Compliance Suite</button>
+    </div>
     <!-- KPI Cards -->
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem;">
         <div class="chart-card" style="text-align:center;padding:1rem;">
@@ -1388,8 +1584,8 @@
             <div style="font-size:0.75rem;color:var(--text-dim);">Checks Today</div>
         </div>
         <div class="chart-card" style="text-align:center;padding:1rem;">
-            <div style="font-size:2rem;font-weight:700;" id="compliance-total">—</div>
-            <div style="font-size:0.75rem;color:var(--text-dim);">Total Checks</div>
+            <div style="font-size:2rem;font-weight:700;" id="compliance-coverage">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">Symbol Coverage</div>
         </div>
         <div class="chart-card" style="text-align:center;padding:1rem;">
             <div style="font-size:2rem;font-weight:700;" id="compliance-soc2">—</div>
@@ -1437,6 +1633,39 @@
                 <div style="font-size:0.7rem;color:var(--text-dim);">Warnings</div>
             </div>
         </div>
+        <!-- Test Results -->
+        <div id="compliance-test-metrics" style="display:none;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                <span style="font-size:0.82rem;font-weight:600;color:var(--text-primary);">Standards-Linked Tests</span>
+                <span style="font-size:0.7rem;color:var(--text-dim);" id="test-unique-count"></span>
+                <span style="font-size:0.65rem;color:var(--text-dim);" id="test-linked-count"></span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+                <div class="chart-card" style="text-align:center;padding:0.75rem;">
+                    <div style="font-size:1.4rem;font-weight:700;color:var(--accent-primary);" id="test-passed">—</div>
+                    <div style="font-size:0.7rem;color:var(--text-dim);">Passed</div>
+                </div>
+                <div class="chart-card" style="text-align:center;padding:0.75rem;">
+                    <div style="font-size:1.4rem;font-weight:700;color:var(--danger,#ef4444);" id="test-failed">—</div>
+                    <div style="font-size:0.7rem;color:var(--text-dim);">Failed</div>
+                </div>
+                <div class="chart-card" style="text-align:center;padding:0.75rem;">
+                    <div style="font-size:1.4rem;font-weight:700;color:#6b7280;" id="test-skipped">—</div>
+                    <div style="font-size:0.7rem;color:var(--text-dim);">Skipped</div>
+                </div>
+                <div class="chart-card" style="text-align:center;padding:0.75rem;">
+                    <div style="font-size:1.4rem;font-weight:700;" id="test-pass-rate">—</div>
+                    <div style="font-size:0.7rem;color:var(--text-dim);">Pass Rate</div>
+                </div>
+            </div>
+            <div style="height:6px;background:var(--bg-secondary);border-radius:3px;overflow:hidden;margin-top:8px;" id="test-bar-container">
+                <div style="height:100%;display:flex;">
+                    <div id="test-bar-pass" style="background:#22c55e;transition:width 0.3s;"></div>
+                    <div id="test-bar-fail" style="background:#ef4444;transition:width 0.3s;"></div>
+                    <div id="test-bar-skip" style="background:#6b7280;transition:width 0.3s;"></div>
+                </div>
+            </div>
+        </div>
         <div id="std-by-standard" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:12px;"></div>
         <!-- Per-standard assertion detail (shown when clicking a standard bar) -->
         <div id="std-assertion-detail" class="chart-card" style="display:none;padding:12px;margin-bottom:12px;">
@@ -1445,6 +1674,104 @@
                 <button onclick="document.getElementById('std-assertion-detail').style.display='none'" style="padding:3px 10px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-dim);border-radius:4px;cursor:pointer;font-size:0.72rem;">Close</button>
             </div>
             <div id="std-detail-assertions" style="font-size:0.78rem;"></div>
+        </div>
+    </div>
+
+    <!-- SLA Status -->
+    <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Service Level Agreements</h3>
+    <div id="sla-section" style="margin-bottom:1.5rem;">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;">
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:1.6rem;font-weight:700;" id="sla-total">—</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);">Total SLAs</div>
+            </div>
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:1.6rem;font-weight:700;color:var(--accent-primary);" id="sla-met">—</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);">Met</div>
+            </div>
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:1.6rem;font-weight:700;color:var(--danger,#ef4444);" id="sla-breached">—</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);">Breached</div>
+            </div>
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:1.6rem;font-weight:700;color:#6b7280;" id="sla-unmeasurable">—</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);">Unmeasurable</div>
+            </div>
+        </div>
+        <div id="sla-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px;"></div>
+    </div>
+
+    <!-- Symbol Coverage -->
+    <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Symbol Coverage (Standards Governance)</h3>
+    <div id="code-coverage-section" style="margin-bottom:1.5rem;">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;">
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:1.6rem;font-weight:700;" id="cov-total-symbols">—</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);">Total Symbols</div>
+            </div>
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:1.6rem;font-weight:700;" id="cov-percent">—</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);">Covered %</div>
+            </div>
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:1.6rem;font-weight:700;color:var(--danger,#ef4444);" id="cov-ungoverned-loc">—</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);">Ungoverned LOC</div>
+            </div>
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:1.6rem;font-weight:700;" id="cov-risk-score">—</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);">Risk Score</div>
+            </div>
+        </div>
+        <!-- Legend -->
+        <div style="display:flex;gap:16px;margin-bottom:8px;font-size:0.7rem;color:var(--text-dim);">
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--accent-primary,#4a9f6e);vertical-align:middle;"></span> Covered</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--warning,#f59e0b);vertical-align:middle;"></span> Specified, untested</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--danger,#ef4444);vertical-align:middle;"></span> Ungoverned</span>
+        </div>
+        <!-- Per-module stacked bars -->
+        <div id="cov-module-bars" style="display:grid;grid-template-columns:1fr;gap:4px;margin-bottom:12px;"></div>
+        <!-- Highest-risk files -->
+        <div id="cov-risk-list" style="display:none;">
+            <div style="font-size:0.82rem;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Highest-Risk Files</div>
+            <div id="cov-risk-items" style="font-size:0.75rem;"></div>
+        </div>
+    </div>
+
+    <!-- Statistical Calibration -->
+    <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Statistical Calibration (Math Verification)</h3>
+    <div id="calibration-section" style="margin-bottom:1.5rem;">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;">
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:1.6rem;font-weight:700;" id="cal-cases-run">—</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);">Cases Run</div>
+            </div>
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:1.6rem;font-weight:700;" id="cal-pass-rate">—</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);">Pass Rate</div>
+            </div>
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:1.6rem;font-weight:700;color:var(--danger,#ef4444);" id="cal-drift-count">—</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);">Drift Alerts</div>
+            </div>
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:1.2rem;font-weight:500;" id="cal-last-run">—</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);">Last Calibration</div>
+            </div>
+        </div>
+        <!-- Per-case results table -->
+        <div id="cal-results-table" style="display:none;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
+                <thead>
+                    <tr style="text-align:left;color:var(--text-dim);border-bottom:1px solid var(--border);">
+                        <th style="padding:4px 8px;">Case</th>
+                        <th style="padding:4px 8px;">Category</th>
+                        <th style="padding:4px 8px;">Description</th>
+                        <th style="padding:4px 8px;">Duration</th>
+                        <th style="padding:4px 8px;text-align:center;">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="cal-results-tbody"></tbody>
+            </table>
         </div>
     </div>
 
@@ -1507,95 +1834,60 @@
         </div>
     </div>
 
-    <!-- Filter Bar -->
-    <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;">
-        <select id="chg-filter-type" onchange="loadChanges()" style="padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:4px;font-size:0.8rem;">
-            <option value="">All Types</option>
-            <option value="feature">Feature</option>
-            <option value="enhancement">Enhancement</option>
-            <option value="bugfix">Bug Fix</option>
-            <option value="hotfix">Hotfix</option>
-            <option value="security">Security</option>
-            <option value="infrastructure">Infrastructure</option>
-            <option value="migration">Migration</option>
-            <option value="documentation">Documentation</option>
-            <option value="plan">Plan</option>
-            <option value="debt">Debt Closure</option>
-        </select>
-        <select id="chg-filter-status" onchange="loadChanges()" style="padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:4px;font-size:0.8rem;">
-            <option value="">All Statuses</option>
-            <option value="draft">Draft</option>
-            <option value="submitted">Submitted</option>
-            <option value="risk_assessed">Risk Assessed</option>
-            <option value="approved">Approved</option>
-            <option value="in_progress">In Progress</option>
-            <option value="testing">Testing</option>
-            <option value="completed">Completed</option>
-            <option value="failed">Failed</option>
-            <option value="rolled_back">Rolled Back</option>
-        </select>
-        <select id="chg-filter-risk" onchange="loadChanges()" style="padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:4px;font-size:0.8rem;">
-            <option value="">All Risk Levels</option>
-            <option value="critical">Critical</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-        </select>
-    </div>
-
-    <!-- Changes Table -->
-    <div class="chart-card" style="margin-bottom:1.5rem;">
-        <div style="overflow-x:auto;">
-            <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
-                <thead>
-                    <tr style="text-align:left;color:var(--text-dim);border-bottom:1px solid var(--border);">
-                        <th style="padding:6px 8px;">Type</th>
-                        <th style="padding:6px 8px;">Title</th>
-                        <th style="padding:6px 8px;">Risk</th>
-                        <th style="padding:6px 8px;">Status</th>
-                        <th style="padding:6px 8px;">Author</th>
-                        <th style="padding:6px 8px;">Created</th>
-                        <th style="padding:6px 8px;">Logs</th>
-                        <th style="padding:6px 8px;">Risk Score</th>
-                    </tr>
-                </thead>
-                <tbody id="chg-tbody"></tbody>
-            </table>
+    <!-- Split-pane: left list + right detail reader -->
+    <div style="display:flex;gap:0;height:calc(100vh - 320px);min-height:500px;border:1px solid var(--border);border-radius:6px;overflow:hidden;">
+        <!-- Left pane: filters + change list -->
+        <div style="width:300px;min-width:300px;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;">
+            <div style="padding:8px;border-bottom:1px solid var(--border);display:flex;gap:4px;flex-wrap:wrap;">
+                <select id="chg-filter-type" onchange="loadChanges()" style="flex:1;min-width:80px;padding:4px 6px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:4px;font-size:0.7rem;">
+                    <option value="">All Types</option>
+                    <option value="feature">Feature</option>
+                    <option value="enhancement">Enhancement</option>
+                    <option value="bugfix">Bug Fix</option>
+                    <option value="hotfix">Hotfix</option>
+                    <option value="security">Security</option>
+                    <option value="infrastructure">Infrastructure</option>
+                    <option value="migration">Migration</option>
+                    <option value="documentation">Documentation</option>
+                    <option value="plan">Plan</option>
+                    <option value="debt">Debt Closure</option>
+                </select>
+                <select id="chg-filter-status" onchange="loadChanges()" style="flex:1;min-width:80px;padding:4px 6px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:4px;font-size:0.7rem;">
+                    <option value="">All Statuses</option>
+                    <option value="draft">Draft</option>
+                    <option value="submitted">Submitted</option>
+                    <option value="risk_assessed">Risk Assessed</option>
+                    <option value="approved">Approved</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="testing">Testing</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                    <option value="rolled_back">Rolled Back</option>
+                </select>
+                <select id="chg-filter-risk" onchange="loadChanges()" style="flex:1;min-width:70px;padding:4px 6px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:4px;font-size:0.7rem;">
+                    <option value="">All Risk</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                </select>
+            </div>
+            <div id="chg-list" style="flex:1;overflow-y:auto;"></div>
+        </div>
+        <!-- Right pane: change detail reader -->
+        <div id="chg-reader" style="flex:1;overflow-y:auto;padding:2rem 2.5rem;">
+            <div id="chg-reader-empty" style="text-align:center;padding:4rem 2rem;color:var(--text-dim);">
+                <div style="font-size:2.5rem;margin-bottom:0.5rem;opacity:0.3;">&#128220;</div>
+                <div style="font-size:0.9rem;">Select a change from the list</div>
+            </div>
+            <div id="chg-reader-content" style="display:none;">
+                <!-- Header -->
+                <div id="chg-reader-header" style="margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border);"></div>
+                <!-- Body sections -->
+                <div id="chg-reader-body"></div>
+            </div>
         </div>
     </div>
-
-    <!-- Change Detail Panel (hidden by default) -->
-    <div id="chg-detail-panel" class="chart-card" style="display:none;margin-bottom:1.5rem;padding:1.5rem;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-            <h3 style="margin:0;font-size:1rem;" id="chg-detail-title">—</h3>
-            <button onclick="document.getElementById('chg-detail-panel').style.display='none'" style="padding:4px 12px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-dim);border-radius:4px;cursor:pointer;font-size:0.75rem;">Close</button>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1rem;">
-            <div><span style="font-size:0.7rem;color:var(--text-dim);">Type</span><div id="chg-detail-type" style="font-weight:600;font-size:0.85rem;">—</div></div>
-            <div><span style="font-size:0.7rem;color:var(--text-dim);">Risk Level</span><div id="chg-detail-risk" style="font-weight:600;font-size:0.85rem;">—</div></div>
-            <div><span style="font-size:0.7rem;color:var(--text-dim);">Status</span><div id="chg-detail-status" style="font-weight:600;font-size:0.85rem;">—</div></div>
-            <div><span style="font-size:0.7rem;color:var(--text-dim);">Author</span><div id="chg-detail-author" style="font-weight:600;font-size:0.85rem;">—</div></div>
-        </div>
-        <div style="margin-bottom:1rem;">
-            <span style="font-size:0.7rem;color:var(--text-dim);">Description</span>
-            <div id="chg-detail-desc" style="font-size:0.82rem;margin-top:4px;white-space:pre-wrap;max-height:120px;overflow-y:auto;">—</div>
-        </div>
-
-        <!-- Risk Assessment -->
-        <div id="chg-detail-risk-section" style="display:none;margin-bottom:1rem;">
-            <h4 style="font-size:0.85rem;margin:0 0 8px 0;color:var(--text-primary);">Risk Assessment</h4>
-            <div id="chg-detail-risk-scores" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:8px;"></div>
-            <div id="chg-detail-votes" style="font-size:0.78rem;"></div>
-        </div>
-
-        <!-- Change Log Chain -->
-        <h4 style="font-size:0.85rem;margin:0 0 8px 0;color:var(--text-primary);">Change Log</h4>
-        <div id="chg-detail-logs" style="font-size:0.78rem;max-height:300px;overflow-y:auto;"></div>
-    </div>
-
-    <!-- By Type Distribution -->
-    <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Changes by Type (30d)</h3>
-    <div id="chg-by-type" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:1.5rem;"></div>
 </div>
 
 <!-- Tab: Infra -->
@@ -1770,6 +2062,158 @@
     </div>
 </div>
 
+<div class="tab-content" id="tab-standards">
+    <div style="display:flex;gap:0;height:calc(100vh - 200px);min-height:500px;">
+        <!-- Left nav: standards list -->
+        <div id="std-nav" style="width:280px;min-width:280px;border-right:1px solid var(--border);overflow-y:auto;padding:0;">
+            <div style="padding:10px 12px;border-bottom:1px solid var(--border);">
+                <input id="std-search" type="text" placeholder="Search standards..."
+                    oninput="filterStandardsList()"
+                    style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;background:var(--bg-secondary);color:var(--text-primary);font-family:'Inter',sans-serif;box-sizing:border-box;" />
+            </div>
+            <div id="std-list" style="padding:4px 0;"></div>
+        </div>
+        <!-- Right pane: rendered standard -->
+        <div id="std-reader" style="flex:1;overflow-y:auto;padding:2rem 2.5rem;">
+            <div id="std-reader-empty" style="text-align:center;padding:4rem 2rem;color:var(--text-dim);">
+                <div style="font-size:2.5rem;margin-bottom:0.5rem;opacity:0.3;">&#128214;</div>
+                <div style="font-size:0.9rem;">Select a standard from the list</div>
+            </div>
+            <div id="std-reader-content" style="display:none;">
+                <!-- Header bar -->
+                <div id="std-reader-header" style="display:flex;align-items:center;gap:10px;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+                    <span id="std-reader-code" style="font-size:1.1rem;font-weight:700;color:var(--text-primary);font-family:'JetBrains Mono','Fira Code',monospace;"></span>
+                    <span id="std-reader-status" style="font-size:0.7rem;font-weight:600;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;"></span>
+                    <span id="std-reader-version" style="font-size:0.75rem;color:var(--text-dim);font-family:'JetBrains Mono','Fira Code',monospace;"></span>
+                    <span style="flex:1;"></span>
+                    <span id="std-reader-meta" style="font-size:0.7rem;color:var(--text-dim);text-align:right;"></span>
+                </div>
+                <!-- Rendered markdown body -->
+                <div id="std-reader-body" class="std-markdown"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Roadmap -->
+<div class="tab-content" id="tab-roadmap">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="display:flex;gap:8px;align-items:center;">
+            <select id="rm-filter-quarter" onchange="loadRoadmap()" style="padding:6px 10px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:0.8rem;">
+                <option value="">All Quarters</option>
+            </select>
+            <select id="rm-filter-area" onchange="loadRoadmap()" style="padding:6px 10px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:0.8rem;">
+                <option value="">All Areas</option>
+                <option value="dsw">DSW</option><option value="qms">QMS</option>
+                <option value="platform">Platform</option><option value="workbench">Workbench</option>
+                <option value="forge">Forge</option><option value="learn">Learn</option>
+                <option value="billing">Billing</option><option value="infrastructure">Infrastructure</option>
+            </select>
+            <select id="rm-filter-status" onchange="loadRoadmap()" style="padding:6px 10px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:0.8rem;">
+                <option value="">All Statuses</option>
+                <option value="planned">Planned</option><option value="in_progress">In Progress</option>
+                <option value="shipped">Shipped</option><option value="deferred">Deferred</option>
+                <option value="cancelled">Cancelled</option>
+            </select>
+        </div>
+        <button onclick="newRoadmapItem()" style="padding:6px 16px;background:var(--accent-primary);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:0.8rem;">+ New Item</button>
+    </div>
+    <div style="display:grid;grid-template-columns:340px 1fr;gap:12px;min-height:500px;">
+        <!-- Left: item list -->
+        <div style="border:1px solid var(--border);border-radius:6px;overflow-y:auto;max-height:600px;background:var(--bg-secondary);">
+            <div id="rm-list" style="padding:4px;">
+                <div style="color:var(--text-dim);text-align:center;padding:2rem;font-size:0.85rem;">Loading...</div>
+            </div>
+        </div>
+        <!-- Right: editor -->
+        <div id="rm-editor" style="border:1px solid var(--border);border-radius:6px;padding:16px;background:var(--bg-secondary);display:none;">
+            <input id="rm-ed-id" type="hidden">
+            <input id="rm-ed-title" placeholder="Feature title" style="width:100%;padding:8px 10px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:0.9rem;margin-bottom:8px;box-sizing:border-box;">
+            <textarea id="rm-ed-desc" placeholder="Description (shown on public page)" rows="4" style="width:100%;padding:8px 10px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:0.85rem;margin-bottom:8px;resize:vertical;box-sizing:border-box;"></textarea>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
+                <div>
+                    <label style="font-size:0.7rem;color:var(--text-dim);display:block;margin-bottom:2px;">Area</label>
+                    <select id="rm-ed-area" style="width:100%;padding:6px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:0.8rem;">
+                        <option value="dsw">DSW</option><option value="qms">QMS</option>
+                        <option value="platform">Platform</option><option value="workbench">Workbench</option>
+                        <option value="forge">Forge</option><option value="learn">Learn</option>
+                        <option value="billing">Billing</option><option value="infrastructure">Infrastructure</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.7rem;color:var(--text-dim);display:block;margin-bottom:2px;">Quarter</label>
+                    <input id="rm-ed-quarter" placeholder="Q2-2026" style="width:100%;padding:6px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:0.8rem;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="font-size:0.7rem;color:var(--text-dim);display:block;margin-bottom:2px;">Status</label>
+                    <select id="rm-ed-status" style="width:100%;padding:6px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:0.8rem;">
+                        <option value="planned">Planned</option><option value="in_progress">In Progress</option>
+                        <option value="shipped">Shipped</option><option value="deferred">Deferred</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.7rem;color:var(--text-dim);display:block;margin-bottom:2px;">Tier</label>
+                    <select id="rm-ed-tier" style="width:100%;padding:6px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:0.8rem;">
+                        <option value="free">Free</option><option value="professional">Professional</option>
+                        <option value="team">Team</option><option value="enterprise">Enterprise</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+                <div>
+                    <label style="font-size:0.7rem;color:var(--text-dim);display:block;margin-bottom:2px;">Sort Order</label>
+                    <input id="rm-ed-sort" type="number" value="0" style="width:100%;padding:6px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:0.8rem;box-sizing:border-box;">
+                </div>
+                <div style="display:flex;align-items:end;gap:12px;padding-bottom:2px;">
+                    <label style="font-size:0.8rem;color:var(--text-primary);display:flex;align-items:center;gap:4px;">
+                        <input id="rm-ed-public" type="checkbox" checked> Public
+                    </label>
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button onclick="saveRoadmapItem()" style="padding:8px 20px;background:var(--accent-primary);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:0.8rem;">Save</button>
+                <button onclick="deleteRoadmapItem()" style="padding:8px 20px;background:var(--danger, #ef4444);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:0.8rem;">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Features (Initiative → Feature → Task hierarchy) -->
+<div class="tab-content" id="tab-features">
+    <!-- KPI row -->
+    <div class="kpi-row" id="ft-kpis" style="margin-bottom:12px;"></div>
+    <!-- Filters -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="display:flex;gap:8px;align-items:center;">
+            <select id="ft-filter-init" onchange="loadFeatures()" style="padding:6px 10px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:0.8rem;">
+                <option value="">All Initiatives</option>
+            </select>
+            <select id="ft-filter-status" onchange="loadFeatures()" style="padding:6px 10px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:0.8rem;">
+                <option value="">All Statuses</option>
+                <option value="backlog">Backlog</option><option value="planned">Planned</option>
+                <option value="in_progress">In Progress</option><option value="blocked">Blocked</option>
+                <option value="completed">Completed</option><option value="deferred">Deferred</option>
+            </select>
+        </div>
+    </div>
+    <div style="display:flex;gap:0;height:calc(100vh - 340px);min-height:500px;">
+        <!-- Left: feature list grouped by initiative -->
+        <div style="width:380px;min-width:380px;border:1px solid var(--border);border-radius:6px 0 0 6px;overflow-y:auto;background:var(--bg-secondary);">
+            <div id="ft-list" style="padding:4px;">
+                <div style="color:var(--text-dim);text-align:center;padding:2rem;font-size:0.85rem;">Loading...</div>
+            </div>
+        </div>
+        <!-- Right: detail reader -->
+        <div style="flex:1;border:1px solid var(--border);border-left:none;border-radius:0 6px 6px 0;overflow-y:auto;background:var(--bg-primary);">
+            <div id="ft-reader-empty" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-dim);font-size:0.9rem;">
+                Select a feature to view details
+            </div>
+            <div id="ft-reader-content" style="display:none;padding:20px;"></div>
+        </div>
+    </div>
+</div>
+
 <script>
 // =========================================================================
 // Dashboard State
@@ -1819,10 +2263,17 @@ function showToast(message, type = 'info', duration = 4000) {
 // =========================================================================
 // Data fetching
 // =========================================================================
-async function apiFetch(endpoint) {
-    const r = await fetch(`/api/internal/${endpoint}/?days=${selectedDays}`, { credentials: 'include' });
+async function apiFetch(endpoint, params) {
+    const qs = params || `?days=${selectedDays}`;
+    const sep = qs.includes('?') ? '&' : '?';
+    const r = await fetch(`/api/internal/${endpoint}/${qs}${sep}_=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
     if (!r.ok) throw new Error(`API error: ${r.status}`);
     return r.json();
+}
+
+function setText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
 }
 
 // =========================================================================
@@ -2006,17 +2457,24 @@ async function loadUsers() {
 // =========================================================================
 // Tab: Usage
 // =========================================================================
-async function loadUsage() {
-    const d = await apiFetch('usage');
+async function loadDSWAnalytics() {
+    const d = await apiFetch('dsw-analytics');
     chartDefaults();
 
-    makeChart('chart-requests', {
+    const totalReqs = d.daily_volume.reduce((s, r) => s + r.requests, 0);
+    const totalResults = d.type_popularity.reduce((s, r) => s + r.count, 0);
+    const topType = d.type_popularity.length ? d.type_popularity[0].type : '—';
+    setText('dsw-kpi-analyses', totalReqs.toLocaleString());
+    setText('dsw-kpi-results', totalResults.toLocaleString());
+    setText('dsw-kpi-top-type', topType);
+
+    makeChart('chart-dsw-volume', {
         type: 'line',
         data: {
-            labels: d.daily_requests.map(r => r.date),
+            labels: d.daily_volume.map(r => r.date),
             datasets: [{
                 label: 'Requests',
-                data: d.daily_requests.map(r => r.count),
+                data: d.daily_volume.map(r => r.requests),
                 borderColor: cc(0),
                 backgroundColor: cca(0, 0.15),
                 fill: true,
@@ -2026,137 +2484,323 @@ async function loadUsage() {
         options: { responsive: true, plugins: { legend: { display: false } } }
     });
 
-    if (d.domain_popularity.length) {
-        makeChart('chart-domains', {
+    if (d.type_popularity.length) {
+        makeChart('chart-dsw-types', {
             type: 'bar',
             data: {
-                labels: d.domain_popularity.map(p => p[0]),
+                labels: d.type_popularity.map(p => p.type),
                 datasets: [{
-                    data: d.domain_popularity.map(p => p[1]),
-                    backgroundColor: d.domain_popularity.map((_, i) => cc(i)),
+                    data: d.type_popularity.map(p => p.count),
+                    backgroundColor: d.type_popularity.map((_, i) => cc(i)),
                 }]
             },
             options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
         });
     }
 
-    makeChart('chart-tokens', {
-        type: 'line',
-        data: {
-            labels: d.daily_tokens.map(t => t.date),
-            datasets: [
-                {
-                    label: 'Input',
-                    data: d.daily_tokens.map(t => t.input),
-                    borderColor: cc(0),
-                    backgroundColor: cca(0, 0.1),
-                    fill: true,
-                    tension: 0.3,
-                },
-                {
-                    label: 'Output',
-                    data: d.daily_tokens.map(t => t.output),
-                    borderColor: cc(1),
-                    backgroundColor: cca(1, 0.1),
-                    fill: true,
-                    tension: 0.3,
-                }
-            ]
-        },
-        options: { responsive: true }
-    });
+    if (d.endpoint_popularity.length) {
+        makeChart('chart-dsw-endpoints', {
+            type: 'bar',
+            data: {
+                labels: d.endpoint_popularity.map(p => p.endpoint.replace('/api/', '')),
+                datasets: [{
+                    data: d.endpoint_popularity.map(p => p.count),
+                    backgroundColor: d.endpoint_popularity.map((_, i) => cc(i + 3)),
+                }]
+            },
+            options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+        });
+    }
 
-    makeChart('chart-errors', {
-        type: 'line',
-        data: {
-            labels: d.daily_errors.map(e => e.date),
-            datasets: [{
-                label: 'Error Rate %',
-                data: d.daily_errors.map(e => e.rate),
-                borderColor: cc(5),
-                backgroundColor: cca(5, 0.15),
-                fill: true,
-                tension: 0.3,
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true } }
-        }
+    const tbody = document.getElementById('dsw-top-users');
+    tbody.innerHTML = '';
+    (d.top_users || []).forEach(u => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid var(--border)';
+        tr.innerHTML = `<td style="padding:6px 8px;">${u.user}</td><td style="text-align:right;padding:6px 8px;">${u.count}</td>`;
+        tbody.appendChild(tr);
     });
+    if (!d.top_users.length) tbody.innerHTML = '<tr><td colspan="2" style="padding:12px;text-align:center;color:var(--text-dim);">No data yet</td></tr>';
+}
+
+async function loadHypothesisHealth() {
+    const d = await apiFetch('hypothesis-health');
+    chartDefaults();
+
+    setText('hyp-kpi-projects', d.total_projects);
+    setText('hyp-kpi-hypotheses', d.total_hypotheses);
+    setText('hyp-kpi-evidence', d.total_evidence);
+    setText('hyp-kpi-orphans', d.orphan_hypotheses);
+
+    if (d.project_status.length) {
+        makeChart('chart-project-status', {
+            type: 'doughnut',
+            data: {
+                labels: d.project_status.map(s => s.status),
+                datasets: [{ data: d.project_status.map(s => s.count), backgroundColor: d.project_status.map((_, i) => cc(i)) }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+    }
+
+    if (d.hypothesis_status.length) {
+        makeChart('chart-hyp-status', {
+            type: 'doughnut',
+            data: {
+                labels: d.hypothesis_status.map(s => s.status),
+                datasets: [{ data: d.hypothesis_status.map(s => s.count), backgroundColor: d.hypothesis_status.map((_, i) => cc(i + 2)) }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+    }
+
+    if (d.evidence_sources.length) {
+        makeChart('chart-ev-sources', {
+            type: 'bar',
+            data: {
+                labels: d.evidence_sources.map(s => s.source),
+                datasets: [{ data: d.evidence_sources.map(s => s.count), backgroundColor: d.evidence_sources.map((_, i) => cc(i + 4)) }]
+            },
+            options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+        });
+    }
+
+    if (d.link_directions.length) {
+        makeChart('chart-link-dirs', {
+            type: 'doughnut',
+            data: {
+                labels: d.link_directions.map(s => s.direction),
+                datasets: [{ data: d.link_directions.map(s => s.count), backgroundColor: [cc(2), cc(5), cc(3)] }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+    }
+
+    const tbody = document.getElementById('hyp-recent-projects');
+    tbody.innerHTML = '';
+    (d.recent_projects || []).forEach(p => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid var(--border)';
+        tr.innerHTML = `
+            <td style="padding:6px 8px;">${p.title}</td>
+            <td style="padding:6px 8px;"><span style="padding:2px 8px;border-radius:8px;font-size:.75rem;background:var(--surface-alt,var(--surface));border:1px solid var(--border);">${p.status}</span></td>
+            <td style="text-align:right;padding:6px 8px;">${p.hypotheses}</td>
+            <td style="text-align:right;padding:6px 8px;color:var(--text-dim);">${p.updated}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+    if (!d.recent_projects.length) tbody.innerHTML = '<tr><td colspan="4" style="padding:12px;text-align:center;color:var(--text-dim);">No projects yet</td></tr>';
+}
+
+async function loadAnthropic() {
+    const d = await apiFetch('anthropic');
+    chartDefaults();
+
+    const totalReqs = d.daily_tokens.reduce((s, r) => s + r.requests, 0);
+    const totalTokens = d.daily_tokens.reduce((s, r) => s + r.input + r.output, 0);
+    const modelCount = d.model_distribution.length;
+    setText('ant-kpi-requests', totalReqs.toLocaleString());
+    setText('ant-kpi-tokens', totalTokens >= 1000000 ? (totalTokens / 1000000).toFixed(1) + 'M' : totalTokens >= 1000 ? (totalTokens / 1000).toFixed(1) + 'K' : totalTokens.toString());
+    setText('ant-kpi-models', modelCount);
+
+    if (d.daily_tokens.length) {
+        makeChart('chart-ant-tokens', {
+            type: 'line',
+            data: {
+                labels: d.daily_tokens.map(t => t.date),
+                datasets: [
+                    { label: 'Input', data: d.daily_tokens.map(t => t.input), borderColor: cc(0), backgroundColor: cca(0, 0.1), fill: true, tension: 0.3 },
+                    { label: 'Output', data: d.daily_tokens.map(t => t.output), borderColor: cc(1), backgroundColor: cca(1, 0.1), fill: true, tension: 0.3 },
+                ]
+            },
+            options: { responsive: true }
+        });
+    }
+
+    if (d.model_distribution.length) {
+        makeChart('chart-ant-models', {
+            type: 'doughnut',
+            data: {
+                labels: d.model_distribution.map(m => m.model),
+                datasets: [{ data: d.model_distribution.map(m => m.requests), backgroundColor: d.model_distribution.map((_, i) => cc(i)) }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+    }
+
+    // Top consumers table
+    const cTbody = document.getElementById('ant-top-consumers');
+    cTbody.innerHTML = '';
+    (d.top_consumers || []).forEach(u => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid var(--border)';
+        const tkFmt = u.tokens >= 1000 ? (u.tokens / 1000).toFixed(1) + 'K' : u.tokens;
+        tr.innerHTML = `<td style="padding:6px 8px;">${u.user}</td><td style="text-align:right;padding:6px 8px;">${u.requests}</td><td style="text-align:right;padding:6px 8px;">${tkFmt}</td>`;
+        cTbody.appendChild(tr);
+    });
+    if (!d.top_consumers.length) cTbody.innerHTML = '<tr><td colspan="3" style="padding:12px;text-align:center;color:var(--text-dim);">No data yet</td></tr>';
+
+    // Rate limits table
+    const rTbody = document.getElementById('ant-rate-limits');
+    rTbody.innerHTML = '';
+    (d.rate_limits || []).forEach(rl => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid var(--border)';
+        tr.innerHTML = `
+            <td style="padding:6px 8px;font-weight:600;">${rl.tier}</td>
+            <td style="text-align:right;padding:6px 8px;color:var(--text-dim);">${rl.llm_default}</td>
+            <td style="text-align:right;padding:6px 8px;">
+                <input type="number" value="${rl.llm_limit}" min="0" style="width:80px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);text-align:right;" data-tier="${rl.tier}" class="rate-limit-input">
+            </td>
+            <td style="text-align:center;padding:6px 8px;">${rl.has_override ? '<span style="color:var(--accent);">Yes</span>' : '—'}</td>
+            <td style="padding:6px 8px;text-align:center;">
+                <button onclick="saveRateLimit('${rl.tier}')" style="padding:4px 12px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;font-size:.8rem;">Save</button>
+            </td>
+        `;
+        rTbody.appendChild(tr);
+    });
+}
+
+async function saveRateLimit(tier) {
+    const input = document.querySelector(`.rate-limit-input[data-tier="${tier}"]`);
+    if (!input) return;
+    try {
+        const resp = await fetch('/api/internal/rate-limit-override/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '' },
+            body: JSON.stringify({ tier, llm_limit: parseInt(input.value) }),
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            input.style.borderColor = 'var(--accent)';
+            setTimeout(() => { input.style.borderColor = 'var(--border)'; }, 1500);
+            loadAnthropic();
+        } else {
+            alert(data.error || 'Failed to save');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
 }
 
 // =========================================================================
 // Tab: Performance
 // =========================================================================
-async function loadPerformance() {
-    const d = await apiFetch('performance');
+let perfDays = 7;
+
+async function loadPerformance(days) {
+    if (days !== undefined) perfDays = days;
+    const d = await apiFetch('performance', `?days=${perfDays}`);
     chartDefaults();
+
+    // KPIs
+    const k = d.kpis;
+    setText('perf-kpi-reqs', k.requests_today != null ? k.requests_today.toLocaleString() : '—');
+    setText('perf-kpi-errors', k.error_rate_today != null ? k.error_rate_today.toFixed(1) + '%' : '—');
+    setText('perf-kpi-p95', k.p95_today != null ? Math.round(k.p95_today) + 'ms' : '—');
+    setText('perf-kpi-avg', k.avg_duration_today != null ? Math.round(k.avg_duration_today) + 'ms' : '—');
+
+    // SLA badges
+    const sla = d.sla_status;
+    const badgeEl = document.getElementById('perf-sla-badges');
+    if (badgeEl && sla) {
+        const badge = (label, current, target, met) => {
+            const color = met === null ? 'var(--text-muted)' : met ? 'var(--success, #22c55e)' : 'var(--danger, #ef4444)';
+            const icon = met === null ? '◌' : met ? '✓' : '✗';
+            return `<div style="padding:.5rem 1rem;border:1px solid ${color};border-radius:6px;font-size:.85rem;">
+                <span style="color:${color};font-weight:600;">${icon}</span>
+                ${label}: <strong>${current != null ? Math.round(current) + 'ms' : 'N/A'}</strong>
+                <span style="opacity:.6;">/ ${target}ms target</span>
+            </div>`;
+        };
+        badgeEl.innerHTML = badge('p95', sla.p95_current, sla.p95_target, sla.p95_met)
+                          + badge('p99', sla.p99_current, sla.p99_target, sla.p99_met);
+    }
+
+    // Latency trend — avg, p95, p99
+    const labels = d.latency_trend.map(l => {
+        // Date-only strings ("2026-03-04") parse as UTC midnight, shifting back
+        // a day in negative-offset timezones. Append T12:00:00 to keep the date stable.
+        const dt = new Date(perfDays <= 2 ? l.ts : l.ts + 'T12:00:00');
+        return perfDays <= 2 ? dt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : dt.toLocaleDateString([], {month:'short',day:'numeric'});
+    });
 
     makeChart('chart-latency', {
         type: 'line',
         data: {
-            labels: d.latency_trend.map(l => l.date),
-            datasets: [{
-                label: 'Avg ms',
-                data: d.latency_trend.map(l => l.avg_ms),
-                borderColor: cc(1),
-                backgroundColor: cca(1, 0.15),
-                fill: true,
-                tension: 0.3,
-            }]
+            labels: labels,
+            datasets: [
+                { label: 'Avg', data: d.latency_trend.map(l => l.avg), borderColor: cc(0), backgroundColor: cca(0, 0.1), fill: true, tension: 0.3, borderWidth: 2 },
+                { label: 'p95', data: d.latency_trend.map(l => l.p95), borderColor: cc(1), tension: 0.3, borderWidth: 2, borderDash: [5, 3] },
+                { label: 'p99', data: d.latency_trend.map(l => l.p99), borderColor: cc(2), tension: 0.3, borderWidth: 1, borderDash: [2, 2] },
+            ]
         },
-        options: { responsive: true, plugins: { legend: { display: false } } }
+        options: { responsive: true, interaction: { mode: 'index', intersect: false }, scales: { y: { beginAtZero: true, title: { display: true, text: 'ms' } } } }
     });
 
-    const stages = d.stage_breakdown;
-    makeChart('chart-stages', {
-        type: 'bar',
-        data: {
-            labels: Object.keys(stages).map(s => s.charAt(0).toUpperCase() + s.slice(1)),
-            datasets: [{
-                data: Object.values(stages),
-                backgroundColor: Object.keys(stages).map((_, i) => cc(i)),
-            }]
-        },
-        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
-    });
-
-    makeChart('chart-gates', {
+    // Error rate
+    makeChart('chart-error-rate', {
         type: 'line',
         data: {
-            labels: d.gate_trend.map(g => g.date),
+            labels: labels,
             datasets: [{
-                label: 'Pass Rate %',
-                data: d.gate_trend.map(g => g.rate),
-                borderColor: cc(0),
-                backgroundColor: cca(0, 0.15),
-                fill: true,
-                tension: 0.3,
+                label: 'Error %',
+                data: d.error_rate_trend.map(e => e.rate),
+                borderColor: 'var(--danger, #ef4444)',
+                backgroundColor: 'rgba(239,68,68,0.1)',
+                fill: true, tension: 0.3,
             }]
         },
-        options: {
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: { y: { min: 0, max: 100 } }
-        }
+        options: { responsive: true, scales: { y: { beginAtZero: true, title: { display: true, text: '%' } } }, plugins: { legend: { display: false } } }
     });
 
-    if (d.error_stages.length) {
-        makeChart('chart-error-stages', {
-            type: 'doughnut',
-            data: {
-                labels: d.error_stages.map(e => e.error_stage),
-                datasets: [{
-                    data: d.error_stages.map(e => e.count),
-                    backgroundColor: d.error_stages.map((_, i) => cc(i)),
-                }]
-            },
-            options: { responsive: true }
-        });
+    // Request volume
+    makeChart('chart-volume', {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Requests',
+                data: d.volume_trend.map(v => v.count),
+                backgroundColor: cca(0, 0.6),
+            }]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+    });
+
+    // Slow endpoints table
+    const tbody = document.getElementById('perf-slow-tbody');
+    if (tbody) {
+        if (!d.slow_endpoints || d.slow_endpoints.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="padding:.5rem;opacity:.5;text-align:center;">No data yet — metrics accumulate as requests are served.</td></tr>';
+        } else {
+            tbody.innerHTML = d.slow_endpoints.map(ep => `<tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:.4rem .5rem;"><code>${ep.method}</code></td>
+                <td style="padding:.4rem .5rem;font-family:monospace;font-size:.8rem;">${ep.path}</td>
+                <td style="padding:.4rem .5rem;text-align:right;">${Math.round(ep.avg_ms)}</td>
+                <td style="padding:.4rem .5rem;text-align:right;">${ep.p95_ms != null ? Math.round(ep.p95_ms) : '—'}</td>
+                <td style="padding:.4rem .5rem;text-align:right;">${ep.count.toLocaleString()}</td>
+            </tr>`).join('');
+        }
     }
 }
+
+// Time range buttons
+document.querySelectorAll('.perf-range-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.perf-range-btn').forEach(b => {
+            b.style.background = 'var(--surface)';
+            b.style.color = 'var(--text)';
+            b.style.borderColor = 'var(--border)';
+            b.classList.remove('active');
+        });
+        btn.style.background = 'var(--accent)';
+        btn.style.color = 'var(--surface)';
+        btn.style.borderColor = 'var(--accent)';
+        btn.classList.add('active');
+        loadPerformance(parseInt(btn.dataset.days));
+    });
+});
 
 // =========================================================================
 // Tab: Business
@@ -2328,6 +2972,69 @@ let complianceTrendChart = null;
 
 let _complianceData = null;  // cache for drill-down
 
+async function runComplianceSuite() {
+    const btn = document.getElementById('btn-run-compliance');
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    const headers = {'Content-Type': 'application/json', 'X-CSRFToken': getCSRF()};
+    try {
+        // 1. Get list of checks
+        const listResp = await fetch('/api/internal/compliance/run/', {method: 'POST', headers});
+        const listData = await listResp.json();
+        if (!listData.ok) { throw new Error(listData.error || 'Failed to get check list'); }
+        const checks = listData.checks;
+        let passed = 0, failed = 0;
+        // 2. Run each check individually
+        for (let i = 0; i < checks.length; i++) {
+            btn.textContent = `Running ${i+1}/${checks.length}...`;
+            const resp = await fetch('/api/internal/compliance/run/', {
+                method: 'POST', headers, body: JSON.stringify({check: checks[i]}),
+            });
+            const data = await resp.json();
+            if (data.ok && data.status === 'pass') { passed++; } else { failed++; }
+        }
+        btn.textContent = `Done — ${passed}/${checks.length} passed`;
+        btn.style.background = failed === 0 ? 'var(--accent-primary,#4a9f6e)' : 'var(--warning,#f59e0b)';
+        await loadCompliance();
+    } catch (e) {
+        btn.textContent = 'Error: ' + e.message;
+        btn.style.background = 'var(--danger,#ef4444)';
+    }
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    setTimeout(() => { btn.textContent = origText; btn.style.background = 'var(--accent-primary,#4a9f6e)'; }, 5000);
+}
+
+async function runSingleCheck(checkName) {
+    const btn = event.target;
+    const origText = btn.textContent;
+    btn.textContent = '...';
+    btn.disabled = true;
+    try {
+        const resp = await fetch('/api/internal/compliance/run/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCSRF()},
+            body: JSON.stringify({check: checkName}),
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            btn.textContent = data.status.toUpperCase();
+            btn.style.background = data.status === 'pass' ? '#22c55e' : data.status === 'warning' ? '#f59e0b' : '#ef4444';
+            await loadCompliance();
+            showCheckDetail(checkName);
+        } else {
+            btn.textContent = 'ERR';
+            btn.style.background = '#ef4444';
+        }
+    } catch (e) {
+        btn.textContent = 'ERR';
+        btn.style.background = '#ef4444';
+    }
+    btn.disabled = false;
+    setTimeout(() => { btn.textContent = origText; btn.style.background = 'var(--accent-primary,#4a9f6e)'; }, 3000);
+}
+
 async function loadCompliance() {
     try {
         const d = await apiFetch('compliance');
@@ -2340,8 +3047,99 @@ async function loadCompliance() {
         document.getElementById('compliance-pass-rate').style.color =
             rate >= 90 ? 'var(--accent-primary)' : rate >= 70 ? 'var(--warning,#f59e0b)' : 'var(--danger,#ef4444)';
         document.getElementById('compliance-today').textContent = stats.checks_today || 0;
-        document.getElementById('compliance-total').textContent = stats.total_checks_run || 0;
+        // Symbol coverage KPI (from standards symbol-level impl hooks)
+        const cov = d.code_coverage || {};
+        const covPct = cov.covered_pct || 0;
+        const covEl = document.getElementById('compliance-coverage');
+        covEl.textContent = covPct + '%';
+        covEl.title = (cov.covered_symbols || 0) + ' / ' + (cov.total_symbols || 0) + ' symbols covered';
+        covEl.style.color = covPct >= 50 ? 'var(--accent-primary)' : covPct >= 30 ? 'var(--warning,#f59e0b)' : 'var(--danger,#ef4444)';
         document.getElementById('compliance-soc2').textContent = stats.soc2_controls_covered || 0;
+
+        // Symbol coverage detail section
+        if (cov.total_symbols) {
+            document.getElementById('cov-total-symbols').textContent = cov.total_symbols;
+            document.getElementById('cov-percent').textContent = covPct + '%';
+            document.getElementById('cov-percent').style.color =
+                covPct >= 50 ? 'var(--accent-primary)' : covPct >= 30 ? 'var(--warning,#f59e0b)' : 'var(--danger,#ef4444)';
+            document.getElementById('cov-ungoverned-loc').textContent = (cov.ungoverned_loc || 0).toLocaleString();
+            document.getElementById('cov-risk-score').textContent = (cov.risk_score || 0).toLocaleString();
+            document.getElementById('cov-risk-score').style.color =
+                (cov.risk_score || 0) > 50000 ? 'var(--danger,#ef4444)' :
+                (cov.risk_score || 0) > 20000 ? 'var(--warning,#f59e0b)' : 'var(--accent-primary)';
+
+            // Per-module stacked bars (green=covered, yellow=specified_untested, red=ungoverned)
+            const barsEl = document.getElementById('cov-module-bars');
+            const modules = (cov.by_module || []).sort((a,b) => b.total_loc - a.total_loc);
+            barsEl.innerHTML = modules.map(m => {
+                const total = m.total_loc || 1;
+                const covW = Math.round(m.covered_loc / total * 100);
+                const specW = Math.round(m.specified_untested_loc / total * 100);
+                const ungW = 100 - covW - specW;
+                return `<div style="display:grid;grid-template-columns:120px 1fr 80px;align-items:center;gap:8px;font-size:0.75rem;">
+                    <span style="color:var(--text-primary);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${m.module}">${m.module}</span>
+                    <div style="background:var(--bg-tertiary,#1a1a2e);border-radius:3px;height:14px;display:flex;overflow:hidden;">
+                        <div style="width:${covW}%;background:var(--accent-primary,#4a9f6e);height:100%;"></div>
+                        <div style="width:${specW}%;background:var(--warning,#f59e0b);height:100%;"></div>
+                        <div style="width:${ungW}%;background:var(--danger,#ef4444);height:100%;"></div>
+                    </div>
+                    <span style="color:var(--text-dim);text-align:right;font-size:0.7rem;">${m.covered_symbols}/${m.total_symbols} sym</span>
+                </div>`;
+            }).join('');
+
+            // Highest-risk files
+            const riskList = cov.top_risk || [];
+            if (riskList.length) {
+                document.getElementById('cov-risk-list').style.display = 'block';
+                document.getElementById('cov-risk-items').innerHTML = riskList.slice(0, 10).map(r =>
+                    `<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid var(--border);">
+                        <code style="color:var(--text-secondary);">${r.file}</code>
+                        <span style="color:var(--text-dim);white-space:nowrap;">risk ${r.risk_score.toLocaleString()} | ${r.ungoverned_symbols} ungov</span>
+                    </div>`
+                ).join('');
+            }
+        }
+
+        // Statistical Calibration section
+        const cal = d.calibration || {};
+        if (cal.cases_run) {
+            document.getElementById('cal-cases-run').textContent = cal.cases_run;
+            const calRate = cal.pass_rate || 0;
+            document.getElementById('cal-pass-rate').textContent = calRate + '%';
+            document.getElementById('cal-pass-rate').style.color =
+                calRate >= 100 ? 'var(--accent-primary)' : calRate >= 80 ? 'var(--warning,#f59e0b)' : 'var(--danger,#ef4444)';
+            const driftCount = (cal.drift_cases || []).length;
+            document.getElementById('cal-drift-count').textContent = driftCount;
+            document.getElementById('cal-drift-count').style.color =
+                driftCount === 0 ? 'var(--accent-primary)' : 'var(--danger,#ef4444)';
+            if (cal.run_at) {
+                const dt = new Date(cal.run_at);
+                document.getElementById('cal-last-run').textContent = dt.toLocaleDateString() + ' ' + dt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+            }
+            // Per-case results table
+            const calResults = cal.results || [];
+            if (calResults.length) {
+                document.getElementById('cal-results-table').style.display = 'block';
+                const tbody = document.getElementById('cal-results-tbody');
+                // Sort: failures first, then by case_id
+                const sorted = [...calResults].sort((a,b) => (a.passed === b.passed) ? a.case_id.localeCompare(b.case_id) : a.passed ? 1 : -1);
+                tbody.innerHTML = sorted.map(r => {
+                    const bg = r.passed ? '' : 'background:rgba(239,68,68,0.08);';
+                    const icon = r.passed ? '<span style="color:var(--accent-primary);">&#10003;</span>' : '<span style="color:var(--danger,#ef4444);">&#10007;</span>';
+                    const dur = r.duration_ms ? r.duration_ms.toFixed(0) + 'ms' : '—';
+                    const desc = r.description || r.error || '';
+                    return `<tr style="${bg}border-bottom:1px solid var(--border);">
+                        <td style="padding:4px 8px;font-family:monospace;white-space:nowrap;">${r.case_id}</td>
+                        <td style="padding:4px 8px;">${r.category}</td>
+                        <td style="padding:4px 8px;color:var(--text-secondary);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${desc}">${desc}</td>
+                        <td style="padding:4px 8px;color:var(--text-dim);text-align:right;">${dur}</td>
+                        <td style="padding:4px 8px;text-align:center;">${icon}</td>
+                    </tr>`;
+                }).join('');
+            }
+        }
+
+        const std = d.standards || {};
 
         // Audit Findings — aggregate all failures across checks + standards
         const findingsSection = document.getElementById('compliance-findings-section');
@@ -2419,18 +3217,56 @@ async function loadCompliance() {
         });
 
         // Standards coverage (clickable bars)
-        const std = d.standards || {};
         if (std.total_assertions) {
             document.getElementById('std-total').textContent = std.total_assertions;
             document.getElementById('std-passed').textContent = std.passed || 0;
             document.getElementById('std-failed').textContent = std.failed || 0;
             document.getElementById('std-warnings').textContent = std.warnings || 0;
 
+            // Test result metrics
+            const tLinked = std.tests_linked || 0;
+            const tUnique = std.tests_unique || 0;
+            const tPassed = std.tests_passed || 0;
+            const tFailed = std.tests_failed || 0;
+            const tSkipped = std.tests_skipped || 0;
+            const tRan = tPassed + tFailed;
+            if (tLinked > 0) {
+                document.getElementById('compliance-test-metrics').style.display = 'block';
+                document.getElementById('test-unique-count').textContent = tUnique + ' unique methods';
+                document.getElementById('test-linked-count').textContent = '(' + tLinked + ' assertion links)';
+                document.getElementById('test-passed').textContent = tPassed;
+                document.getElementById('test-failed').textContent = tFailed;
+                document.getElementById('test-skipped').textContent = tSkipped;
+                const passRate = tRan > 0 ? Math.round(tPassed / tRan * 100) : 0;
+                const rateEl = document.getElementById('test-pass-rate');
+                rateEl.textContent = passRate + '%';
+                rateEl.style.color = passRate >= 90 ? 'var(--accent-primary)' : passRate >= 70 ? 'var(--warning,#f59e0b)' : 'var(--danger,#ef4444)';
+                // Stacked bar
+                const total = tPassed + tFailed + tSkipped;
+                document.getElementById('test-bar-pass').style.width = (tPassed / total * 100) + '%';
+                document.getElementById('test-bar-fail').style.width = (tFailed / total * 100) + '%';
+                document.getElementById('test-bar-skip').style.width = (tSkipped / total * 100) + '%';
+            }
+
             const byStd = document.getElementById('std-by-standard');
             byStd.innerHTML = '';
             Object.entries(std.by_standard || {}).forEach(([name, info]) => {
                 const pct = info.total > 0 ? Math.round(info.passed / info.total * 100) : 0;
                 const color = pct === 100 ? 'var(--accent-primary)' : pct >= 80 ? 'var(--warning,#f59e0b)' : 'var(--danger,#ef4444)';
+                // Count tests per standard (exclude skipped from denominator)
+                let stdTestsRan = 0, stdTestsPassed = 0, stdTestsSkipped = 0, stdTestsTotal = 0;
+                (info.assertions || []).forEach(a => {
+                    (a.test_checks || []).forEach(tc => {
+                        stdTestsTotal++;
+                        if (tc.status === 'skip') { stdTestsSkipped++; }
+                        else if (tc.status === 'pass' || (tc.ran && tc.passed)) { stdTestsPassed++; stdTestsRan++; }
+                        else if (tc.ran) { stdTestsRan++; }
+                    });
+                });
+                let testInfo = '';
+                if (stdTestsRan > 0) testInfo = ` · ${stdTestsPassed}/${stdTestsRan} tests`;
+                else if (stdTestsSkipped > 0) testInfo = ` · ${stdTestsTotal} tests (DB)`;
+                else if (stdTestsTotal > 0) testInfo = ` · ${stdTestsTotal} tests`;
                 const card = document.createElement('div');
                 card.className = 'chart-card';
                 card.style.cssText = 'padding:10px;cursor:pointer;';
@@ -2443,9 +3279,42 @@ async function loadCompliance() {
                     <div style="height:4px;background:var(--bg-secondary);border-radius:2px;overflow:hidden;">
                         <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;"></div>
                     </div>
-                    <div style="font-size:0.7rem;color:var(--text-dim);margin-top:4px;">${info.passed}/${info.total} passed${info.failed > 0 ? ', ' + info.failed + ' failed' : ''}</div>
+                    <div style="font-size:0.7rem;color:var(--text-dim);margin-top:4px;">${info.passed}/${info.total} passed${info.failed > 0 ? ', ' + info.failed + ' failed' : ''}${testInfo}</div>
                 `;
                 byStd.appendChild(card);
+            });
+        }
+
+        // SLA status
+        const sla = d.sla || {};
+        if (sla.total > 0) {
+            document.getElementById('sla-total').textContent = sla.total;
+            document.getElementById('sla-met').textContent = sla.met || 0;
+            document.getElementById('sla-breached').textContent = sla.breached || 0;
+            document.getElementById('sla-unmeasurable').textContent = sla.unmeasurable || 0;
+
+            const slaGrid = document.getElementById('sla-grid');
+            slaGrid.innerHTML = '';
+            (sla.slas || []).forEach(s => {
+                const colors = {met: '#22c55e', breach: '#ef4444', unmeasurable: '#6b7280'};
+                const labels = {met: 'MET', breach: 'BREACH', unmeasurable: 'N/A'};
+                const sevColors = {critical: '#ef4444', high: '#f59e0b', medium: '#6b7280', low: '#6b7280'};
+                const card = document.createElement('div');
+                card.className = 'chart-card';
+                card.style.cssText = 'padding:10px;display:flex;justify-content:space-between;align-items:center;';
+                const currentVal = s.current_value ? ` · Current: ${s.current_value}` : '';
+                card.innerHTML = `
+                    <div>
+                        <div style="font-weight:600;font-size:0.82rem;">${s.description}</div>
+                        <div style="font-size:0.7rem;color:var(--text-dim);">
+                            Target: ${s.target} (${s.window})${currentVal}
+                            <span style="margin-left:6px;color:${sevColors[s.severity] || '#6b7280'};">${s.severity}</span>
+                            <span style="margin-left:6px;color:var(--text-dim);">${s.standard || ''} ${s.section || ''}</span>
+                        </div>
+                    </div>
+                    <span style="background:${colors[s.status] || '#6b7280'};color:#fff;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:600;white-space:nowrap;">${labels[s.status] || s.status}</span>
+                `;
+                slaGrid.appendChild(card);
             });
         }
 
@@ -2515,7 +3384,8 @@ function showCheckDetail(checkName) {
     const content = document.getElementById('check-detail-content');
 
     const colors = {pass: '#22c55e', fail: '#ef4444', warning: '#f59e0b', error: '#ef4444'};
-    title.innerHTML = `<span style="color:${colors[check.status] || '#888'};">[${check.status.toUpperCase()}]</span> ${check.check_name.replace(/_/g, ' ')}`;
+    title.innerHTML = `<span style="color:${colors[check.status] || '#888'};">[${check.status.toUpperCase()}]</span> ${check.check_name.replace(/_/g, ' ')}
+        <button onclick="runSingleCheck('${check.check_name}')" style="margin-left:12px;padding:3px 10px;background:var(--accent-primary,#4a9f6e);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:0.7rem;font-weight:600;">Re-run</button>`;
 
     let html = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;">
         <div><span style="color:var(--text-dim);">Category:</span> ${check.category}</div>
@@ -2546,6 +3416,7 @@ function showCheckDetail(checkName) {
                     html += `<div style="padding:6px 0;border-bottom:1px solid var(--border);"><span style="color:${sc};font-weight:600;">${f.status.toUpperCase()}</span> <code>${f.check_id}</code> <span style="color:var(--text-dim);">${f.standard} ${f.section}</span><div style="margin-top:2px;">${f.assertion}</div>`;
                     (f.impl_checks || []).filter(ic => !ic.ok).forEach(ic => { html += `<div style="color:var(--text-dim);margin-left:12px;">impl: ${ic.message || ic.impl}</div>`; });
                     (f.code_checks || []).filter(cc => !cc.ok).forEach(cc => { html += `<div style="color:var(--text-dim);margin-left:12px;">code:${cc.type}: ${(cc.message || '').substring(0, 100)}</div>`; });
+                    (f.test_checks || []).filter(tc => !tc.exists).forEach(tc => { html += `<div style="color:#ef4444;margin-left:12px;">test: [MISSING] <code>${tc.test}</code></div>`; });
                     html += '</div>';
                 });
             }
@@ -2599,6 +3470,20 @@ function showStandardDetail(standardName) {
         (a.code_checks || []).forEach(cc => {
             const mark = cc.ok ? '<span style="color:#22c55e;">ok</span>' : '<span style="color:#ef4444;">FAIL</span>';
             html += `<div style="margin-left:12px;margin-top:2px;">code:${cc.type}: [${mark}] ${(cc.message || '').substring(0, 90)}</div>`;
+        });
+        (a.test_checks || []).forEach(tc => {
+            let mark;
+            if (tc.status === 'skip') {
+                mark = '<span style="color:#6b7280;">SKIP</span>';
+            } else if (tc.ran || tc.status === 'pass') {
+                mark = (tc.passed || tc.status === 'pass') ? '<span style="color:#22c55e;">PASS</span>' : '<span style="color:#ef4444;">FAIL</span>';
+            } else if (tc.exists) {
+                mark = '<span style="color:#3b82f6;">exists</span>';
+            } else {
+                mark = '<span style="color:#ef4444;">MISSING</span>';
+            }
+            const skipNote = tc.status === 'skip' ? ` <span style="color:#6b7280;font-size:0.68rem;">(${tc.message || 'skipped'})</span>` : '';
+            html += `<div style="margin-left:12px;margin-top:2px;">test: [${mark}] <code style="font-size:0.7rem;">${tc.test || ''}</code>${skipNote}</div>`;
         });
         html += '</div>';
     });
@@ -2701,6 +3586,53 @@ async function togglePublish(reportId, btn) {
 // Change Management Tab (CHG-001)
 // =========================================================================
 
+const _chgStatusColors = {
+    draft: '#6b7280', submitted: '#3b82f6', risk_assessed: '#8b5cf6',
+    approved: '#22c55e', rejected: '#ef4444', in_progress: '#f59e0b',
+    testing: '#06b6d4', completed: '#22c55e', failed: '#ef4444',
+    rolled_back: '#ef4444', cancelled: '#6b7280'
+};
+const _chgTypeIcons = {
+    feature: '+', enhancement: '^', bugfix: '!', hotfix: '!!',
+    security: '@', infrastructure: '#', migration: '~',
+    documentation: 'D', plan: 'P', debt: '$'
+};
+const _chgRiskColors = {critical: '#ef4444', high: '#f59e0b', medium: '#3b82f6', low: '#22c55e'};
+const _chgActionColors = {
+    plan_created: '#6b7280', submitted: '#3b82f6', risk_assessed: '#8b5cf6',
+    approved: '#22c55e', rejected: '#ef4444', implementation_started: '#f59e0b',
+    testing_completed: '#06b6d4', completed: '#22c55e', failed: '#ef4444',
+    rolled_back: '#ef4444', cancelled: '#6b7280', comment: '#6b7280',
+    linked: '#3b82f6', retroactive_review: '#8b5cf6'
+};
+let _chgActiveId = null;
+
+function _chgMd(text) {
+    if (!text) return '';
+    if (typeof marked !== 'undefined') return marked.parse(String(text));
+    return '<pre style="white-space:pre-wrap;">' + String(text).replace(/</g,'&lt;') + '</pre>';
+}
+
+function _chgRenderPlan(data) {
+    if (!data) return '';
+    if (typeof data === 'string') return _chgMd(data);
+    if (Array.isArray(data)) return '<ul>' + data.map(s => '<li>' + String(s).replace(/</g,'&lt;') + '</li>').join('') + '</ul>';
+    if (typeof data === 'object') {
+        let html = '';
+        for (const [k, v] of Object.entries(data)) {
+            html += '<div style="margin-bottom:0.5rem;"><strong>' + String(k).replace(/</g,'&lt;') + ':</strong>';
+            if (Array.isArray(v)) {
+                html += '<ul>' + v.map(s => '<li>' + String(s).replace(/</g,'&lt;') + '</li>').join('') + '</ul>';
+            } else {
+                html += ' ' + String(v).replace(/</g,'&lt;');
+            }
+            html += '</div>';
+        }
+        return html;
+    }
+    return String(data).replace(/</g,'&lt;');
+}
+
 async function loadChanges() {
     try {
         const typeFilter = document.getElementById('chg-filter-type')?.value || '';
@@ -2713,7 +3645,7 @@ async function loadChanges() {
         if (riskFilter) params.push('risk=' + riskFilter);
         if (params.length) url += '?' + params.join('&');
 
-        const resp = await fetch('/api/internal/' + url + (url.includes('?') ? '' : ''), {
+        const resp = await fetch('/api/internal/' + url, {
             headers: {'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''},
         });
         const d = await resp.json();
@@ -2726,75 +3658,45 @@ async function loadChanges() {
         document.getElementById('chg-emergency-30d').textContent = stats.emergency_30d || 0;
         document.getElementById('chg-total').textContent = stats.total_changes || 0;
 
-        // Changes table
-        const tbody = document.getElementById('chg-tbody');
-        tbody.innerHTML = '';
-        const statusColors = {
-            draft: '#6b7280', submitted: '#3b82f6', risk_assessed: '#8b5cf6',
-            approved: '#22c55e', rejected: '#ef4444', in_progress: '#f59e0b',
-            testing: '#06b6d4', completed: '#22c55e', failed: '#ef4444',
-            rolled_back: '#ef4444', cancelled: '#6b7280'
-        };
-        const typeIcons = {
-            feature: '+', enhancement: '^', bugfix: '!', hotfix: '!!',
-            security: '@', infrastructure: '#', migration: '~',
-            documentation: 'D', plan: 'P', debt: '$'
-        };
-        const riskColors = {critical: '#ef4444', high: '#f59e0b', medium: '#3b82f6', low: '#22c55e'};
+        // Left pane list
+        const listDiv = document.getElementById('chg-list');
+        listDiv.innerHTML = '';
 
         (d.changes || []).forEach(c => {
-            const tr = document.createElement('tr');
-            tr.style.cssText = 'border-bottom:1px solid var(--border);cursor:pointer;';
-            tr.onclick = () => showChangeDetail(c.id);
-            tr.innerHTML = `
-                <td style="padding:6px 8px;">
-                    <span style="display:inline-block;width:24px;height:24px;text-align:center;line-height:24px;background:var(--bg-secondary);border-radius:4px;font-weight:700;font-size:0.75rem;" title="${c.change_type}">${typeIcons[c.change_type] || '?'}</span>
-                </td>
-                <td style="padding:6px 8px;font-weight:500;">
-                    ${c.title}
-                    ${c.is_emergency ? '<span style="background:#ef4444;color:#fff;padding:1px 5px;border-radius:8px;font-size:0.65rem;margin-left:4px;">EMERGENCY</span>' : ''}
-                </td>
-                <td style="padding:6px 8px;">
-                    <span style="color:${riskColors[c.risk_level] || '#6b7280'};font-weight:600;font-size:0.78rem;text-transform:uppercase;">${c.risk_level}</span>
-                </td>
-                <td style="padding:6px 8px;">
-                    <span style="background:${statusColors[c.status] || '#6b7280'};color:#fff;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:600;">${c.status.replace(/_/g,' ')}</span>
-                </td>
-                <td style="padding:6px 8px;font-size:0.78rem;color:var(--text-dim);">${c.author}</td>
-                <td style="padding:6px 8px;font-size:0.78rem;color:var(--text-dim);">${c.created_at ? timeAgo(c.created_at) : '—'}</td>
-                <td style="padding:6px 8px;text-align:center;">
-                    <span style="background:var(--bg-secondary);padding:2px 6px;border-radius:8px;font-size:0.72rem;">${c.log_count}</span>
-                </td>
-                <td style="padding:6px 8px;text-align:center;">
-                    ${c.risk_score != null ? `<span style="font-weight:600;color:${c.risk_score >= 4 ? '#ef4444' : c.risk_score >= 3 ? '#f59e0b' : '#22c55e'};">${c.risk_score.toFixed(1)}</span>` : '<span style="color:var(--text-dim);">—</span>'}
-                </td>
+            const item = document.createElement('div');
+            item.className = 'chg-item' + (c.id === _chgActiveId ? ' active' : '');
+            item.onclick = () => {
+                document.querySelectorAll('.chg-item.active').forEach(el => el.classList.remove('active'));
+                item.classList.add('active');
+                showChangeDetail(c.id);
+            };
+            const icon = _chgTypeIcons[c.change_type] || '?';
+            const statusColor = _chgStatusColors[c.status] || '#6b7280';
+            const riskColor = _chgRiskColors[c.risk_level] || '#6b7280';
+            item.innerHTML = `
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="display:inline-block;width:22px;height:22px;text-align:center;line-height:22px;background:var(--bg-secondary);border-radius:4px;font-weight:700;font-size:0.7rem;flex-shrink:0;" title="${c.change_type}">${icon}</span>
+                    <div class="chg-item-title">${c.title}${c.is_emergency ? ' <span style="background:#ef4444;color:#fff;padding:0 4px;border-radius:6px;font-size:0.55rem;">!</span>' : ''}</div>
+                </div>
+                <div class="chg-item-meta">
+                    <span class="chg-badge" style="background:${statusColor};color:#fff;">${c.status.replace(/_/g,' ')}</span>
+                    <span class="chg-badge" style="background:${riskColor}22;color:${riskColor};">${c.risk_level}</span>
+                    <span>${c.created_at ? timeAgo(c.created_at) : ''}</span>
+                </div>
             `;
-            tbody.appendChild(tr);
+            listDiv.appendChild(item);
         });
 
         if (!d.changes || d.changes.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="padding:12px;color:var(--text-dim);text-align:center;">No change requests found. Create one via the API.</td></tr>';
+            listDiv.innerHTML = '<div style="padding:2rem 1rem;text-align:center;color:var(--text-dim);font-size:0.8rem;">No change requests found.</div>';
         }
-
-        // By type distribution
-        const byType = document.getElementById('chg-by-type');
-        byType.innerHTML = '';
-        Object.entries(stats.by_type || {}).forEach(([type, count]) => {
-            const card = document.createElement('div');
-            card.className = 'chart-card';
-            card.style.cssText = 'padding:10px;text-align:center;';
-            card.innerHTML = `
-                <div style="font-size:1.4rem;font-weight:700;">${count}</div>
-                <div style="font-size:0.72rem;color:var(--text-dim);text-transform:capitalize;">${type.replace(/_/g,' ')}</div>
-            `;
-            byType.appendChild(card);
-        });
     } catch(e) {
         console.error('Changes load failed:', e);
     }
 }
 
 async function showChangeDetail(changeId) {
+    _chgActiveId = changeId;
     try {
         const resp = await fetch('/api/internal/changes/' + changeId + '/', {
             headers: {'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''},
@@ -2802,22 +3704,52 @@ async function showChangeDetail(changeId) {
         const d = await resp.json();
         const c = d.change;
 
-        document.getElementById('chg-detail-panel').style.display = 'block';
-        document.getElementById('chg-detail-title').textContent = c.title;
-        document.getElementById('chg-detail-type').textContent = c.change_type;
-        document.getElementById('chg-detail-risk').textContent = c.risk_level;
-        document.getElementById('chg-detail-status').textContent = c.status.replace(/_/g, ' ');
-        document.getElementById('chg-detail-author').textContent = c.author;
-        document.getElementById('chg-detail-desc').textContent = c.description || '(no description)';
+        document.getElementById('chg-reader-empty').style.display = 'none';
+        document.getElementById('chg-reader-content').style.display = 'block';
 
-        // Risk assessments
-        const riskSection = document.getElementById('chg-detail-risk-section');
+        // Header
+        const statusColor = _chgStatusColors[c.status] || '#6b7280';
+        const riskColor = _chgRiskColors[c.risk_level] || '#6b7280';
+        const hdr = document.getElementById('chg-reader-header');
+        let dates = `Created ${timeAgo(c.created_at)} by <strong>${c.author}</strong>`;
+        if (c.submitted_at) dates += ` · Submitted ${timeAgo(c.submitted_at)}`;
+        if (c.approved_at) dates += ` · Approved ${timeAgo(c.approved_at)}${c.approver ? ' by ' + c.approver : ''}`;
+        if (c.started_at) dates += ` · Started ${timeAgo(c.started_at)}`;
+        if (c.completed_at) dates += ` · Completed ${timeAgo(c.completed_at)}`;
+        hdr.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <span style="font-size:1.2rem;font-weight:700;color:var(--text-primary);">${c.title}</span>
+                ${c.is_emergency ? '<span style="background:#ef4444;color:#fff;padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:600;">EMERGENCY</span>' : ''}
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">
+                <span class="chg-badge" style="background:var(--bg-secondary);color:var(--text-primary);text-transform:capitalize;">${c.change_type.replace(/_/g,' ')}</span>
+                <span class="chg-badge" style="background:${statusColor};color:#fff;">${c.status.replace(/_/g,' ')}</span>
+                <span class="chg-badge" style="background:${riskColor}22;color:${riskColor};">${c.risk_level} risk</span>
+                <span class="chg-badge" style="background:var(--bg-secondary);color:var(--text-dim);">${c.priority} priority</span>
+            </div>
+            <div style="font-size:0.75rem;color:var(--text-dim);margin-top:8px;">${dates}</div>
+            <div style="font-size:0.7rem;color:var(--text-dim);margin-top:4px;font-family:'JetBrains Mono','Fira Code',monospace;">ID: ${c.id}</div>
+        `;
+
+        // Build body sections
+        let body = '';
+
+        // Description
+        if (c.description) {
+            body += '<div class="chg-section"><div class="chg-section-title">Description</div><div class="std-markdown">' + _chgMd(c.description) + '</div></div>';
+        }
+
+        // Justification
+        if (c.justification) {
+            body += '<div class="chg-section"><div class="chg-section-title">Justification</div><div class="std-markdown">' + _chgMd(c.justification) + '</div></div>';
+        }
+
+        // Risk Assessment
         const assessments = d.risk_assessments || [];
         if (assessments.length > 0) {
-            riskSection.style.display = 'block';
-            const ra = assessments[0]; // Latest assessment
-            const scoresDiv = document.getElementById('chg-detail-risk-scores');
-            scoresDiv.innerHTML = '';
+            const ra = assessments[0];
+            const scoreColor = s => s >= 4 ? '#ef4444' : s >= 3 ? '#f59e0b' : '#22c55e';
+            const recColors = {approve: '#22c55e', approve_with_conditions: '#f59e0b', reject: '#ef4444'};
             const dims = [
                 {key: 'security_score', label: 'Security'},
                 {key: 'availability_score', label: 'Availability'},
@@ -2825,67 +3757,159 @@ async function showChangeDetail(changeId) {
                 {key: 'confidentiality_score', label: 'Confidentiality'},
                 {key: 'privacy_score', label: 'Privacy'},
             ];
+
+            let raHtml = '<div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;">';
+            raHtml += `<div style="font-size:2rem;font-weight:700;color:${scoreColor(ra.overall_score)};">${(ra.overall_score || 0).toFixed(1)}</div>`;
+            raHtml += `<div><div style="font-size:0.85rem;font-weight:600;">Overall Risk Score</div>`;
+            raHtml += `<span class="chg-badge" style="background:${recColors[ra.overall_recommendation] || '#6b7280'};color:#fff;">${(ra.overall_recommendation || 'none').replace(/_/g,' ')}</span>`;
+            raHtml += `<span style="font-size:0.7rem;color:var(--text-dim);margin-left:8px;">${ra.assessment_type.replace(/_/g,' ')} · ${timeAgo(ra.assessed_at)} by ${ra.assessed_by}</span>`;
+            raHtml += '</div></div>';
+
+            raHtml += '<div class="chg-dim-grid">';
             dims.forEach(dim => {
                 const score = ra[dim.key] || 0;
-                const color = score >= 4 ? '#ef4444' : score >= 3 ? '#f59e0b' : '#22c55e';
-                const card = document.createElement('div');
-                card.style.cssText = 'text-align:center;padding:6px;background:var(--bg-secondary);border-radius:4px;';
-                card.innerHTML = `<div style="font-size:1.2rem;font-weight:700;color:${color};">${score.toFixed(1)}</div><div style="font-size:0.65rem;color:var(--text-dim);">${dim.label}</div>`;
-                scoresDiv.appendChild(card);
+                raHtml += `<div class="chg-dim-card"><div style="font-size:1.4rem;font-weight:700;color:${scoreColor(score)};">${score.toFixed(1)}</div><div style="font-size:0.7rem;color:var(--text-dim);">${dim.label}</div></div>`;
             });
+            raHtml += '</div>';
 
-            // Votes
-            const votesDiv = document.getElementById('chg-detail-votes');
-            votesDiv.innerHTML = '';
-            (ra.votes || []).forEach(v => {
-                const recColors = {approve: '#22c55e', approve_with_conditions: '#f59e0b', reject: '#ef4444'};
-                votesDiv.innerHTML += `
-                    <div style="padding:6px 0;border-bottom:1px solid var(--border);">
-                        <span style="font-weight:600;text-transform:capitalize;">${v.agent_role.replace(/_/g,' ')}</span>
-                        <span style="float:right;background:${recColors[v.recommendation] || '#6b7280'};color:#fff;padding:1px 8px;border-radius:8px;font-size:0.7rem;">${v.recommendation.replace(/_/g,' ')}</span>
-                        <div style="color:var(--text-dim);margin-top:2px;font-size:0.75rem;">${v.rationale.substring(0, 200)}${v.rationale.length > 200 ? '...' : ''}</div>
-                    </div>
-                `;
-            });
-        } else {
-            riskSection.style.display = 'none';
+            if (ra.summary) {
+                raHtml += '<div class="std-markdown" style="margin-bottom:0.75rem;">' + _chgMd(ra.summary) + '</div>';
+            }
+
+            if (ra.conditions && ra.conditions.length > 0) {
+                raHtml += '<div style="margin-bottom:0.75rem;"><strong style="font-size:0.8rem;">Conditions:</strong><ul style="margin:4px 0;padding-left:1.5rem;">';
+                ra.conditions.forEach(cond => { raHtml += '<li style="font-size:0.82rem;">' + String(cond).replace(/</g,'&lt;') + '</li>'; });
+                raHtml += '</ul></div>';
+            }
+
+            // Agent votes
+            const votes = ra.votes || [];
+            if (votes.length > 0) {
+                raHtml += '<div style="font-size:0.8rem;font-weight:600;margin-bottom:0.5rem;">Agent Votes</div>';
+                votes.forEach(v => {
+                    raHtml += `<div class="chg-vote">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                            <span style="font-weight:600;text-transform:capitalize;font-size:0.85rem;">${v.agent_role.replace(/_/g,' ')}</span>
+                            <span class="chg-badge" style="background:${recColors[v.recommendation] || '#6b7280'};color:#fff;">${v.recommendation.replace(/_/g,' ')}</span>
+                        </div>`;
+                    if (v.rationale) {
+                        raHtml += '<div class="std-markdown" style="font-size:0.82rem;">' + _chgMd(v.rationale) + '</div>';
+                    }
+                    if (v.conditions && v.conditions.length > 0) {
+                        raHtml += '<div style="margin-top:4px;"><em style="font-size:0.75rem;color:var(--text-dim);">Conditions:</em><ul style="margin:2px 0;padding-left:1.5rem;font-size:0.8rem;">';
+                        v.conditions.forEach(cond => { raHtml += '<li>' + String(cond).replace(/</g,'&lt;') + '</li>'; });
+                        raHtml += '</ul></div>';
+                    }
+                    if (v.risk_scores && typeof v.risk_scores === 'object') {
+                        raHtml += '<div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">';
+                        for (const [dim, score] of Object.entries(v.risk_scores)) {
+                            raHtml += `<span style="font-size:0.7rem;color:var(--text-dim);">${dim}: <strong style="color:${scoreColor(score)}">${score}</strong></span>`;
+                        }
+                        raHtml += '</div>';
+                    }
+                    raHtml += '</div>';
+                });
+            }
+
+            body += '<div class="chg-section"><div class="chg-section-title">Risk Assessment</div>' + raHtml + '</div>';
         }
 
-        // Log chain
-        const logsDiv = document.getElementById('chg-detail-logs');
-        logsDiv.innerHTML = '';
-        const actionColors = {
-            plan_created: '#6b7280', submitted: '#3b82f6', risk_assessed: '#8b5cf6',
-            approved: '#22c55e', rejected: '#ef4444', implementation_started: '#f59e0b',
-            testing_completed: '#06b6d4', completed: '#22c55e', failed: '#ef4444',
-            rolled_back: '#ef4444', cancelled: '#6b7280', comment: '#6b7280',
-            linked: '#3b82f6', retroactive_review: '#8b5cf6'
-        };
-        (d.logs || []).forEach(log => {
-            const details = log.details || {};
-            let links = '';
-            if (details.commit_sha) links += `<a href="#" style="color:var(--accent-primary);font-size:0.7rem;margin-right:8px;" title="Commit">SHA: ${details.commit_sha.substring(0,8)}</a>`;
-            if (details.issue_url) links += `<a href="${details.issue_url}" target="_blank" style="color:var(--accent-primary);font-size:0.7rem;margin-right:8px;">Issue</a>`;
-            if (details.log_md_ref) links += `<span style="font-size:0.7rem;color:var(--text-dim);">log.md: ${details.log_md_ref}</span>`;
+        // Affected Files
+        const files = c.affected_files;
+        if (files && ((Array.isArray(files) && files.length > 0) || (typeof files === 'string' && files.trim()))) {
+            const fileList = Array.isArray(files) ? files : files.split(',').map(f => f.trim()).filter(Boolean);
+            body += '<div class="chg-section"><div class="chg-section-title">Affected Files</div><ul class="chg-file-list">';
+            fileList.forEach(f => { body += '<li>' + String(f).replace(/</g,'&lt;') + '</li>'; });
+            body += '</ul></div>';
+        }
 
-            logsDiv.innerHTML += `
-                <div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;gap:8px;">
-                    <div style="min-width:3px;background:${actionColors[log.action] || '#6b7280'};border-radius:2px;"></div>
+        // Implementation Plan
+        if (c.implementation_plan && Object.keys(c.implementation_plan).length > 0) {
+            body += '<div class="chg-section"><div class="chg-section-title">Implementation Plan</div><div class="std-markdown">' + _chgRenderPlan(c.implementation_plan) + '</div></div>';
+        }
+
+        // Testing Plan
+        if (c.testing_plan && Object.keys(c.testing_plan).length > 0) {
+            body += '<div class="chg-section"><div class="chg-section-title">Testing Plan</div><div class="std-markdown">' + _chgRenderPlan(c.testing_plan) + '</div></div>';
+        }
+
+        // Rollback Plan
+        if (c.rollback_plan && Object.keys(c.rollback_plan).length > 0) {
+            body += '<div class="chg-section"><div class="chg-section-title">Rollback Plan</div><div class="std-markdown">' + _chgRenderPlan(c.rollback_plan) + '</div></div>';
+        }
+
+        // Commits & Links
+        let linksHtml = '';
+        if (c.commit_shas && c.commit_shas.length > 0) {
+            linksHtml += '<div style="margin-bottom:6px;"><strong style="font-size:0.8rem;">Commits:</strong> ';
+            c.commit_shas.forEach(sha => { linksHtml += '<code style="font-size:0.78rem;margin-right:6px;">' + String(sha).substring(0,10) + '</code>'; });
+            linksHtml += '</div>';
+        }
+        if (c.issue_url) linksHtml += '<div style="margin-bottom:6px;"><strong style="font-size:0.8rem;">Issue:</strong> <a href="' + c.issue_url + '" target="_blank" style="color:var(--accent-primary);font-size:0.82rem;">' + c.issue_url + '</a></div>';
+        if (c.debt_item) linksHtml += '<div style="margin-bottom:6px;"><strong style="font-size:0.8rem;">Debt Item:</strong> <code style="font-size:0.78rem;">' + c.debt_item + '</code></div>';
+        if (c.log_md_ref) linksHtml += '<div style="margin-bottom:6px;"><strong style="font-size:0.8rem;">Log.md Ref:</strong> <span style="font-size:0.82rem;">' + c.log_md_ref + '</span></div>';
+        if (c.compliance_check_ids && c.compliance_check_ids.length > 0) {
+            linksHtml += '<div style="margin-bottom:6px;"><strong style="font-size:0.8rem;">Compliance Checks:</strong> ';
+            c.compliance_check_ids.forEach(id => { linksHtml += '<code style="font-size:0.72rem;margin-right:4px;">' + String(id).substring(0,8) + '</code>'; });
+            linksHtml += '</div>';
+        }
+        if (c.drift_violation_ids && c.drift_violation_ids.length > 0) {
+            linksHtml += '<div style="margin-bottom:6px;"><strong style="font-size:0.8rem;">Drift Violations:</strong> ';
+            c.drift_violation_ids.forEach(id => { linksHtml += '<code style="font-size:0.72rem;margin-right:4px;">' + String(id).substring(0,8) + '</code>'; });
+            linksHtml += '</div>';
+        }
+        if (linksHtml) {
+            body += '<div class="chg-section"><div class="chg-section-title">References</div>' + linksHtml + '</div>';
+        }
+
+        // Related Changes
+        const related = d.related_changes || [];
+        if (related.length > 0) {
+            let relHtml = '';
+            related.forEach(r => {
+                const sColor = _chgStatusColors[r.status] || '#6b7280';
+                relHtml += `<div style="display:inline-block;padding:6px 12px;background:var(--bg-secondary);border-radius:6px;border:1px solid var(--border);margin:0 6px 6px 0;cursor:pointer;font-size:0.82rem;" onclick="showChangeDetail('${r.id}')">
+                    <span style="font-weight:600;">${r.title}</span>
+                    <span class="chg-badge" style="background:${sColor};color:#fff;margin-left:6px;">${r.status.replace(/_/g,' ')}</span>
+                </div>`;
+            });
+            body += '<div class="chg-section"><div class="chg-section-title">Related Changes</div>' + relHtml + '</div>';
+        }
+
+        // Timeline (log chain)
+        const logs = d.logs || [];
+        if (logs.length > 0) {
+            let tlHtml = '';
+            logs.forEach(log => {
+                const details = log.details || {};
+                let detailLinks = '';
+                if (details.commit_sha) detailLinks += '<code style="font-size:0.72rem;margin-right:6px;">SHA: ' + String(details.commit_sha).substring(0,8) + '</code>';
+                if (details.issue_url) detailLinks += '<a href="' + details.issue_url + '" target="_blank" style="color:var(--accent-primary);font-size:0.72rem;margin-right:6px;">Issue</a>';
+                if (details.log_md_ref) detailLinks += '<span style="font-size:0.72rem;color:var(--text-dim);">log.md: ' + details.log_md_ref + '</span>';
+
+                tlHtml += `<div class="chg-timeline-entry">
+                    <div class="chg-timeline-bar" style="background:${_chgActionColors[log.action] || '#6b7280'};"></div>
                     <div style="flex:1;">
-                        <div style="display:flex;justify-content:space-between;">
-                            <span style="font-weight:600;text-transform:capitalize;">${log.action.replace(/_/g,' ')}</span>
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-weight:600;text-transform:capitalize;font-size:0.85rem;">${log.action.replace(/_/g,' ')}</span>
                             <span style="font-size:0.7rem;color:var(--text-dim);">${timeAgo(log.timestamp)} · ${log.actor}</span>
                         </div>
-                        ${log.from_state && log.to_state ? `<div style="font-size:0.72rem;color:var(--text-dim);">${log.from_state} → ${log.to_state}</div>` : ''}
-                        ${log.message ? `<div style="margin-top:2px;">${log.message}</div>` : ''}
-                        ${links ? `<div style="margin-top:4px;">${links}</div>` : ''}
+                        ${log.from_state && log.to_state ? '<div style="font-size:0.72rem;color:var(--text-dim);">' + log.from_state + ' → ' + log.to_state + '</div>' : ''}
+                        ${log.message ? '<div class="std-markdown" style="margin-top:4px;font-size:0.85rem;">' + _chgMd(log.message) + '</div>' : ''}
+                        ${detailLinks ? '<div style="margin-top:6px;">' + detailLinks + '</div>' : ''}
                     </div>
-                </div>
-            `;
-        });
+                </div>`;
+            });
+            body += '<div class="chg-section"><div class="chg-section-title">Timeline (' + logs.length + ' entries)</div>' + tlHtml + '</div>';
+        }
 
-        // Scroll detail into view
-        document.getElementById('chg-detail-panel').scrollIntoView({behavior: 'smooth', block: 'start'});
+        document.getElementById('chg-reader-body').innerHTML = body;
+        document.getElementById('chg-reader').scrollTop = 0;
+
+        // Highlight active in list
+        document.querySelectorAll('.chg-item').forEach(el => el.classList.remove('active'));
+        const items = document.querySelectorAll('.chg-item');
+        // Re-highlight is handled by onclick above
     } catch(e) {
         console.error('Change detail load failed:', e);
     }
@@ -3112,7 +4136,8 @@ async function loadAuditEntries() {
 // =========================================================================
 const loaders = {
     users: loadUsers,
-    usage: loadUsage,
+    dsw: loadDSWAnalytics,
+    hypotheses: loadHypothesisHealth,
     performance: loadPerformance,
     business: loadBusiness,
     insights: () => {},  // No auto-load
@@ -3121,24 +4146,30 @@ const loaders = {
     content: loadContent,
     onboarding: loadOnboarding,
     automation: loadAutomation,
+    anthropic: loadAnthropic,
     crm: loadCRM,
     site: loadSite,
     compliance: loadCompliance,
     changes: loadChanges,
     infra: loadInfra,
+    standards: loadStandards,
+    roadmap: loadRoadmap,
+    features: loadFeatures,
 };
 
 const groups = {
-    product:  ['users', 'usage', 'performance', 'activity'],
+    product:  ['users', 'dsw', 'hypotheses', 'performance', 'activity', 'roadmap', 'features'],
     growth:   ['business', 'onboarding', 'email', 'content', 'crm', 'site'],
-    ops:      ['automation', 'insights', 'compliance', 'changes', 'infra'],
+    ops:      ['automation', 'insights', 'anthropic', 'compliance', 'changes', 'infra', 'standards'],
 };
 
 const tabLabels = {
-    users: 'Users', usage: 'Usage', performance: 'Performance',
+    users: 'Users', dsw: 'DSW Analytics', hypotheses: 'Hypotheses', performance: 'Performance',
     activity: 'Activity', business: 'Business', onboarding: 'Onboarding',
     email: 'Email', content: 'Content', crm: 'CRM', site: 'Site',
-    automation: 'Automation', insights: 'AI Insights', compliance: 'Compliance', changes: 'Changes', infra: 'Infra',
+    automation: 'Automation', insights: 'AI Insights', anthropic: 'Anthropic', compliance: 'Compliance', changes: 'Changes', infra: 'Infra', standards: 'Standards',
+    roadmap: 'Roadmap',
+    features: 'Features',
 };
 
 let activeGroup = 'product';
@@ -4579,7 +5610,7 @@ async function loadCRMLeads() {
         const stageColors = {
             prospect: '#6b7280', contacted: '#3b82f6', engaged: '#8b5cf6',
             demo: '#f59e0b', trial: '#10b981', customer: '#059669',
-            churned: '#ef4444', lost: '#9ca3af',
+            partner: '#d97706', churned: '#ef4444', lost: '#9ca3af',
             bounced: '#dc2626', invalid: '#78716c'
         };
         tbody.innerHTML = data.leads.map(lead => {
@@ -4598,7 +5629,7 @@ async function loadCRMLeads() {
                 <td style="padding:8px 6px;">${lead.company || '—'}</td>
                 <td style="padding:8px 6px;">
                     <select onchange="updateLeadStage('${lead.id}', this.value)" style="font-size:0.7rem;padding:2px 4px;border:1px solid ${stageColor};border-radius:3px;background:transparent;color:${stageColor};font-weight:500;">
-                        ${['prospect','contacted','engaged','demo','trial','customer','churned','lost','bounced','invalid'].map(s =>
+                        ${['prospect','contacted','engaged','demo','trial','customer','partner','churned','lost','bounced','invalid'].map(s =>
                             `<option value="${s}" ${s === lead.stage ? 'selected' : ''}>${s}</option>`
                         ).join('')}
                     </select>
@@ -5215,9 +6246,9 @@ async function loadCRMMetrics() {
 
         // Pipeline chart
         const stages = pipeData.stages || {};
-        const stageLabels = ['prospect', 'contacted', 'engaged', 'demo', 'trial', 'customer', 'churned', 'lost', 'bounced', 'invalid'];
+        const stageLabels = ['prospect', 'contacted', 'engaged', 'demo', 'trial', 'customer', 'partner', 'churned', 'lost', 'bounced', 'invalid'];
         const stageValues = stageLabels.map(s => stages[s] || 0);
-        const stageColors = ['#6b7280', '#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#059669', '#ef4444', '#9ca3af'];
+        const stageColors = ['#6b7280', '#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#059669', '#d97706', '#ef4444', '#9ca3af', '#dc2626', '#78716c'];
 
         if (charts['crm-pipeline']) charts['crm-pipeline'].destroy();
         charts['crm-pipeline'] = new Chart(document.getElementById('crm-chart-pipeline'), {
@@ -5707,6 +6738,658 @@ function stopSiteLive() {
 
 
 // =========================================================================
+// =========================================================================
+// Standards Library
+// =========================================================================
+let _standardsList = null;
+let _activeStandard = null;
+
+async function loadStandards() {
+    if (_standardsList) {
+        renderStandardsList(_standardsList);
+        return;
+    }
+    try {
+        const resp = await fetch('/api/internal/standards/');
+        const data = await resp.json();
+        _standardsList = data.standards || [];
+        renderStandardsList(_standardsList);
+    } catch (e) {
+        console.error('Standards load failed:', e);
+    }
+}
+
+function renderStandardsList(standards) {
+    const container = document.getElementById('std-list');
+    container.innerHTML = '';
+    standards.forEach(s => {
+        const div = document.createElement('div');
+        div.className = 'std-item' + (_activeStandard === s.code ? ' active' : '');
+        div.onclick = () => openStandard(s.code);
+        const statusCls = (s.status || '').toLowerCase().includes('approved') ? 'approved'
+            : (s.status || '').toLowerCase().includes('draft') ? 'draft' : 'deprecated';
+        div.innerHTML = `
+            <div class="std-item-code">${esc(s.code)}</div>
+            <div class="std-item-title">${esc(s.title)}</div>
+            <div class="std-item-meta">
+                <span class="std-item-badge ${statusCls}">${esc(s.status || 'N/A')}</span>
+                <span>v${esc(s.version || '?')}</span>
+                ${s.assertions ? `<span>${s.assertions} assertions</span>` : ''}
+                <span>${s.lines || '?'} lines</span>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function filterStandardsList() {
+    const q = (document.getElementById('std-search').value || '').toLowerCase();
+    if (!_standardsList) return;
+    if (!q) { renderStandardsList(_standardsList); return; }
+    const filtered = _standardsList.filter(s =>
+        s.code.toLowerCase().includes(q) ||
+        s.title.toLowerCase().includes(q) ||
+        (s.compliance || []).some(c => c.toLowerCase().includes(q)) ||
+        (s.related || []).some(r => r.toLowerCase().includes(q))
+    );
+    renderStandardsList(filtered);
+}
+
+async function openStandard(code) {
+    _activeStandard = code;
+    // Update active state in list
+    document.querySelectorAll('.std-item').forEach(el => {
+        el.classList.toggle('active', el.querySelector('.std-item-code').textContent === code);
+    });
+
+    document.getElementById('std-reader-empty').style.display = 'none';
+    const content = document.getElementById('std-reader-content');
+    content.style.display = 'block';
+    document.getElementById('std-reader-body').innerHTML = '<div style="color:var(--text-dim);padding:2rem;">Loading...</div>';
+
+    try {
+        const resp = await fetch(`/api/internal/standards/?code=${encodeURIComponent(code)}`);
+        const s = await resp.json();
+        if (s.error) throw new Error(s.error);
+
+        // Header
+        document.getElementById('std-reader-code').textContent = s.code;
+        const statusEl = document.getElementById('std-reader-status');
+        const statusCls = (s.status || '').toLowerCase().includes('approved') ? 'approved'
+            : (s.status || '').toLowerCase().includes('draft') ? 'draft' : 'deprecated';
+        statusEl.textContent = s.status || 'N/A';
+        statusEl.className = '';
+        statusEl.style.cssText = statusCls === 'approved'
+            ? 'font-size:0.7rem;font-weight:600;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;background:rgba(34,197,94,0.15);color:#22c55e;'
+            : statusCls === 'draft'
+            ? 'font-size:0.7rem;font-weight:600;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;background:rgba(245,158,11,0.15);color:#f59e0b;'
+            : 'font-size:0.7rem;font-weight:600;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;background:rgba(239,68,68,0.15);color:#ef4444;';
+        document.getElementById('std-reader-version').textContent = `v${s.version || '?'}`;
+        const parts = [];
+        if (s.author) parts.push(s.author);
+        if (s.date) parts.push(s.date);
+        if (s.assertions) parts.push(`${s.assertions} assertions`);
+        if (s.lines) parts.push(`${s.lines} lines`);
+        document.getElementById('std-reader-meta').textContent = parts.join(' · ');
+
+        // Render markdown — strip HTML comment assertion hooks for clean reading
+        let body = s.body || '';
+        body = body.replace(/<!--\s*(assert|impl|check|code|control|rule|test):\s*.+?\s*-->\n?/g, '');
+
+        const readerBody = document.getElementById('std-reader-body');
+        if (typeof marked !== 'undefined') {
+            readerBody.innerHTML = marked.parse(body);
+        } else {
+            readerBody.innerHTML = '<pre style="white-space:pre-wrap;">' + esc(body) + '</pre>';
+        }
+
+        // Cross-link standard references in rendered HTML (skip code/pre elements)
+        const stdCodes = _standardsList ? new Set(_standardsList.map(st => st.code)) : new Set();
+        if (stdCodes.size) {
+            const walker = document.createTreeWalker(readerBody, NodeFilter.SHOW_TEXT);
+            const textNodes = [];
+            while (walker.nextNode()) textNodes.push(walker.currentNode);
+            const stdRe = /\b([A-Z]{2,5}-\d{3})\b/g;
+            textNodes.forEach(node => {
+                // Skip text inside code/pre
+                if (node.parentElement && (node.parentElement.closest('code') || node.parentElement.closest('pre'))) return;
+                if (!stdRe.test(node.textContent)) return;
+                stdRe.lastIndex = 0;
+                const frag = document.createDocumentFragment();
+                let last = 0;
+                let m;
+                while ((m = stdRe.exec(node.textContent)) !== null) {
+                    if (m.index > last) frag.appendChild(document.createTextNode(node.textContent.slice(last, m.index)));
+                    if (stdCodes.has(m[1]) && m[1] !== code) {
+                        const a = document.createElement('a');
+                        a.href = 'javascript:void(0)';
+                        a.textContent = m[1];
+                        a.onclick = () => openStandard(m[1]);
+                        frag.appendChild(a);
+                    } else {
+                        frag.appendChild(document.createTextNode(m[0]));
+                    }
+                    last = m.index + m[0].length;
+                }
+                if (last < node.textContent.length) frag.appendChild(document.createTextNode(node.textContent.slice(last)));
+                node.parentNode.replaceChild(frag, node);
+            });
+        }
+
+        // Scroll reader to top
+        document.getElementById('std-reader').scrollTop = 0;
+    } catch (e) {
+        document.getElementById('std-reader-body').innerHTML = `<div style="color:var(--danger,#ef4444);padding:2rem;">Failed to load: ${esc(e.message)}</div>`;
+    }
+}
+
+// =========================================================================
+// Roadmap Tab
+// =========================================================================
+const _rmAreaColors = {
+    dsw: '#4a9f6e', qms: '#6366f1', platform: '#3b82f6', workbench: '#8b5cf6',
+    forge: '#f59e0b', learn: '#06b6d4', billing: '#ec4899', infrastructure: '#78716c',
+};
+const _rmStatusStyles = {
+    planned: { label: 'Planned', bg: 'var(--bg-tertiary)', color: 'var(--text-dim)' },
+    in_progress: { label: 'In Progress', bg: '#3b82f620', color: '#3b82f6' },
+    shipped: { label: 'Shipped', bg: '#4a9f6e20', color: '#4a9f6e' },
+    deferred: { label: 'Deferred', bg: '#f59e0b20', color: '#f59e0b' },
+    cancelled: { label: 'Cancelled', bg: '#ef444420', color: '#ef4444' },
+};
+let _rmItems = [];
+let _rmSelectedId = null;
+
+async function loadRoadmap() {
+    const q = document.getElementById('rm-filter-quarter').value;
+    const a = document.getElementById('rm-filter-area').value;
+    const s = document.getElementById('rm-filter-status').value;
+    let url = '/api/internal/roadmap/?';
+    if (q) url += `quarter=${encodeURIComponent(q)}&`;
+    if (a) url += `area=${encodeURIComponent(a)}&`;
+    if (s) url += `status=${encodeURIComponent(s)}&`;
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+        _rmItems = data.items || [];
+        // Populate quarter filter (preserve selection)
+        const qSel = document.getElementById('rm-filter-quarter');
+        const curQ = qSel.value;
+        qSel.innerHTML = '<option value="">All Quarters</option>';
+        (data.quarters || []).forEach(qv => {
+            const opt = document.createElement('option');
+            opt.value = qv; opt.textContent = qv;
+            if (qv === curQ) opt.selected = true;
+            qSel.appendChild(opt);
+        });
+        renderRoadmapList();
+    } catch (e) {
+        console.error('Failed to load roadmap:', e);
+    }
+}
+
+function renderRoadmapList() {
+    const container = document.getElementById('rm-list');
+    if (!_rmItems.length) {
+        container.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:2rem;font-size:0.85rem;">No items. Click + New Item to add one.</div>';
+        return;
+    }
+    // Group by quarter
+    const groups = {};
+    _rmItems.forEach(item => {
+        if (!groups[item.quarter]) groups[item.quarter] = [];
+        groups[item.quarter].push(item);
+    });
+    let html = '';
+    Object.keys(groups).sort().reverse().forEach(q => {
+        html += `<div style="padding:6px 8px;font-size:0.7rem;font-weight:600;color:var(--text-dim);text-transform:uppercase;border-bottom:1px solid var(--border);margin-top:4px;">${q}</div>`;
+        groups[q].forEach(item => {
+            const active = item.id === _rmSelectedId ? 'background:var(--bg-primary);' : '';
+            const areaColor = _rmAreaColors[item.area] || 'var(--text-dim)';
+            const ss = _rmStatusStyles[item.status] || _rmStatusStyles.planned;
+            const publicIcon = item.is_public ? '' : ' <span style="font-size:0.65rem;color:var(--text-dim);" title="Not public">🔒</span>';
+            html += `<div onclick="selectRoadmapItem('${item.id}')" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);border-left:3px solid ${areaColor};${active}" onmouseover="this.style.background='var(--bg-primary)'" onmouseout="this.style.background='${active ? 'var(--bg-primary)' : ''}'">
+                <div style="font-size:0.85rem;font-weight:500;color:var(--text-primary);">${item.title}${publicIcon}</div>
+                <div style="display:flex;gap:4px;margin-top:3px;">
+                    <span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:${ss.bg};color:${ss.color};">${ss.label}</span>
+                    <span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:var(--bg-tertiary);color:var(--text-dim);">${item.area}</span>
+                    ${item.tier !== 'free' ? `<span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:#6366f120;color:#6366f1;">${item.tier}</span>` : ''}
+                </div>
+            </div>`;
+        });
+    });
+    container.innerHTML = html;
+}
+
+async function selectRoadmapItem(id) {
+    _rmSelectedId = id;
+    renderRoadmapList();
+    try {
+        const res = await fetch(`/api/internal/roadmap/${id}/`);
+        const item = await res.json();
+        document.getElementById('rm-ed-id').value = item.id;
+        document.getElementById('rm-ed-title').value = item.title;
+        document.getElementById('rm-ed-desc').value = item.description || '';
+        document.getElementById('rm-ed-area').value = item.area;
+        document.getElementById('rm-ed-quarter').value = item.quarter;
+        document.getElementById('rm-ed-status').value = item.status;
+        document.getElementById('rm-ed-tier').value = item.tier;
+        document.getElementById('rm-ed-sort').value = item.sort_order;
+        document.getElementById('rm-ed-public').checked = item.is_public;
+        document.getElementById('rm-editor').style.display = 'block';
+    } catch (e) {
+        console.error('Failed to load roadmap item:', e);
+    }
+}
+
+function newRoadmapItem() {
+    _rmSelectedId = null;
+    document.getElementById('rm-ed-id').value = '';
+    document.getElementById('rm-ed-title').value = '';
+    document.getElementById('rm-ed-desc').value = '';
+    document.getElementById('rm-ed-area').value = 'dsw';
+    // Default to current or next quarter
+    const now = new Date();
+    const qNum = Math.floor(now.getMonth() / 3) + 1;
+    const nextQ = qNum === 4 ? `Q1-${now.getFullYear() + 1}` : `Q${qNum + 1}-${now.getFullYear()}`;
+    document.getElementById('rm-ed-quarter').value = nextQ;
+    document.getElementById('rm-ed-status').value = 'planned';
+    document.getElementById('rm-ed-tier').value = 'free';
+    document.getElementById('rm-ed-sort').value = '0';
+    document.getElementById('rm-ed-public').checked = true;
+    document.getElementById('rm-editor').style.display = 'block';
+}
+
+async function saveRoadmapItem() {
+    const data = {
+        title: document.getElementById('rm-ed-title').value,
+        description: document.getElementById('rm-ed-desc').value,
+        area: document.getElementById('rm-ed-area').value,
+        quarter: document.getElementById('rm-ed-quarter').value,
+        status: document.getElementById('rm-ed-status').value,
+        tier: document.getElementById('rm-ed-tier').value,
+        sort_order: parseInt(document.getElementById('rm-ed-sort').value) || 0,
+        is_public: document.getElementById('rm-ed-public').checked,
+    };
+    const id = document.getElementById('rm-ed-id').value;
+    if (id) data.id = id;
+    try {
+        const res = await fetch('/api/internal/roadmap/save/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCSRF()},
+            body: JSON.stringify(data),
+        });
+        const result = await res.json();
+        if (result.ok) {
+            showToast('Saved!', 'success');
+            document.getElementById('rm-ed-id').value = result.id;
+            _rmSelectedId = result.id;
+            loadRoadmap();
+        } else {
+            showToast(result.error || 'Save failed', 'error');
+        }
+    } catch (e) {
+        showToast('Save failed: ' + e.message, 'error');
+    }
+}
+
+async function deleteRoadmapItem() {
+    const id = document.getElementById('rm-ed-id').value;
+    if (!id || !confirm('Delete this roadmap item?')) return;
+    try {
+        const res = await fetch(`/api/internal/roadmap/${id}/delete/`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCSRF()},
+        });
+        const result = await res.json();
+        if (result.ok) {
+            showToast('Deleted', 'success');
+            document.getElementById('rm-editor').style.display = 'none';
+            _rmSelectedId = null;
+            loadRoadmap();
+        }
+    } catch (e) {
+        showToast('Delete failed: ' + e.message, 'error');
+    }
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// =========================================================================
+// Features — Initiative → Feature → Task hierarchy
+// =========================================================================
+let _ftFeatures = [];
+let _ftInitiatives = [];
+let _ftStats = {};
+let _ftSelectedId = null;
+
+const _ftStatusStyles = {
+    backlog:     {bg: '#6b728020', color: '#6b7280', label: 'Backlog'},
+    planned:     {bg: '#e5e7eb',   color: '#6b7280', label: 'Planned'},
+    in_progress: {bg: '#3b82f620', color: '#3b82f6', label: 'In Progress'},
+    blocked:     {bg: '#ef444420', color: '#ef4444', label: 'Blocked'},
+    completed:   {bg: '#10b98120', color: '#10b981', label: 'Completed'},
+    deferred:    {bg: '#f59e0b20', color: '#f59e0b', label: 'Deferred'},
+    cancelled:   {bg: '#6b728020', color: '#9ca3af', label: 'Cancelled'},
+};
+const _ftPriorityColors = {
+    critical: '#ef4444', high: '#f59e0b', medium: '#3b82f6', low: '#6b7280',
+};
+
+async function loadFeatures() {
+    const initFilter = document.getElementById('ft-filter-init').value;
+    const statusFilter = document.getElementById('ft-filter-status').value;
+    let url = '/api/internal/features/?';
+    if (initFilter === '__all__') url += 'all=1&';
+    else if (initFilter) url += `initiative=${initFilter}&`;
+    if (statusFilter) url += `status=${statusFilter}&`;
+
+    try {
+        const res = await fetch(url, {headers: {'X-CSRFToken': getCSRF()}});
+        const data = await res.json();
+        _ftFeatures = data.features || [];
+        _ftInitiatives = data.initiatives || [];
+        _ftStats = data.stats || {};
+        renderFeatureKPIs();
+        populateInitFilter();
+        renderFeatureList();
+    } catch(e) {
+        document.getElementById('ft-list').innerHTML = `<div style="color:var(--text-dim);text-align:center;padding:2rem;">Error loading features</div>`;
+    }
+}
+
+function renderFeatureKPIs() {
+    const s = _ftStats;
+    const bs = s.by_status || {};
+    const kpis = [
+        {label: 'Total Features', value: s.total || 0},
+        {label: 'In Progress', value: bs.in_progress || 0, color: '#3b82f6'},
+        {label: 'Completed', value: bs.completed || 0, color: '#10b981'},
+        {label: 'Blocked', value: s.blocked || 0, color: '#ef4444'},
+        {label: 'Initiatives', value: s.initiatives_count || 0},
+    ];
+    document.getElementById('ft-kpis').innerHTML = kpis.map(k =>
+        `<div class="kpi-card"><div class="kpi-value" style="color:${k.color || 'var(--text-primary)'}">${k.value}</div><div class="kpi-label">${k.label}</div></div>`
+    ).join('');
+}
+
+function populateInitFilter() {
+    const sel = document.getElementById('ft-filter-init');
+    const current = sel.value;
+    const opts = [`<option value="">Active Initiatives</option>`, `<option value="__all__" ${current === '__all__' ? 'selected' : ''}>All Initiatives</option>`];
+    _ftInitiatives.forEach(i => {
+        const statusTag = i.status === 'active' ? ' ●' : '';
+        opts.push(`<option value="${i.short_id}" ${i.short_id === current ? 'selected' : ''}>${i.short_id} — ${esc(i.title)} (${i.progress}%)${statusTag}</option>`);
+    });
+    sel.innerHTML = opts.join('');
+}
+
+function renderFeatureList() {
+    const container = document.getElementById('ft-list');
+    if (!_ftFeatures.length) {
+        container.innerHTML = `<div style="color:var(--text-dim);text-align:center;padding:2rem;font-size:0.85rem;">No features found</div>`;
+        return;
+    }
+
+    // Group by initiative
+    const grouped = {};
+    _ftFeatures.forEach(f => {
+        const key = f.initiative_short_id;
+        if (!grouped[key]) grouped[key] = {title: f.initiative_title, features: []};
+        grouped[key].features.push(f);
+    });
+
+    let html = '';
+    Object.entries(grouped).forEach(([initId, group]) => {
+        // Initiative header
+        const init = _ftInitiatives.find(i => i.short_id === initId);
+        const pct = init ? init.progress : 0;
+        html += `<div style="padding:6px 8px;font-size:0.7rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--bg-tertiary);display:flex;justify-content:space-between;align-items:center;">`;
+        html += `<span>${initId} — ${esc(group.title)}</span>`;
+        html += `<span style="font-family:'JetBrains Mono',monospace;font-size:0.65rem;">${pct}%</span>`;
+        html += `</div>`;
+
+        group.features.forEach(f => {
+            const ss = _ftStatusStyles[f.status] || _ftStatusStyles.backlog;
+            const pc = _ftPriorityColors[f.priority] || '#6b7280';
+            const isSelected = _ftSelectedId === f.id;
+            const blockedIcon = f.is_blocked ? ' ⚠' : '';
+
+            // Progress bar
+            const taskPct = f.task_count > 0 ? Math.round(f.tasks_completed / f.task_count * 100) : 0;
+            const progBar = f.task_count > 0
+                ? `<div style="width:100%;height:3px;background:var(--border);border-radius:2px;margin-top:3px;"><div style="width:${taskPct}%;height:100%;background:${ss.color};border-radius:2px;"></div></div>`
+                : '';
+
+            html += `<div onclick="showFeatureDetail('${f.id}')" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);border-left:3px solid ${pc};${isSelected ? 'background:var(--bg-tertiary);' : ''}transition:background 0.15s;" onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='${isSelected ? 'var(--bg-tertiary)' : ''}'">`;
+            html += `<div style="display:flex;justify-content:space-between;align-items:start;">`;
+            html += `<div style="font-size:0.8rem;color:var(--text-primary);font-weight:500;line-height:1.3;">${esc(f.title)}</div>`;
+            html += `</div>`;
+            html += `<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">`;
+            html += `<span style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--text-dim);">${f.short_id}</span>`;
+            html += `<span style="font-size:0.6rem;padding:1px 6px;border-radius:8px;background:${ss.bg};color:${ss.color};">${ss.label}${blockedIcon}</span>`;
+            if (f.legacy_id) html += `<span style="font-size:0.6rem;color:var(--text-dim);">${f.legacy_id}</span>`;
+            if (f.task_count > 0) html += `<span style="font-size:0.6rem;color:var(--text-dim);margin-left:auto;">${f.tasks_completed}/${f.task_count}</span>`;
+            html += `</div>`;
+            html += progBar;
+            html += `</div>`;
+        });
+    });
+
+    container.innerHTML = html;
+}
+
+async function showFeatureDetail(featureId) {
+    _ftSelectedId = featureId;
+    renderFeatureList(); // Update selection highlight
+
+    try {
+        const res = await fetch(`/api/internal/features/${featureId}/`, {headers: {'X-CSRFToken': getCSRF()}});
+        const f = await res.json();
+
+        document.getElementById('ft-reader-empty').style.display = 'none';
+        const content = document.getElementById('ft-reader-content');
+        content.style.display = 'block';
+
+        const ss = _ftStatusStyles[f.status] || _ftStatusStyles.backlog;
+        const pc = _ftPriorityColors[f.priority] || '#6b7280';
+
+        let html = '';
+
+        // Header
+        html += `<div style="margin-bottom:16px;">`;
+        html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">`;
+        html += `<span style="font-family:'JetBrains Mono',monospace;font-size:0.85rem;color:var(--text-dim);">${f.short_id}</span>`;
+        html += `<span style="font-size:0.7rem;padding:2px 8px;border-radius:8px;background:${ss.bg};color:${ss.color};font-weight:500;">${ss.label}</span>`;
+        html += `<span style="font-size:0.7rem;padding:2px 8px;border-radius:8px;background:${pc}20;color:${pc};font-weight:500;">${f.priority}</span>`;
+        if (f.is_blocked) html += `<span style="font-size:0.7rem;padding:2px 8px;border-radius:8px;background:#ef444420;color:#ef4444;">⚠ Blocked</span>`;
+        html += `</div>`;
+        html += `<h3 style="margin:0;font-size:1.1rem;color:var(--text-primary);">${esc(f.title)}</h3>`;
+        html += `</div>`;
+
+        // Meta grid
+        html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-bottom:16px;font-size:0.8rem;">`;
+        html += `<div><span style="color:var(--text-dim);">Initiative:</span> ${f.initiative_short_id} — ${esc(f.initiative_title)}</div>`;
+        if (f.iso_clause) html += `<div><span style="color:var(--text-dim);">ISO Clause:</span> ${esc(f.iso_clause)}</div>`;
+        if (f.standards && f.standards.length) html += `<div><span style="color:var(--text-dim);">Standards:</span> ${f.standards.join(', ')}</div>`;
+        if (f.legacy_id) html += `<div><span style="color:var(--text-dim);">Legacy ID:</span> ${f.legacy_id}</div>`;
+        html += `<div><span style="color:var(--text-dim);">UUID:</span> <span style="font-family:'JetBrains Mono',monospace;font-size:0.7rem;">${f.id}</span></div>`;
+        html += `<div><span style="color:var(--text-dim);">Progress:</span> ${f.progress}%</div>`;
+        html += `</div>`;
+
+        // Description (editable)
+        html += `<div style="margin-bottom:16px;">`;
+        html += `<div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border);">Description</div>`;
+        html += `<textarea id="ft-ed-desc" rows="8" style="width:100%;padding:8px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:0.85rem;line-height:1.5;resize:vertical;box-sizing:border-box;font-family:inherit;">${esc(f.description || '')}</textarea>`;
+        html += `</div>`;
+
+        // Acceptance criteria (editable)
+        html += `<div style="margin-bottom:16px;">`;
+        html += `<div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border);">Acceptance Criteria</div>`;
+        html += `<textarea id="ft-ed-criteria" rows="6" style="width:100%;padding:8px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:0.85rem;line-height:1.5;resize:vertical;box-sizing:border-box;font-family:inherit;">${esc(f.acceptance_criteria || '')}</textarea>`;
+        html += `</div>`;
+
+        // Save button for description/criteria edits
+        html += `<div style="margin-bottom:16px;">`;
+        html += `<button onclick="saveFeatureFields('${f.id}')" style="padding:6px 16px;background:var(--accent-primary);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:0.8rem;">Save Changes</button>`;
+        html += `</div>`;
+
+        // Notes (existing + add new)
+        html += `<div style="margin-bottom:16px;">`;
+        html += `<div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border);">Notes</div>`;
+        if (f.notes) {
+            const noteLines = esc(f.notes).split('\n').map(line => {
+                if (line.includes('$ ')) return `<div style="color:#e8c547;font-size:0.85rem;padding:2px 0;">${line}</div>`;
+                return `<div style="font-size:0.85rem;color:var(--text-primary);padding:2px 0;">${line}</div>`;
+            }).join('');
+            html += noteLines;
+        } else {
+            html += `<div style="font-size:0.8rem;color:var(--text-dim);padding:4px 0;">No notes yet</div>`;
+        }
+        html += `<div style="display:flex;gap:6px;margin-top:8px;">`;
+        html += `<input id="ft-note-input" placeholder="Add a note..." style="flex:1;padding:6px 8px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:0.8rem;">`;
+        html += `<button onclick="addFeatureNote('${f.id}')" style="padding:6px 12px;background:#e8c547;color:#0a0f0a;border:none;border-radius:4px;cursor:pointer;font-size:0.8rem;font-weight:600;">$ Add Note</button>`;
+        html += `</div>`;
+        html += `</div>`;
+
+        // Dependencies
+        if (f.depends_on && f.depends_on.length) {
+            html += `<div style="margin-bottom:16px;">`;
+            html += `<div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border);">Dependencies</div>`;
+            f.depends_on.forEach(d => {
+                const ds = _ftStatusStyles[d.status] || _ftStatusStyles.backlog;
+                const icon = d.status === 'completed' ? '✓' : '⚠';
+                html += `<div style="font-size:0.8rem;padding:3px 0;display:flex;align-items:center;gap:6px;">`;
+                html += `<span>${icon}</span><span style="font-family:'JetBrains Mono',monospace;color:var(--text-dim);">${d.short_id}</span>`;
+                html += `<span>${esc(d.title)}</span>`;
+                html += `<span style="font-size:0.6rem;padding:1px 6px;border-radius:8px;background:${ds.bg};color:${ds.color};">${ds.label}</span>`;
+                html += `</div>`;
+            });
+            html += `</div>`;
+        }
+
+        // Blocks
+        if (f.blocks && f.blocks.length) {
+            html += `<div style="margin-bottom:16px;">`;
+            html += `<div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border);">Blocks</div>`;
+            f.blocks.forEach(b => {
+                html += `<div style="font-size:0.8rem;padding:3px 0;"><span style="font-family:'JetBrains Mono',monospace;color:var(--text-dim);">${b.short_id}</span> ${esc(b.title)}</div>`;
+            });
+            html += `</div>`;
+        }
+
+        // Tasks
+        if (f.tasks && f.tasks.length) {
+            const completed = f.tasks.filter(t => t.status === 'completed').length;
+            html += `<div style="margin-bottom:16px;">`;
+            html += `<div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border);">Tasks (${completed}/${f.tasks.length})</div>`;
+            f.tasks.forEach(t => {
+                const ts = _ftStatusStyles[t.status] || _ftStatusStyles.backlog;
+                const marker = t.status === 'completed' ? '✓' : t.status === 'in_progress' ? '○' : '·';
+                const cr = t.change_request_id ? `<span style="font-size:0.6rem;color:var(--text-dim);margin-left:auto;">CR:${t.change_request_id.substring(0,8)}</span>` : '';
+                html += `<div style="font-size:0.8rem;padding:4px 0;display:flex;align-items:center;gap:6px;">`;
+                html += `<span style="width:12px;text-align:center;">${marker}</span>`;
+                html += `<span style="font-family:'JetBrains Mono',monospace;color:var(--text-dim);font-size:0.7rem;">${t.short_id}</span>`;
+                html += `<span style="flex:1;">${esc(t.title)}</span>`;
+                html += `<span style="font-size:0.6rem;padding:1px 6px;border-radius:8px;background:${ts.bg};color:${ts.color};">${ts.label}</span>`;
+                html += cr;
+                html += `</div>`;
+            });
+            html += `</div>`;
+        }
+
+        // Status control
+        html += `<div style="margin-top:20px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center;">`;
+        html += `<label style="font-size:0.75rem;color:var(--text-dim);">Status:</label>`;
+        html += `<select id="ft-status-select" style="padding:5px 8px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:0.8rem;">`;
+        ['backlog','planned','in_progress','blocked','completed','deferred','cancelled'].forEach(s => {
+            html += `<option value="${s}" ${s === f.status ? 'selected' : ''}>${(_ftStatusStyles[s]||{}).label||s}</option>`;
+        });
+        html += `</select>`;
+        html += `<button onclick="updateFeatureStatus('${f.id}')" style="padding:5px 14px;background:var(--accent-primary);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:0.8rem;">Update</button>`;
+        html += `</div>`;
+
+        // Timestamps
+        html += `<div style="margin-top:12px;font-size:0.7rem;color:var(--text-dim);">`;
+        html += `Created: ${f.created_at ? new Date(f.created_at).toLocaleDateString() : '—'}`;
+        html += ` · Updated: ${f.updated_at ? new Date(f.updated_at).toLocaleDateString() : '—'}`;
+        if (f.started_at) html += ` · Started: ${new Date(f.started_at).toLocaleDateString()}`;
+        if (f.completed_at) html += ` · Completed: ${new Date(f.completed_at).toLocaleDateString()}`;
+        html += `</div>`;
+
+        content.innerHTML = html;
+
+    } catch(e) {
+        document.getElementById('ft-reader-content').innerHTML = `<div style="color:var(--danger,#ef4444);padding:2rem;">Error loading feature: ${e.message}</div>`;
+        document.getElementById('ft-reader-content').style.display = 'block';
+        document.getElementById('ft-reader-empty').style.display = 'none';
+    }
+}
+
+async function updateFeatureStatus(featureId) {
+    const newStatus = document.getElementById('ft-status-select').value;
+    try {
+        const res = await fetch(`/api/internal/features/${featureId}/status/`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCSRF()},
+            body: JSON.stringify({status: newStatus}),
+        });
+        const result = await res.json();
+        if (result.ok) {
+            showToast(`${result.old_status} → ${result.new_status}`, 'success');
+            loadFeatures();
+            setTimeout(() => showFeatureDetail(featureId), 300);
+        } else {
+            showToast(result.error || 'Update failed', 'error');
+        }
+    } catch(e) {
+        showToast('Update failed: ' + e.message, 'error');
+    }
+}
+
+async function saveFeatureFields(featureId) {
+    const description = document.getElementById('ft-ed-desc').value;
+    const acceptance_criteria = document.getElementById('ft-ed-criteria').value;
+    try {
+        const res = await fetch(`/api/internal/features/${featureId}/save/`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCSRF()},
+            body: JSON.stringify({description, acceptance_criteria}),
+        });
+        const result = await res.json();
+        if (result.ok) {
+            showToast('Saved', 'success');
+        } else {
+            showToast(result.error || 'Save failed', 'error');
+        }
+    } catch(e) {
+        showToast('Save failed: ' + e.message, 'error');
+    }
+}
+
+async function addFeatureNote(featureId) {
+    const input = document.getElementById('ft-note-input');
+    const text = input.value.trim();
+    if (!text) return;
+    try {
+        const res = await fetch(`/api/internal/features/${featureId}/note/`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCSRF()},
+            body: JSON.stringify({text, user: true}),
+        });
+        const result = await res.json();
+        if (result.ok) {
+            input.value = '';
+            showToast('Note added', 'success');
+            showFeatureDetail(featureId);
+        } else {
+            showToast(result.error || 'Failed', 'error');
+        }
+    } catch(e) {
+        showToast('Failed: ' + e.message, 'error');
+    }
+}
+
 // Init
 // =========================================================================
 window.addEventListener('svendUserReady', (e) => {

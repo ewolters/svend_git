@@ -20,7 +20,7 @@ def shared_conversation(request, share_id):
             "role": msg.role,
             "content": msg.content,
             "domain": msg.domain,
-            "verified": msg.verified,
+            "verified": msg.is_verified,
             "reasoning_trace": msg.reasoning_trace,
             "tool_calls": msg.tool_calls,
         }

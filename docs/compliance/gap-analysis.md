@@ -1,6 +1,6 @@
 # Gap Analysis — SOC 2 Readiness
 
-**Last Updated:** 2026-03-03
+**Last Updated:** 2026-03-03 (Synara migration re-audit)
 **Assessment Method:** Codebase audit + configuration review
 **Assessed By:** Eric + Claude
 
@@ -34,7 +34,7 @@
 ### Access Control (Solid Foundation)
 - Decorator-based RBAC: `@require_auth`, `@require_paid`, `@require_team`, `@require_enterprise`, `@require_org_admin`
 - Multi-tenancy with org roles (owner/admin/member/viewer)
-- Per-resource ownership validation on API endpoints
+- Per-resource ownership validation on API endpoints — **IDOR audit completed during Synara migration (2026-03)**
 - 7-day invite expiry on org invitations
 - Guest access scoped via tokenized links
 
@@ -51,6 +51,13 @@
 - Analytics uses hashed IPs (SHA-256)
 - Password validation (length, complexity, common password check)
 - CSRF protection on all views (fixed 2026-02-22)
+
+### Synara Migration Security Gains (2026-03)
+- **IDOR fixes:** Per-resource ownership validated across all Synara endpoints (belief graphs, hypotheses, evidence)
+- **Persistence safety:** Transaction-scoped saves with proper FK cascade; no orphaned data on partial failures
+- **Cache bounds:** Synara graph cache bounded (max 1000 entries, 30-min TTL); prevents unbounded memory growth
+- **Prompt injection hardening:** LLM interface sandboxes user content with structured system/user message separation; DSL inputs never passed raw to LLM
+- **DSL safety:** Hypothesis DSL parser validates syntax before evaluation; rejects malformed/injection-like inputs; no `eval()` or `exec()`
 
 ---
 

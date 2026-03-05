@@ -1015,6 +1015,144 @@ div:hover > .aw-copy-btn { opacity: 1; }
     height: 4px;
     width: 100%;
 }
+
+/* ============================================================================
+   DSW Output Blocks — INIT-009 / E9-004
+   ============================================================================ */
+
+/* Narrative */
+.dsw-narrative {
+    margin: 8px 0;
+    padding: 8px 12px;
+    border-left: 3px solid var(--aw-accent);
+    background: rgba(74, 159, 110, 0.06);
+    border-radius: 0 4px 4px 0;
+    font-size: 11px;
+    line-height: 1.5;
+}
+.dsw-verdict {
+    font-weight: 600;
+    color: var(--aw-text);
+    margin-bottom: 4px;
+}
+.dsw-narrative-body {
+    color: var(--aw-text-dim);
+    white-space: pre-line;
+}
+.dsw-next {
+    margin-top: 6px;
+    color: var(--aw-text-muted);
+    font-size: 10px;
+    font-style: italic;
+}
+.dsw-chart-guidance {
+    margin-top: 4px;
+    color: var(--aw-text-muted);
+    font-size: 10px;
+}
+
+/* Evidence Grade Badge */
+.dsw-evidence-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 4px 0;
+}
+.dsw-evidence-badge.strong { background: rgba(74, 159, 110, 0.25); color: #4a9f6e; border: 1px solid rgba(74, 159, 110, 0.4); }
+.dsw-evidence-badge.moderate { background: rgba(232, 149, 71, 0.2); color: #e89547; border: 1px solid rgba(232, 149, 71, 0.35); }
+.dsw-evidence-badge.weak { background: rgba(208, 96, 96, 0.2); color: #d06060; border: 1px solid rgba(208, 96, 96, 0.35); }
+.dsw-evidence-badge.inconclusive { background: rgba(154, 170, 154, 0.15); color: #9aaa9a; border: 1px solid rgba(154, 170, 154, 0.3); }
+
+/* Collapsible panels (education, bayesian shadow, diagnostics) */
+.dsw-panel {
+    margin: 6px 0;
+    border: 1px solid var(--aw-border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.dsw-panel summary {
+    padding: 6px 10px;
+    background: var(--aw-panel-header);
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--aw-text-dim);
+    user-select: none;
+    list-style: none;
+}
+.dsw-panel summary::-webkit-details-marker { display: none; }
+.dsw-panel summary::before {
+    content: '▸ ';
+    color: var(--aw-accent);
+    font-size: 10px;
+}
+.dsw-panel[open] summary::before { content: '▾ '; }
+.dsw-panel .dsw-panel-body {
+    padding: 8px 12px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--aw-text-dim);
+    background: rgba(18, 26, 18, 0.5);
+}
+
+/* Education panel */
+.dsw-education .dsw-panel-body dt {
+    color: var(--aw-text);
+    font-weight: 500;
+    margin-top: 8px;
+}
+.dsw-education .dsw-panel-body dt:first-child { margin-top: 0; }
+.dsw-education .dsw-panel-body dd {
+    margin: 2px 0 0 0;
+    color: var(--aw-text-dim);
+}
+
+/* Bayesian shadow panel */
+.dsw-bayesian-panel .dsw-panel-body {
+    border-left: 2px solid #7a8fc0;
+}
+
+/* Diagnostics panel */
+.dsw-diagnostics .dsw-diag-item {
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(74, 159, 110, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.dsw-diagnostics .dsw-diag-item:last-child { border-bottom: none; }
+.dsw-diag-pass { color: #4a9f6e; }
+.dsw-diag-warn { color: #e89547; }
+.dsw-diag-fail { color: #d06060; }
+
+/* What-if explorer */
+.dsw-what-if-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+.dsw-what-if-row label {
+    min-width: 140px;
+    font-size: 10px;
+    color: var(--aw-text-dim);
+}
+.dsw-slider {
+    flex: 1;
+    accent-color: var(--aw-accent);
+    height: 4px;
+}
+.dsw-slider-val {
+    min-width: 50px;
+    text-align: right;
+    font-size: 10px;
+    color: var(--aw-text);
+    font-family: 'JetBrains Mono', monospace;
+}
 </style>
 {% endblock %}
 
@@ -6413,6 +6551,9 @@ async function executeAnalysis() {
             }
         }
 
+        // DSW enrichment blocks (INIT-009 / E9-004)
+        renderDSWBlocks(result);
+
         addToHistory(currentAnalysis, item?.name, result.summary || '', result.plots || []);
 
         // Next steps suggestions
@@ -6421,6 +6562,163 @@ async function executeAnalysis() {
     } catch (err) {
         appendSession('error', `Error: ${err.message}`);
     }
+}
+
+// ── DSW Output Block Renderers (INIT-009 / E9-004) ──────────────────────
+
+function renderDSWBlocks(result) {
+    /** Render all DSW enrichment blocks into #session-output. */
+    const session = document.getElementById('session-output');
+    if (!session) { console.warn('DSW: no session-output element'); return; }
+    console.log('DSW renderDSWBlocks called:', {
+        has_education: !!result.education,
+        has_narrative: !!result.narrative,
+        has_evidence_grade: !!result.evidence_grade,
+        has_bayesian: !!result.bayesian_shadow,
+        has_diagnostics: result.diagnostics?.length,
+        has_whatif: !!result.what_if,
+    });
+
+    // 1. Evidence grade badge
+    if (result.evidence_grade) {
+        const badge = document.createElement('span');
+        const grade = result.evidence_grade.toLowerCase();
+        badge.className = 'dsw-evidence-badge ' + grade;
+        badge.textContent = result.evidence_grade;
+        const wrapper = document.createElement('div');
+        wrapper.style.margin = '4px 0';
+        wrapper.appendChild(badge);
+        session.appendChild(wrapper);
+    }
+
+    // 2. Narrative block
+    if (result.narrative && typeof result.narrative === 'object') {
+        const n = result.narrative;
+        const div = document.createElement('div');
+        div.className = 'dsw-narrative';
+        if (n.verdict) {
+            const v = document.createElement('div');
+            v.className = 'dsw-verdict';
+            v.textContent = n.verdict;
+            div.appendChild(v);
+        }
+        if (n.body) {
+            const b = document.createElement('div');
+            b.className = 'dsw-narrative-body';
+            b.textContent = n.body;
+            div.appendChild(b);
+        }
+        if (n.chart_guidance) {
+            const cg = document.createElement('div');
+            cg.className = 'dsw-chart-guidance';
+            cg.textContent = n.chart_guidance;
+            div.appendChild(cg);
+        }
+        if (n.next_steps) {
+            const ns = document.createElement('div');
+            ns.className = 'dsw-next';
+            ns.textContent = n.next_steps;
+            div.appendChild(ns);
+        }
+        session.appendChild(div);
+    }
+
+    // 3. Diagnostics panel
+    if (result.diagnostics && result.diagnostics.length > 0) {
+        const details = document.createElement('details');
+        details.className = 'dsw-panel dsw-diagnostics';
+        const summary = document.createElement('summary');
+        summary.textContent = 'Assumption Checks (' + result.diagnostics.length + ')';
+        details.appendChild(summary);
+        const body = document.createElement('div');
+        body.className = 'dsw-panel-body';
+        result.diagnostics.forEach(d => {
+            const item = document.createElement('div');
+            item.className = 'dsw-diag-item';
+            const status = d.status || d.result || 'info';
+            const icon = status === 'pass' ? '✓' : status === 'warn' ? '⚠' : status === 'fail' ? '✗' : '•';
+            const cls = status === 'pass' ? 'dsw-diag-pass' : status === 'warn' ? 'dsw-diag-warn' : status === 'fail' ? 'dsw-diag-fail' : '';
+            item.innerHTML = '<span class="' + cls + '">' + icon + '</span> ' +
+                '<span>' + (d.test || d.name || '') + ': ' + (d.detail || d.message || d.value || '') + '</span>';
+            body.appendChild(item);
+        });
+        details.appendChild(body);
+        session.appendChild(details);
+    }
+
+    // 4. Bayesian shadow panel
+    if (result.bayesian_shadow && typeof result.bayesian_shadow === 'object') {
+        const bs = result.bayesian_shadow;
+        const details = document.createElement('details');
+        details.className = 'dsw-panel dsw-bayesian-panel';
+        const summary = document.createElement('summary');
+        summary.textContent = 'Bayesian Perspective';
+        details.appendChild(summary);
+        const body = document.createElement('div');
+        body.className = 'dsw-panel-body';
+        let html = '';
+        if (bs.bayes_factor !== undefined) {
+            html += '<strong>Bayes Factor:</strong> ' + Number(bs.bayes_factor).toFixed(2) + '<br>';
+        }
+        if (bs.interpretation) {
+            html += '<strong>Interpretation:</strong> ' + bs.interpretation + '<br>';
+        }
+        if (bs.prior) {
+            html += '<strong>Prior:</strong> ' + bs.prior + '<br>';
+        }
+        if (bs.posterior_summary) {
+            html += '<strong>Posterior:</strong> ' + bs.posterior_summary + '<br>';
+        }
+        if (bs.recommendation) {
+            html += '<strong>Recommendation:</strong> ' + bs.recommendation;
+        }
+        body.innerHTML = html;
+        details.appendChild(body);
+        session.appendChild(details);
+    }
+
+    // 5. Education panel
+    if (result.education && typeof result.education === 'object') {
+        const edu = result.education;
+        const details = document.createElement('details');
+        details.className = 'dsw-panel dsw-education';
+        const summary = document.createElement('summary');
+        summary.textContent = edu.title || 'Learn More';
+        details.appendChild(summary);
+        const body = document.createElement('div');
+        body.className = 'dsw-panel-body';
+        body.innerHTML = edu.content || '';
+        details.appendChild(body);
+        session.appendChild(details);
+    }
+
+    // 6. What-if sliders (Tier 1)
+    if (result.what_if && result.what_if.parameters && result.what_if.parameters.length > 0) {
+        const wi = result.what_if;
+        const details = document.createElement('details');
+        details.className = 'dsw-panel dsw-what-if';
+        const summary = document.createElement('summary');
+        summary.textContent = 'What-If Explorer';
+        details.appendChild(summary);
+        const body = document.createElement('div');
+        body.className = 'dsw-panel-body';
+        wi.parameters.forEach(param => {
+            const row = document.createElement('div');
+            row.className = 'dsw-what-if-row';
+            row.innerHTML = '<label>' + param.label + '</label>' +
+                '<input type="range" min="' + param.min + '" max="' + param.max +
+                '" step="' + param.step + '" value="' + param.value + '" class="dsw-slider">' +
+                '<span class="dsw-slider-val">' + param.value + '</span>';
+            const slider = row.querySelector('input');
+            const valSpan = row.querySelector('.dsw-slider-val');
+            slider.addEventListener('input', () => { valSpan.textContent = slider.value; });
+            body.appendChild(row);
+        });
+        details.appendChild(body);
+        session.appendChild(details);
+    }
+
+    session.scrollTop = session.scrollHeight;
 }
 
 function showNextSteps(analysisId, analysisType) {

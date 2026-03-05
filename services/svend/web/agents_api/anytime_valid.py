@@ -113,12 +113,12 @@ class GaussianMeanEProcess:
         return self
 
     @property
-    def logE(self) -> float:
+    def log_e(self) -> float:
         """Current log e-value. E_t = exp(logE)."""
         return self._logE
 
     @property
-    def E(self) -> float:
+    def e_value(self) -> float:
         """Current e-value (clamped for display)."""
         return min(math.exp(self._logE), 1e15)
 
@@ -164,7 +164,7 @@ class GaussianMeanEProcess:
         return {
             "t": self.t,
             "logE": round(self._logE, 6),
-            "E": round(self.E, 6),
+            "E": round(self.e_value, 6),
             "x_bar": round(self.sum_x / self.t, 6) if self.t > 0 else None,
             "S_t": round(self.S_t, 6),
             "cs_lower": round(L, 6) if not math.isnan(L) else None,
@@ -260,11 +260,11 @@ class SelfNormalizedMeanEProcess:
         return self
 
     @property
-    def logE(self) -> float:
+    def log_e(self) -> float:
         return self._logE
 
     @property
-    def E(self) -> float:
+    def e_value(self) -> float:
         return min(math.exp(self._logE), 1e15)
 
     def decision(self, alpha: float = 0.05) -> bool:
@@ -299,7 +299,7 @@ class SelfNormalizedMeanEProcess:
         return {
             "t": self.t,
             "logE": round(self._logE, 6),
-            "E": round(self.E, 6),
+            "E": round(self.e_value, 6),
             "x_bar": round(self.sum_x / self.t, 6) if self.t > 0 else None,
             "sigma_hat": round(sigma_hat, 6) if sigma_hat is not None else None,
             "cs_lower": round(L, 6) if not math.isnan(L) else None,
@@ -402,7 +402,7 @@ class TwoSampleEProcess:
         else:
             diff, se = 0.0, float('nan')
 
-        self._history.append((t, self._engine.logE, diff, se))
+        self._history.append((t, self._engine.log_e, diff, se))
         return self
 
     def update_groups(self, xs_a, xs_b) -> "TwoSampleEProcess":
@@ -418,12 +418,12 @@ class TwoSampleEProcess:
         return self
 
     @property
-    def logE(self) -> float:
-        return self._engine.logE
+    def log_e(self) -> float:
+        return self._engine.log_e
 
     @property
-    def E(self) -> float:
-        return self._engine.E
+    def e_value(self) -> float:
+        return self._engine.e_value
 
     def decision(self, alpha: float = 0.05) -> bool:
         return self._engine.decision(alpha)
@@ -449,8 +449,8 @@ class TwoSampleEProcess:
             "mean_a": round(self.sum_a / self.n_a, 6) if self.n_a > 0 else None,
             "mean_b": round(self.sum_b / self.n_b, 6) if self.n_b > 0 else None,
             "diff": round(diff, 6) if diff is not None else None,
-            "logE": round(self._engine.logE, 6),
-            "E": round(self._engine.E, 6),
+            "logE": round(self._engine.log_e, 6),
+            "E": round(self._engine.e_value, 6),
             "cs_lower": round(L, 6) if not math.isnan(L) else None,
             "cs_upper": round(U, 6) if not math.isnan(U) else None,
             "rho": self.rho,

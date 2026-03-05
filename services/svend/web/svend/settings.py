@@ -4,6 +4,7 @@ import hashlib
 import sys
 from pathlib import Path
 
+import dj_database_url
 from svend_config.config import get_settings
 
 # Build paths
@@ -38,6 +39,7 @@ INSTALLED_APPS = [
     "files",
     "agents_api.apps.AgentsApiConfig",
     "workbench",
+    "notifications",
     # ---- Synara Infrastructure (OS layer) ----
     "syn.core.apps.CoreConfig",    # label="syn_core"
     "syn.audit.apps.AuditConfig",  # label="audit"
@@ -51,6 +53,8 @@ MIDDLEWARE = [
     # Django security
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    # HTTP telemetry (early — captures full middleware chain timing)
+    "syn.log.middleware.PerformanceMiddleware",
     # Synara request ID (early — correlation needs this)
     "syn.api.middleware.SynRequestIdMiddleware",
     # Svend + Django standard
@@ -96,7 +100,6 @@ WSGI_APPLICATION = "svend.wsgi.application"
 ASGI_APPLICATION = "svend.asgi.application"
 
 # Database — PostgreSQL only
-import dj_database_url
 DATABASES = {
     "default": dj_database_url.parse(config.database_url)
 }
@@ -143,6 +146,8 @@ CORS_ALLOW_CREDENTIALS = True
 SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_AGE = 28800  # 8 hours (SOC 2 CC6.1/CC6.6)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_HTTPONLY = False
 
@@ -200,11 +205,11 @@ AUDIT_METHODS = ["POST", "PUT", "PATCH", "DELETE"]
 # Values are lists per CSP middleware API (joined with spaces)
 CONTENT_SECURITY_POLICY = {
     "default-src": ["'self'"],
-    "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://js.stripe.com", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://unpkg.com"],
+    "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://js.stripe.com", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://unpkg.com", "https://cdn.plot.ly", "https://static.cloudflareinsights.com"],
     "style-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
     "font-src": ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
     "img-src": ["'self'", "data:", "blob:", "https:"],
-    "connect-src": ["'self'", "https://api.stripe.com"],
+    "connect-src": ["'self'", "https://api.stripe.com", "https://cdn.plot.ly"],
     "frame-src": ["https://js.stripe.com", "https://hooks.stripe.com"],
     "object-src": ["'none'"],
     "base-uri": ["'self'"],
@@ -302,9 +307,10 @@ INFERENCE_DEVICE = config.device
 # Add agent modules to path (computed from BASE_DIR which is always correct)
 # Note: root core/ is NOT added here — it would shadow Django's core app.
 # Agent code handles its own core.* imports via sys.path in agent processes.
-_AGENTS_PATH = str(BASE_DIR.parent.parent.parent / "services" / "svend" / "agents")
-if _AGENTS_PATH not in sys.path:
-    sys.path.insert(0, _AGENTS_PATH)
+# Parent of agents/ so `from agents.experimenter.stats import ...` resolves
+_AGENTS_PARENT = str(BASE_DIR.parent)  # services/svend/
+if _AGENTS_PARENT not in sys.path:
+    sys.path.insert(0, _AGENTS_PARENT)
 
 # Stripe billing
 STRIPE_SECRET_KEY = config.stripe_secret_key

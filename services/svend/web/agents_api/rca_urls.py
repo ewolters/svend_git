@@ -17,6 +17,10 @@ urlpatterns = [
     path("sessions/<uuid:session_id>/delete/", rca_views.delete_session, name="rca_delete"),
     path("sessions/<uuid:session_id>/link-a3/", rca_views.link_to_a3, name="rca_link_a3"),
 
+    # Intelligence Layer (Phase 3)
+    path("guided-questions/", rca_views.guided_questions, name="rca_guided_questions"),
+    path("clusters/", rca_views.cluster_root_causes, name="rca_clusters"),
+
     # Similarity search
     path("similar/", rca_views.find_similar, name="rca_similar"),
     path("reindex/", rca_views.reindex_embeddings, name="rca_reindex"),

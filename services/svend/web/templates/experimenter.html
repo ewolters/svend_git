@@ -37,19 +37,10 @@
         </div>
     </div>
 
-    <!-- Step 2: Design Output + Power Analysis -->
+    <!-- Step 2: Design Output -->
     <div id="step-design" class="wizard-step">
         <div class="wizard-step-content">
-            <div class="sub-tabs">
-                <button class="sub-tab active" onclick="showSubTab('step-design', 'matrix')">Design Matrix</button>
-                <button class="sub-tab" onclick="showSubTab('step-design', 'power')">Power Analysis</button>
-            </div>
-            <div id="step-design-matrix" class="sub-content active">
-                {% include "experimenter/_design_output.html" %}
-            </div>
-            <div id="step-design-power" class="sub-content">
-                {% include "experimenter/_power_analysis.html" %}
-            </div>
+            {% include "experimenter/_design_output.html" %}
         </div>
     </div>
 
@@ -101,7 +92,6 @@
 <script src="{% static 'js/doe-design.js' %}"></script>
 <script src="{% static 'js/doe-analysis.js' %}"></script>
 <script src="{% static 'js/doe-optimize.js' %}"></script>
-<script src="{% static 'js/doe-power.js' %}"></script>
 <script src="{% static 'js/doe-chat.js' %}"></script>
 <script>
 window.addEventListener('svendUserReady', function(e) {

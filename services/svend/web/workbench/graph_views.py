@@ -538,8 +538,8 @@ def get_epistemic_log(request, workbench_id: str):
                 "event_type": log.event_type,
                 "event_data": log.event_data,
                 "source": log.source,
-                "led_to_insight": log.led_to_insight,
-                "led_to_dead_end": log.led_to_dead_end,
+                "led_to_insight": log.has_led_to_insight,
+                "led_to_dead_end": log.has_led_to_dead_end,
                 "created_at": log.created_at.isoformat(),
             }
             for log in logs
@@ -568,15 +568,15 @@ def mark_log_outcome(request, workbench_id: str, log_id: str):
     log = get_object_or_404(EpistemicLog, id=log_id, user=request.user)
 
     log.mark_outcome(
-        led_to_insight=body.get("led_to_insight"),
-        led_to_dead_end=body.get("led_to_dead_end"),
+        has_led_to_insight=body.get("led_to_insight"),
+        has_led_to_dead_end=body.get("led_to_dead_end"),
     )
 
     return JsonResponse({
         "success": True,
         "log_id": str(log_id),
-        "led_to_insight": log.led_to_insight,
-        "led_to_dead_end": log.led_to_dead_end,
+        "led_to_insight": log.has_led_to_insight,
+        "led_to_dead_end": log.has_led_to_dead_end,
     })
 
 

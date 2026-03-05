@@ -1,6 +1,6 @@
 # Remediation Tracker
 
-**Last Updated:** 2026-03-03
+**Last Updated:** 2026-03-03 (Synara migration re-audit)
 **Purpose:** Track every gap and partial control from gap-analysis.md through to resolution
 
 Status: **Open** | **In Progress** | **Done** | **Accepted** (risk accepted, won't fix)
@@ -59,7 +59,11 @@ Status: **Open** | **In Progress** | **Done** | **Accepted** (risk accepted, won
 
 | ID | Gap | Action Taken | Completed | Evidence |
 |---|---|---|---|---|
-| (none yet) | | | | |
+| SYN-01 | CC6.4/CC6.8: IDOR vulnerabilities | Synara migration: per-resource ownership validation on all belief graph, hypothesis, and evidence endpoints | 2026-03-03 | `synara_views.py` — all queries filter by `user=request.user` or tenant membership |
+| SYN-02 | PI1.3: Persistence safety | Synara migration: transaction-scoped saves with proper FK cascade; no orphaned data on partial failures | 2026-03-03 | `synara_views.py`, `synara/synara.py` — atomic operations on graph mutations |
+| SYN-03 | A1.1: Unbounded cache growth | Synara migration: graph cache bounded to max 1000 entries with 30-min TTL | 2026-03-03 | `synara/` — LRU cache with explicit bounds |
+| SYN-04 | CC3.3/CC6.8: Prompt injection | Synara migration: LLM interface sandboxes user content with structured system/user message separation; user input never concatenated into system prompts | 2026-03-03 | `synara/llm_interface.py` — structured message protocol |
+| SYN-05 | PI1.1/CC6.8: DSL injection | Synara migration: hypothesis DSL parser validates syntax before evaluation; rejects malformed inputs; no `eval()` or `exec()` | 2026-03-03 | `synara/dsl.py` — whitelist-based parser |
 
 ---
 

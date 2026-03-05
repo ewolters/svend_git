@@ -10,8 +10,9 @@ import uuid
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
-from syn.core.base_models import SynaraEntity, SynaraImmutableLog
 from django.utils import timezone
+
+from syn.core.base_models import SynaraEntity, SynaraImmutableLog
 
 
 # =============================================================================
@@ -524,3 +525,77 @@ class LogMetric(SynaraEntity):
         if self.count == 0:
             return 0.0
         return self.error_count / self.count
+
+
+# =============================================================================
+# Request Metric (HTTP telemetry — SLA-001 §6)
+# =============================================================================
+
+
+class RequestMetric(models.Model):
+    """
+    Pre-aggregated HTTP request metrics in 5-minute buckets.
+
+    Standard: SLA-001 §6, LOG-001 §5
+    Purpose: Feeds the Performance dashboard and SLA response_time measurement.
+
+    Design: Bucketed aggregation with reservoir sampling for percentile estimation.
+    A site at 100 req/s generates ~288 rows/day instead of 8.6M per-request rows.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    bucket_start = models.DateTimeField(db_index=True)
+    bucket_minutes = models.PositiveSmallIntegerField(default=5)
+    method = models.CharField(max_length=10)
+    path_pattern = models.CharField(max_length=255, db_index=True)
+    status_class = models.CharField(max_length=3)  # "2xx", "3xx", "4xx", "5xx"
+
+    # Aggregates
+    request_count = models.PositiveIntegerField(default=0)
+    error_count = models.PositiveIntegerField(default=0)  # 5xx only
+    total_duration_ms = models.FloatField(default=0.0)
+    min_duration_ms = models.FloatField(default=0.0)
+    max_duration_ms = models.FloatField(default=0.0)
+
+    # Reservoir sample for percentile estimation (JSON list of up to 100 durations)
+    duration_samples = models.JSONField(default=list)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "syn_request_metric"
+        unique_together = [("bucket_start", "method", "path_pattern", "status_class")]
+        indexes = [
+            models.Index(
+                fields=["bucket_start", "path_pattern"],
+                name="reqmetric_bucket_path",
+            ),
+        ]
+        ordering = ["-bucket_start"]
+        verbose_name = "Request Metric"
+        verbose_name_plural = "Request Metrics"
+
+    def __str__(self):
+        return (
+            f"{self.method} {self.path_pattern} {self.status_class} "
+            f"@ {self.bucket_start}: {self.request_count} reqs"
+        )
+
+    @property
+    def avg_duration_ms(self):
+        if self.request_count == 0:
+            return 0.0
+        return self.total_duration_ms / self.request_count
+
+    def percentile(self, p):
+        """Compute percentile from reservoir samples using linear interpolation."""
+        if not self.duration_samples:
+            return None
+        sorted_s = sorted(self.duration_samples)
+        n = len(sorted_s)
+        if n == 1:
+            return sorted_s[0]
+        k = (n - 1) * (p / 100)
+        f = int(k)
+        c = min(f + 1, n - 1)
+        return sorted_s[f] + (k - f) * (sorted_s[c] - sorted_s[f])

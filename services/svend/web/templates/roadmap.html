@@ -1,0 +1,88 @@
+{% extends "base_guest.html" %}
+{% block title %}Product Roadmap - SVEND{% endblock %}
+{% block meta_description %}See what we're building and when. Updated quarterly. SVEND's public product roadmap.{% endblock %}
+
+{% block content %}
+<style>
+    .rm-container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+    .rm-header { margin-bottom: 40px; }
+    .rm-header h1 { font-size: 2rem; margin-bottom: 8px; color: var(--text-primary); }
+    .rm-header p { color: var(--text-dim); font-size: 1rem; }
+    .rm-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 32px; font-size: 0.8rem; }
+    .rm-legend-item { display: flex; align-items: center; gap: 6px; color: var(--text-dim); }
+    .rm-legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .rm-quarter { margin-bottom: 32px; }
+    .rm-quarter-label { font-size: 1.3rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
+    .rm-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+    .rm-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; border-left: 4px solid var(--border); }
+    .rm-card-title { font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+    .rm-card-desc { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 10px; line-height: 1.4; }
+    .rm-card-footer { display: flex; gap: 6px; flex-wrap: wrap; }
+    .rm-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+    .rm-empty { text-align: center; padding: 60px 20px; color: var(--text-dim); }
+
+    /* Area colors */
+    .rm-area-dsw { border-left-color: #4a9f6e; }
+    .rm-area-qms { border-left-color: #6366f1; }
+    .rm-area-platform { border-left-color: #3b82f6; }
+    .rm-area-workbench { border-left-color: #8b5cf6; }
+    .rm-area-forge { border-left-color: #f59e0b; }
+    .rm-area-learn { border-left-color: #06b6d4; }
+    .rm-area-billing { border-left-color: #ec4899; }
+    .rm-area-infrastructure { border-left-color: #78716c; }
+
+    /* Status badges */
+    .rm-status-planned { background: var(--bg-tertiary); color: var(--text-dim); }
+    .rm-status-in_progress { background: #3b82f620; color: #3b82f6; }
+    .rm-status-shipped { background: #4a9f6e20; color: #4a9f6e; }
+    .rm-status-deferred { background: #f59e0b20; color: #f59e0b; }
+
+    /* Tier badges */
+    .rm-tier-professional { background: #6366f120; color: #6366f1; }
+    .rm-tier-team { background: #8b5cf620; color: #8b5cf6; }
+    .rm-tier-enterprise { background: #f59e0b20; color: #f59e0b; }
+</style>
+
+<div class="rm-container">
+    <div class="rm-header">
+        <h1>Product Roadmap</h1>
+        <p>What we're building and when. Updated quarterly.</p>
+    </div>
+
+    <div class="rm-legend">
+        <div class="rm-legend-item"><div class="rm-legend-dot" style="background:#4a9f6e"></div> Decision Science</div>
+        <div class="rm-legend-item"><div class="rm-legend-dot" style="background:#6366f1"></div> Quality Tools</div>
+        <div class="rm-legend-item"><div class="rm-legend-dot" style="background:#3b82f6"></div> Platform</div>
+        <div class="rm-legend-item"><div class="rm-legend-dot" style="background:#8b5cf6"></div> Workbench</div>
+        <div class="rm-legend-item"><div class="rm-legend-dot" style="background:#f59e0b"></div> Forge</div>
+        <div class="rm-legend-item"><div class="rm-legend-dot" style="background:#06b6d4"></div> Learn</div>
+    </div>
+
+    {% for quarter_label, items in quarter_data %}
+    <div class="rm-quarter">
+        <div class="rm-quarter-label">{{ quarter_label }}</div>
+        <div class="rm-items">
+            {% for item in items %}
+            <div class="rm-card rm-area-{{ item.area }}">
+                <div class="rm-card-title">{{ item.title }}</div>
+                {% if item.description %}
+                <div class="rm-card-desc">{{ item.description|truncatewords:30 }}</div>
+                {% endif %}
+                <div class="rm-card-footer">
+                    <span class="rm-badge rm-status-{{ item.status }}">{{ item.get_status_display }}</span>
+                    <span class="rm-badge" style="background:var(--bg-tertiary);color:var(--text-dim)">{{ item.get_area_display }}</span>
+                    {% if item.tier != "free" %}
+                    <span class="rm-badge rm-tier-{{ item.tier }}">{{ item.get_tier_display }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="rm-empty">
+        <p>Roadmap items coming soon.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

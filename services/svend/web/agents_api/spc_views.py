@@ -22,6 +22,7 @@ from accounts.permissions import gated, require_auth
 from . import spc
 from .models import Problem
 from .dsw.common import sanitize_for_json
+from .dsw.standardize import standardize_output
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +74,10 @@ def control_chart(request):
 
     if not data:
         return JsonResponse({"error": "Data is required"}, status=400)
+
+    # Phase 3: optional FMEA and Evidence hooks
+    fmea_row_id = body.get("fmea_row_id")
+    project_id = body.get("project_id")
 
     try:
         if chart_type == "I-MR":
@@ -130,10 +135,37 @@ def control_chart(request):
             except Problem.DoesNotExist:
                 pass  # Ignore if problem not found
 
-        return JsonResponse(sanitize_for_json({
+        # Phase 3: SPC → FMEA auto-trigger (QMS-001 §11.4)
+        fmea_update = None
+        if fmea_row_id and not result.in_control:
+            fmea_update = _spc_fmea_hook(
+                request.user, fmea_row_id,
+                ooc_count=len(result.out_of_control),
+                total_points=len(getattr(result, 'data_points', data)),
+            )
+
+        # Phase 3: SPC → Evidence bridge (QMS-001 §11.4)
+        evidence_created = None
+        if project_id and not result.in_control:
+            evidence_created = _spc_evidence_hook(
+                request.user, project_id, chart_type,
+                ooc_count=len(result.out_of_control),
+                total_points=len(getattr(result, 'data_points', data)),
+                cl=getattr(result, 'center_line', None),
+                ucl=getattr(result, 'ucl', None),
+                lcl=getattr(result, 'lcl', None),
+            )
+
+        resp = sanitize_for_json({
             "success": True,
             "chart": result.to_dict(),
-        }))
+        })
+        if fmea_update:
+            resp["fmea_update"] = fmea_update
+        if evidence_created:
+            resp["evidence_created"] = evidence_created
+
+        return JsonResponse(resp)
 
     except ValueError as e:
         return JsonResponse({"error": str(e)}, status=400)
@@ -804,6 +836,9 @@ def analyze_uploaded(request):
                 },
             }
 
+            # Apply DSW post-processing (education, narrative, evidence grade, charts)
+            standardize_output(response_data, "spc", "capability")
+
         elif analysis_type == "summary":
             if extracted["type"] == "subgroups":
                 flat_data = [v for sg in extracted["data"] for v in sg]
@@ -1039,3 +1074,109 @@ def chart_types(request):
             {"sigma": 6, "dpmo": 3.4, "yield": "99.99966%"},
         ],
     })
+
+
+# =============================================================================
+# Phase 3: SPC Closed-Loop Automation Hooks (QMS-001 §11.4)
+# =============================================================================
+
+def _spc_fmea_hook(user, fmea_row_id, ooc_count, total_points):
+    """Auto-update FMEA occurrence score when SPC detects OOC.
+
+    Same mapping logic as fmea_views.spc_update_occurrence, but called
+    programmatically from SPC control_chart endpoint.
+    """
+    from .models import FMEARow
+
+    try:
+        row = FMEARow.objects.select_related("fmea").get(id=fmea_row_id, fmea__owner=user)
+    except FMEARow.DoesNotExist:
+        logger.warning("SPC FMEA hook: row %s not found for user", fmea_row_id)
+        return None
+
+    ooc_rate = ooc_count / max(total_points, 1)
+
+    # AIAG OOC-to-occurrence mapping (same as fmea_views.py)
+    if ooc_rate == 0:
+        new_occ = 1
+    elif ooc_rate < 0.01:
+        new_occ = 2
+    elif ooc_rate < 0.02:
+        new_occ = 3
+    elif ooc_rate < 0.05:
+        new_occ = 4
+    elif ooc_rate < 0.10:
+        new_occ = 5
+    elif ooc_rate < 0.15:
+        new_occ = 6
+    elif ooc_rate < 0.20:
+        new_occ = 7
+    elif ooc_rate < 0.30:
+        new_occ = 8
+    elif ooc_rate < 0.50:
+        new_occ = 9
+    else:
+        new_occ = 10
+
+    old_occ = row.occurrence
+    old_rpn = row.rpn
+    row.occurrence = new_occ
+    row.save()
+
+    logger.info("SPC FMEA hook: row %s occurrence %d→%d, RPN %d→%d",
+                fmea_row_id, old_occ, new_occ, old_rpn, row.rpn)
+
+    return {
+        "row_id": str(row.id),
+        "old_occurrence": old_occ,
+        "new_occurrence": new_occ,
+        "old_rpn": old_rpn,
+        "new_rpn": row.rpn,
+        "ooc_rate": round(ooc_rate, 4),
+    }
+
+
+def _spc_evidence_hook(user, project_id, chart_type, ooc_count, total_points,
+                       cl=None, ucl=None, lcl=None):
+    """Create Evidence entry when SPC detects OOC or low capability.
+
+    Uses evidence_bridge for deduplication.
+    """
+    from core.models import Project
+    from .evidence_bridge import create_tool_evidence
+
+    try:
+        project = Project.objects.get(id=project_id, user=user)
+    except Project.DoesNotExist:
+        logger.warning("SPC evidence hook: project %s not found", project_id)
+        return None
+
+    summary = (
+        f"SPC OOC: {chart_type} detected {ooc_count} out-of-control points "
+        f"out of {total_points} total."
+    )
+    details = f"Chart type: {chart_type}\nOOC count: {ooc_count}\nTotal points: {total_points}"
+    if cl is not None:
+        details += f"\nCenter line: {cl}"
+    if ucl is not None:
+        details += f"\nUCL: {ucl}"
+    if lcl is not None:
+        details += f"\nLCL: {lcl}"
+
+    evidence, _ = create_tool_evidence(
+        project=project,
+        user=user,
+        summary=summary,
+        source_tool="spc",
+        source_id=f"chart_{chart_type}",
+        source_field="control_chart",
+        details=details,
+        source_type="analysis",
+        confidence=0.7,
+    )
+
+    if evidence:
+        logger.info("SPC evidence hook: created evidence %s for project %s", evidence.id, project_id)
+        return {"evidence_id": str(evidence.id), "summary": summary}
+
+    return None

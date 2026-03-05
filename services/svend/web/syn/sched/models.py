@@ -30,9 +30,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from django.db import models, transaction
 
-from syn.core.base_models import SynaraEntity
 from django.utils import timezone
 
+from syn.core.base_models import SynaraEntity
 from syn.sched.types import (
     CASCADE_BUDGET,
     CircuitBreakerConfig,
@@ -589,8 +589,9 @@ class TaskExecution(SynaraEntity):
     )
 
     # Result
-    success = models.BooleanField(
+    is_success = models.BooleanField(
         default=False,
+        db_column="success",
         help_text="Whether execution succeeded",
     )
     result = models.JSONField(
@@ -651,7 +652,7 @@ class TaskExecution(SynaraEntity):
         emit_events = ["created", "updated", "deleted"]
 
     def __str__(self) -> str:
-        status = "✓" if self.success else "✗"
+        status = "✓" if self.is_success else "✗"
         return f"{self.task.task_name} attempt #{self.attempt_number} [{status}]"
 
     def complete(
@@ -667,7 +668,7 @@ class TaskExecution(SynaraEntity):
         self.duration_ms = int(
             (self.completed_at - self.started_at).total_seconds() * 1000
         )
-        self.success = success
+        self.is_success = success
         self.result = result
         self.error_message = error_message
         self.error_type = error_type
@@ -755,9 +756,10 @@ class Schedule(SynaraEntity):
     )
 
     # State
-    enabled = models.BooleanField(
+    is_enabled = models.BooleanField(
         default=True,
         db_index=True,
+        db_column="enabled",
         help_text="Whether schedule is active",
     )
     last_run_at = models.DateTimeField(
@@ -805,7 +807,7 @@ class Schedule(SynaraEntity):
         ordering = ["next_run_at"]
         indexes = [
             models.Index(
-                fields=["tenant_id", "enabled", "next_run_at"],
+                fields=["tenant_id", "is_enabled", "next_run_at"],
                 name="syn_idx_sched_tnt_enabled",
             ),
         ]
@@ -816,7 +818,7 @@ class Schedule(SynaraEntity):
         emit_events = ["created", "updated", "deleted"]
 
     def __str__(self) -> str:
-        status = "enabled" if self.enabled else "disabled"
+        status = "enabled" if self.is_enabled else "disabled"
         return f"{self.name} ({self.schedule_type}) [{status}]"
 
     @property
@@ -828,11 +830,7 @@ class Schedule(SynaraEntity):
         )
 
     def calculate_next_run(self, from_time: Optional[datetime] = None) -> Optional[datetime]:
-        """
-        Calculate next run time based on schedule type.
-
-        For production use with cron, consider using croniter library.
-        """
+        """Calculate next run time based on schedule type."""
         from_time = from_time or timezone.now()
 
         if self.schedule_type == ScheduleType.ONCE.value:
@@ -846,15 +844,17 @@ class Schedule(SynaraEntity):
             return from_time + timedelta(seconds=self.interval_seconds)
 
         if self.schedule_type == ScheduleType.CRON.value:
-            # Simplified cron calculation - for production use croniter
-            # This is a placeholder that returns next hour for "0 * * * *"
-            if self.cron_minute == "0" and self.cron_hour == "*":
+            try:
+                from croniter import croniter
+                cron_expr = self.cron_expression
+                cron = croniter(cron_expr, from_time)
+                return cron.get_next(datetime)
+            except Exception:
+                # Fallback: next hour
                 next_hour = from_time.replace(minute=0, second=0, microsecond=0)
                 if next_hour <= from_time:
                     next_hour += timedelta(hours=1)
                 return next_hour
-            # Default: next minute
-            return from_time + timedelta(minutes=1)
 
         return None
 
@@ -862,10 +862,10 @@ class Schedule(SynaraEntity):
         """Update next_run_at based on current time."""
         # Check limits
         if self.max_runs and self.run_count >= self.max_runs:
-            self.enabled = False
+            self.is_enabled = False
             self.next_run_at = None
         elif self.expires_at and timezone.now() >= self.expires_at:
-            self.enabled = False
+            self.is_enabled = False
             self.next_run_at = None
         else:
             self.next_run_at = self.calculate_next_run()

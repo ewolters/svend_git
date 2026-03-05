@@ -125,6 +125,17 @@ def register_svend_tasks():
         report = generate_monthly_report()
         return {"report_id": str(report.id), "pass_rate": report.pass_rate}
 
+    def audit_cleanup_violations_handler(task):
+        """Clean up resolved violations older than 90 days (data retention)."""
+        from datetime import timedelta
+        from django.utils import timezone
+        from syn.audit.models import IntegrityViolation
+        cutoff = timezone.now() - timedelta(days=90)
+        deleted, _ = IntegrityViolation.objects.filter(
+            is_resolved=True, resolved_at__lt=cutoff
+        ).delete()
+        return {"deleted": deleted}
+
     TaskRegistry.register(
         task_name="audit.compliance_daily",
         handler=compliance_daily_handler,
@@ -141,6 +152,60 @@ def register_svend_tasks():
         priority=TaskPriority.LOW,
         timeout_seconds=600,
         max_attempts=2,
+    )
+
+    TaskRegistry.register(
+        task_name="audit.cleanup_violations",
+        handler=audit_cleanup_violations_handler,
+        queue=QueueType.BATCH,
+        priority=TaskPriority.LOW,
+        timeout_seconds=120,
+        max_attempts=1,
+    )
+
+    # ---- notifications/tasks.py handlers ----
+
+    from notifications.tasks import (
+        send_notification_email_task,
+        send_daily_digest,
+        send_weekly_digest,
+        cleanup_expired_tokens,
+    )
+
+    TaskRegistry.register(
+        task_name="notifications.send_email",
+        handler=send_notification_email_task,
+        queue=QueueType.CORE,
+        priority=TaskPriority.NORMAL,
+        timeout_seconds=30,
+        max_attempts=3,
+    )
+
+    TaskRegistry.register(
+        task_name="notifications.daily_digest",
+        handler=send_daily_digest,
+        queue=QueueType.BATCH,
+        priority=TaskPriority.NORMAL,
+        timeout_seconds=120,
+        max_attempts=2,
+    )
+
+    TaskRegistry.register(
+        task_name="notifications.weekly_digest",
+        handler=send_weekly_digest,
+        queue=QueueType.BATCH,
+        priority=TaskPriority.NORMAL,
+        timeout_seconds=120,
+        max_attempts=2,
+    )
+
+    TaskRegistry.register(
+        task_name="notifications.cleanup_tokens",
+        handler=cleanup_expired_tokens,
+        queue=QueueType.BATCH,
+        priority=TaskPriority.LOW,
+        timeout_seconds=60,
+        max_attempts=1,
     )
 
     logger.info("[syn.sched] Registered %d Svend task handlers", len(TaskRegistry._handlers))
@@ -195,6 +260,35 @@ SVEND_SCHEDULES = [
         "schedule_id": "compliance-monthly-report",
         "task_name": "audit.compliance_monthly_report",
         "cron": "0 4 1 * *",
+        "priority": TaskPriority.LOW,
+        "queue": "batch",
+    },
+    {
+        "schedule_id": "audit-cleanup-violations",
+        "task_name": "audit.cleanup_violations",
+        "cron": "0 3 * * 0",  # Weekly Sunday 03:00 UTC
+        "priority": TaskPriority.LOW,
+        "queue": "batch",
+    },
+    # ---- Notification email schedules ----
+    {
+        "schedule_id": "notifications-daily-digest",
+        "task_name": "notifications.daily_digest",
+        "cron": "0 8 * * *",  # Daily 08:00 UTC
+        "priority": TaskPriority.NORMAL,
+        "queue": "batch",
+    },
+    {
+        "schedule_id": "notifications-weekly-digest",
+        "task_name": "notifications.weekly_digest",
+        "cron": "0 8 * * 1",  # Monday 08:00 UTC
+        "priority": TaskPriority.NORMAL,
+        "queue": "batch",
+    },
+    {
+        "schedule_id": "notifications-cleanup-tokens",
+        "task_name": "notifications.cleanup_tokens",
+        "cron": "0 4 * * 0",  # Sunday 04:00 UTC
         "priority": TaskPriority.LOW,
         "queue": "batch",
     },

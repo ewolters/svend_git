@@ -1,8 +1,12 @@
 """Agents API and workflow tests."""
 
 import json
-from django.test import TestCase
+import os
+import sys
+import unittest
+
 from django.contrib.auth import get_user_model
+from django.test import TestCase
 from rest_framework.test import APIClient
 
 User = get_user_model()
@@ -206,8 +210,8 @@ class AgentExecutionTest(TestCase):
     def test_experimenter_import(self):
         """Experimenter modules should be importable."""
         try:
-            from experimenter.stats import PowerAnalyzer
-            from experimenter.doe import DOEGenerator
+            from agents.experimenter.stats import PowerAnalyzer
+            from agents.experimenter.doe import DOEGenerator
             self.assertTrue(True)
         except ImportError:
             pass
@@ -590,10 +594,6 @@ class SynaraPersistenceTest(TestCase):
 # =============================================================================
 # Synara Unit Tests — kernel, belief engine, DSL parser
 # =============================================================================
-
-import sys
-import os
-import unittest
 
 # Ensure synara package is importable
 _synara_pkg = os.path.join(os.path.dirname(__file__), 'synara')
