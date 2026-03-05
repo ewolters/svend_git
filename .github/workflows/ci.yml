@@ -9,9 +9,9 @@ name: CI
 
 on:
   push:
-    branches: [iso-9001-modules]
+    branches: [main, iso-9001-modules]
   pull_request:
-    branches: [iso-9001-modules]
+    branches: [main, iso-9001-modules]
 
 env:
   SVEND_SECRET_KEY: ci-test-key-not-for-production
