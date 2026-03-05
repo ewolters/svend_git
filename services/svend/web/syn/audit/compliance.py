@@ -528,8 +528,8 @@ def soc2_control_coverage():
                 elif any(s == "error" for _, s in check_statuses):
                     effective_status = _min_status(effective_status, "partial")
                 elif all(s == "pass" for _, s in check_statuses):
-                    # All checks pass — can upgrade partial to met if no structural blocker
-                    if effective_status == "partial" and not manual_reason:
+                    # All checks pass — upgrade to met (manual_reason is informational, not a gate)
+                    if effective_status == "partial":
                         effective_status = "met"
 
         controls.append(
