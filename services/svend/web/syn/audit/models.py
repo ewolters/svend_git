@@ -921,6 +921,18 @@ class ChangeRequest(models.Model):
         help_text="Steps for verifying the change after implementation"
     )
 
+    # ========== Planning Linkage (CHG-001 §5.6.1) ==========
+
+    feature_id = models.UUIDField(
+        null=True, blank=True, db_index=True,
+        help_text="Feature UUID from planning system (FEAT-xxx)"
+    )
+
+    task_id = models.UUIDField(
+        null=True, blank=True, db_index=True,
+        help_text="PlanTask UUID from planning system (TASK-xxx)"
+    )
+
     # ========== Linking ==========
 
     issue_url = models.URLField(
@@ -1124,6 +1136,49 @@ class ChangeRequest(models.Model):
                 errors.append("log_md_ref required before completion")
 
         return errors
+
+    # ========== Planning Linkage (CHG-001 §5.6.1) ==========
+
+    def link_planning(self, feature_id=None, task_id=None, actor="system"):
+        """Bidirectional link: set CR fields AND write back to planning models."""
+        changed = []
+        if feature_id and self.feature_id != feature_id:
+            self.feature_id = feature_id
+            changed.append("feature_id")
+        if task_id and self.task_id != task_id:
+            self.task_id = task_id
+            changed.append("task_id")
+
+        if not changed:
+            return
+
+        self.save(update_fields=changed + ["updated_at"])
+
+        # Write back to planning models (best-effort)
+        try:
+            from api.models import Feature, PlanTask
+            if task_id:
+                PlanTask.objects.filter(
+                    id=task_id, change_request_id__isnull=True
+                ).update(change_request_id=self.id)
+            if feature_id:
+                feat = Feature.objects.filter(id=feature_id).first()
+                if feat and str(self.id) not in [str(x) for x in feat.change_request_ids]:
+                    feat.change_request_ids = feat.change_request_ids + [str(self.id)]
+                    feat.save(update_fields=["change_request_ids", "updated_at"])
+        except Exception:
+            pass  # Planning models may not exist in all contexts
+
+        ChangeLog.objects.create(
+            change_request=self,
+            actor=actor,
+            action="linked",
+            message=f"Linked to planning: {', '.join(changed)}",
+            details={
+                "feature_id": str(feature_id) if feature_id else None,
+                "task_id": str(task_id) if task_id else None,
+            },
+        )
 
     # ========== Linking Methods (CHG-001 §8.4/§8.5) ==========
 

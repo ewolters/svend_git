@@ -217,7 +217,7 @@ def iso_dashboard(request):
     eval_overdue_count = suppliers_qs.filter(
         next_evaluation_date__isnull=False,
         next_evaluation_date__lt=today,
-        status__in=["approved", "conditional"],
+        status__in=["approved", "preferred", "conditional"],
     ).count()
 
     # ---- Clause coverage ----
@@ -1401,7 +1401,23 @@ def supplier_detail(request, supplier_id):
         supplier.evaluation_scores = data["evaluation_scores"]
         scores = [v for v in data["evaluation_scores"].values() if isinstance(v, (int, float))]
         if scores:
-            supplier.quality_rating = round(sum(scores) / len(scores))
+            avg = sum(scores) / len(scores)
+            supplier.quality_rating = round(avg)
+            # Auto-suspend on critically low score (avg < 2) if currently active
+            if avg < 2 and supplier.status in ("approved", "preferred"):
+                old_status = supplier.status
+                supplier.status = "suspended"
+                supplier.notes = supplier.notes or ""
+                if supplier.notes:
+                    supplier.notes += "\n"
+                supplier.notes += f"Auto-suspended: evaluation average {avg:.1f} below threshold"
+                SupplierStatusChange.objects.create(
+                    supplier=supplier,
+                    from_status=old_status,
+                    to_status="suspended",
+                    changed_by=request.user,
+                    note=f"Auto-suspended: evaluation average {avg:.1f} < 2.0",
+                )
     if "metadata" in data:
         supplier.metadata = data["metadata"]
 

@@ -1155,6 +1155,49 @@ class SupplierManagementTest(TestCase):
         resp = self.client.delete(f"/api/iso/suppliers/{s['id']}/")
         self.assertEqual(resp.status_code, 200)
 
+    def test_get_supplier(self):
+        """GET single supplier by ID."""
+        s = _post(self.client, "/api/iso/suppliers/", {
+            "name": "Detail Supplier",
+            "supplier_type": "equipment",
+            "contact_email": "detail@test.com",
+        }).json()
+        resp = self.client.get(f"/api/iso/suppliers/{s['id']}/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["name"], "Detail Supplier")
+        self.assertEqual(data["supplier_type"], "equipment")
+        self.assertEqual(data["contact_email"], "detail@test.com")
+        self.assertIn("status_changes", data)
+        self.assertIn("evaluation_scores", data)
+
+    def test_supplier_evaluation(self):
+        """Setting evaluation_scores stores the full evaluation data."""
+        s = _post(self.client, "/api/iso/suppliers/", {"name": "Eval Supplier"}).json()
+        scores = {"quality": 4, "delivery": 5, "price": 3, "communication": 4}
+        resp = _put(self.client, f"/api/iso/suppliers/{s['id']}/", {
+            "evaluation_scores": scores,
+        })
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["evaluation_scores"]["quality"], 4)
+        self.assertEqual(data["evaluation_scores"]["delivery"], 5)
+        self.assertEqual(data["evaluation_scores"]["price"], 3)
+        self.assertEqual(data["evaluation_scores"]["communication"], 4)
+
+    def test_evaluation_auto_rating(self):
+        """quality_rating auto-computed from evaluation_scores average."""
+        s = _post(self.client, "/api/iso/suppliers/", {"name": "AutoRate"}).json()
+        resp = _put(self.client, f"/api/iso/suppliers/{s['id']}/", {
+            "evaluation_scores": {"quality": 5, "delivery": 3, "price": 4, "communication": 4},
+        })
+        self.assertEqual(resp.json()["quality_rating"], 4)  # avg=4.0
+        # Uneven average rounds
+        resp2 = _put(self.client, f"/api/iso/suppliers/{s['id']}/", {
+            "evaluation_scores": {"quality": 5, "delivery": 4, "price": 3, "communication": 3},
+        })
+        self.assertEqual(resp2.json()["quality_rating"], 4)  # avg=3.75 → rounds to 4
+
 
 # =============================================================================
 # Supplier Workflow
@@ -1176,7 +1219,7 @@ class SupplierWorkflowTest(TestCase):
             "status": "approved",
         })
         self.assertEqual(resp.status_code, 400)
-        self.assertIn("quality_rating", resp.json()["error"])
+        self.assertIn("quality_rating", _err_msg(resp))
 
     def test_pending_to_approved_with_rating(self):
         resp = _put(self.client, f"/api/iso/suppliers/{self.supplier['id']}/", {
@@ -1192,7 +1235,7 @@ class SupplierWorkflowTest(TestCase):
             "status": "conditional",
         })
         self.assertEqual(resp.status_code, 400)
-        self.assertIn("notes", resp.json()["error"])
+        self.assertIn("notes", _err_msg(resp))
 
     def test_pending_to_conditional_with_notes(self):
         resp = _put(self.client, f"/api/iso/suppliers/{self.supplier['id']}/", {
@@ -1207,7 +1250,7 @@ class SupplierWorkflowTest(TestCase):
             "status": "disqualified",
         })
         self.assertEqual(resp.status_code, 400)
-        self.assertIn("disqualification_reason", resp.json()["error"])
+        self.assertIn("disqualification_reason", _err_msg(resp))
 
     def test_pending_to_disqualified_with_reason(self):
         resp = _put(self.client, f"/api/iso/suppliers/{self.supplier['id']}/", {
@@ -1283,6 +1326,170 @@ class SupplierWorkflowTest(TestCase):
             "status": "suspended", "notes": "X",
         })
         self.assertEqual(resp.status_code, 400)
+
+    # ---- Tests below match QMS-001 §4.7 assertion test tags ----
+
+    def test_prospective_to_approved(self):
+        """Prospective (pending) → approved with quality_rating."""
+        sid = self.supplier["id"]
+        self.assertEqual(self.supplier["status"], "pending")
+        resp = _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "approved",
+            "quality_rating": 4,
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "approved")
+
+    def test_approved_to_preferred(self):
+        """Approved → preferred requires quality_rating."""
+        sid = self.supplier["id"]
+        _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "approved", "quality_rating": 5,
+        })
+        resp = _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "preferred", "quality_rating": 5,
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "preferred")
+
+    def test_suspend_supplier(self):
+        """Approved supplier can be suspended with notes."""
+        sid = self.supplier["id"]
+        _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "approved", "quality_rating": 3,
+        })
+        resp = _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "suspended", "notes": "Repeated late deliveries",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "suspended")
+
+    def test_reinstate_supplier(self):
+        """Suspended supplier can be reinstated to approved."""
+        sid = self.supplier["id"]
+        _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "approved", "quality_rating": 4,
+        })
+        _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "suspended", "notes": "Under review",
+        })
+        resp = _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "approved", "quality_rating": 4,
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "approved")
+        # Should have 3 status changes: pending→approved, approved→suspended, suspended→approved
+        changes = resp.json()["status_changes"]
+        self.assertEqual(len(changes), 3)
+
+    def test_invalid_transition(self):
+        """Invalid transitions are rejected with 400."""
+        sid = self.supplier["id"]
+        # pending → preferred is invalid (must go through approved first)
+        resp = _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "preferred", "quality_rating": 5,
+        })
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Cannot transition", _err_msg(resp))
+
+    def test_evaluation_history(self):
+        """Evaluation score changes tracked — multiple evaluations update quality_rating."""
+        sid = self.supplier["id"]
+        # Approve first so we can track status changes
+        _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "approved", "quality_rating": 3,
+        })
+        # First evaluation
+        _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "evaluation_scores": {"quality": 4, "delivery": 3, "price": 4, "communication": 5},
+        })
+        s1 = self.client.get(f"/api/iso/suppliers/{sid}/").json()
+        self.assertEqual(s1["quality_rating"], 4)  # avg=4.0
+        # Second evaluation — scores improve
+        _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "evaluation_scores": {"quality": 5, "delivery": 5, "price": 4, "communication": 5},
+        })
+        s2 = self.client.get(f"/api/iso/suppliers/{sid}/").json()
+        self.assertEqual(s2["quality_rating"], 5)  # avg=4.75 → 5
+        # Status change history recorded from the approval
+        self.assertTrue(len(s2["status_changes"]) >= 1)
+
+    def test_supplier_product_link(self):
+        """Supplier tracks products_services field for product linking."""
+        sid = self.supplier["id"]
+        resp = _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "products_services": "M6 bolts, M8 washers, custom gaskets",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("M6 bolts", resp.json()["products_services"])
+        self.assertIn("custom gaskets", resp.json()["products_services"])
+
+    def test_corrective_action_link(self):
+        """CAPA can be linked to a supplier issue via source_type."""
+        sid = self.supplier["id"]
+        # Create CAPA linked to supplier issue
+        resp = _post(self.client, "/api/capa/", {
+            "title": "CAPA from supplier quality issue",
+            "source_type": "supplier_issue",
+            "source_id": sid,
+        })
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+        self.assertEqual(data["source_type"], "supplier_issue")
+        self.assertEqual(data["source_id"], sid)
+
+    def test_supplier_kpis(self):
+        """Dashboard includes supplier KPI metrics."""
+        # setUp already creates 1 supplier; add 2 more
+        _post(self.client, "/api/iso/suppliers/", {"name": "KPI Supplier 1"})
+        _post(self.client, "/api/iso/suppliers/", {"name": "KPI Supplier 2"})
+        resp = self.client.get("/api/iso/dashboard/")
+        self.assertEqual(resp.status_code, 200)
+        suppliers = resp.json()["suppliers"]
+        self.assertEqual(suppliers["total"], 3)
+
+    def test_auto_suspend_on_low_score(self):
+        """Supplier auto-suspended when evaluation average drops below 2."""
+        sid = self.supplier["id"]
+        # First approve the supplier
+        _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "approved", "quality_rating": 3,
+        })
+        # Now submit very low evaluation scores
+        resp = _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "evaluation_scores": {"quality": 1, "delivery": 1, "price": 2, "communication": 1},
+        })
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["status"], "suspended")
+        self.assertIn("Auto-suspended", data["notes"])
+        # Status change should be recorded
+        self.assertTrue(any(
+            sc["to_status"] == "suspended" and "Auto-suspended" in sc["note"]
+            for sc in data["status_changes"]
+        ))
+
+    def test_supplier_categories(self):
+        """Supplier type categories filter correctly."""
+        _post(self.client, "/api/iso/suppliers/", {"name": "Raw 1", "supplier_type": "raw_material"})
+        _post(self.client, "/api/iso/suppliers/", {"name": "Svc 1", "supplier_type": "service"})
+        _post(self.client, "/api/iso/suppliers/", {"name": "Cal 1", "supplier_type": "calibration"})
+        # Filter by each category
+        for cat, expected in [("raw_material", 1), ("service", 1), ("calibration", 1)]:
+            resp = self.client.get(f"/api/iso/suppliers/?supplier_type={cat}")
+            self.assertEqual(len(resp.json()), expected, f"Expected {expected} for {cat}")
+
+    def test_supplier_dashboard(self):
+        """Dashboard supplier section includes status breakdown."""
+        sid = self.supplier["id"]
+        _put(self.client, f"/api/iso/suppliers/{sid}/", {
+            "status": "approved", "quality_rating": 4,
+        })
+        _post(self.client, "/api/iso/suppliers/", {"name": "S2"})
+        resp = self.client.get("/api/iso/dashboard/")
+        self.assertEqual(resp.status_code, 200)
+        suppliers = resp.json()["suppliers"]
+        self.assertEqual(suppliers["total"], 2)
 
 
 # =============================================================================

@@ -4308,6 +4308,7 @@ class SupplierRecord(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending Approval"
         APPROVED = "approved", "Approved"
+        PREFERRED = "preferred", "Preferred"
         CONDITIONAL = "conditional", "Conditional"
         SUSPENDED = "suspended", "Suspended"
         DISQUALIFIED = "disqualified", "Disqualified"
@@ -4353,13 +4354,15 @@ class SupplierRecord(models.Model):
     # Valid status transitions
     TRANSITIONS = {
         "pending": {"approved", "conditional", "disqualified"},
-        "approved": {"suspended", "disqualified"},
+        "approved": {"preferred", "suspended", "disqualified"},
+        "preferred": {"suspended", "disqualified"},
         "conditional": {"approved", "disqualified"},
         "suspended": {"approved", "disqualified"},
         "disqualified": set(),
     }
     TRANSITION_REQUIRES = {
         "approved": ["quality_rating"],
+        "preferred": ["quality_rating"],
         "conditional": ["notes"],
         "suspended": ["notes"],
         "disqualified": ["disqualification_reason"],

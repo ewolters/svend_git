@@ -986,7 +986,7 @@ def run_standards_tests_for(standard_name):
 def check_change_management():
     """Verify change management process adherence per CHG-001 v1.6.
 
-    14 checks with FAIL/WARNING severity classification.
+    15 checks with FAIL/WARNING severity classification.
     CHG-001 §7.1.1 enforcement — field requirements, risk assessment gates,
     commit traceability, log chain completeness.
 
@@ -1009,6 +1009,7 @@ def check_change_management():
      12. Enhancement/bugfix/security/infrastructure/debt past approved without RA
      13. ChangeLog 'completed' entries missing commit_sha in details
      14. Completed CRs with compliance language but empty compliance_check_ids
+     15. Active code CRs without planning linkage (feature_id/task_id)
     """
     from syn.audit.models import ChangeRequest, ChangeLog
 
@@ -1214,6 +1215,23 @@ def check_change_management():
         warn_issues.append(
             f"{unlinked_compliance} completed CR(s) reference compliance "
             f"but have empty compliance_check_ids"
+        )
+
+    # 15. Code CRs without planning linkage (WARNING)
+    # Exempt: documentation, plan, hotfix — these legitimately may not map to features
+    planning_exempt = {"documentation", "plan", "hotfix"}
+    unlinked_planning = ChangeRequest.objects.exclude(
+        status="completed",
+    ).exclude(
+        change_type__in=planning_exempt,
+    ).filter(
+        feature_id__isnull=True,
+        task_id__isnull=True,
+    ).count()
+    if unlinked_planning:
+        warn_issues.append(
+            f"{unlinked_planning} active code CR(s) without planning link "
+            f"(feature_id/task_id)"
         )
 
     # ── Stats and field completeness ──

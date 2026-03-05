@@ -4210,7 +4210,8 @@ def api_change_create(request):
 
     Body: {title, description, change_type, risk_level, priority, justification,
            affected_files, implementation_plan, rollback_plan, testing_plan,
-           issue_url, parent_change_id, debt_item, is_emergency}
+           issue_url, parent_change_id, debt_item, is_emergency,
+           feature_id, task_id}
     """
     try:
         from syn.audit.models import ChangeRequest, ChangeLog
@@ -4234,6 +4235,8 @@ def api_change_create(request):
             issue_url=data.get("issue_url", ""),
             parent_change_id=data.get("parent_change_id"),
             debt_item=data.get("debt_item", ""),
+            feature_id=data.get("feature_id"),
+            task_id=data.get("task_id"),
             author=author,
         )
 
@@ -4264,6 +4267,14 @@ def api_change_create(request):
 
         for did in data.get("drift_violation_ids", []):
             cr.link_drift_violations([did], actor=author)
+
+        # Planning linkage write-back (CHG-001 §5.6.1)
+        if cr.feature_id or cr.task_id:
+            cr.link_planning(
+                feature_id=cr.feature_id,
+                task_id=cr.task_id,
+                actor=author,
+            )
 
         return Response({"ok": True, "id": str(cr.id)}, status=201)
     except Exception as e:
