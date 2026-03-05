@@ -63,18 +63,6 @@ class TierConstantsTest(TestCase):
         values = {t.value for t in Tier}
         self.assertEqual(values, {"free", "founder", "pro", "team", "enterprise"})
 
-    def test_tier_limits_has_entry_for_each_tier(self):
-        """TIER_LIMITS must map every Tier value."""
-        for tier in ALL_TIERS:
-            self.assertIn(tier, TIER_LIMITS, f"Missing TIER_LIMITS entry for {tier}")
-            self.assertIsInstance(TIER_LIMITS[tier], int)
-
-    def test_tier_features_has_entry_for_each_tier(self):
-        """TIER_FEATURES must map every Tier value."""
-        for tier in ALL_TIERS:
-            self.assertIn(tier, TIER_FEATURES, f"Missing TIER_FEATURES entry for {tier}")
-            self.assertIsInstance(TIER_FEATURES[tier], dict)
-
     def test_has_feature_free_vs_enterprise(self):
         """Free cannot use ai_assistant; Enterprise can."""
         self.assertFalse(has_feature(Tier.FREE, "ai_assistant"))

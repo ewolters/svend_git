@@ -1,671 +1,584 @@
 """
-API-001 middleware and pagination compliance tests.
+API-001 middleware and pagination functional tests.
 
-Tests verify middleware source patterns: error envelope wrapping,
-status-to-code mapping, SynaraError conversion, request ID generation,
-traceparent validation, timing headers, cursor pagination, idempotency
-key handling, payload hashing, and TTL enforcement.
+Tests exercise actual middleware behavior via HTTP integration tests (for
+installed middleware) and direct invocation via RequestFactory (for middleware
+classes not yet in settings.MIDDLEWARE).
 
 Standard: API-001
+Compliance: SOC 2 CC6.1, CC7.2
 """
 
-import os
+import hashlib
+import json
 import re
-from pathlib import Path
+import time
 
-from django.test import SimpleTestCase
+from django.core.cache import cache
+from django.http import HttpResponse, JsonResponse
+from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 
-WEB_ROOT = Path(os.path.dirname(__file__)).parent.parent.parent
-SYN_API = WEB_ROOT / "syn" / "api"
+from syn.api.middleware import (
+    ENV_VAR_PATTERNS,
+    HEADER_SYN_REQUEST_ID,
+    IDEMPOTENCY_KEY_PATTERN,
+    IDEMPOTENCY_TTL_HOURS,
+    SENSITIVE_ERROR_PATTERNS,
+    TRACEPARENT_PATTERN,
+    APIHeadersMiddleware,
+    ErrorEnvelopeMiddleware,
+    IdempotencyMiddleware,
+    SynRequestIdMiddleware,
+    redact_error_message,
+    redact_exception_for_logging,
+)
+from syn.api.pagination import (
+    DEFAULT_PAGE_SIZE,
+    MAX_PAGE_SIZE,
+    MIN_PAGE_SIZE,
+    create_cursor_response,
+)
+
+# Production SECURE_SSL_REDIRECT=True breaks test client HTTP requests.
+SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
+
+# Class-level attributes
+STATUS_TO_CODE = ErrorEnvelopeMiddleware.STATUS_TO_CODE
+RETRYABLE_STATUSES = ErrorEnvelopeMiddleware.RETRYABLE_STATUSES
 
 
-def _read(path):
-    try:
-        return Path(path).read_text(errors="ignore")
-    except Exception:
-        return ""
+# ── Helpers ──────────────────────────────────────────────────────────────
 
 
-# ── Error Envelope Middleware ────────────────────────────────────────────
+def _api_get(client, path="/api/health/", **extra):
+    """GET an API endpoint with JSON Accept header."""
+    return client.get(path, HTTP_ACCEPT="application/json", **extra)
 
 
-class ErrorEnvelopeTest(SimpleTestCase):
+def _json_ok(body=None, status=200):
+    """Return a simple JsonResponse for use as a middleware inner response."""
+    return JsonResponse(body or {"ok": True}, status=status)
+
+
+def _make_request(method="GET", path="/api/test/", body=None):
+    """Create a request via RequestFactory with syn_request_id pre-set."""
+    factory = RequestFactory()
+    if method == "POST":
+        request = factory.post(
+            path,
+            data=body or b"{}",
+            content_type="application/json",
+        )
+    else:
+        request = factory.get(path, HTTP_ACCEPT="application/json")
+    request.syn_request_id = "test-req-001"
+    request.syn_start_time = time.time()
+    return request
+
+
+# ── Error Envelope Middleware (installed) ─────────────────────────────────
+
+
+@SECURE_OFF
+class ErrorEnvelopeTest(TestCase):
     """API-001 §10: ErrorEnvelopeMiddleware wraps /api/ error responses."""
 
-    def setUp(self):
-        self.src = _read(SYN_API / "middleware.py")
-        self.assertGreater(len(self.src), 0, "middleware.py not found")
+    def test_wraps_404_with_standard_envelope(self):
+        """404 responses on /api/ paths get wrapped in error envelope."""
+        res = _api_get(self.client, "/api/nonexistent-endpoint-xyz/")
+        self.assertEqual(res.status_code, 404)
+        data = res.json()
+        self.assertIn("error", data)
+        for field in ["code", "message", "retryable", "request_id"]:
+            self.assertIn(field, data["error"], f"Envelope missing '{field}'")
 
-    def test_class_exists(self):
-        """ErrorEnvelopeMiddleware class is defined."""
-        self.assertIn("class ErrorEnvelopeMiddleware", self.src)
+    def test_envelope_code_is_not_found_for_404(self):
+        """404 error code maps to 'not_found'."""
+        res = _api_get(self.client, "/api/nonexistent-endpoint-xyz/")
+        self.assertEqual(res.json()["error"]["code"], "not_found")
 
-    def test_wraps_api_paths_only(self):
-        """Only wraps error responses for /api/ paths."""
-        fn = re.search(
-            r"class ErrorEnvelopeMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        self.assertIsNotNone(fn)
-        body = fn.group()
-        self.assertIn('"/api/"', body)
-        self.assertIn("status_code < 400", body)
+    def test_envelope_retryable_false_for_client_errors(self):
+        """Client errors (4xx) are not retryable."""
+        res = _api_get(self.client, "/api/nonexistent-endpoint-xyz/")
+        self.assertFalse(res.json()["error"]["retryable"])
 
-    def test_builds_standard_envelope(self):
-        """Error response includes code, message, retryable, request_id, doc."""
-        fn = re.search(
-            r"class ErrorEnvelopeMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        for field in ["code", "message", "retryable", "request_id", "doc"]:
-            self.assertIn(f'"{field}"', body, f"Envelope missing '{field}'")
-
-    def test_skips_already_enveloped(self):
-        """Responses with existing error envelope are not re-wrapped."""
-        fn = re.search(
-            r"class ErrorEnvelopeMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        # Should check for existing envelope before wrapping
-        self.assertIn('"error"', body)
-        self.assertIn('"code"', body)
+    def test_skips_non_api_paths(self):
+        """Error responses on non-API paths are not wrapped in JSON envelope."""
+        res = self.client.get("/nonexistent-page/")
+        if res.status_code == 404:
+            content_type = res.get("Content-Type", "")
+            # Non-API paths use HTML error pages, not JSON envelopes
+            self.assertNotIn("application/json", content_type)
 
 
 class ErrorCodeMappingTest(SimpleTestCase):
     """API-001 §10: HTTP status codes mapped to error codes."""
 
-    def setUp(self):
-        self.src = _read(SYN_API / "middleware.py")
+    def test_status_to_code_maps_client_errors(self):
+        """STATUS_TO_CODE maps 400, 401, 403, 404, 409, 422, 429."""
+        expected = {
+            400: "bad_request",
+            401: "unauthorized",
+            403: "forbidden",
+            404: "not_found",
+            409: "conflict",
+            422: "unprocessable_entity",
+            429: "rate_limit_exceeded",
+        }
+        for status, code in expected.items():
+            with self.subTest(status=status):
+                self.assertEqual(STATUS_TO_CODE[status], code)
 
-    def test_status_to_code_dict_exists(self):
-        """STATUS_TO_CODE mapping is defined."""
-        self.assertIn("STATUS_TO_CODE", self.src)
+    def test_status_to_code_maps_server_errors(self):
+        """STATUS_TO_CODE maps 500, 502, 503, 504."""
+        expected = {
+            500: "internal_error",
+            502: "bad_gateway",
+            503: "service_unavailable",
+            504: "gateway_timeout",
+        }
+        for status, code in expected.items():
+            with self.subTest(status=status):
+                self.assertEqual(STATUS_TO_CODE[status], code)
 
-    def test_maps_common_client_errors(self):
-        """Maps 400, 401, 403, 404, 409, 422, 429."""
-        for status, code in [
-            ("400", "bad_request"),
-            ("401", "unauthorized"),
-            ("403", "forbidden"),
-            ("404", "not_found"),
-            ("409", "conflict"),
-            ("422", "unprocessable_entity"),
-            ("429", "rate_limit_exceeded"),
-        ]:
-            self.assertIn(status, self.src, f"Missing status {status}")
-            self.assertIn(code, self.src, f"Missing error code '{code}'")
-
-    def test_maps_server_errors(self):
-        """Maps 500, 502, 503, 504."""
-        for status, code in [
-            ("500", "internal_error"),
-            ("502", "bad_gateway"),
-            ("503", "service_unavailable"),
-            ("504", "gateway_timeout"),
-        ]:
-            self.assertIn(status, self.src)
-            self.assertIn(code, self.src)
-
-    def test_retryable_statuses_defined(self):
-        """RETRYABLE_STATUSES set includes 408, 429, 500, 502, 503, 504."""
-        self.assertIn("RETRYABLE_STATUSES", self.src)
-        for code in ["408", "429", "500", "502", "503", "504"]:
-            self.assertIn(code, self.src)
+    def test_retryable_statuses_includes_expected(self):
+        """RETRYABLE_STATUSES includes 408, 429, 500, 502, 503, 504."""
+        for code in [408, 429, 500, 502, 503, 504]:
+            with self.subTest(code=code):
+                self.assertIn(code, RETRYABLE_STATUSES)
 
 
 class SynaraErrorConversionTest(SimpleTestCase):
     """API-001 §10: SynaraError converted via to_envelope()."""
 
-    def setUp(self):
-        self.src = _read(SYN_API / "middleware.py")
+    def test_process_exception_converts_synara_error(self):
+        """process_exception returns envelope for SynaraError."""
+        from syn.err.exceptions import ValidationError as SynaraValidationError
 
-    def test_process_exception_defined(self):
-        """process_exception method handles SynaraError."""
-        self.assertIn("def process_exception(", self.src)
+        request = _make_request()
+        middleware = ErrorEnvelopeMiddleware(lambda r: _json_ok())
+        exc = SynaraValidationError("Test failure", field="name")
+        response = middleware.process_exception(request, exc)
 
-    def test_synara_error_isinstance_check(self):
-        """process_exception checks isinstance(exception, SynaraError)."""
-        fn = re.search(
-            r"def process_exception\(.*?(?=\n    def |\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        self.assertIsNotNone(fn)
-        body = fn.group()
-        self.assertIn("SynaraError", body)
-        self.assertIn("isinstance", body)
+        self.assertIsNotNone(response)
+        self.assertIn(response.status_code, [400, 422])
+        data = json.loads(response.content)
+        self.assertIn("error", data)
 
-    def test_calls_to_envelope(self):
-        """process_exception calls exception.to_envelope()."""
-        fn = re.search(
-            r"def process_exception\(.*?(?=\n    def |\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("to_envelope", body)
+    def test_process_exception_returns_500_for_generic_exception(self):
+        """Non-SynaraError exceptions return generic 500 without internal details."""
+        request = _make_request()
+        middleware = ErrorEnvelopeMiddleware(lambda r: _json_ok())
+        response = middleware.process_exception(request, RuntimeError("db connection lost"))
 
-    def test_non_synara_returns_generic_500(self):
-        """Non-SynaraError exceptions return generic internal_error 500."""
-        fn = re.search(
-            r"def process_exception\(.*?(?=\n    def |\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("internal_error", body)
-        self.assertIn("500", body)
+        self.assertEqual(response.status_code, 500)
+        data = json.loads(response.content)
+        self.assertEqual(data["error"]["code"], "internal_error")
+        # Must NOT expose internal exception message to client
+        self.assertNotIn("db connection lost", data["error"]["message"])
 
-    def test_error_redaction_applied(self):
-        """process_exception applies error redaction per POL-002 §8."""
-        fn = re.search(
-            r"def process_exception\(.*?(?=\n    def |\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("redact", body.lower())
+    def test_process_exception_skips_non_api_paths(self):
+        """process_exception returns None for non-API paths."""
+        request = _make_request(path="/admin/")
+        middleware = ErrorEnvelopeMiddleware(lambda r: _json_ok())
+        result = middleware.process_exception(request, RuntimeError("test"))
+        self.assertIsNone(result)
+
+    def test_process_exception_includes_request_id(self):
+        """Error envelope includes request_id from Syn-Request-Id."""
+        request = _make_request()
+        middleware = ErrorEnvelopeMiddleware(lambda r: _json_ok())
+        response = middleware.process_exception(request, RuntimeError("err"))
+        data = json.loads(response.content)
+        self.assertEqual(data["error"]["request_id"], "test-req-001")
 
 
-# ── Request ID Middleware ────────────────────────────────────────────────
+# ── Request ID Middleware (installed) ────────────────────────────────────
 
 
-class RequestIdTest(SimpleTestCase):
+@SECURE_OFF
+class RequestIdTest(TestCase):
     """API-001 §8.1: SynRequestIdMiddleware generates/extracts request IDs."""
 
-    def setUp(self):
-        self.src = _read(SYN_API / "middleware.py")
+    def test_response_contains_request_id_header(self):
+        """Every API response includes Syn-Request-Id header."""
+        res = _api_get(self.client)
+        self.assertIn(HEADER_SYN_REQUEST_ID, res)
+        self.assertTrue(len(res[HEADER_SYN_REQUEST_ID]) > 0)
 
-    def test_class_exists(self):
-        """SynRequestIdMiddleware class is defined."""
-        self.assertIn("class SynRequestIdMiddleware", self.src)
-
-    def test_generates_request_id(self):
-        """Generates request ID via _generate_request_id."""
-        self.assertIn("def _generate_request_id(", self.src)
-
-    def test_ulid_generation(self):
-        """_generate_request_id uses ulid library."""
-        fn = re.search(
-            r"def _generate_request_id\(.*?(?=\ndef |\nclass |\Z)",
-            self.src, re.DOTALL,
+    def test_echoes_provided_request_id(self):
+        """Client-provided Syn-Request-Id is echoed back."""
+        custom_id = "test-custom-request-id-12345"
+        res = self.client.get(
+            "/api/health/",
+            HTTP_ACCEPT="application/json",
+            HTTP_SYN_REQUEST_ID=custom_id,
         )
-        self.assertIsNotNone(fn)
-        body = fn.group()
-        self.assertIn("ulid", body)
+        self.assertEqual(res[HEADER_SYN_REQUEST_ID], custom_id)
 
-    def test_extracts_from_header(self):
-        """Extracts Syn-Request-Id from incoming request header."""
-        fn = re.search(
-            r"class SynRequestIdMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("Syn-Request-Id", body)
-
-    def test_echoes_in_response(self):
-        """Echoes Syn-Request-Id in response header."""
-        fn = re.search(
-            r"class SynRequestIdMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("HEADER_SYN_REQUEST_ID", body)
-        # Response should set the header
-        self.assertIn("response[", body)
-
-    def test_stores_on_request_object(self):
-        """Stores request ID as request.syn_request_id."""
-        fn = re.search(
-            r"class SynRequestIdMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("syn_request_id", body)
+    def test_generates_id_when_not_provided(self):
+        """Generates a new request ID when none is provided."""
+        res = _api_get(self.client)
+        request_id = res[HEADER_SYN_REQUEST_ID]
+        self.assertTrue(len(request_id) > 10)
 
 
-class TraceparentTest(SimpleTestCase):
-    """API-001 §8.1: W3C traceparent header extraction."""
+class RequestIdDirectTest(SimpleTestCase):
+    """API-001 §8.1: SynRequestIdMiddleware direct invocation."""
 
-    def setUp(self):
-        self.src = _read(SYN_API / "middleware.py")
+    def test_sets_syn_request_id_on_request_object(self):
+        """Middleware stores request ID on request.syn_request_id."""
+        factory = RequestFactory()
+        request = factory.get("/api/test/")
 
-    def test_traceparent_pattern_defined(self):
-        """TRACEPARENT_PATTERN regex defined for version-traceid-spanid-flags."""
-        self.assertIn("TRACEPARENT_PATTERN", self.src)
+        captured = {}
 
-    def test_traceparent_regex_validates_format(self):
-        """Pattern matches W3C traceparent: 2hex-32hex-16hex-2hex."""
-        # Extract the pattern
-        m = re.search(r'TRACEPARENT_PATTERN\s*=\s*r"([^"]+)"', self.src)
-        self.assertIsNotNone(m, "TRACEPARENT_PATTERN regex not found")
-        pattern = m.group(1)
-        # Valid traceparent
+        def inner(r):
+            captured["id"] = r.syn_request_id
+            captured["start_time"] = r.syn_start_time
+            return _json_ok()
+
+        middleware = SynRequestIdMiddleware(inner)
+        middleware(request)
+        self.assertTrue(len(captured["id"]) > 0)
+        self.assertIsNotNone(captured["start_time"])
+
+    def test_extracts_traceparent_fields(self):
+        """Valid traceparent sets syn_trace_id and syn_span_id on request."""
+        factory = RequestFactory()
+        valid_tp = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+        request = factory.get("/api/test/", HTTP_TRACEPARENT=valid_tp)
+
+        captured = {}
+
+        def inner(r):
+            captured["trace_id"] = r.syn_trace_id
+            captured["span_id"] = r.syn_span_id
+            return _json_ok()
+
+        middleware = SynRequestIdMiddleware(inner)
+        middleware(request)
+        self.assertEqual(captured["trace_id"], "0af7651916cd43dd8448eb211c80319c")
+        self.assertEqual(captured["span_id"], "b7ad6b7169203331")
+
+    def test_invalid_traceparent_sets_none(self):
+        """Invalid traceparent sets trace fields to None."""
+        factory = RequestFactory()
+        request = factory.get("/api/test/", HTTP_TRACEPARENT="invalid")
+
+        captured = {}
+
+        def inner(r):
+            captured["trace_id"] = r.syn_trace_id
+            return _json_ok()
+
+        middleware = SynRequestIdMiddleware(inner)
+        middleware(request)
+        self.assertIsNone(captured["trace_id"])
+
+
+class TraceparentPatternTest(SimpleTestCase):
+    """API-001 §8.1: W3C traceparent pattern validation."""
+
+    def test_matches_valid_traceparent(self):
+        """TRACEPARENT_PATTERN matches valid W3C traceparent format."""
         valid = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
-        self.assertIsNotNone(re.match(pattern, valid))
-        # Invalid traceparent (short trace ID)
+        self.assertIsNotNone(re.match(TRACEPARENT_PATTERN, valid))
+
+    def test_rejects_short_trace_id(self):
+        """TRACEPARENT_PATTERN rejects short/invalid format."""
         invalid = "00-0af765-b7ad6b-01"
-        self.assertIsNone(re.match(pattern, invalid))
-
-    def test_extracts_trace_id_and_span_id(self):
-        """Extracts syn_trace_id and syn_span_id from traceparent."""
-        fn = re.search(
-            r"class SynRequestIdMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("syn_trace_id", body)
-        self.assertIn("syn_span_id", body)
-
-    def test_sets_none_on_invalid(self):
-        """Sets trace fields to None when traceparent is invalid/missing."""
-        fn = re.search(
-            r"class SynRequestIdMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("None", body)
+        self.assertIsNone(re.match(TRACEPARENT_PATTERN, invalid))
 
 
-class TimingTest(SimpleTestCase):
-    """API-001 §8.2: Request timing via X-Response-Time header."""
+# ── API Headers Middleware (direct test — not in MIDDLEWARE) ─────────────
 
-    def setUp(self):
-        self.src = _read(SYN_API / "middleware.py")
 
-    def test_start_time_recorded(self):
-        """SynRequestIdMiddleware records syn_start_time."""
-        fn = re.search(
-            r"class SynRequestIdMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("syn_start_time", body)
-        self.assertIn("time.time()", body)
+class APIHeadersDirectTest(SimpleTestCase):
+    """API-001 §8.2: APIHeadersMiddleware enforces required headers."""
 
-    def test_response_time_header_added(self):
-        """APIHeadersMiddleware adds X-Response-Time header."""
-        fn = re.search(
-            r"class APIHeadersMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        self.assertIsNotNone(fn)
-        body = fn.group()
-        self.assertIn("X-Response-Time", body)
+    def _invoke(self, request, inner_response=None):
+        """Invoke APIHeadersMiddleware directly."""
+        middleware = APIHeadersMiddleware(lambda r: inner_response or _json_ok())
+        return middleware(request)
 
-    def test_duration_in_milliseconds(self):
-        """Duration calculated in milliseconds."""
-        fn = re.search(
-            r"class APIHeadersMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("1000", body)
-        self.assertIn("ms", body)
+    def test_adds_vary_header(self):
+        """APIHeadersMiddleware adds Vary: Accept, Accept-Encoding."""
+        request = _make_request()
+        res = self._invoke(request)
+        self.assertIn("Accept", res.get("Vary", ""))
+        self.assertIn("Accept-Encoding", res.get("Vary", ""))
+
+    def test_adds_response_time_header(self):
+        """APIHeadersMiddleware adds X-Response-Time in ms format."""
+        request = _make_request()
+        res = self._invoke(request)
+        self.assertIn("X-Response-Time", res)
+        self.assertTrue(res["X-Response-Time"].endswith("ms"))
+
+    def test_response_time_is_numeric(self):
+        """X-Response-Time contains a numeric duration."""
+        request = _make_request()
+        res = self._invoke(request)
+        duration = res["X-Response-Time"].replace("ms", "")
+        self.assertTrue(duration.isdigit())
+
+    def test_406_on_invalid_accept(self):
+        """Returns 406 for non-JSON Accept header on /api/ paths."""
+        factory = RequestFactory()
+        request = factory.get("/api/test/", HTTP_ACCEPT="text/xml")
+        request.syn_request_id = "test-req-406"
+        res = self._invoke(request)
+        self.assertEqual(res.status_code, 406)
+        data = json.loads(res.content)
+        self.assertEqual(data["error"]["code"], "unsupported_media_type")
+
+    def test_allows_wildcard_accept(self):
+        """Accept: */* is allowed (not rejected with 406)."""
+        factory = RequestFactory()
+        request = factory.get("/api/test/", HTTP_ACCEPT="*/*")
+        request.syn_request_id = "test"
+        request.syn_start_time = time.time()
+        res = self._invoke(request)
+        self.assertNotEqual(res.status_code, 406)
+
+    def test_skips_exempt_paths(self):
+        """Exempt paths bypass header validation."""
+        factory = RequestFactory()
+        request = factory.get("/static/test.css", HTTP_ACCEPT="text/css")
+        inner = HttpResponse("ok", content_type="text/css")
+        middleware = APIHeadersMiddleware(lambda r: inner)
+        res = middleware(request)
+        # Should pass through without 406
+        self.assertEqual(res.status_code, 200)
+
+    def test_enforces_charset_on_json_responses(self):
+        """Sets Content-Type to application/json; charset=utf-8."""
+        request = _make_request()
+        inner = JsonResponse({"ok": True})
+        # Remove charset if present to test enforcement
+        inner["Content-Type"] = "application/json"
+        res = self._invoke(request, inner)
+        self.assertEqual(res["Content-Type"], "application/json; charset=utf-8")
 
 
 # ── Cursor Pagination ────────────────────────────────────────────────────
 
 
 class CursorPaginationTest(SimpleTestCase):
-    """API-001 §7: Cursor-based pagination, not offset."""
+    """API-001 §7: Cursor-based pagination constants and utilities."""
 
-    def setUp(self):
-        self.src = _read(SYN_API / "pagination.py")
-        self.assertGreater(len(self.src), 0, "pagination.py not found")
+    def test_page_size_defaults(self):
+        """Default, min, and max page sizes are correct."""
+        self.assertEqual(DEFAULT_PAGE_SIZE, 50)
+        self.assertEqual(MIN_PAGE_SIZE, 1)
+        self.assertEqual(MAX_PAGE_SIZE, 200)
 
-    def test_class_exists(self):
-        """SynaraCursorPagination class is defined."""
-        self.assertIn("class SynaraCursorPagination", self.src)
+    def test_create_cursor_response_structure(self):
+        """create_cursor_response returns {data, next_cursor, total_estimate}."""
+        result = create_cursor_response(
+            data=[{"id": 1}, {"id": 2}],
+            next_cursor="abc123",
+            total_estimate=42,
+        )
+        self.assertEqual(result["data"], [{"id": 1}, {"id": 2}])
+        self.assertEqual(result["next_cursor"], "abc123")
+        self.assertEqual(result["total_estimate"], 42)
 
-    def test_extends_cursor_pagination(self):
-        """Extends CursorPagination, not PageNumberPagination or LimitOffsetPagination."""
-        self.assertIn("CursorPagination)", self.src)
-        self.assertNotIn("PageNumberPagination", self.src)
-        self.assertNotIn("LimitOffsetPagination", self.src)
-
-    def test_deterministic_ordering(self):
-        """Uses stable sort key (created_at) for deterministic ordering."""
-        self.assertIn("created_at", self.src)
-        self.assertIn("ordering", self.src)
+    def test_create_cursor_response_defaults(self):
+        """create_cursor_response defaults next_cursor=None, total_estimate=0."""
+        result = create_cursor_response(data=[])
+        self.assertIsNone(result["next_cursor"])
+        self.assertEqual(result["total_estimate"], 0)
+        self.assertEqual(result["data"], [])
 
 
 class PaginationParamsTest(SimpleTestCase):
-    """API-001 §7: Pagination query params are limit (1-200, default 50) and cursor."""
+    """API-001 §7: Pagination query params and bounds enforcement."""
 
-    def setUp(self):
-        self.src = _read(SYN_API / "pagination.py")
+    def test_synara_cursor_pagination_config(self):
+        """SynaraCursorPagination uses 'limit' and 'cursor' query params."""
+        from syn.api.pagination import SynaraCursorPagination
 
-    def test_default_page_size(self):
-        """Default page size is 50."""
-        self.assertIn("DEFAULT_PAGE_SIZE = 50", self.src)
+        paginator = SynaraCursorPagination()
+        self.assertEqual(paginator.page_size_query_param, "limit")
+        self.assertEqual(paginator.cursor_query_param, "cursor")
+        self.assertEqual(paginator.page_size, DEFAULT_PAGE_SIZE)
+        self.assertEqual(paginator.max_page_size, MAX_PAGE_SIZE)
 
-    def test_min_page_size(self):
-        """Minimum page size is 1."""
-        self.assertIn("MIN_PAGE_SIZE = 1", self.src)
+    def test_get_page_size_enforces_bounds(self):
+        """get_page_size clamps to MIN_PAGE_SIZE..MAX_PAGE_SIZE."""
+        from unittest.mock import MagicMock
 
-    def test_max_page_size(self):
-        """Maximum page size is 200."""
-        self.assertIn("MAX_PAGE_SIZE = 200", self.src)
+        from syn.api.pagination import SynaraCursorPagination
 
-    def test_limit_query_param(self):
-        """Query parameter for page size is 'limit'."""
-        self.assertIn('"limit"', self.src)
+        paginator = SynaraCursorPagination()
 
-    def test_cursor_query_param(self):
-        """Query parameter for cursor is 'cursor'."""
-        self.assertIn('"cursor"', self.src)
-
-    def test_bounds_enforcement(self):
-        """get_page_size enforces min/max bounds."""
-        fn = re.search(
-            r"def get_page_size\(.*?(?=\n    def |\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        self.assertIsNotNone(fn)
-        body = fn.group()
-        self.assertIn("MIN_PAGE_SIZE", body)
-        self.assertIn("MAX_PAGE_SIZE", body)
+        for raw, expected in [("0", MIN_PAGE_SIZE), ("999", MAX_PAGE_SIZE), ("25", 25)]:
+            with self.subTest(raw=raw):
+                request = MagicMock()
+                request.query_params = {"limit": raw}
+                self.assertEqual(paginator.get_page_size(request), expected)
 
 
 class PaginationResponseTest(SimpleTestCase):
-    """API-001 §7.2: Paginated responses use {data, next_cursor, total_estimate}."""
+    """API-001 §7.2: Paginated response envelope and cursor encoding."""
 
-    def setUp(self):
-        self.src = _read(SYN_API / "pagination.py")
-
-    def test_response_has_data_field(self):
-        """Response envelope includes 'data' field."""
-        fn = re.search(
-            r"def get_paginated_response\(.*?(?=\n    def |\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        self.assertIsNotNone(fn)
-        body = fn.group()
-        self.assertIn('"data"', body)
-
-    def test_response_has_next_cursor(self):
-        """Response envelope includes 'next_cursor' field."""
-        fn = re.search(
-            r"def get_paginated_response\(.*?(?=\n    def |\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn('"next_cursor"', body)
-
-    def test_response_has_total_estimate(self):
-        """Response envelope includes 'total_estimate' field."""
-        fn = re.search(
-            r"def get_paginated_response\(.*?(?=\n    def |\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn('"total_estimate"', body)
-
-    def test_create_cursor_response_helper(self):
-        """create_cursor_response utility returns standard envelope."""
-        self.assertIn("def create_cursor_response(", self.src)
-        fn = re.search(
-            r"def create_cursor_response\(.*?(?=\ndef |\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
+    def test_cursor_response_has_all_fields(self):
+        """create_cursor_response includes data, next_cursor, total_estimate."""
+        result = create_cursor_response(data=["a"], next_cursor="cur", total_estimate=10)
         for field in ["data", "next_cursor", "total_estimate"]:
-            self.assertIn(f'"{field}"', body)
+            self.assertIn(field, result)
+
+    def test_encode_decode_cursor_roundtrip(self):
+        """encode_cursor → decode_cursor preserves data."""
+        from syn.api.pagination import decode_cursor, encode_cursor
+
+        position = {"created_at": "2024-01-01T00:00:00Z", "id": "abc"}
+        encoded = encode_cursor(position)
+        decoded = decode_cursor(encoded)
+        self.assertEqual(decoded, position)
+
+    def test_decode_invalid_cursor_returns_none(self):
+        """decode_cursor returns None for invalid input."""
+        from syn.api.pagination import decode_cursor
+
+        self.assertIsNone(decode_cursor("not-valid-base64!!!"))
 
 
-# ── Idempotency Middleware ───────────────────────────────────────────────
+# ── Idempotency Middleware (direct test — not in MIDDLEWARE) ─────────────
 
 
 class IdempotencyKeyTest(SimpleTestCase):
-    """API-001 §9: IdempotencyMiddleware validates Idempotency-Key on POST."""
+    """API-001 §9: Idempotency key constants and patterns."""
 
-    def setUp(self):
-        self.src = _read(SYN_API / "middleware.py")
-
-    def test_class_exists(self):
-        """IdempotencyMiddleware class is defined."""
-        self.assertIn("class IdempotencyMiddleware", self.src)
-
-    def test_post_only(self):
-        """Only applies to POST requests."""
-        fn = re.search(
-            r"class IdempotencyMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn('"POST"', body)
-
-    def test_api_path_only(self):
-        """Only applies to /api/ paths."""
-        fn = re.search(
-            r"class IdempotencyMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn('"/api/"', body)
-
-    def test_key_header_name(self):
-        """Reads Idempotency-Key header."""
-        self.assertIn("Idempotency-Key", self.src)
-
-    def test_key_pattern_defined(self):
-        """IDEMPOTENCY_KEY_PATTERN regex defined for ULID format."""
-        self.assertIn("IDEMPOTENCY_KEY_PATTERN", self.src)
-
-
-class IdempotencyBehaviorTest(SimpleTestCase):
-    """API-001 §9: Cached response on replay, 409 on payload conflict."""
-
-    def setUp(self):
-        self.src = _read(SYN_API / "middleware.py")
-
-    def test_returns_cached_response(self):
-        """Returns cached response when key matches with same payload."""
-        fn = re.search(
-            r"class IdempotencyMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("_get_cached_response", body)
-        self.assertIn("cached_response", body)
-
-    def test_409_on_conflict(self):
-        """Returns 409 when key reused with different payload."""
-        fn = re.search(
-            r"class IdempotencyMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("409", body)
-        self.assertIn("idempotency_conflict", body)
-
-    def test_caches_successful_responses(self):
-        """Only caches responses with 2xx status codes."""
-        fn = re.search(
-            r"class IdempotencyMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("200", body)
-        self.assertIn("300", body)
-        self.assertIn("_cache_response", body)
-
-    def test_logs_replay(self):
-        """Logs idempotency key replay events."""
-        fn = re.search(
-            r"class IdempotencyMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("replay", body.lower())
-
-
-class PayloadHashTest(SimpleTestCase):
-    """API-001 §9: Idempotency payload hash is SHA-256."""
-
-    def setUp(self):
-        self.src = _read(SYN_API / "middleware.py")
-
-    def test_sha256_used(self):
-        """Payload hash uses SHA-256 algorithm."""
-        fn = re.search(
-            r"class IdempotencyMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("sha256", body)
-
-    def test_hashes_request_body(self):
-        """Hashes request.body for conflict detection."""
-        fn = re.search(
-            r"class IdempotencyMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("request.body", body)
-        self.assertIn("payload_hash", body)
-
-    def test_payload_hash_stored_in_cache(self):
-        """Payload hash stored in cached entry for comparison."""
-        fn = re.search(
-            r"def _cache_response\(.*?(?=\n    def |\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        self.assertIsNotNone(fn)
-        body = fn.group()
-        self.assertIn("payload_hash", body)
-
-
-class IdempotencyTTLTest(SimpleTestCase):
-    """API-001 §9: Idempotency cache TTL is 24 hours."""
-
-    def setUp(self):
-        self.src = _read(SYN_API / "middleware.py")
-
-    def test_ttl_constant_defined(self):
+    def test_ttl_is_24_hours(self):
         """IDEMPOTENCY_TTL_HOURS = 24."""
-        self.assertIn("IDEMPOTENCY_TTL_HOURS = 24", self.src)
+        self.assertEqual(IDEMPOTENCY_TTL_HOURS, 24)
 
-    def test_ttl_used_in_cache_set(self):
-        """Cache set uses TTL hours * 3600 for seconds."""
-        fn = re.search(
-            r"def _cache_response\(.*?(?=\n    def |\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        self.assertIsNotNone(fn)
-        body = fn.group()
-        self.assertIn("IDEMPOTENCY_TTL_HOURS", body)
-        self.assertIn("3600", body)
+    def test_key_pattern_matches_ulid(self):
+        """IDEMPOTENCY_KEY_PATTERN matches 26-char ULID format."""
+        valid_ulid = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+        self.assertIsNotNone(re.match(IDEMPOTENCY_KEY_PATTERN, valid_ulid))
 
-
-# ── API Headers Middleware ───────────────────────────────────────────────
+    def test_key_pattern_rejects_invalid(self):
+        """IDEMPOTENCY_KEY_PATTERN rejects non-ULID strings."""
+        self.assertIsNone(re.match(IDEMPOTENCY_KEY_PATTERN, "too-short"))
+        self.assertIsNone(re.match(IDEMPOTENCY_KEY_PATTERN, ""))
 
 
-class APIHeadersTest(SimpleTestCase):
-    """API-001 §8.2: APIHeadersMiddleware enforces required headers."""
+class IdempotencyDirectTest(TestCase):
+    """API-001 §9: IdempotencyMiddleware behavior via direct invocation."""
 
     def setUp(self):
-        self.src = _read(SYN_API / "middleware.py")
+        cache.clear()
 
-    def test_class_exists(self):
-        """APIHeadersMiddleware class is defined."""
-        self.assertIn("class APIHeadersMiddleware", self.src)
-
-    def test_accept_header_validation(self):
-        """Validates Accept header includes application/json."""
-        fn = re.search(
-            r"class APIHeadersMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
+    def _invoke_post(self, body=b'{"test": true}', key=None, inner_response=None):
+        """Invoke IdempotencyMiddleware with a POST request."""
+        factory = RequestFactory()
+        extra = {}
+        if key:
+            extra["HTTP_IDEMPOTENCY_KEY"] = key
+        request = factory.post(
+            "/api/test/",
+            data=body,
+            content_type="application/json",
+            **extra,
         )
-        body = fn.group()
-        self.assertIn("application/json", body)
-        self.assertIn("Accept", body)
+        request.syn_request_id = "test-req-idem"
+        request.tenant_id = None
 
-    def test_charset_enforcement(self):
-        """Ensures Content-Type includes charset=utf-8."""
-        fn = re.search(
-            r"class APIHeadersMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
+        resp = inner_response or _json_ok({"result": "created"}, status=201)
+        middleware = IdempotencyMiddleware(lambda r: resp)
+        return middleware(request)
+
+    def test_post_without_key_proceeds(self):
+        """POST without Idempotency-Key proceeds normally."""
+        res = self._invoke_post()
+        self.assertEqual(res.status_code, 201)
+
+    def test_post_with_key_caches_response(self):
+        """POST with key caches 2xx response for replay."""
+        key = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+        body = b'{"data": "test"}'
+        res = self._invoke_post(body=body, key=key)
+        self.assertEqual(res.status_code, 201)
+
+        # Verify response was cached
+        cache_key = f"idempotency:None:{key}"
+        cached = cache.get(cache_key)
+        self.assertIsNotNone(cached)
+        self.assertEqual(cached["payload_hash"], hashlib.sha256(body).hexdigest())
+
+    def test_replay_returns_cached_response(self):
+        """POST with same key + same body returns cached response."""
+        key = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+        body = b'{"data": "test"}'
+        payload_hash = hashlib.sha256(body).hexdigest()
+
+        # Pre-populate cache
+        cache_key = f"idempotency:None:{key}"
+        cache.set(
+            cache_key,
+            {
+                "request_id": "req-original",
+                "payload_hash": payload_hash,
+                "status_code": 200,
+                "response_body": {"result": "cached"},
+            },
+            timeout=86400,
         )
-        body = fn.group()
-        self.assertIn("charset", body)
-        self.assertIn("utf-8", body)
 
-    def test_vary_header_added(self):
-        """Adds Vary header for proper caching."""
-        fn = re.search(
-            r"class APIHeadersMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
+        res = self._invoke_post(body=body, key=key)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(json.loads(res.content)["result"], "cached")
+
+    def test_conflict_returns_409(self):
+        """POST with same key but different body returns 409."""
+        key = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+        original_hash = hashlib.sha256(b'{"data":"original"}').hexdigest()
+
+        cache_key = f"idempotency:None:{key}"
+        cache.set(
+            cache_key,
+            {
+                "request_id": "req-original",
+                "payload_hash": original_hash,
+                "status_code": 200,
+                "response_body": {"result": "original"},
+            },
+            timeout=86400,
         )
-        body = fn.group()
-        self.assertIn("Vary", body)
-        self.assertIn("Accept-Encoding", body)
 
-    def test_406_on_invalid_accept(self):
-        """Returns 406 for invalid Accept header."""
-        fn = re.search(
-            r"class APIHeadersMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("406", body)
-        self.assertIn("unsupported_media_type", body)
+        res = self._invoke_post(body=b'{"data":"different"}', key=key)
+        self.assertEqual(res.status_code, 409)
+        data = json.loads(res.content)
+        self.assertEqual(data["error"]["code"], "idempotency_conflict")
 
-    def test_exempt_paths_skip_validation(self):
-        """Exempt paths bypass header validation."""
-        self.assertIn("EXEMPT_PATHS", self.src)
-        self.assertIn("_is_exempt_path", self.src)
+    def test_skips_get_requests(self):
+        """GET requests bypass idempotency checks."""
+        factory = RequestFactory()
+        request = factory.get("/api/test/")
+        request.syn_request_id = "test"
+        request.tenant_id = None
 
-    def test_sets_content_type_charset(self):
-        """Ensures Content-Type includes charset=utf-8 on JSON responses."""
-        fn = re.search(
-            r"class APIHeadersMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("charset", body)
-        self.assertIn("utf-8", body)
-        self.assertIn("application/json; charset=utf-8", body)
+        middleware = IdempotencyMiddleware(lambda r: _json_ok())
+        res = middleware(request)
+        self.assertEqual(res.status_code, 200)
 
-    def test_sets_vary_header(self):
-        """Adds Vary: Accept, Accept-Encoding header for proper caching."""
-        fn = re.search(
-            r"class APIHeadersMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("Vary", body)
-        self.assertIn("Accept-Encoding", body)
+    def test_skips_non_api_paths(self):
+        """Non-API POST requests bypass idempotency checks."""
+        factory = RequestFactory()
+        request = factory.post("/admin/login/", data=b"{}", content_type="application/json")
+        request.syn_request_id = "test"
+        request.tenant_id = None
 
-    def test_adds_response_time_header(self):
-        """Adds X-Response-Time header with duration in ms."""
-        fn = re.search(
-            r"class APIHeadersMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn("X-Response-Time", body)
-        self.assertIn("ms", body)
+        middleware = IdempotencyMiddleware(lambda r: _json_ok())
+        res = middleware(request)
+        self.assertEqual(res.status_code, 200)
 
-    def test_api_paths_only(self):
-        """Accept validation only applies to /api/ paths."""
-        fn = re.search(
-            r"class APIHeadersMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        self.assertIn('"/api/"', body)
-        self.assertIn("_is_exempt_path", body)
-
-    def test_no_cache_on_api(self):
-        """API responses use Vary header to prevent improper caching."""
-        fn = re.search(
-            r"class APIHeadersMiddleware.*?(?=\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        # Vary header with Accept prevents cached HTML being served as JSON
-        self.assertIn("Vary", body)
-        self.assertIn("Accept", body)
+    def tearDown(self):
+        cache.clear()
 
 
 # ── Error Redaction ──────────────────────────────────────────────────────
@@ -674,79 +587,58 @@ class APIHeadersTest(SimpleTestCase):
 class ErrorRedactionTest(SimpleTestCase):
     """API-001/POL-002 §8: Error message redaction."""
 
-    def setUp(self):
-        self.src = _read(SYN_API / "middleware.py")
-
-    def test_redact_function_exists(self):
-        """redact_error_message function defined."""
-        self.assertIn("def redact_error_message(", self.src)
-
     def test_redacts_passwords(self):
-        """Redacts password patterns."""
-        self.assertIn("password", self.src.lower())
-        self.assertIn("REDACTED", self.src)
+        """redact_error_message scrubs password patterns."""
+        msg = 'Connection failed: password="s3cret123"'
+        result = redact_error_message(msg)
+        self.assertNotIn("s3cret123", result)
+        self.assertIn("REDACTED", result)
 
     def test_redacts_bearer_tokens(self):
-        """Redacts Bearer token patterns."""
-        self.assertIn("Bearer", self.src)
+        """redact_error_message scrubs Bearer token patterns."""
+        msg = "Auth failed: Bearer eyJhbGciOiJIUzI1NiJ9.test"
+        result = redact_error_message(msg)
+        self.assertNotIn("eyJhbGciOiJIUzI1NiJ9", result)
+        self.assertIn("REDACTED", result)
 
     def test_redacts_env_vars(self):
-        """Redacts environment variable patterns."""
-        self.assertIn("ENV_VAR_PATTERNS", self.src)
+        """redact_error_message scrubs environment variable values."""
+        msg = "Error: DATABASE_URL=postgres://user:pass@host/db SECRET_KEY=abc123"
+        result = redact_error_message(msg)
+        self.assertNotIn("postgres://user:pass@host/db", result)
+        self.assertIn("DATABASE_URL=***", result)
+
+    def test_preserves_safe_content(self):
+        """redact_error_message preserves non-sensitive parts."""
+        msg = "File not found: /tmp/data.csv"
+        result = redact_error_message(msg)
+        self.assertEqual(result, msg)
+
+    def test_redact_exception_for_logging_format(self):
+        """redact_exception_for_logging returns 'Type: message' format."""
+        exc = ValueError("password=hunter2 in config")
+        result = redact_exception_for_logging(exc)
+        self.assertTrue(result.startswith("ValueError:"))
+        self.assertNotIn("hunter2", result)
+        self.assertIn("REDACTED", result)
+
+    def test_redact_exception_preserves_safe_message(self):
+        """redact_exception_for_logging preserves non-sensitive exception message."""
+        exc = RuntimeError("simple error")
+        result = redact_exception_for_logging(exc)
+        self.assertIn("RuntimeError", result)
+        self.assertIn("simple error", result)
+
+    def test_sensitive_patterns_cover_credentials(self):
+        """SENSITIVE_ERROR_PATTERNS covers password, secret, credential, Bearer."""
+        combined = " ".join(SENSITIVE_ERROR_PATTERNS)
+        for keyword in ["password", "secret", "credential", "Bearer"]:
+            with self.subTest(keyword=keyword):
+                self.assertIn(keyword, combined)
+
+    def test_env_var_patterns_cover_known_vars(self):
+        """ENV_VAR_PATTERNS covers DATABASE_URL, SECRET_KEY, AWS_SECRET."""
+        combined = " ".join(ENV_VAR_PATTERNS)
         for var in ["DATABASE_URL", "SECRET_KEY", "AWS_SECRET"]:
-            self.assertIn(var, self.src)
-
-    def test_redact_exception_for_logging(self):
-        """redact_exception_for_logging strips sensitive data from exceptions."""
-        self.assertIn("def redact_exception_for_logging(", self.src)
-
-    def test_strips_internal_details(self):
-        """redact_exception_for_logging strips full traceback, returns type: message only."""
-        fn = re.search(
-            r"def redact_exception_for_logging\(.*?(?=\ndef |\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        self.assertIsNotNone(fn)
-        body = fn.group()
-        # Should not include traceback — only exc_type and message
-        self.assertIn("exc_type", body)
-        self.assertIn("exc_message", body)
-        self.assertNotIn("traceback.format_exc", body)
-
-    def test_preserves_safe_fields(self):
-        """Redaction preserves non-sensitive parts of the message."""
-        fn = re.search(
-            r"def redact_error_message\(.*?(?=\ndef |\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        # Should use re.sub pattern replacement, not blanket wipe
-        self.assertIn("re.sub", body)
-        self.assertIn("return redacted", body)
-
-    def test_redacts_traceback(self):
-        """redact_exception_for_logging omits full traceback with locals."""
-        fn = re.search(
-            r"def redact_exception_for_logging\(.*?(?=\ndef |\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        body = fn.group()
-        # Comment confirms: "no full traceback with locals"
-        self.assertIn("no full traceback", body.lower())
-
-    def test_redacts_sql(self):
-        """SENSITIVE_ERROR_PATTERNS covers credential-like patterns that appear in SQL errors."""
-        self.assertIn("SENSITIVE_ERROR_PATTERNS", self.src)
-        # Patterns cover password=, secret=, credential= which appear in DB connection errors
-        self.assertIn("password", self.src.lower())
-        self.assertIn("credential", self.src.lower())
-
-    def test_redacts_in_production_only(self):
-        """process_exception applies redaction via redact_error_message."""
-        fn = re.search(
-            r"def process_exception\(.*?(?=\n    def |\nclass |\Z)",
-            self.src, re.DOTALL,
-        )
-        self.assertIsNotNone(fn)
-        body = fn.group()
-        self.assertIn("redact", body.lower())
+            with self.subTest(var=var):
+                self.assertIn(var, combined)
