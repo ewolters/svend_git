@@ -3842,7 +3842,7 @@ def api_compliance(request):
         except Exception:
             pass
 
-        # SLA data from latest sla_compliance check
+        # SLA data from latest sla_compliance check, with live availability overlay
         sla_data = {"total": 0, "met": 0, "breached": 0, "unmeasurable": 0, "slas": []}
         sla_check = ComplianceCheck.objects.filter(
             check_name="sla_compliance"
@@ -3855,6 +3855,34 @@ def api_compliance(request):
             sla_data["unmeasurable"] = d.get("unmeasurable", 0)
             sla_data["run_at"] = sla_check.run_at.isoformat()
             sla_data["slas"] = d.get("sla_results", [])
+
+        # Overlay live availability from HealthPing (replaces stale cached value)
+        try:
+            from syn.audit.models import HealthPing
+            now = timezone.now()
+            month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            pings = HealthPing.objects.filter(timestamp__gte=month_start)
+            total_pings = pings.count()
+            if total_pings > 0:
+                healthy_pings = pings.filter(is_healthy=True).count()
+                live_pct = (healthy_pings / total_pings) * 100
+                live_status = "met" if live_pct >= 99.9 else "breach"
+                for sla in sla_data["slas"]:
+                    if sla.get("metric") == "availability":
+                        old_status = sla.get("status")
+                        sla["current_value"] = f"{live_pct:.2f}%"
+                        sla["status"] = live_status
+                        sla["measurement"] = "automated"
+                        # Recount met/breached if status changed
+                        if old_status != live_status:
+                            if old_status == "breach" and live_status == "met":
+                                sla_data["met"] = sla_data["met"] + 1
+                                sla_data["breached"] = max(sla_data["breached"] - 1, 0)
+                            elif old_status == "met" and live_status == "breach":
+                                sla_data["met"] = max(sla_data["met"] - 1, 0)
+                                sla_data["breached"] = sla_data["breached"] + 1
+        except Exception:
+            pass  # Fall back to cached value
 
         # SOC 2 control coverage
         soc2_data = {}

@@ -1802,6 +1802,33 @@ def compliance_page(request):
                 "metric": r.get("metric", ""),
             })
 
+    # Overlay live availability from HealthPing (replaces stale cached value)
+    try:
+        from syn.audit.models import HealthPing
+        from django.utils import timezone as tz
+        now = tz.now()
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        pings = HealthPing.objects.filter(timestamp__gte=month_start)
+        total_pings = pings.count()
+        if total_pings > 0:
+            healthy_pings = pings.filter(is_healthy=True).count()
+            live_pct = (healthy_pings / total_pings) * 100
+            live_status = "met" if live_pct >= 99.9 else "breach"
+            for sla in sla_data["slas"]:
+                if sla.get("metric") == "availability":
+                    old_status = sla.get("status")
+                    sla["current_value"] = f"{live_pct:.2f}%"
+                    sla["status"] = live_status
+                    if old_status != live_status:
+                        if old_status == "breach" and live_status == "met":
+                            sla_data["met"] = sla_data["met"] + 1
+                            sla_data["breached"] = max(sla_data["breached"] - 1, 0)
+                        elif old_status == "met" and live_status == "breach":
+                            sla_data["met"] = max(sla_data["met"] - 1, 0)
+                            sla_data["breached"] = sla_data["breached"] + 1
+    except Exception:
+        pass  # Fall back to cached value
+
     # Overall pass rate: infrastructure checks + standard assertions
     # Warnings count against — only "pass" counts
     all_total = checks_total + standards_total
