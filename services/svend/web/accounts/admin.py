@@ -3,7 +3,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import InviteCode, Subscription, User
+from .models import DataExportRequest, InviteCode, Subscription, User
 
 
 @admin.register(User)
@@ -42,3 +42,11 @@ class InviteCodeAdmin(admin.ModelAdmin):
     def generate_codes(self, request, queryset):
         codes = InviteCode.generate(count=5, note="Admin generated")
         self.message_user(request, f"Generated: {', '.join(c.code for c in codes)}")
+
+
+@admin.register(DataExportRequest)
+class DataExportRequestAdmin(admin.ModelAdmin):
+    list_display = ["id", "user", "status", "created_at", "completed_at", "expires_at"]
+    list_filter = ["status"]
+    readonly_fields = ["id", "user", "file_path", "created_at", "processing_started_at"]
+    search_fields = ["user__username", "user__email"]

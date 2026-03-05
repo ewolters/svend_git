@@ -265,6 +265,28 @@ def register_svend_tasks():
         max_attempts=1,
     )
 
+    # ---- Privacy export tasks (PRIV-001) ----
+
+    from accounts.privacy_tasks import cleanup_expired_exports, generate_export
+
+    TaskRegistry.register(
+        task_name="privacy.generate_export",
+        handler=generate_export,
+        queue=QueueType.BATCH,
+        priority=TaskPriority.NORMAL,
+        timeout_seconds=300,
+        max_attempts=2,
+    )
+
+    TaskRegistry.register(
+        task_name="privacy.cleanup_expired_exports",
+        handler=cleanup_expired_exports,
+        queue=QueueType.BATCH,
+        priority=TaskPriority.LOW,
+        timeout_seconds=120,
+        max_attempts=1,
+    )
+
     logger.info("[syn.sched] Registered %d Svend task handlers", len(TaskRegistry._handlers))
 
 
@@ -374,6 +396,14 @@ SVEND_SCHEDULES = [
         "schedule_id": "notifications-cleanup-tokens",
         "task_name": "notifications.cleanup_tokens",
         "cron": "0 4 * * 0",  # Sunday 04:00 UTC
+        "priority": TaskPriority.LOW,
+        "queue": "batch",
+    },
+    # ---- Privacy export schedules (PRIV-001) ----
+    {
+        "schedule_id": "privacy-cleanup-exports",
+        "task_name": "privacy.cleanup_expired_exports",
+        "cron": "0 3 * * 0",  # Sunday 03:00 UTC
         "priority": TaskPriority.LOW,
         "queue": "batch",
     },

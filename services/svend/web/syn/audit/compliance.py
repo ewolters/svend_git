@@ -469,9 +469,9 @@ SOC2_CONTROL_MATRIX = {
         "category": "privacy",
         "tsc": "P1",
         "name": "PII access and correction",
-        "checks": [],
-        "manual_status": "gap",
-        "manual_reason": "No self-service data export",
+        "checks": ["privacy_data_export"],
+        "manual_status": "met",
+        "manual_reason": "Self-service data export via PRIV-001",
     },
 }
 
@@ -1004,6 +1004,44 @@ def check_data_retention():
             "issues": issues,
         },
         "soc2_controls": ["P4.2"],
+    }
+
+
+@register("privacy_data_export", "privacy", soc2_controls=["P1.8"])
+def check_privacy_data_export():
+    """Verify self-service data export capability exists (PRIV-001)."""
+    issues = []
+
+    # Check 1: Model exists and is queryable
+    try:
+        from accounts.models import DataExportRequest
+
+        DataExportRequest.objects.count()
+    except Exception as e:
+        issues.append(f"DataExportRequest model inaccessible: {e}")
+
+    # Check 2: Export endpoint is registered
+    try:
+        from django.urls import reverse
+
+        reverse("privacy:exports")
+    except Exception:
+        issues.append("Privacy export endpoint not found in URL config")
+
+    # Check 3: Export task is registered
+    try:
+        from syn.sched.core import TaskRegistry
+
+        if "privacy.generate_export" not in TaskRegistry._handlers:
+            issues.append("privacy.generate_export task not registered")
+    except Exception:
+        issues.append("Cannot verify task registration")
+
+    status = "pass" if not issues else "fail"
+    return {
+        "status": status,
+        "details": {"issues": issues},
+        "soc2_controls": ["P1.8"],
     }
 
 

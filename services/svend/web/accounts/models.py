@@ -371,3 +371,59 @@ If you didn't create this account, you can ignore this email.
             )
             return True
         return False
+
+
+class DataExportRequest(models.Model):
+    """Self-service data export request (PRIV-001 §5.1, SOC 2 P1.8).
+
+    Tracks the lifecycle of a user's data export request from creation
+    through async generation to download and expiry.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PROCESSING = "processing", "Processing"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+        EXPIRED = "expired", "Expired"
+        CANCELLED = "cancelled", "Cancelled"
+
+    class ExportFormat(models.TextChoices):
+        JSON = "json", "JSON"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        "User",
+        on_delete=models.CASCADE,
+        related_name="data_export_requests",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    export_format = models.CharField(
+        max_length=10,
+        choices=ExportFormat.choices,
+        default=ExportFormat.JSON,
+    )
+    file_path = models.CharField(max_length=500, blank=True)
+    file_size_bytes = models.BigIntegerField(null=True, blank=True)
+    error_message = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    processing_started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    downloaded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "data_export_requests"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "-created_at"], name="export_user_created"),
+            models.Index(fields=["status", "expires_at"], name="export_status_expires"),
+        ]
+
+    def __str__(self):
+        return f"Export {self.id} ({self.status})"
