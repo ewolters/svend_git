@@ -319,6 +319,26 @@ class GenerateExportTaskTests(TestCase):
         self.assertGreater(export_req.file_size_bytes, 0)
         os.remove(export_req.file_path)
 
+    def test_audit_log_created(self):
+        """Verify generate_export emits audit events (PRIV-001 §8)."""
+        from unittest.mock import patch
+
+        export_req = DataExportRequest.objects.create(user=self.user)
+
+        with patch("syn.audit.utils.generate_entry") as mock_gen:
+            from accounts.privacy_tasks import generate_export
+
+            generate_export({"export_id": str(export_req.id)})
+
+        self.assertGreaterEqual(mock_gen.call_count, 2)
+        event_names = [c.kwargs["event_name"] for c in mock_gen.call_args_list]
+        self.assertIn("privacy.export.requested", event_names)
+        self.assertIn("privacy.export.completed", event_names)
+
+        export_req.refresh_from_db()
+        if export_req.file_path and os.path.exists(export_req.file_path):
+            os.remove(export_req.file_path)
+
     def test_handles_user_with_no_data(self):
         """Fresh user exports empty sections, not errors."""
         export_req, _ = self._run_export()
