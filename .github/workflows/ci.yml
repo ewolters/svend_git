@@ -8,11 +8,12 @@
 
 name: CI
 
-on:
+"on":
   push:
     branches: [main, iso-9001-modules]
   pull_request:
     branches: [main, iso-9001-modules]
+  workflow_dispatch:
 
 env:
   SVEND_SECRET_KEY: ci-test-key-not-for-production
