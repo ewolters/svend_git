@@ -85,11 +85,43 @@ jobs:
       - run: pip install -e ".[dev,prod]" dj-database-url pip-audit
       - run: python manage.py migrate
       - name: standards_compliance
-        run: python manage.py run_compliance --check=standards_compliance
+        run: python manage.py run_compliance --check=standards_compliance --json | tee compliance-standards.json
       - name: code_style
-        run: python manage.py run_compliance --check=code_style
+        run: python manage.py run_compliance --check=code_style --json | tee compliance-code-style.json
       - name: security_config
-        run: python manage.py run_compliance --check=security_config
+        run: python manage.py run_compliance --check=security_config --json | tee compliance-security.json
         continue-on-error: true
       - name: dependency_vuln
-        run: python manage.py run_compliance --check=dependency_vuln
+        run: python manage.py run_compliance --check=dependency_vuln --json | tee compliance-dependency.json
+      - name: Compliance summary
+        if: always()
+        run: |
+          python -c "
+          import json, glob, os
+          checks = []
+          for f in sorted(glob.glob('compliance-*.json')):
+              try:
+                  checks.append(json.load(open(f)))
+              except Exception:
+                  pass
+          if not checks:
+              exit(0)
+          passed = sum(1 for c in checks if c['status'] == 'pass')
+          failed = sum(1 for c in checks if c['status'] == 'fail')
+          warns = sum(1 for c in checks if c['status'] == 'warning')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as s:
+              s.write('## Compliance Results\n\n')
+              s.write(f'**{passed}** passed | **{failed}** failed | **{warns}** warnings\n\n')
+              s.write('| Check | Status | Duration | Category |\n')
+              s.write('|-------|--------|----------|----------|\n')
+              for c in checks:
+                  icon = {'pass': 'pass', 'fail': 'FAIL', 'warning': 'warn', 'error': 'ERROR'}.get(c['status'], '?')
+                  s.write(f'| {c[\"check\"]} | {icon} | {c[\"duration_ms\"]:.0f}ms | {c[\"category\"]} |\n')
+          "
+      - name: Upload compliance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compliance-results
+          path: services/svend/web/compliance-*.json
+          retention-days: 90
