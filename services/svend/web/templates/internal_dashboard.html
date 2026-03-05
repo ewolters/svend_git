@@ -433,6 +433,26 @@
     .chg-timeline-bar { min-width: 3px; border-radius: 2px; flex-shrink: 0; }
     .chg-file-list { list-style: none; padding: 0; margin: 0; }
     .chg-file-list li { font-family: 'JetBrains Mono','Fira Code',monospace; font-size: 0.8rem; padding: 3px 8px; background: var(--bg-secondary); border-radius: 3px; margin-bottom: 4px; display: inline-block; margin-right: 6px; }
+
+    /* Incident Management (INC-001) */
+    .inc-item { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    .inc-item:hover { background: var(--bg-secondary); }
+    .inc-item.active { background: var(--accent-primary); color: #fff; }
+    .inc-item.active .inc-item-title { color: #fff; }
+    .inc-item.active .inc-item-meta { color: rgba(255,255,255,0.7); }
+    .inc-item-title { font-size: 0.8rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .inc-item-meta { font-size: 0.65rem; color: var(--text-dim); margin-top: 3px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .inc-badge { font-size: 0.6rem; font-weight: 600; padding: 1px 6px; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.3px; display: inline-block; }
+    .inc-sev-critical { background: #ef4444; color: #fff; }
+    .inc-sev-high { background: #f59e0b; color: #000; }
+    .inc-sev-medium { background: #3b82f6; color: #fff; }
+    .inc-sev-low { background: #6b7280; color: #fff; }
+    .inc-section { margin-bottom: 1.5rem; }
+    .inc-section-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); margin-bottom: 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .inc-timeline-entry { padding: 10px 0; border-bottom: 1px solid var(--border); display: flex; gap: 10px; }
+    .inc-timeline-bar { min-width: 3px; border-radius: 2px; flex-shrink: 0; }
+    .inc-sla-ok { color: var(--accent-primary); }
+    .inc-sla-breach { color: #ef4444; font-weight: 700; }
 </style>
 
 <div class="toast-container" id="toast-container"></div>
@@ -1946,6 +1966,81 @@
                 <div id="chg-reader-header" style="margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border);"></div>
                 <!-- Body sections -->
                 <div id="chg-reader-body"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Incidents (INC-001) -->
+<div class="tab-content" id="tab-incidents">
+    <!-- KPI Cards -->
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:1.5rem;">
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="inc-active">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">Active Incidents</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;color:var(--accent-primary);" id="inc-resolved-30d">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">Resolved (30d)</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;color:var(--danger,#ef4444);" id="inc-critical-active">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">Critical Active</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="inc-mttr">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">MTTR (hours)</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;color:var(--warning,#f59e0b);" id="inc-sla-breaches">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">SLA Breaches (30d)</div>
+        </div>
+    </div>
+
+    <!-- Split-pane: left list + right detail reader -->
+    <div style="display:flex;gap:0;height:calc(100vh - 320px);min-height:500px;border:1px solid var(--border);border-radius:6px;overflow:hidden;">
+        <!-- Left pane: filters + incident list -->
+        <div style="width:300px;min-width:300px;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;">
+            <div style="padding:8px;border-bottom:1px solid var(--border);display:flex;gap:4px;flex-wrap:wrap;">
+                <select id="inc-filter-severity" onchange="loadIncidents()" style="flex:1;min-width:80px;padding:4px 6px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:4px;font-size:0.7rem;">
+                    <option value="">All Severity</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                </select>
+                <select id="inc-filter-status" onchange="loadIncidents()" style="flex:1;min-width:80px;padding:4px 6px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:4px;font-size:0.7rem;">
+                    <option value="">All Statuses</option>
+                    <option value="detected">Detected</option>
+                    <option value="acknowledged">Acknowledged</option>
+                    <option value="investigating">Investigating</option>
+                    <option value="mitigating">Mitigating</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="post_mortem">Post-Mortem</option>
+                    <option value="closed">Closed</option>
+                </select>
+                <select id="inc-filter-category" onchange="loadIncidents()" style="flex:1;min-width:70px;padding:4px 6px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:4px;font-size:0.7rem;">
+                    <option value="">All Categories</option>
+                    <option value="outage">Outage</option>
+                    <option value="degradation">Degradation</option>
+                    <option value="security">Security</option>
+                    <option value="data">Data Integrity</option>
+                    <option value="dependency">Dependency</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div id="inc-list" style="flex:1;overflow-y:auto;"></div>
+        </div>
+        <!-- Right pane: incident detail reader -->
+        <div id="inc-reader" style="flex:1;overflow-y:auto;padding:2rem 2.5rem;">
+            <div id="inc-reader-empty" style="text-align:center;padding:4rem 2rem;color:var(--text-dim);">
+                <div style="font-size:2.5rem;margin-bottom:0.5rem;opacity:0.3;">&#128680;</div>
+                <div style="font-size:0.9rem;">Select an incident from the list</div>
+                <div style="font-size:0.75rem;margin-top:0.5rem;color:var(--text-dim);">No incidents is good — it means the system is healthy</div>
+            </div>
+            <div id="inc-reader-content" style="display:none;">
+                <div id="inc-reader-header" style="margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border);"></div>
+                <div id="inc-reader-body"></div>
             </div>
         </div>
     </div>
@@ -4281,6 +4376,175 @@ async function showChangeDetail(changeId) {
 }
 
 // =========================================================================
+// Incidents Tab (INC-001)
+// =========================================================================
+let _incActiveId = null;
+const _SEV_COLORS = {critical:'#ef4444',high:'#f59e0b',medium:'#3b82f6',low:'#6b7280'};
+const _STATUS_LABELS = {detected:'Detected',acknowledged:'Acknowledged',investigating:'Investigating',mitigating:'Mitigating',resolved:'Resolved',post_mortem:'Post-Mortem',closed:'Closed'};
+
+async function loadIncidents() {
+    try {
+        const sevFilter = document.getElementById('inc-filter-severity')?.value || '';
+        const statusFilter = document.getElementById('inc-filter-status')?.value || '';
+        const catFilter = document.getElementById('inc-filter-category')?.value || '';
+        let url = 'incidents/?limit=100';
+        if (sevFilter) url += '&severity=' + sevFilter;
+        if (statusFilter) url += '&status=' + statusFilter;
+        if (catFilter) url += '&category=' + catFilter;
+
+        const d = await apiFetch(url);
+        const stats = d.stats || {};
+
+        document.getElementById('inc-active').textContent = stats.active ?? '—';
+        document.getElementById('inc-resolved-30d').textContent = stats.resolved_30d ?? '—';
+        document.getElementById('inc-critical-active').textContent = stats.critical_active ?? '0';
+        document.getElementById('inc-mttr').textContent = stats.mttr_hours != null ? stats.mttr_hours : '—';
+        document.getElementById('inc-sla-breaches').textContent = stats.sla_breaches_30d ?? '0';
+
+        // Highlight critical active count
+        const critEl = document.getElementById('inc-critical-active');
+        critEl.style.color = (stats.critical_active > 0) ? '#ef4444' : 'var(--accent-primary)';
+
+        const list = document.getElementById('inc-list');
+        if (!d.incidents || d.incidents.length === 0) {
+            list.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-dim);font-size:0.8rem;">No incidents found</div>';
+            return;
+        }
+
+        list.innerHTML = d.incidents.map(inc => {
+            const sevColor = _SEV_COLORS[inc.severity] || '#6b7280';
+            const statusLabel = _STATUS_LABELS[inc.status] || inc.status;
+            const isActive = inc.id === _incActiveId;
+            const breach = inc.is_ack_sla_breached || inc.is_resolution_sla_breached;
+            const detected = new Date(inc.detected_at).toLocaleDateString();
+            return `<div class="inc-item${isActive ? ' active' : ''}" onclick="showIncidentDetail('${inc.id}')">
+                <div class="inc-item-title">${esc(inc.title)}</div>
+                <div class="inc-item-meta">
+                    <span class="inc-badge" style="background:${sevColor};color:#fff;">${inc.severity}</span>
+                    <span class="inc-badge" style="background:var(--bg-secondary);color:var(--text-primary);">${statusLabel}</span>
+                    ${breach ? '<span class="inc-badge" style="background:#ef4444;color:#fff;">SLA BREACH</span>' : ''}
+                    <span>${detected}</span>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        console.error('loadIncidents error:', e);
+    }
+}
+
+async function showIncidentDetail(incidentId) {
+    _incActiveId = incidentId;
+    try {
+        const d = await apiFetch(`incidents/${incidentId}/`);
+        const inc = d.incident;
+        const logs = d.logs || [];
+
+        document.getElementById('inc-reader-empty').style.display = 'none';
+        document.getElementById('inc-reader-content').style.display = 'block';
+
+        // Re-highlight active item
+        document.querySelectorAll('.inc-item').forEach(el => el.classList.remove('active'));
+        const activeItem = document.querySelector(`.inc-item[onclick*="${incidentId}"]`);
+        if (activeItem) activeItem.classList.add('active');
+
+        const sevColor = _SEV_COLORS[inc.severity] || '#6b7280';
+        const statusLabel = _STATUS_LABELS[inc.status] || inc.status;
+
+        // Header
+        document.getElementById('inc-reader-header').innerHTML = `
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                <span class="inc-badge" style="background:${sevColor};color:#fff;font-size:0.7rem;">${inc.severity.toUpperCase()}</span>
+                <span class="inc-badge" style="background:var(--bg-secondary);color:var(--text-primary);font-size:0.7rem;">${statusLabel}</span>
+                <span class="inc-badge" style="background:var(--bg-secondary);color:var(--text-primary);font-size:0.7rem;">${inc.category}</span>
+            </div>
+            <h2 style="margin:0 0 6px 0;font-size:1.1rem;">${esc(inc.title)}</h2>
+            <div style="font-size:0.75rem;color:var(--text-dim);">
+                Reported by ${esc(inc.reported_by)} · ${new Date(inc.detected_at).toLocaleString()}
+                ${inc.assigned_to ? ' · Assigned to ' + esc(inc.assigned_to) : ''}
+            </div>`;
+
+        // Body
+        let body = '';
+
+        // SLA Status
+        body += '<div class="inc-section"><div class="inc-section-title">SLA Status</div>';
+        body += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">';
+        const ackClass = inc.is_ack_sla_breached ? 'inc-sla-breach' : 'inc-sla-ok';
+        const resClass = inc.is_resolution_sla_breached ? 'inc-sla-breach' : 'inc-sla-ok';
+        body += `<div style="padding:8px 12px;background:var(--bg-secondary);border-radius:6px;">
+            <div style="font-size:0.7rem;color:var(--text-dim);">Ack Elapsed</div>
+            <div class="${ackClass}" style="font-size:1.2rem;">${inc.ack_elapsed_hours.toFixed(1)}h</div>
+            <div style="font-size:0.65rem;color:var(--text-dim);">${inc.is_ack_sla_breached ? 'BREACHED' : 'Within SLA'}</div>
+        </div>`;
+        body += `<div style="padding:8px 12px;background:var(--bg-secondary);border-radius:6px;">
+            <div style="font-size:0.7rem;color:var(--text-dim);">Resolution Elapsed</div>
+            <div class="${resClass}" style="font-size:1.2rem;">${inc.resolution_elapsed_hours.toFixed(1)}h</div>
+            <div style="font-size:0.65rem;color:var(--text-dim);">${inc.is_resolution_sla_breached ? 'BREACHED' : 'Within SLA'}</div>
+        </div>`;
+        body += '</div></div>';
+
+        // Description
+        body += `<div class="inc-section"><div class="inc-section-title">Description</div>
+            <div style="font-size:0.85rem;line-height:1.5;white-space:pre-wrap;">${esc(inc.description)}</div></div>`;
+
+        // Timestamps
+        body += '<div class="inc-section"><div class="inc-section-title">Lifecycle Timestamps</div>';
+        body += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">';
+        const tsFields = [
+            ['Detected', inc.detected_at], ['Acknowledged', inc.acknowledged_at],
+            ['Investigating', inc.investigating_at], ['Mitigating', inc.mitigating_at],
+            ['Resolved', inc.resolved_at], ['Closed', inc.closed_at],
+        ];
+        tsFields.forEach(([label, val]) => {
+            body += `<div style="padding:6px 8px;background:var(--bg-secondary);border-radius:4px;">
+                <div style="font-size:0.65rem;color:var(--text-dim);">${label}</div>
+                <div style="font-size:0.75rem;">${val ? new Date(val).toLocaleString() : '—'}</div>
+            </div>`;
+        });
+        body += '</div></div>';
+
+        // Resolution (if resolved)
+        if (inc.root_cause || inc.resolution_summary || inc.post_mortem_notes) {
+            body += '<div class="inc-section"><div class="inc-section-title">Resolution</div>';
+            if (inc.root_cause) body += `<div style="margin-bottom:8px;"><strong style="font-size:0.75rem;">Root Cause:</strong><div style="font-size:0.85rem;white-space:pre-wrap;">${esc(inc.root_cause)}</div></div>`;
+            if (inc.resolution_summary) body += `<div style="margin-bottom:8px;"><strong style="font-size:0.75rem;">Resolution:</strong><div style="font-size:0.85rem;white-space:pre-wrap;">${esc(inc.resolution_summary)}</div></div>`;
+            if (inc.post_mortem_notes) body += `<div><strong style="font-size:0.75rem;">Post-Mortem:</strong><div style="font-size:0.85rem;white-space:pre-wrap;">${esc(inc.post_mortem_notes)}</div></div>`;
+            body += '</div>';
+        }
+
+        // CR link
+        if (inc.change_request_id) {
+            body += `<div class="inc-section"><div class="inc-section-title">Remediation</div>
+                <div style="font-size:0.8rem;">Linked CR: <a href="#" onclick="switchGroup('ops');switchTab('changes');setTimeout(()=>showChangeDetail('${inc.change_request_id}'),300);return false;" style="color:var(--accent-primary);">${inc.change_request_id.substring(0,8)}</a></div></div>`;
+        }
+
+        // Timeline
+        if (logs.length > 0) {
+            body += '<div class="inc-section"><div class="inc-section-title">Timeline</div>';
+            logs.forEach(log => {
+                const actionColor = log.action === 'escalated' ? '#ef4444' : (log.action === 'resolved' ? 'var(--accent-primary)' : 'var(--text-dim)');
+                body += `<div class="inc-timeline-entry">
+                    <div class="inc-timeline-bar" style="background:${actionColor};"></div>
+                    <div style="flex:1;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-size:0.75rem;font-weight:600;">${log.action}</span>
+                            <span style="font-size:0.65rem;color:var(--text-dim);">${new Date(log.timestamp).toLocaleString()}</span>
+                        </div>
+                        ${log.message ? `<div style="font-size:0.8rem;margin-top:3px;">${esc(log.message)}</div>` : ''}
+                        <div style="font-size:0.65rem;color:var(--text-dim);margin-top:2px;">${esc(log.actor)}</div>
+                    </div>
+                </div>`;
+            });
+            body += '</div>';
+        }
+
+        document.getElementById('inc-reader-body').innerHTML = body;
+    } catch (e) {
+        console.error('showIncidentDetail error:', e);
+    }
+}
+
+// =========================================================================
 // Infrastructure Tab
 // =========================================================================
 async function loadInfra() {
@@ -4516,6 +4780,7 @@ const loaders = {
     site: loadSite,
     compliance: loadCompliance,
     changes: loadChanges,
+    incidents: loadIncidents,
     infra: loadInfra,
     standards: loadStandards,
     roadmap: loadRoadmap,
@@ -4525,14 +4790,14 @@ const loaders = {
 const groups = {
     product:  ['users', 'dsw', 'hypotheses', 'performance', 'activity', 'roadmap', 'features'],
     growth:   ['business', 'onboarding', 'email', 'content', 'crm', 'site'],
-    ops:      ['automation', 'insights', 'anthropic', 'compliance', 'changes', 'infra', 'standards'],
+    ops:      ['automation', 'insights', 'anthropic', 'compliance', 'changes', 'incidents', 'infra', 'standards'],
 };
 
 const tabLabels = {
     users: 'Users', dsw: 'DSW Analytics', hypotheses: 'Hypotheses', performance: 'Performance',
     activity: 'Activity', business: 'Business', onboarding: 'Onboarding',
     email: 'Email', content: 'Content', crm: 'CRM', site: 'Site',
-    automation: 'Automation', insights: 'AI Insights', anthropic: 'Anthropic', compliance: 'Compliance', changes: 'Changes', infra: 'Infra', standards: 'Standards',
+    automation: 'Automation', insights: 'AI Insights', anthropic: 'Anthropic', compliance: 'Compliance', changes: 'Changes', incidents: 'Incidents', infra: 'Infra', standards: 'Standards',
     roadmap: 'Roadmap',
     features: 'Features',
 };

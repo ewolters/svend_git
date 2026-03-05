@@ -25,6 +25,9 @@ class NotificationType(models.TextChoices):
     ACTION_DUE = "action_due", "Action Item Due"
     ASSIGNMENT = "assignment", "Assignment Change"
     SYSTEM = "system", "System Notification"
+    INCIDENT_CREATED = "incident_created", "Incident Created"
+    INCIDENT_ESCALATED = "incident_escalated", "Incident Escalated"
+    INCIDENT_RESOLVED = "incident_resolved", "Incident Resolved"
 
 
 # Fields that are immutable after creation (NTF-001 §4.4)

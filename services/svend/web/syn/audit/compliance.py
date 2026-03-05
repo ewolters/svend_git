@@ -496,7 +496,7 @@ def check_encryption_status():
 @register("permission_coverage", "security", soc2_controls=["CC6.3"])
 def check_permission_coverage():
     """Verify API endpoints have authentication requirements."""
-    from django.urls import URLResolver, URLPattern
+    from django.urls import URLPattern, URLResolver
 
     public_allowed = {
         "health", "email_track_open", "email_track_click", "email_unsubscribe",
@@ -630,7 +630,8 @@ def check_backup_freshness():
             if backups:
                 backup_found = True
                 mtime = backups[0].stat().st_mtime
-                from datetime import datetime, timezone as dt_tz
+                from datetime import datetime
+                from datetime import timezone as dt_tz
                 latest_backup = datetime.fromtimestamp(mtime, tz=dt_tz.utc)
                 break
 
@@ -797,6 +798,7 @@ def _sync_drift_violations(assertions, results):
     """
     from django.db import transaction
     from django.utils import timezone as tz
+
     from syn.audit.models import DriftViolation
 
     # Collect all signatures from current run (for auto-resolution)
@@ -1011,7 +1013,7 @@ def check_change_management():
      14. Completed CRs with compliance language but empty compliance_check_ids
      15. Active code CRs without planning linkage (feature_id/task_id)
     """
-    from syn.audit.models import ChangeRequest, ChangeLog
+    from syn.audit.models import ChangeLog, ChangeRequest
 
     fail_issues = []
     warn_issues = []
@@ -1589,15 +1591,29 @@ def check_incident_readiness():
     """Validate incident response preparedness (SOC 2 CC7.4, ISO A.16.1, NIST IR-1/IR-8)."""
     issues = []
 
-    # Check incident response documentation exists
+    # Check INC-001 standard exists
     standards_dir = Path(settings.BASE_DIR).parent.parent.parent / "docs"
+    inc_standard = standards_dir / "standards" / "INC-001.md"
+    inc_found = inc_standard.exists()
+    if not inc_found:
+        issues.append("INC-001 incident response standard not found in docs/standards/")
+
+    # Check incident response policy exists
     ir_paths = [
         standards_dir / "compliance" / "policies" / "incident-response.md",
         standards_dir / "compliance" / "incident-response.md",
     ]
-    ir_found = any(p.exists() for p in ir_paths)
+    ir_found = any(p.exists() for p in ir_paths) or inc_found  # INC-001 serves as policy
     if not ir_found:
-        issues.append("Incident response policy not found in docs/compliance/policies/")
+        issues.append("Incident response policy not found")
+
+    # Check Incident model exists and is accessible
+    try:
+        from syn.audit.models import Incident
+        incident_model_ok = True
+    except ImportError:
+        incident_model_ok = False
+        issues.append("Incident model not found in syn.audit.models")
 
     # Check emergency change process documented (CHG-001 §9)
     chg_path = standards_dir / "standards" / "CHG-001.md"
@@ -1619,9 +1635,11 @@ def check_incident_readiness():
 
     # Check recent emergency changes have retroactive review
     try:
-        from syn.audit.models import ChangeRequest
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
+
+        from syn.audit.models import ChangeRequest
         cutoff = timezone.now() - timedelta(days=30)
         emergencies = ChangeRequest.objects.filter(
             is_emergency=True,
@@ -1638,12 +1656,14 @@ def check_incident_readiness():
     except Exception:
         pass  # Models may not be available in all contexts
 
-    status = "pass" if not issues else ("fail" if not ir_found else "warning")
+    status = "pass" if not issues else ("fail" if not inc_found else "warning")
     return {
         "status": status,
         "details": {
             "issues": issues,
+            "inc_001_standard": inc_found,
             "incident_response_doc": ir_found,
+            "incident_model": incident_model_ok if 'incident_model_ok' in dir() else False,
             "emergency_process_documented": chg_has_emergency,
             "bcdr_doc": bcdr_found,
         },
@@ -1834,8 +1854,9 @@ def _measure_compliance_rate(sla):
 
 def _measure_change_velocity(sla):
     """Measure change management SLAs: emergency retro review, post-incident review, stale changes."""
-    from syn.audit.models import ChangeRequest
     from datetime import timedelta
+
+    from syn.audit.models import ChangeRequest
 
     now = timezone.now()
     target_val, unit = _parse_target(sla.target)
@@ -1877,7 +1898,6 @@ def _measure_change_velocity(sla):
         violations = 0
         for cr in emergencies:
             # Check if a review log entry exists within target hours of completion
-            from syn.audit.models import ChangeLog
             completion_log = cr.logs.filter(action="completed").order_by("created_at").first()
             if completion_log:
                 review_log = cr.logs.filter(
@@ -1957,8 +1977,40 @@ def _measure_response_time(sla):
 
 
 def _measure_incident_response(sla):
-    """Incident response SLAs — requires incident management system."""
-    return {"status": "unmeasurable", "current_value": None, "reason": "Incident tracking system not yet implemented"}
+    """Measure incident response SLAs using Incident model (INC-001 §6)."""
+    from syn.audit.models import Incident
+
+    now = timezone.now()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    incidents = Incident.objects.filter(detected_at__gte=month_start)
+    if not incidents.exists():
+        return {"status": "met", "current_value": "No incidents",
+                "reason": "No incidents recorded this month"}
+
+    # Check based on SLA sla_id: ack SLAs vs resolution SLAs
+    if "ack" in sla.sla_id.lower():
+        breached = sum(1 for i in incidents if i.is_ack_sla_breached)
+    else:
+        resolved = incidents.exclude(status__in=["detected", "acknowledged", "investigating", "mitigating"])
+        if not resolved.exists():
+            return {"status": "met", "current_value": "No resolved incidents",
+                    "reason": "No resolved incidents to measure resolution SLA against"}
+        breached = sum(1 for i in resolved if i.is_resolution_sla_breached)
+        incidents = resolved
+
+    total = incidents.count()
+    compliance_pct = ((total - breached) / total) * 100 if total else 100
+
+    target_val, _ = _parse_target(sla.target)
+    if target_val is None:
+        return {"status": "unmeasurable", "current_value": None,
+                "reason": f"Cannot parse target: {sla.target}"}
+
+    return {
+        "status": "met" if compliance_pct >= target_val else "breach",
+        "current_value": f"{compliance_pct:.1f}% ({breached}/{total} breached)",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -2795,8 +2847,9 @@ def _sync_map_drift_violations(findings, commit_sha, author):
     of what happens downstream.
     """
     import hashlib
+
     from django.db import transaction
-    from django.utils import timezone as tz
+
     from syn.audit.models import DriftViolation
 
     severity_map = {
@@ -4104,7 +4157,9 @@ def check_output_quality():
     # 4. Verify bounded metrics match QUAL-001 §6.2
     try:
         from agents_api.dsw.standardize import (
-            _BOUNDED_METRICS, _POSITIVE_METRICS, _FINITE_METRICS,
+            _BOUNDED_METRICS,
+            _FINITE_METRICS,
+            _POSITIVE_METRICS,
         )
         # p_value must be bounded [0, 1]
         p_keys = [keys for keys, lo, hi in _BOUNDED_METRICS

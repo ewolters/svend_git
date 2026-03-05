@@ -14,7 +14,6 @@ from django.db.models.functions import TruncDate, TruncHour
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
-
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import BasePermission, IsAdminUser
 from rest_framework.response import Response
@@ -28,7 +27,10 @@ from api.models import (
     BlogView,
     CRMLead,
     EmailCampaign,
+    Experiment,
+    ExperimentAssignment,
     Feature,
+    Feedback,
     Initiative,
     OutreachEnrollment,
     OutreachSequence,
@@ -38,9 +40,6 @@ from api.models import (
     SiteVisit,
     WhitePaper,
     WhitePaperDownload,
-    Experiment,
-    ExperimentAssignment,
-    Feedback,
 )
 from chat.models import EventLog, TraceLog, UsageLog
 
@@ -470,8 +469,8 @@ def api_users(request):
 @permission_classes([IsInternalUser])
 def api_dsw_analytics(request):
     """DSW analysis volume, type popularity, and top users."""
-    from syn.log.models import RequestMetric
     from agents_api.models import DSWResult
+    from syn.log.models import RequestMetric
 
     days = _get_days(request)
     since = timezone.now().date() - timedelta(days=days)
@@ -541,7 +540,7 @@ def api_dsw_analytics(request):
 @permission_classes([IsInternalUser])
 def api_hypothesis_health(request):
     """Project/hypothesis status distribution, evidence coverage, orphan detection."""
-    from core.models import Project, Hypothesis, Evidence, EvidenceLink
+    from core.models import Evidence, EvidenceLink, Hypothesis, Project
 
     project_status = list(
         Project.objects.values("status").annotate(count=Count("id")).order_by("-count")
@@ -599,7 +598,7 @@ def api_hypothesis_health(request):
 @permission_classes([IsInternalUser])
 def api_anthropic(request):
     """LLM token consumption, model distribution, rate limit config."""
-    from agents_api.models import LLMUsage, LLM_RATE_LIMITS, RateLimitOverride
+    from agents_api.models import LLM_RATE_LIMITS, LLMUsage, RateLimitOverride
 
     days = _get_days(request)
     since = timezone.now().date() - timedelta(days=days)
@@ -1072,7 +1071,9 @@ def api_email_preview(request):
 def api_send_email(request):
     """Send HTML email to customers with tracking. Supports individual, tier-based, or all."""
     import re
+
     from django.core.mail import send_mail as django_send_mail
+
     from api.models import EmailCampaign, EmailRecipient
 
     target = request.data.get("to", "")
@@ -1262,8 +1263,9 @@ def api_get_email_draft(request):
 @permission_classes([IsInternalUser])
 def api_email_campaigns(request):
     """List email campaigns with tracking stats."""
-    from api.models import EmailCampaign, EmailRecipient
     from django.db.models import Count, Q
+
+    from api.models import EmailCampaign, EmailRecipient
 
     days = _get_days(request)
     since = timezone.now() - timedelta(days=days)
@@ -2370,7 +2372,6 @@ def api_autopilot_approve(request, report_id):
 
     elif rec_type == "email":
         # Create and send a campaign
-        from api.internal_views import EMAIL_TEMPLATE
         subject = config.get("subject", rec.get("title", ""))
         body = config.get("body_preview", "")
         target = config.get("target", "all")
@@ -2865,9 +2866,10 @@ def api_crm_outreach_metrics(request):
 def api_crm_send_one(request):
     """Send a single ad-hoc email to a CRM lead."""
     import re
+
     from django.core.mail import send_mail as django_send_mail
+
     from api.models import EmailRecipient
-    from api.views import make_unsubscribe_url
 
     lead_id = request.data.get("lead_id")
     subject = request.data.get("subject", "").strip()
@@ -2942,7 +2944,9 @@ def api_crm_send_one(request):
 def api_crm_process_queue(request):
     """Process all due outreach sends: advance enrollments, send emails."""
     import re
+
     from django.core.mail import send_mail as django_send_mail
+
     from api.models import EmailRecipient
 
     now = timezone.now()
@@ -3486,7 +3490,10 @@ def api_infra(request):
     # --- Scheduler ---
     try:
         from syn.sched.models import (
-            CognitiveTask, Schedule, DeadLetterEntry, CircuitBreakerState,
+            CircuitBreakerState,
+            CognitiveTask,
+            DeadLetterEntry,
+            Schedule,
         )
 
         task_states = dict(
@@ -3543,7 +3550,7 @@ def api_infra(request):
 
     # --- Audit Trail ---
     try:
-        from syn.audit.models import SysLogEntry, IntegrityViolation, DriftViolation
+        from syn.audit.models import DriftViolation, IntegrityViolation, SysLogEntry
 
         audit_total = SysLogEntry.objects.count()
         latest_entry = SysLogEntry.objects.order_by("-id").first()
@@ -3693,8 +3700,8 @@ def api_audit_entries(request):
 def api_compliance(request):
     """Return compliance check results and report data for dashboard."""
     try:
-        from syn.audit.models import ComplianceCheck, ComplianceReport
         from syn.audit.compliance import ALL_CHECKS, get_check_soc2_controls
+        from syn.audit.models import ComplianceCheck, ComplianceReport
 
         now = timezone.now()
 
@@ -3950,7 +3957,7 @@ def api_compliance_run(request):
     Cloudflare/gunicorn timeout on the full suite.
     """
     try:
-        from syn.audit.compliance import run_check, ALL_CHECKS, run_standards_tests_for
+        from syn.audit.compliance import ALL_CHECKS, run_check, run_standards_tests_for
         data = request.data or {}
         check_name = data.get("check")
         standard = data.get("standard")
@@ -4004,7 +4011,7 @@ def api_change_management(request):
         limit: max results (default 50)
     """
     try:
-        from syn.audit.models import ChangeRequest, ChangeLog, RiskAssessment
+        from syn.audit.models import ChangeRequest
 
         qs = ChangeRequest.objects.all()
 
@@ -4214,7 +4221,7 @@ def api_change_create(request):
            feature_id, task_id}
     """
     try:
-        from syn.audit.models import ChangeRequest, ChangeLog
+        from syn.audit.models import ChangeLog, ChangeRequest
 
         data = request.data
         author = request.user.email if request.user.is_authenticated else "system"
@@ -4260,7 +4267,7 @@ def api_change_create(request):
 
         # Bidirectional linking (CHG-001 §8.4)
         for rid in data.get("related_change_ids", []):
-            cr.link_related(rid, actor=author, message=f"Linked on creation")
+            cr.link_related(rid, actor=author, message="Linked on creation")
 
         for cid in data.get("compliance_check_ids", []):
             cr.link_compliance_checks([cid], actor=author)
@@ -4291,7 +4298,7 @@ def api_change_transition(request, change_id):
     Valid actions match ChangeLog.ACTION_CHOICES.
     """
     try:
-        from syn.audit.models import ChangeRequest, ChangeLog
+        from syn.audit.models import ChangeLog, ChangeRequest
 
         cr = ChangeRequest.objects.get(id=change_id)
         data = request.data
@@ -4369,6 +4376,356 @@ def api_change_transition(request, change_id):
         return Response({"ok": False, "error": "Change request not found"}, status=404)
     except Exception as e:
         logger.warning("Change transition failed: %s", e)
+        return Response({"ok": False, "error": str(e)}, status=400)
+
+
+# =============================================================================
+# Incident Management (INC-001)
+# =============================================================================
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_incident_list(request):
+    """Return incident list for dashboard.
+
+    Query params:
+        severity: filter by severity (critical, high, medium, low)
+        status: filter by status (detected, acknowledged, investigating, etc.)
+        category: filter by category (outage, degradation, security, etc.)
+        limit: max results (default 50)
+    """
+    try:
+        from syn.audit.models import Incident
+
+        qs = Incident.objects.all()
+
+        severity = request.query_params.get("severity")
+        if severity:
+            qs = qs.filter(severity=severity)
+
+        status = request.query_params.get("status")
+        if status:
+            qs = qs.filter(status=status)
+
+        category = request.query_params.get("category")
+        if category:
+            qs = qs.filter(category=category)
+
+        limit = int(request.query_params.get("limit", 50))
+        total = qs.count()
+
+        incidents = []
+        for inc in qs[:limit]:
+            log_count = inc.logs.count()
+            latest_log = inc.logs.order_by("-timestamp").first()
+
+            incidents.append({
+                "id": str(inc.id),
+                "title": inc.title,
+                "severity": inc.severity,
+                "status": inc.status,
+                "category": inc.category,
+                "reported_by": inc.reported_by,
+                "assigned_to": inc.assigned_to,
+                "detected_at": inc.detected_at.isoformat(),
+                "acknowledged_at": inc.acknowledged_at.isoformat() if inc.acknowledged_at else None,
+                "resolved_at": inc.resolved_at.isoformat() if inc.resolved_at else None,
+                "closed_at": inc.closed_at.isoformat() if inc.closed_at else None,
+                "ack_elapsed_hours": round(inc.ack_elapsed_hours, 2),
+                "resolution_elapsed_hours": round(inc.resolution_elapsed_hours, 2),
+                "is_ack_sla_breached": inc.is_ack_sla_breached,
+                "is_resolution_sla_breached": inc.is_resolution_sla_breached,
+                "change_request_id": str(inc.change_request_id) if inc.change_request_id else None,
+                "log_count": log_count,
+                "latest_log_action": latest_log.action if latest_log else None,
+                "latest_log_time": latest_log.timestamp.isoformat() if latest_log else None,
+            })
+
+        # Summary stats
+        now = timezone.now()
+        thirty_days = now - timedelta(days=30)
+
+        active_statuses = ["detected", "acknowledged", "investigating", "mitigating"]
+        active_count = Incident.objects.filter(status__in=active_statuses).count()
+        resolved_30d = Incident.objects.filter(
+            status__in=["resolved", "post_mortem", "closed"],
+            resolved_at__gte=thirty_days,
+        )
+        resolved_count = resolved_30d.count()
+
+        # MTTR (mean time to resolution)
+        mttr = None
+        if resolved_count > 0:
+            total_hours = sum(
+                i.resolution_elapsed_hours for i in resolved_30d if i.resolved_at
+            )
+            mttr = round(total_hours / resolved_count, 1)
+
+        # SLA breaches
+        recent = Incident.objects.filter(detected_at__gte=thirty_days)
+        ack_breaches = sum(1 for i in recent if i.is_ack_sla_breached)
+        res_breaches = sum(
+            1 for i in recent.filter(
+                status__in=["resolved", "post_mortem", "closed"]
+            ) if i.is_resolution_sla_breached
+        )
+
+        stats = {
+            "active": active_count,
+            "critical_active": Incident.objects.filter(
+                severity="critical", status__in=active_statuses
+            ).count(),
+            "resolved_30d": resolved_count,
+            "mttr_hours": mttr,
+            "sla_breaches_30d": ack_breaches + res_breaches,
+            "ack_breaches_30d": ack_breaches,
+            "resolution_breaches_30d": res_breaches,
+        }
+
+        return Response({
+            "incidents": incidents,
+            "total": total,
+            "stats": stats,
+        })
+    except Exception as e:
+        logger.warning("Incident list query failed: %s", e)
+        return Response({"incidents": [], "total": 0, "stats": {}, "error": str(e)})
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_incident_detail(request, incident_id):
+    """Return full detail for a single incident including all logs."""
+    try:
+        from syn.audit.models import Incident
+
+        inc = Incident.objects.get(id=incident_id)
+
+        logs = [
+            {
+                "id": str(log.id),
+                "timestamp": log.timestamp.isoformat(),
+                "actor": log.actor,
+                "action": log.action,
+                "from_state": log.from_state,
+                "to_state": log.to_state,
+                "message": log.message,
+                "details": log.details,
+            }
+            for log in inc.logs.order_by("timestamp")
+        ]
+
+        return Response({
+            "incident": {
+                "id": str(inc.id),
+                "title": inc.title,
+                "description": inc.description,
+                "severity": inc.severity,
+                "status": inc.status,
+                "category": inc.category,
+                "reported_by": inc.reported_by,
+                "assigned_to": inc.assigned_to,
+                "detected_at": inc.detected_at.isoformat(),
+                "acknowledged_at": inc.acknowledged_at.isoformat() if inc.acknowledged_at else None,
+                "investigating_at": inc.investigating_at.isoformat() if inc.investigating_at else None,
+                "mitigating_at": inc.mitigating_at.isoformat() if inc.mitigating_at else None,
+                "resolved_at": inc.resolved_at.isoformat() if inc.resolved_at else None,
+                "closed_at": inc.closed_at.isoformat() if inc.closed_at else None,
+                "ack_elapsed_hours": round(inc.ack_elapsed_hours, 2),
+                "resolution_elapsed_hours": round(inc.resolution_elapsed_hours, 2),
+                "is_ack_sla_breached": inc.is_ack_sla_breached,
+                "is_resolution_sla_breached": inc.is_resolution_sla_breached,
+                "root_cause": inc.root_cause,
+                "resolution_summary": inc.resolution_summary,
+                "post_mortem_notes": inc.post_mortem_notes,
+                "change_request_id": str(inc.change_request_id) if inc.change_request_id else None,
+                "correlation_id": str(inc.correlation_id) if inc.correlation_id else None,
+            },
+            "logs": logs,
+        })
+    except Incident.DoesNotExist:
+        return Response({"error": "Incident not found"}, status=404)
+    except Exception as e:
+        logger.warning("Incident detail query failed: %s", e)
+        return Response({"error": str(e)}, status=500)
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_incident_create(request):
+    """Create a new incident with initial log entry.
+
+    Body: {title, description, severity, category, assigned_to}
+    """
+    try:
+        from syn.audit.models import Incident, IncidentLog
+
+        data = request.data
+        actor = request.user.email if request.user.is_authenticated else "system"
+
+        title = data.get("title", "")
+        if len(title) < 5:
+            return Response({"ok": False, "error": "Title must be at least 5 characters"}, status=400)
+
+        inc = Incident.objects.create(
+            title=title,
+            description=data.get("description", ""),
+            severity=data.get("severity", "medium"),
+            category=data.get("category", "other"),
+            assigned_to=data.get("assigned_to", ""),
+            reported_by=actor,
+        )
+
+        IncidentLog.objects.create(
+            incident=inc,
+            actor=actor,
+            action="detected",
+            to_state="detected",
+            message=f"Incident created: {inc.title}",
+            details={"severity": inc.severity, "category": inc.category},
+        )
+
+        # Notify staff (INC-001 §7.1)
+        try:
+            from django.contrib.auth import get_user_model
+            from notifications.helpers import notify
+            User = get_user_model()
+            for user in User.objects.filter(is_staff=True):
+                notify(
+                    recipient=user,
+                    notification_type="incident_created",
+                    title=f"[{inc.severity.upper()}] Incident: {inc.title}",
+                    message=inc.description[:500],
+                    entity_type="incident",
+                    entity_id=str(inc.id),
+                )
+        except Exception:
+            pass
+
+        return Response({"ok": True, "id": str(inc.id)}, status=201)
+    except Exception as e:
+        logger.warning("Incident create failed: %s", e)
+        return Response({"ok": False, "error": str(e)}, status=400)
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_incident_transition(request, incident_id):
+    """Transition an incident to a new state with a log entry.
+
+    Body: {action, message, details, assigned_to, resolution_summary,
+           root_cause, post_mortem_notes, change_request_id}
+    """
+    try:
+        from syn.audit.models import Incident, IncidentLog
+
+        inc = Incident.objects.get(id=incident_id)
+        data = request.data
+        action = data.get("action", "")
+        actor = request.user.email if request.user.is_authenticated else "system"
+
+        TIMESTAMP_MAP = {
+            "acknowledged": "acknowledged_at",
+            "investigating": "investigating_at",
+            "mitigating": "mitigating_at",
+            "resolved": "resolved_at",
+            "closed": "closed_at",
+        }
+
+        # Validate required fields for certain transitions
+        if action == "resolved" and not (data.get("resolution_summary") or inc.resolution_summary):
+            return Response({
+                "ok": False,
+                "error": "resolution_summary required when resolving (INC-001 §11.1)",
+            }, status=400)
+
+        if action == "closed" and inc.severity in ("critical", "high"):
+            if not (data.get("post_mortem_notes") or inc.post_mortem_notes):
+                return Response({
+                    "ok": False,
+                    "error": "post_mortem_notes required for critical/high incidents (INC-001 §8.1)",
+                }, status=400)
+
+        from_state = inc.status
+
+        # Handle state transitions
+        if action in TIMESTAMP_MAP:
+            ts_field = TIMESTAMP_MAP[action]
+            if not getattr(inc, ts_field):
+                setattr(inc, ts_field, timezone.now())
+            inc.status = action
+
+        elif action == "post_mortem":
+            inc.status = "post_mortem"
+
+        elif action == "comment":
+            pass  # No state change
+
+        elif action == "reassigned":
+            if data.get("assigned_to"):
+                inc.assigned_to = data["assigned_to"]
+
+        elif action == "severity_changed":
+            if data.get("severity"):
+                inc.severity = data["severity"]
+
+        elif action == "escalated":
+            pass  # Log-only action
+
+        else:
+            return Response({"ok": False, "error": f"Unknown action: {action}"}, status=400)
+
+        # Apply optional field updates
+        if data.get("resolution_summary"):
+            inc.resolution_summary = data["resolution_summary"]
+        if data.get("root_cause"):
+            inc.root_cause = data["root_cause"]
+        if data.get("post_mortem_notes"):
+            inc.post_mortem_notes = data["post_mortem_notes"]
+        if data.get("change_request_id"):
+            from syn.audit.models import ChangeRequest
+            try:
+                cr = ChangeRequest.objects.get(id=data["change_request_id"])
+                inc.change_request = cr
+            except ChangeRequest.DoesNotExist:
+                pass
+
+        inc.save()
+
+        IncidentLog.objects.create(
+            incident=inc,
+            actor=actor,
+            action=action,
+            from_state=from_state,
+            to_state=inc.status,
+            message=data.get("message", ""),
+            details=data.get("details", {}),
+        )
+
+        # Notify on resolution (INC-001 §7.1)
+        if action == "resolved":
+            try:
+                from django.contrib.auth import get_user_model
+                from notifications.helpers import notify
+                User = get_user_model()
+                for user in User.objects.filter(is_staff=True):
+                    notify(
+                        recipient=user,
+                        notification_type="incident_resolved",
+                        title=f"Incident resolved: {inc.title}",
+                        message=inc.resolution_summary[:500] if inc.resolution_summary else "",
+                        entity_type="incident",
+                        entity_id=str(inc.id),
+                    )
+            except Exception:
+                pass
+
+        return Response({"ok": True, "status": inc.status})
+    except Incident.DoesNotExist:
+        return Response({"ok": False, "error": "Incident not found"}, status=404)
+    except Exception as e:
+        logger.warning("Incident transition failed: %s", e)
         return Response({"ok": False, "error": str(e)}, status=400)
 
 
