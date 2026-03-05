@@ -3,6 +3,7 @@
 # This pipeline is an early-warning system, not a gate.
 #
 # INIT-010 FEAT-079 | CMP-001 §9.1 Layered Verification Architecture
+# CR: 8485bc28
 
 name: CI
 
