@@ -2380,6 +2380,18 @@ const charts = {};
 const tabLoaded = {};
 
 // =========================================================================
+// Svend-style inline SVG icons (FE-001 §9.3 — no emoji)
+// =========================================================================
+const _svIcons = {
+    check: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><polyline points="20 6 9 17 4 12"/></svg>',
+    x: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    circle: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><circle cx="12" cy="12" r="8"/></svg>',
+    warn: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    lock: '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>',
+    dot: '<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" stroke="none" style="vertical-align:middle;"><circle cx="12" cy="12" r="4"/></svg>',
+};
+
+// =========================================================================
 // Theme-aware chart defaults
 // =========================================================================
 function chartDefaults() {
@@ -2862,7 +2874,7 @@ async function loadPerformance(days) {
     if (badgeEl && sla) {
         const badge = (label, current, target, met) => {
             const color = met === null ? 'var(--text-muted)' : met ? 'var(--success, #22c55e)' : 'var(--danger, #ef4444)';
-            const icon = met === null ? '◌' : met ? '✓' : '✗';
+            const icon = met === null ? _svIcons.circle : met ? _svIcons.check : _svIcons.x;
             return `<div style="padding:.5rem 1rem;border:1px solid ${color};border-radius:6px;font-size:.85rem;">
                 <span style="color:${color};font-weight:600;">${icon}</span>
                 ${label}: <strong>${current != null ? Math.round(current) + 'ms' : 'N/A'}</strong>
@@ -5975,7 +5987,7 @@ async function loadAutopilot() {
     if (report.alerts && report.alerts.length) {
         html += '<div style="margin-bottom:1rem;">';
         report.alerts.forEach(a => {
-            html += `<div style="background:#f59e0b22;border:1px solid #f59e0b44;border-radius:6px;padding:0.5rem 0.8rem;margin-bottom:0.3rem;font-size:0.8rem;color:#f59e0b;">⚠ ${a}</div>`;
+            html += `<div style="background:#f59e0b22;border:1px solid #f59e0b44;border-radius:6px;padding:0.5rem 0.8rem;margin-bottom:0.3rem;font-size:0.8rem;color:#f59e0b;">${_svIcons.warn} ${a}</div>`;
         });
         html += '</div>';
     }
@@ -7577,7 +7589,7 @@ function renderRoadmapList() {
             const active = item.id === _rmSelectedId ? 'background:var(--bg-primary);' : '';
             const areaColor = _rmAreaColors[item.area] || 'var(--text-dim)';
             const ss = _rmStatusStyles[item.status] || _rmStatusStyles.planned;
-            const publicIcon = item.is_public ? '' : ' <span style="font-size:0.65rem;color:var(--text-dim);" title="Not public">🔒</span>';
+            const publicIcon = item.is_public ? '' : ` <span style="color:var(--text-dim);" title="Not public">${_svIcons.lock}</span>`;
             html += `<div onclick="selectRoadmapItem('${item.id}')" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);border-left:3px solid ${areaColor};${active}" onmouseover="this.style.background='var(--bg-primary)'" onmouseout="this.style.background='${active ? 'var(--bg-primary)' : ''}'">
                 <div style="font-size:0.85rem;font-weight:500;color:var(--text-primary);">${item.title}${publicIcon}</div>
                 <div style="display:flex;gap:4px;margin-top:3px;">
@@ -7783,7 +7795,7 @@ function renderFeatureList() {
             const ss = _ftStatusStyles[f.status] || _ftStatusStyles.backlog;
             const pc = _ftPriorityColors[f.priority] || '#6b7280';
             const isSelected = _ftSelectedId === f.id;
-            const blockedIcon = f.is_blocked ? ' ⚠' : '';
+            const blockedIcon = f.is_blocked ? ` ${_svIcons.warn}` : '';
 
             // Progress bar
             const taskPct = f.task_count > 0 ? Math.round(f.tasks_completed / f.task_count * 100) : 0;
@@ -7832,7 +7844,7 @@ async function showFeatureDetail(featureId) {
         html += `<span style="font-family:'JetBrains Mono',monospace;font-size:0.85rem;color:var(--text-dim);">${f.short_id}</span>`;
         html += `<span style="font-size:0.7rem;padding:2px 8px;border-radius:8px;background:${ss.bg};color:${ss.color};font-weight:500;">${ss.label}</span>`;
         html += `<span style="font-size:0.7rem;padding:2px 8px;border-radius:8px;background:${pc}20;color:${pc};font-weight:500;">${f.priority}</span>`;
-        if (f.is_blocked) html += `<span style="font-size:0.7rem;padding:2px 8px;border-radius:8px;background:#ef444420;color:#ef4444;">⚠ Blocked</span>`;
+        if (f.is_blocked) html += `<span style="font-size:0.7rem;padding:2px 8px;border-radius:8px;background:#ef444420;color:#ef4444;">${_svIcons.warn} Blocked</span>`;
         html += `</div>`;
         html += `<h3 style="margin:0;font-size:1.1rem;color:var(--text-primary);">${esc(f.title)}</h3>`;
         html += `</div>`;
@@ -7888,7 +7900,7 @@ async function showFeatureDetail(featureId) {
             html += `<div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border);">Dependencies</div>`;
             f.depends_on.forEach(d => {
                 const ds = _ftStatusStyles[d.status] || _ftStatusStyles.backlog;
-                const icon = d.status === 'completed' ? '✓' : '⚠';
+                const icon = d.status === 'completed' ? _svIcons.check : _svIcons.warn;
                 html += `<div style="font-size:0.8rem;padding:3px 0;display:flex;align-items:center;gap:6px;">`;
                 html += `<span>${icon}</span><span style="font-family:'JetBrains Mono',monospace;color:var(--text-dim);">${d.short_id}</span>`;
                 html += `<span>${esc(d.title)}</span>`;
@@ -7915,7 +7927,7 @@ async function showFeatureDetail(featureId) {
             html += `<div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border);">Tasks (${completed}/${f.tasks.length})</div>`;
             f.tasks.forEach(t => {
                 const ts = _ftStatusStyles[t.status] || _ftStatusStyles.backlog;
-                const marker = t.status === 'completed' ? '✓' : t.status === 'in_progress' ? '○' : '·';
+                const marker = t.status === 'completed' ? _svIcons.check : t.status === 'in_progress' ? _svIcons.circle : _svIcons.dot;
                 const cr = t.change_request_id ? `<span style="font-size:0.6rem;color:var(--text-dim);margin-left:auto;">CR:${t.change_request_id.substring(0,8)}</span>` : '';
                 html += `<div style="font-size:0.8rem;padding:4px 0;display:flex;align-items:center;gap:6px;">`;
                 html += `<span style="width:12px;text-align:center;">${marker}</span>`;
