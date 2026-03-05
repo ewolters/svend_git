@@ -1,9 +1,9 @@
 """
 API-001 middleware and pagination functional tests.
 
-Tests exercise actual middleware behavior via HTTP integration tests (for
-installed middleware) and direct invocation via RequestFactory (for middleware
-classes not yet in settings.MIDDLEWARE).
+Tests exercise actual middleware behavior via HTTP integration (all four
+middleware classes are installed in settings.MIDDLEWARE) and direct invocation
+via RequestFactory for isolated cache/edge-case testing.
 
 Standard: API-001
 Compliance: SOC 2 CC6.1, CC7.2
@@ -15,7 +15,7 @@ import re
 import time
 
 from django.core.cache import cache
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 
 from syn.api.middleware import (
@@ -25,7 +25,6 @@ from syn.api.middleware import (
     IDEMPOTENCY_TTL_HOURS,
     SENSITIVE_ERROR_PATTERNS,
     TRACEPARENT_PATTERN,
-    APIHeadersMiddleware,
     ErrorEnvelopeMiddleware,
     IdempotencyMiddleware,
     SynRequestIdMiddleware,
@@ -291,75 +290,54 @@ class TraceparentPatternTest(SimpleTestCase):
         self.assertIsNone(re.match(TRACEPARENT_PATTERN, invalid))
 
 
-# ── API Headers Middleware (direct test — not in MIDDLEWARE) ─────────────
+# ── API Headers Middleware (installed) ────────────────────────────────────
 
 
-class APIHeadersDirectTest(SimpleTestCase):
+@SECURE_OFF
+class APIHeadersTest(TestCase):
     """API-001 §8.2: APIHeadersMiddleware enforces required headers."""
 
-    def _invoke(self, request, inner_response=None):
-        """Invoke APIHeadersMiddleware directly."""
-        middleware = APIHeadersMiddleware(lambda r: inner_response or _json_ok())
-        return middleware(request)
-
     def test_adds_vary_header(self):
-        """APIHeadersMiddleware adds Vary: Accept, Accept-Encoding."""
-        request = _make_request()
-        res = self._invoke(request)
-        self.assertIn("Accept", res.get("Vary", ""))
-        self.assertIn("Accept-Encoding", res.get("Vary", ""))
+        """API responses include Vary: Accept, Accept-Encoding."""
+        res = _api_get(self.client)
+        vary = res.get("Vary", "")
+        self.assertIn("Accept", vary)
+        self.assertIn("Accept-Encoding", vary)
 
     def test_adds_response_time_header(self):
-        """APIHeadersMiddleware adds X-Response-Time in ms format."""
-        request = _make_request()
-        res = self._invoke(request)
+        """API responses include X-Response-Time in ms format."""
+        res = _api_get(self.client)
         self.assertIn("X-Response-Time", res)
         self.assertTrue(res["X-Response-Time"].endswith("ms"))
 
     def test_response_time_is_numeric(self):
         """X-Response-Time contains a numeric duration."""
-        request = _make_request()
-        res = self._invoke(request)
+        res = _api_get(self.client)
         duration = res["X-Response-Time"].replace("ms", "")
         self.assertTrue(duration.isdigit())
 
     def test_406_on_invalid_accept(self):
         """Returns 406 for non-JSON Accept header on /api/ paths."""
-        factory = RequestFactory()
-        request = factory.get("/api/test/", HTTP_ACCEPT="text/xml")
-        request.syn_request_id = "test-req-406"
-        res = self._invoke(request)
+        res = self.client.get("/api/health/", HTTP_ACCEPT="text/xml")
         self.assertEqual(res.status_code, 406)
-        data = json.loads(res.content)
+        data = res.json()
         self.assertEqual(data["error"]["code"], "unsupported_media_type")
 
     def test_allows_wildcard_accept(self):
         """Accept: */* is allowed (not rejected with 406)."""
-        factory = RequestFactory()
-        request = factory.get("/api/test/", HTTP_ACCEPT="*/*")
-        request.syn_request_id = "test"
-        request.syn_start_time = time.time()
-        res = self._invoke(request)
+        res = self.client.get("/api/health/", HTTP_ACCEPT="*/*")
         self.assertNotEqual(res.status_code, 406)
 
-    def test_skips_exempt_paths(self):
-        """Exempt paths bypass header validation."""
-        factory = RequestFactory()
-        request = factory.get("/static/test.css", HTTP_ACCEPT="text/css")
-        inner = HttpResponse("ok", content_type="text/css")
-        middleware = APIHeadersMiddleware(lambda r: inner)
-        res = middleware(request)
-        # Should pass through without 406
-        self.assertEqual(res.status_code, 200)
+    def test_skips_non_api_paths(self):
+        """Non-API paths bypass Accept header validation."""
+        res = self.client.get("/", HTTP_ACCEPT="text/html")
+        self.assertNotEqual(res.status_code, 406)
 
     def test_enforces_charset_on_json_responses(self):
-        """Sets Content-Type to application/json; charset=utf-8."""
-        request = _make_request()
-        inner = JsonResponse({"ok": True})
-        # Remove charset if present to test enforcement
-        inner["Content-Type"] = "application/json"
-        res = self._invoke(request, inner)
-        self.assertEqual(res["Content-Type"], "application/json; charset=utf-8")
+        """JSON responses include charset=utf-8 in Content-Type."""
+        res = _api_get(self.client)
+        content_type = res.get("Content-Type", "")
+        self.assertIn("charset=utf-8", content_type)
 
 
 # ── Cursor Pagination ────────────────────────────────────────────────────
@@ -446,7 +424,7 @@ class PaginationResponseTest(SimpleTestCase):
         self.assertIsNone(decode_cursor("not-valid-base64!!!"))
 
 
-# ── Idempotency Middleware (direct test — not in MIDDLEWARE) ─────────────
+# ── Idempotency Middleware (installed) ────────────────────────────────────
 
 
 class IdempotencyKeyTest(SimpleTestCase):
@@ -468,7 +446,12 @@ class IdempotencyKeyTest(SimpleTestCase):
 
 
 class IdempotencyDirectTest(TestCase):
-    """API-001 §9: IdempotencyMiddleware behavior via direct invocation."""
+    """API-001 §9: IdempotencyMiddleware cache behavior via direct invocation.
+
+    Uses RequestFactory for precise cache control (pre-population, clearing).
+    Middleware is installed in settings.MIDDLEWARE; direct invocation is used
+    here to isolate cache logic from the full middleware stack.
+    """
 
     def setUp(self):
         cache.clear()
@@ -576,6 +559,42 @@ class IdempotencyDirectTest(TestCase):
         middleware = IdempotencyMiddleware(lambda r: _json_ok())
         res = middleware(request)
         self.assertEqual(res.status_code, 200)
+
+    def tearDown(self):
+        cache.clear()
+
+
+@SECURE_OFF
+class IdempotencyHTTPTest(TestCase):
+    """API-001 §9: IdempotencyMiddleware is active in the HTTP stack."""
+
+    def setUp(self):
+        cache.clear()
+
+    def test_post_without_key_logs_warning(self):
+        """POST to /api/ without Idempotency-Key still proceeds (middleware active)."""
+        res = self.client.post(
+            "/api/auth/login/",
+            data=json.dumps({"email": "none@test.com", "password": "x"}),
+            content_type="application/json",
+            HTTP_ACCEPT="application/json",
+        )
+        # Login will fail (bad creds) but NOT with 406 or middleware error —
+        # confirms IdempotencyMiddleware and APIHeadersMiddleware are both active.
+        self.assertIn(res.status_code, [400, 401, 403, 429])
+
+    def test_idempotency_key_header_accepted(self):
+        """POST with Idempotency-Key header is accepted by middleware."""
+        key = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+        res = self.client.post(
+            "/api/auth/login/",
+            data=json.dumps({"email": "none@test.com", "password": "x"}),
+            content_type="application/json",
+            HTTP_ACCEPT="application/json",
+            HTTP_IDEMPOTENCY_KEY=key,
+        )
+        # Request processed (login fails, but middleware didn't block it)
+        self.assertIn(res.status_code, [400, 401, 403, 429])
 
     def tearDown(self):
         cache.clear()

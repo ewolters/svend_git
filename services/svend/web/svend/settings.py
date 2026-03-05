@@ -58,6 +58,9 @@ MIDDLEWARE = [
     "syn.log.middleware.PerformanceMiddleware",
     # Synara request ID (early — correlation needs this)
     "syn.api.middleware.SynRequestIdMiddleware",
+    # Synara API surface (API-002 §8-9 — needs syn_request_id from above)
+    "syn.api.middleware.APIHeadersMiddleware",
+    "syn.api.middleware.IdempotencyMiddleware",
     # Svend + Django standard
     "accounts.middleware.NoCacheDynamicMiddleware",
     "corsheaders.middleware.CorsMiddleware",
