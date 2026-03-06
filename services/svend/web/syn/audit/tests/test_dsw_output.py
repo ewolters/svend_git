@@ -1639,3 +1639,215 @@ class FrontendContractTest(SimpleTestCase):
                     self.assertIsInstance(val, (int, float), f"what_if param '{p['name']}'.{num_key} is {type(val)}")
                     self.assertFalse(math.isnan(val), f"what_if param '{p['name']}'.{num_key} is NaN")
                     self.assertFalse(math.isinf(val), f"what_if param '{p['name']}'.{num_key} is Inf")
+
+
+# ── DSW-002 §5: Narrative Cleanliness ────────────────────────────────────
+
+
+class NarrativeCleanlinessTest(SimpleTestCase):
+    """DSW-002 §5: _narrative() returns canonical dict, no HTML, no box-drawing."""
+
+    def test_narrative_returns_dict(self):
+        """_narrative() returns a dict with 4 canonical keys."""
+        from agents_api.dsw.common import _narrative
+
+        n = _narrative("Process is capable", "Cpk = 1.45, well above 1.33 threshold.")
+        self.assertIsInstance(n, dict)
+        for key in ("verdict", "body", "next_steps", "chart_guidance"):
+            self.assertIn(key, n, f"Missing key: {key}")
+
+    def test_narrative_verdict_is_plain_text(self):
+        """_narrative() verdict contains no HTML tags."""
+        from agents_api.dsw.common import _narrative
+
+        n = _narrative("Significant difference found", "p = 0.003")
+        self.assertNotRegex(n["verdict"], r"<[^>]+>", "HTML tags in verdict")
+
+    def test_narrative_body_is_plain_text(self):
+        """_narrative() body contains no HTML tags."""
+        from agents_api.dsw.common import _narrative
+
+        n = _narrative("Result", "The body text should be <b>plain</b>.")
+        # _narrative now passes through as-is — the input should not have HTML.
+        # What matters is _narrative() doesn't ADD HTML.
+        self.assertNotIn("<div", n["body"], "_narrative() must not add HTML div tags")
+        self.assertNotIn("<p>", n["body"], "_narrative() must not add HTML p tags")
+
+    def test_narrative_no_box_drawing(self):
+        """_narrative() output has no box-drawing characters."""
+        from agents_api.dsw.common import _narrative
+
+        n = _narrative("Result", "Clean body", "Next step", "Chart note")
+        for key, val in n.items():
+            if isinstance(val, str):
+                self.assertNotRegex(val, r"[═─│╔╗╚╝]", f"Box-drawing chars in {key}")
+
+    def test_narrative_next_steps_defaults_empty(self):
+        """_narrative() defaults next_steps to empty string when None."""
+        from agents_api.dsw.common import _narrative
+
+        n = _narrative("Verdict", "Body")
+        self.assertEqual(n["next_steps"], "")
+        self.assertEqual(n["chart_guidance"], "")
+
+    def test_narrative_preserves_content(self):
+        """_narrative() preserves the input content exactly."""
+        from agents_api.dsw.common import _narrative
+
+        n = _narrative("V", "B", "N", "C")
+        self.assertEqual(n["verdict"], "V")
+        self.assertEqual(n["body"], "B")
+        self.assertEqual(n["next_steps"], "N")
+        self.assertEqual(n["chart_guidance"], "C")
+
+
+class NarrativeFromSummaryTest(SimpleTestCase):
+    """DSW-002 §5: _narrative_from_summary() strips HTML, box-drawing, separators."""
+
+    def test_strips_html_tags(self):
+        """HTML tags are removed from summary input."""
+        from agents_api.dsw.standardize import _narrative_from_summary
+
+        n = _narrative_from_summary('<div class="dsw-verdict">Good</div><p>Body text</p>')
+        self.assertNotRegex(n["verdict"], r"<[^>]+>", "HTML tags not stripped from verdict")
+        self.assertNotRegex(n["body"], r"<[^>]+>", "HTML tags not stripped from body")
+
+    def test_strips_box_drawing(self):
+        """Box-drawing characters (═, ─, etc.) are removed."""
+        from agents_api.dsw.standardize import _narrative_from_summary
+
+        n = _narrative_from_summary("═══ Result ═══\n─── Details ───\nActual content here")
+        for key in ("verdict", "body"):
+            self.assertNotRegex(n[key], r"[═─│╔╗╚╝╠╣╬]", f"Box chars in {key}: {n[key]}")
+
+    def test_strips_color_tags(self):
+        """<<COLOR:>> tags are removed."""
+        from agents_api.dsw.standardize import _narrative_from_summary
+
+        n = _narrative_from_summary("<<COLOR:accent>>Important<</COLOR>> result")
+        self.assertNotIn("<<COLOR:", n["verdict"])
+
+    def test_skips_separator_lines(self):
+        """Lines that are only dashes/equals/underscores are dropped."""
+        from agents_api.dsw.standardize import _narrative_from_summary
+
+        n = _narrative_from_summary("Verdict line\n----------\n======\nBody content")
+        self.assertNotIn("---", n["body"], "Separator line not skipped")
+        self.assertNotIn("===", n["body"], "Separator line not skipped")
+
+    def test_never_returns_none(self):
+        """_narrative_from_summary() always returns a dict, never None."""
+        from agents_api.dsw.standardize import _narrative_from_summary
+
+        # Empty input
+        n = _narrative_from_summary("")
+        self.assertIsInstance(n, dict)
+        # All separators
+        n = _narrative_from_summary("═══════\n───────\n*****")
+        self.assertIsInstance(n, dict)
+        # Only color tags
+        n = _narrative_from_summary("<<COLOR:accent>><</COLOR>>")
+        self.assertIsInstance(n, dict)
+
+    def test_preserves_meaningful_content(self):
+        """Meaningful text survives all the stripping."""
+        from agents_api.dsw.standardize import _narrative_from_summary
+
+        n = _narrative_from_summary("Process is capable\nCpk = 1.45 exceeds 1.33 threshold")
+        self.assertEqual(n["verdict"], "Process is capable")
+        self.assertIn("Cpk = 1.45", n["body"])
+
+    def test_empty_summary_returns_empty_dict(self):
+        """Empty or whitespace summary returns dict with empty strings."""
+        from agents_api.dsw.standardize import _narrative_from_summary
+
+        n = _narrative_from_summary("   \n  \n  ")
+        self.assertEqual(n["verdict"], "")
+        self.assertEqual(n["body"], "")
+
+
+class NarrativeNoneGuardTest(SimpleTestCase):
+    """DSW-002 §5: Narrative is never None after standardize_output()."""
+
+    def test_narrative_never_none_empty_input(self):
+        """Narrative is dict even with empty result input."""
+        from agents_api.dsw.standardize import standardize_output
+
+        result = standardize_output({}, "stats", "ttest")
+        self.assertIsNotNone(result["narrative"])
+        self.assertIsInstance(result["narrative"], dict)
+
+    def test_narrative_never_none_no_summary(self):
+        """Narrative is dict when no summary provided."""
+        from agents_api.dsw.standardize import standardize_output
+
+        result = standardize_output({"plots": []}, "stats", "ttest")
+        self.assertIsNotNone(result["narrative"])
+        self.assertIsInstance(result["narrative"], dict)
+
+    def test_narrative_dict_has_all_keys(self):
+        """Narrative dict always has all 4 canonical keys."""
+        from agents_api.dsw.standardize import standardize_output
+
+        result = standardize_output({"summary": "Test"}, "stats", "ttest")
+        nar = result["narrative"]
+        for key in ("verdict", "body", "next_steps", "chart_guidance"):
+            self.assertIn(key, nar, f"Narrative missing key: {key}")
+
+    def test_narrative_values_are_strings(self):
+        """All narrative values are strings (never None inside the dict)."""
+        from agents_api.dsw.standardize import standardize_output
+
+        result = standardize_output({"summary": "Test summary line"}, "stats", "ttest")
+        nar = result["narrative"]
+        for key in ("verdict", "body", "next_steps", "chart_guidance"):
+            self.assertIsInstance(nar[key], str, f"narrative.{key} is {type(nar[key])}, not str")
+
+    def test_dict_narrative_passed_through(self):
+        """Dict narrative from _narrative() passes through standardize_output() unchanged."""
+        from agents_api.dsw.common import _narrative
+        from agents_api.dsw.standardize import standardize_output
+
+        original = _narrative("Good result", "Body text", "Next step", "Chart guidance")
+        result = standardize_output(
+            {"summary": "test", "narrative": original},
+            "stats",
+            "ttest",
+        )
+        self.assertEqual(result["narrative"]["verdict"], "Good result")
+        self.assertEqual(result["narrative"]["body"], "Body text")
+        self.assertEqual(result["narrative"]["next_steps"], "Next step")
+        self.assertEqual(result["narrative"]["chart_guidance"], "Chart guidance")
+
+
+class EducationCoverageEnforcementTest(SimpleTestCase):
+    """DSW-002 §7: Education coverage cross-check against registry."""
+
+    def test_has_education_analyses_have_entry(self):
+        """Analyses with has_education=True in registry have education content."""
+        from agents_api.dsw.education import EDUCATION_CONTENT
+        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+
+        missing = []
+        for (atype, aid), entry in ANALYSIS_REGISTRY.items():
+            if entry.get("has_education"):
+                key = (atype, aid)
+                if key not in EDUCATION_CONTENT:
+                    missing.append(f"{atype}/{aid}")
+        if missing:
+            self.fail(
+                f"Analyses marked has_education=True but missing from EDUCATION_CONTENT "
+                f"({len(missing)}): {', '.join(missing[:10])}"
+            )
+
+    def test_education_entries_reference_valid_analyses(self):
+        """All education entries reference analyses that exist in the registry."""
+        from agents_api.dsw.education import EDUCATION_CONTENT
+        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+
+        orphaned = []
+        for key in EDUCATION_CONTENT:
+            if key not in ANALYSIS_REGISTRY:
+                orphaned.append(f"{key[0]}/{key[1]}")
+        if orphaned:
+            self.fail(f"Education entries for non-existent analyses: {', '.join(orphaned[:10])}")

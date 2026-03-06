@@ -5133,7 +5133,7 @@ function runBayesReliabilityParam(analysisId, config, title) {
             if (n.chart_guidance) html += `<div class="dsw-chart-guidance">${n.chart_guidance}</div>`;
             if (n.next_steps) html += `<div class="dsw-next">${n.next_steps}</div>`;
             html += '</div>';
-        } else if (data.narrative) {
+        } else if (data.narrative && typeof data.narrative === 'string' && data.narrative.trim()) {
             html += `<div class="narrative-box">${data.narrative}</div>`;
         }
         if (data.summary) {

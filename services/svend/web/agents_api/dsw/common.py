@@ -2460,16 +2460,17 @@ def _cross_validate(primary_p, alt_p, primary_name, alt_name, alpha=0.05, normal
 
 
 def _narrative(verdict, body, next_steps=None, chart_guidance=None):
-    """Build HTML narrative block for charts-first output.
+    """Build canonical narrative dict for DSW output.
 
-    Returns HTML string rendered in the .dsw-narrative div (prose, not monospace).
+    Returns dict with keys: verdict, body, next_steps, chart_guidance.
+    Frontend renders each key in its own styled div (DSW-002 §5).
     """
-    parts = [f'<div class="dsw-verdict">{verdict}</div>', f"<p>{body}</p>"]
-    if chart_guidance:
-        parts.append(f"<p><strong>In the chart:</strong> {chart_guidance}</p>")
-    if next_steps:
-        parts.append(f'<div class="dsw-next"><strong>Next &rarr;</strong> {next_steps}</div>')
-    return "\n".join(parts)
+    return {
+        "verdict": verdict,
+        "body": body,
+        "next_steps": next_steps or "",
+        "chart_guidance": chart_guidance or "",
+    }
 
 
 def _practical_block(effect_name, effect_val, effect_type, pval, alpha=0.05, context=""):

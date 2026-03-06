@@ -66,6 +66,10 @@ def standardize_output(result, analysis_type, analysis_id):
     elif not result["narrative"] and result.get("summary"):
         result["narrative"] = _narrative_from_summary(result["summary"])
 
+    # Guarantee narrative is always a dict (never None) — DSW-002 §5
+    if not result["narrative"] or not isinstance(result["narrative"], dict):
+        result["narrative"] = dict(_EMPTY_NARRATIVE)
+
     # ── 3. Generate guide_observation if missing ───────────────────────
     if not result["guide_observation"] and result.get("summary"):
         clean = re.sub(r"<<COLOR:\w+>>|<</COLOR>>", "", result["summary"])
@@ -210,28 +214,39 @@ def _validate_statistics_bounds(result):
                 d[key] = None
 
 
+_EMPTY_NARRATIVE = {"verdict": "", "body": "", "next_steps": "", "chart_guidance": ""}
+
+
 def _narrative_from_summary(summary):
     """Build a minimal narrative dict from a summary string.
 
-    Real narratives are richer (verdict, body, next_steps, chart_guidance).
-    This fallback ensures every result has *something* renderable.
+    Strips color tags, HTML tags, box-drawing characters, and separator-only
+    lines.  Always returns a dict (never None) per DSW-002 §5.
     """
-    # Strip color tags for plain text
+    # Strip color tags
     clean = re.sub(r"<<COLOR:\w+>>|<</COLOR>>", "", summary)
-    if not clean.strip():
-        return None
+    # Strip HTML tags
+    clean = re.sub(r"<[^>]+>", "", clean)
+    # Strip box-drawing characters
+    clean = re.sub(r"[═─│╔╗╚╝╠╣╬╦╩╤╧╪╫]+", "", clean)
 
-    # Split on double newline or bullet patterns to extract sections
-    lines = [line.strip() for line in clean.split("\n") if line.strip()]
+    # Filter out empty / separator-only lines
+    lines = []
+    for line in clean.split("\n"):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        # Skip lines that are purely punctuation / separators
+        if re.fullmatch(r"[-=_*#~.]+", stripped):
+            continue
+        lines.append(stripped)
+
     if not lines:
-        return None
-
-    verdict = lines[0]
-    body = "\n".join(lines[1:]) if len(lines) > 1 else ""
+        return dict(_EMPTY_NARRATIVE)
 
     return {
-        "verdict": verdict,
-        "body": body,
+        "verdict": lines[0],
+        "body": "\n".join(lines[1:]) if len(lines) > 1 else "",
         "next_steps": "",
         "chart_guidance": "",
     }
