@@ -5471,14 +5471,24 @@ def api_calibration(request):
                 "golden_file_count": latest.golden_file_count,
                 "complexity_violations": latest.complexity_violations,
                 "calibration_pass_rate": latest.calibration_pass_rate,
+                "calibration_cases_run": latest.calibration_cases_run,
+                "calibration_cases_passed": latest.calibration_cases_passed,
                 "last_report_date": latest.date.isoformat(),
             }
 
-        # Latest certificate
+        # Latest certificate — fill in calibration stats if latest report doesn't have them
         latest_cert = CalibrationReport.objects.filter(is_certificate=True).order_by("-date").first()
         if latest_cert:
             stats["last_cert_date"] = latest_cert.date.isoformat()
             stats["last_cert_status"] = latest_cert.details.get("status", "unknown")
+            # Prefer certificate values for calibration-specific fields
+            if stats.get("calibration_pass_rate") is None:
+                stats["calibration_pass_rate"] = latest_cert.calibration_pass_rate
+            if stats.get("calibration_cases_run") is None or stats.get("calibration_cases_run") == 0:
+                stats["calibration_cases_run"] = latest_cert.calibration_cases_run
+                stats["calibration_cases_passed"] = latest_cert.calibration_cases_passed
+            if stats.get("complexity_violations") is None or stats.get("complexity_violations") == 0:
+                stats["complexity_violations"] = latest_cert.complexity_violations
 
         return Response(
             {

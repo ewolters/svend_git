@@ -129,6 +129,19 @@ class Command(BaseCommand):
         golden_dir = base / "agents_api" / "tests" / "golden"
         golden_count = len(list(golden_dir.glob("*.json"))) if golden_dir.exists() else 0
 
+        # Complexity violations (files > 3000 lines)
+        complexity_violations = 0
+        for py_file in base.rglob("*.py"):
+            rel = str(py_file.relative_to(base))
+            if "/migrations/" in rel or "/test" in rel:
+                continue
+            try:
+                lines = sum(1 for _ in py_file.open())
+                if lines > 3000:
+                    complexity_violations += 1
+            except Exception:
+                pass
+
         # Ratchet check
         last_report = CalibrationReport.objects.order_by("-date").first()
         ratchet_baseline = last_report.ratchet_baseline if last_report else 0.0
@@ -145,6 +158,7 @@ class Command(BaseCommand):
             tier3_coverage=t3,
             tier4_coverage=t4,
             golden_file_count=golden_count,
+            complexity_violations=complexity_violations,
             ratchet_baseline=new_ratchet,
             details={
                 "total_statements": totals.get("num_statements", 0),
@@ -158,6 +172,7 @@ class Command(BaseCommand):
         self.stdout.write(f"  Overall coverage: {overall:.1f}%")
         self.stdout.write(f"  Tier 1: {t1}%  Tier 2: {t2}%  Tier 3: {t3}%  Tier 4: {t4}%")
         self.stdout.write(f"  Golden files: {golden_count}")
+        self.stdout.write(f"  Complexity violations: {complexity_violations}")
         self.stdout.write(f"  Ratchet baseline: {ratchet_baseline:.1f}% → {new_ratchet:.1f}%")
 
         if ratchet_pass:

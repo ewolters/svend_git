@@ -1823,19 +1823,19 @@
     <div id="calibration-section" style="margin-bottom:1.5rem;">
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;">
             <div class="chart-card" style="text-align:center;padding:1rem;">
-                <div style="font-size:1.6rem;font-weight:700;" id="cal-cases-run">—</div>
+                <div style="font-size:1.6rem;font-weight:700;" id="cmp-cal-cases-run">—</div>
                 <div style="font-size:0.7rem;color:var(--text-dim);">Cases Run</div>
             </div>
             <div class="chart-card" style="text-align:center;padding:1rem;">
-                <div style="font-size:1.6rem;font-weight:700;" id="cal-pass-rate">—</div>
+                <div style="font-size:1.6rem;font-weight:700;" id="cmp-cal-pass-rate">—</div>
                 <div style="font-size:0.7rem;color:var(--text-dim);">Pass Rate</div>
             </div>
             <div class="chart-card" style="text-align:center;padding:1rem;">
-                <div style="font-size:1.6rem;font-weight:700;color:var(--danger,#ef4444);" id="cal-drift-count">—</div>
+                <div style="font-size:1.6rem;font-weight:700;color:var(--danger,#ef4444);" id="cmp-cal-drift-count">—</div>
                 <div style="font-size:0.7rem;color:var(--text-dim);">Drift Alerts</div>
             </div>
             <div class="chart-card" style="text-align:center;padding:1rem;">
-                <div style="font-size:1.2rem;font-weight:500;" id="cal-last-run">—</div>
+                <div style="font-size:1.2rem;font-weight:500;" id="cmp-cal-last-run">—</div>
                 <div style="font-size:0.7rem;color:var(--text-dim);">Last Calibration</div>
             </div>
         </div>
@@ -3472,21 +3472,21 @@ async function loadCompliance() {
             }
         }
 
-        // Statistical Calibration section
+        // Statistical Calibration section (compliance overview)
         const cal = d.calibration || {};
         if (cal.cases_run) {
-            document.getElementById('cal-cases-run').textContent = cal.cases_run;
+            document.getElementById('cmp-cal-cases-run').textContent = cal.cases_run;
             const calRate = cal.pass_rate || 0;
-            document.getElementById('cal-pass-rate').textContent = calRate + '%';
-            document.getElementById('cal-pass-rate').style.color =
+            document.getElementById('cmp-cal-pass-rate').textContent = calRate + '%';
+            document.getElementById('cmp-cal-pass-rate').style.color =
                 calRate >= 100 ? 'var(--accent-primary)' : calRate >= 80 ? 'var(--warning,#f59e0b)' : 'var(--danger,#ef4444)';
             const driftCount = (cal.drift_cases || []).length;
-            document.getElementById('cal-drift-count').textContent = driftCount;
-            document.getElementById('cal-drift-count').style.color =
+            document.getElementById('cmp-cal-drift-count').textContent = driftCount;
+            document.getElementById('cmp-cal-drift-count').style.color =
                 driftCount === 0 ? 'var(--accent-primary)' : 'var(--danger,#ef4444)';
             if (cal.run_at) {
                 const dt = new Date(cal.run_at);
-                document.getElementById('cal-last-run').textContent = dt.toLocaleDateString() + ' ' + dt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+                document.getElementById('cmp-cal-last-run').textContent = dt.toLocaleDateString() + ' ' + dt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
             }
             // Per-case results table
             const calResults = cal.results || [];
@@ -4936,12 +4936,14 @@ async function loadCalibration() {
             certBody.innerHTML = d.certificates.map(c => {
                 const statusColor = c.status === 'pass' ? 'var(--accent-primary,#4a9f6e)' : c.status === 'warning' ? 'var(--warning,#f59e0b)' : 'var(--danger,#ef4444)';
                 const statusBadge = `<span style="background:${statusColor}22;color:${statusColor};padding:2px 8px;border-radius:4px;font-size:0.7rem;font-weight:600;text-transform:uppercase;">${c.status}</span>`;
+                const covStr = c.overall_coverage != null ? c.overall_coverage.toFixed(1) + '%' : '—';
+                const casesStr = c.calibration_cases_run ? `${c.calibration_cases_passed || 0}/${c.calibration_cases_run}` : '—';
                 return `<tr style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="showCertDetail('${c.id}')">
                     <td style="padding:8px;">${c.date}</td>
-                    <td style="padding:8px;text-align:center;">${c.overall_coverage != null ? c.overall_coverage.toFixed(1) + '%' : '—'}</td>
-                    <td style="padding:8px;text-align:center;">${c.calibration_cases_passed}/${c.calibration_cases_run}</td>
-                    <td style="padding:8px;text-align:center;">${c.golden_file_count}</td>
-                    <td style="padding:8px;text-align:center;">${c.complexity_violations}</td>
+                    <td style="padding:8px;text-align:center;">${covStr}</td>
+                    <td style="padding:8px;text-align:center;">${casesStr}</td>
+                    <td style="padding:8px;text-align:center;">${c.golden_file_count || 0}</td>
+                    <td style="padding:8px;text-align:center;">${c.complexity_violations || 0}</td>
                     <td style="padding:8px;text-align:center;">${statusBadge}</td>
                 </tr>`;
             }).join('');
@@ -4954,11 +4956,14 @@ async function loadCalibration() {
                 const typeBadge = r.is_certificate
                     ? '<span style="background:var(--accent-primary,#4a9f6e)22;color:var(--accent-primary,#4a9f6e);padding:2px 6px;border-radius:3px;font-size:0.7rem;font-weight:600;">CERT</span>'
                     : '<span style="color:var(--text-dim);font-size:0.7rem;">report</span>';
+                const covStr = r.overall_coverage != null ? r.overall_coverage.toFixed(1) + '%' : '—';
+                const ratchetStr = r.ratchet_baseline != null ? r.ratchet_baseline.toFixed(1) + '%' : '—';
+                const casesStr = r.calibration_cases_run ? `${r.calibration_cases_passed || 0}/${r.calibration_cases_run}` : '—';
                 return `<tr style="border-bottom:1px solid var(--border);">
                     <td style="padding:8px;">${r.date}</td>
-                    <td style="padding:8px;text-align:center;">${r.overall_coverage != null ? r.overall_coverage.toFixed(1) + '%' : '—'}</td>
-                    <td style="padding:8px;text-align:center;">${r.ratchet_baseline.toFixed(1)}%</td>
-                    <td style="padding:8px;text-align:center;">${r.calibration_cases_passed}/${r.calibration_cases_run}</td>
+                    <td style="padding:8px;text-align:center;">${covStr}</td>
+                    <td style="padding:8px;text-align:center;">${ratchetStr}</td>
+                    <td style="padding:8px;text-align:center;">${casesStr}</td>
                     <td style="padding:8px;text-align:center;">${typeBadge}</td>
                 </tr>`;
             }).join('');
