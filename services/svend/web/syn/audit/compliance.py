@@ -5018,21 +5018,18 @@ def check_policy_review():
 # File size exemptions — files documented in DEBT.md as known large modules.
 # Maps relative path suffix → DEBT.md priority for exemption.
 _COMPLEXITY_EXEMPTIONS = {
+    # Files >3000 lines — tracked in .kjerne/DEBT.md and CAL-001 §8.1
     "agents_api/dsw/stats_advanced.py": "P3",
     "agents_api/dsw/stats_exploratory.py": "P3",
-    "agents_api/learn_content.py": "P3",
-    "api/internal_views.py": "P3",
-    "agents_api/models.py": "P3",
-    "syn/audit/compliance.py": "P3",
     "agents_api/dsw/spc.py": "P3",
     "agents_api/dsw/bayesian.py": "P3",
     "agents_api/dsw/ml.py": "P3",
     "agents_api/dsw/common.py": "P3",
-    "agents_api/dsw/viz.py": "P3",
-    "agents_api/dsw/pbs_engine.py": "P3",
-    "agents_api/dsw/d_type.py": "P3",
-    "agents_api/dsw/endpoints_data.py": "P3",
+    "agents_api/learn_content.py": "P3",
+    "agents_api/models.py": "P3",
     "agents_api/pbs_engine.py": "P3",
+    "api/internal_views.py": "P3",
+    "syn/audit/compliance.py": "P3",
 }
 
 

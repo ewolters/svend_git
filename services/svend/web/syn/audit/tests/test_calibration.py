@@ -149,20 +149,26 @@ class EndpointSmokeTest(SimpleTestCase):
 
 
 class ComplexityBudgetTest(SimpleTestCase):
-    """CAL-001 §8.1: File size limits enforced."""
+    """CAL-001 §8.1: File size limits enforced.
 
-    def test_no_unexempted_oversize(self):
+    Full behavioral tests in test_complexity_governance.py.
+    These verify the check is registered and wired correctly.
+    """
+
+    def test_complexity_check_registered(self):
         """CAL-001 §8.1: complexity_governance check is registered."""
         self.assertIn("complexity_governance", ALL_CHECKS)
 
-    def test_complexity_check_runs(self):
-        """CAL-001 §8.1: complexity_governance check executes without error."""
+    def test_complexity_check_no_violations(self):
+        """CAL-001 §8.1: No unexempted files exceed 3000-line limit."""
         check_fn, _category = ALL_CHECKS["complexity_governance"]
         result = check_fn()
-        self.assertIn("status", result)
-        self.assertIn(result["status"], ["pass", "warning", "fail", "error"])
-        self.assertIn("files_checked", result["details"])
-        self.assertGreater(result["details"]["files_checked"], 0)
+        violations = result["details"]["violations"]
+        self.assertEqual(
+            violations,
+            [],
+            f"Unexempted oversized files: {violations}",
+        )
 
 
 # ── §9 Regression Prevention ────────────────────────────────────────────
