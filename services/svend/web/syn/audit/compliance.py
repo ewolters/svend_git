@@ -2909,6 +2909,128 @@ def _check_model_field_naming(web_root):
     return violations
 
 
+_UPPER_SNAKE_RE = _re.compile(r"^_?[A-Z][A-Z0-9_]*$")
+
+# Key infrastructure files for module layout checking
+_KEY_INFRA_FILES = [
+    "syn/audit/models.py",
+    "syn/audit/compliance.py",
+    "syn/audit/utils.py",
+    "syn/audit/events.py",
+    "syn/audit/signals.py",
+    "syn/core/base_models.py",
+    "syn/err/exceptions.py",
+    "syn/log/middleware.py",
+]
+
+
+def _scan_constant_names(web_root):
+    """Scan module-level assignments that look like constants.
+
+    Verify all-uppercase target names match ^[A-Z][A-Z0-9_]*$.
+    Skip dunder names (__all__, __version__).
+
+    STY-001 §4.4: Constants use UPPER_SNAKE_CASE.
+    """
+    violations = []
+    for py_file in sorted(web_root.rglob("*.py")):
+        if _should_skip_path(py_file):
+            continue
+        try:
+            source = py_file.read_text(errors="ignore")
+            tree = ast.parse(source)
+        except (SyntaxError, ValueError):
+            continue
+
+        rel_path = str(py_file.relative_to(web_root))
+        for node in ast.iter_child_nodes(tree):
+            if not isinstance(node, ast.Assign):
+                continue
+            for target in node.targets:
+                if not isinstance(target, ast.Name):
+                    continue
+                name = target.id
+                # Skip dunder names
+                if name.startswith("__") and name.endswith("__"):
+                    continue
+                # Only check names that look like constants (all-uppercase)
+                if name != name.upper():
+                    continue
+                if not _UPPER_SNAKE_RE.match(name):
+                    violations.append(
+                        {
+                            "file": rel_path,
+                            "line": node.lineno,
+                            "name": name,
+                            "violation": f"Constant '{name}' does not match UPPER_SNAKE_CASE",
+                        }
+                    )
+    return violations
+
+
+def _check_module_layout_order(web_root):
+    """Check module layout order for key infrastructure files.
+
+    Expected order: (a) module docstring, (b) imports, (c) constants/logger,
+    (d) private helpers (_-prefixed), (e) public code.
+
+    STY-001 §5: Module layout conventions.
+    """
+    violations = []
+    for rel in _KEY_INFRA_FILES:
+        fpath = web_root / rel
+        if not fpath.exists():
+            continue
+        try:
+            source = fpath.read_text(errors="ignore")
+            tree = ast.parse(source)
+        except (SyntaxError, ValueError):
+            continue
+
+        # Classify top-level nodes by category and track first line
+        first_import = None
+        first_constant = None
+        first_func_or_class = None
+
+        for node in ast.iter_child_nodes(tree):
+            lineno = getattr(node, "lineno", 0)
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                if first_import is None:
+                    first_import = lineno
+            elif isinstance(node, ast.Assign):
+                # Module-level assignment (constant/logger)
+                if first_constant is None:
+                    first_constant = lineno
+            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                if first_func_or_class is None:
+                    first_func_or_class = lineno
+
+        # Check ordering: imports before constants, constants before functions
+        if first_import and first_constant and first_import > first_constant:
+            violations.append(
+                {
+                    "file": rel,
+                    "violation": f"Imports (line {first_import}) appear after constants (line {first_constant})",
+                }
+            )
+        if first_constant and first_func_or_class and first_constant > first_func_or_class:
+            violations.append(
+                {
+                    "file": rel,
+                    "violation": f"Constants (line {first_constant}) appear after functions/classes (line {first_func_or_class})",
+                }
+            )
+        if first_import and first_func_or_class and first_import > first_func_or_class:
+            violations.append(
+                {
+                    "file": rel,
+                    "violation": f"Imports (line {first_import}) appear after functions/classes (line {first_func_or_class})",
+                }
+            )
+
+    return violations
+
+
 @register("code_style", "processing_integrity", soc2_controls=["CC8.1"])
 def check_code_style():
     """STY-001: Code style & naming conventions enforcement.
@@ -2933,6 +3055,8 @@ def check_code_style():
     url_violations = _check_arch_url_kebab_case(web_root)
     timestamp_violations = _check_arch_timestamp_naming(web_root)
     class_docstring_violations = _scan_class_docstrings(web_root)
+    constant_violations = _scan_constant_names(web_root)
+    layout_violations = _check_module_layout_order(web_root)
 
     total = (
         len(file_violations)
@@ -2945,6 +3069,8 @@ def check_code_style():
         + len(field_violations["mutable_default"])
         + len(url_violations)
         + len(timestamp_violations)
+        + len(constant_violations)
+        + len(layout_violations)
     )
 
     # Count scanned files
@@ -2959,6 +3085,7 @@ def check_code_style():
         or field_violations["mutable_default"]
         or field_violations["boolean_prefix"]
         or url_violations
+        or constant_violations
     )
     soft_warn = (
         function_violations
@@ -2966,6 +3093,7 @@ def check_code_style():
         or import_violations
         or timestamp_violations
         or class_docstring_violations
+        or layout_violations
     )
 
     if hard_fail:
@@ -2991,6 +3119,8 @@ def check_code_style():
             "url_kebab_violations": url_violations[:20],
             "timestamp_naming_violations": timestamp_violations[:20],
             "class_docstring_violations": class_docstring_violations[:20],
+            "constant_violations": constant_violations[:20],
+            "layout_violations": layout_violations[:20],
             "total_violations": total,
         },
         "soc2_controls": ["CC8.1"],

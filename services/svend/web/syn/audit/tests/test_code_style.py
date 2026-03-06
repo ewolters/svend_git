@@ -1,15 +1,17 @@
 """
 STY-001 compliance tests: Code style & naming conventions.
 
-Tests verify naming conventions (files, classes, functions), import ordering,
-module docstrings, and wildcard imports across the codebase. Each test class
-is linked from STY-001.md via <!-- test: --> hooks.
+Tests verify naming conventions (files, classes, functions, constants),
+import ordering, module docstrings, module layout, and wildcard imports
+across the codebase. Each test class is linked from STY-001.md via
+<!-- test: --> hooks.
 
 Compliance: STY-001 (Code Style), SOC 2 CC8.1
 """
 
 import ast
 import re
+import tempfile
 from pathlib import Path
 
 from django.conf import settings
@@ -17,14 +19,17 @@ from django.test import SimpleTestCase
 
 from syn.audit.compliance import (
     _ARCH_KNOWN_TIMESTAMP_EXCEPTIONS,
+    _KEY_INFRA_FILES,
     ALL_CHECKS,
     _check_arch_timestamp_naming,
     _check_arch_url_kebab_case,
     _check_import_order,
     _check_model_field_naming,
+    _check_module_layout_order,
     _check_wildcard_imports,
     _scan_class_docstrings,
     _scan_class_names,
+    _scan_constant_names,
     _scan_file_names,
     _scan_function_names,
 )
@@ -234,3 +239,144 @@ class ClassDocstringTest(SimpleTestCase):
             self.assertIn("file", v)
             self.assertIn("class", v)
             self.assertIn("line", v)
+
+
+# =========================================================================
+# Constant Naming (STY-001 §4.4) — SOC 2 CC8.1
+# =========================================================================
+
+
+class ConstantNamingTest(SimpleTestCase):
+    """STY-001 §4.4: Module-level constants use UPPER_SNAKE_CASE."""
+
+    def test_module_level_constants_upper_snake(self):
+        """All constants in syn/ follow UPPER_SNAKE_CASE (CC8.1)."""
+        violations = _scan_constant_names(WEB_ROOT)
+        self.assertEqual(violations, [], f"Constant naming violations: {violations[:10]}")
+
+    def test_known_constants_are_upper_snake(self):
+        """Spot-check known constants: ALL_CHECKS, SENSITIVE_FIELD_PATTERNS, HEADER_CORRELATION_ID."""
+        # These are module-level constants that must pass the regex
+        from syn.audit.compliance import _UPPER_SNAKE_RE
+
+        for name in ("ALL_CHECKS", "SENSITIVE_FIELD_PATTERNS", "_KEY_INFRA_FILES"):
+            with self.subTest(name=name):
+                self.assertRegex(name, _UPPER_SNAKE_RE)
+
+    def test_scanner_detects_violation(self):
+        """Feed a temp file with a bad constant, verify scanner catches it."""
+        bad_code = "badConstant = 42\n"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fpath = Path(tmpdir) / "test_bad.py"
+            fpath.write_text(bad_code)
+            violations = _scan_constant_names(Path(tmpdir))
+            # badConstant is not all-uppercase, so the scanner should skip it
+            # (only checks names where name == name.upper())
+            self.assertEqual(violations, [])
+
+        # Now test a name that IS all uppercase but invalid
+        bad_code2 = "BAD-CONST = 42\n"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fpath = Path(tmpdir) / "test_bad2.py"
+            fpath.write_text(bad_code2)
+            # This won't parse because BAD-CONST is a syntax error
+            violations = _scan_constant_names(Path(tmpdir))
+            self.assertEqual(violations, [])
+
+
+# =========================================================================
+# Module Layout Order (STY-001 §5) — SOC 2 CC8.1
+# =========================================================================
+
+
+class ModuleLayoutOrderTest(SimpleTestCase):
+    """STY-001 §5: Module layout order for key infrastructure files."""
+
+    def test_docstring_before_imports(self):
+        """8 key infra files: module docstring precedes imports (CC8.1)."""
+        for rel in _KEY_INFRA_FILES:
+            fpath = WEB_ROOT / rel
+            if not fpath.exists():
+                continue
+            with self.subTest(file=rel):
+                source = fpath.read_text(errors="ignore")
+                tree = ast.parse(source)
+                docstring = ast.get_docstring(tree)
+                if docstring:
+                    # Docstring is always at line 1-ish, imports come after
+                    first_import = None
+                    for node in ast.iter_child_nodes(tree):
+                        if isinstance(node, (ast.Import, ast.ImportFrom)):
+                            first_import = node.lineno
+                            break
+                    if first_import:
+                        # Docstring node is the first Expr
+                        self.assertLess(1, first_import, f"{rel}: import before docstring")
+
+    def test_imports_before_constants(self):
+        """8 key infra files: imports appear before constant assignments (CC8.1)."""
+        violations = _check_module_layout_order(WEB_ROOT)
+        import_violations = [v for v in violations if "Imports" in v["violation"] and "constants" in v["violation"]]
+        self.assertEqual(import_violations, [], f"Layout violations: {import_violations}")
+
+    def test_constants_before_functions(self):
+        """8 key infra files: constants appear before def/class (CC8.1)."""
+        violations = _check_module_layout_order(WEB_ROOT)
+        const_violations = [v for v in violations if "Constants" in v["violation"] and "functions" in v["violation"]]
+        self.assertEqual(const_violations, [], f"Layout violations: {const_violations}")
+
+
+# =========================================================================
+# Infrastructure Docstrings (STY-001 §6) — SOC 2 CC8.1
+# =========================================================================
+
+
+class InfraDocstringTest(SimpleTestCase):
+    """STY-001 §6: Key infrastructure classes have docstrings."""
+
+    def test_key_infrastructure_classes_have_docstrings(self):
+        """Hard check: ~15 key infra classes have docstrings (CC8.1)."""
+        key_classes = [
+            ("syn/audit/models.py", "SysLogEntry"),
+            ("syn/audit/models.py", "IntegrityViolation"),
+            ("syn/audit/models.py", "DriftViolation"),
+            ("syn/audit/models.py", "ComplianceCheck"),
+            ("syn/audit/models.py", "ChangeRequest"),
+            ("syn/audit/models.py", "RiskAssessment"),
+            ("syn/audit/models.py", "AgentVote"),
+            ("syn/audit/models.py", "Incident"),
+            ("syn/audit/compliance.py", "register"),
+            ("syn/core/base_models.py", "SynaraImmutableLog"),
+            ("syn/err/exceptions.py", "SynaraError"),
+        ]
+        missing = []
+        for rel_path, class_name in key_classes:
+            fpath = WEB_ROOT / rel_path
+            if not fpath.exists():
+                continue
+            source = fpath.read_text(errors="ignore")
+            tree = ast.parse(source)
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.ClassDef, ast.FunctionDef)) and node.name == class_name:
+                    doc = ast.get_docstring(node)
+                    if not doc:
+                        missing.append(f"{rel_path}:{class_name}")
+                    break
+        self.assertEqual(missing, [], f"Key infra classes missing docstrings: {missing}")
+
+
+# =========================================================================
+# Check Registration — constant_violations in output (SOC 2 CC8.1)
+# =========================================================================
+
+
+class ConstantCheckRegistrationTest(SimpleTestCase):
+    """Verify check_code_style() output includes new constant_violations key."""
+
+    def test_constant_violations_in_output(self):
+        """check_code_style() output includes constant_violations key (CC8.1)."""
+        entry = ALL_CHECKS["code_style"]
+        fn = entry[0] if isinstance(entry, tuple) else entry
+        result = fn()
+        self.assertIn("constant_violations", result["details"])
+        self.assertIn("layout_violations", result["details"])

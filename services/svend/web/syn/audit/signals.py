@@ -106,7 +106,7 @@ def on_integrity_violation_saved(sender, instance, created, **kwargs):
         # Violation has been resolved
         payload = build_violation_resolved_payload(
             instance,
-            resolved_by=instance.resolved_by or "system",
+            resolved_by=getattr(instance, "resolved_by", "system") or "system",
         )
         _emit_event("audit.integrity.violation_resolved", payload)
 
