@@ -4,6 +4,7 @@ Extracted from dsw_views.py: model cache, logging, ML helpers,
 Claude schema/interpret integration, diagnostic plots, and data splitting.
 """
 
+import dataclasses
 import json
 import logging
 import math
@@ -71,6 +72,8 @@ def sanitize_for_json(obj):
         if math.isnan(obj) or math.isinf(obj):
             return None
         return obj
+    if isinstance(obj, (int, bool, str, type(None))):
+        return obj
     if isinstance(obj, (np.integer,)):
         return int(obj)
     if isinstance(obj, (np.floating,)):
@@ -84,7 +87,11 @@ def sanitize_for_json(obj):
         return {k: sanitize_for_json(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):
         return [sanitize_for_json(v) for v in obj]
-    return obj
+    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+        return sanitize_for_json(dataclasses.asdict(obj))
+    if hasattr(obj, "__dict__"):
+        return sanitize_for_json(vars(obj))
+    return str(obj)
 
 
 def _strip_non_serializable(obj):
@@ -101,7 +108,11 @@ def _strip_non_serializable(obj):
         v = float(obj)
         return None if (math.isnan(v) or math.isinf(v)) else v
     if isinstance(obj, np.ndarray):
-        return obj.tolist()
+        return _strip_non_serializable(obj.tolist())
+    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+        return _strip_non_serializable(dataclasses.asdict(obj))
+    if hasattr(obj, "__dict__"):
+        return _strip_non_serializable(vars(obj))
     # Catch-all for sklearn objects, scalers, etc.
     return str(type(obj).__name__)
 
