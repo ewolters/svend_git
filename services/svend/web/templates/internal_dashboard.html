@@ -2375,11 +2375,11 @@
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:1.5rem;">
         <div class="chart-card" style="text-align:center;padding:1rem;">
             <div style="font-size:2rem;font-weight:700;" id="cal-coverage">—</div>
-            <div style="font-size:0.75rem;color:var(--text-dim);" title="pytest line coverage from latest calibration run">Line Coverage</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);" title="% of statistical engine symbols (DSW/SPC/PBS/calibration) with both impl and test hooks">Stats Coverage</div>
         </div>
         <div class="chart-card" style="text-align:center;padding:1rem;">
             <div style="font-size:2rem;font-weight:700;" id="cal-ratchet">—</div>
-            <div style="font-size:0.75rem;color:var(--text-dim);">Ratchet Floor</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);" title="Coverage floor — can only go up">Ratchet Floor</div>
         </div>
         <div class="chart-card" style="text-align:center;padding:1rem;">
             <div style="font-size:2rem;font-weight:700;" id="cal-pass-rate">—</div>
@@ -2395,28 +2395,8 @@
         </div>
     </div>
 
-    <!-- Per-Tier Coverage -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem;">
-        <div class="chart-card" style="text-align:center;padding:0.75rem;">
-            <div style="font-size:1.4rem;font-weight:700;" id="cal-t1">—</div>
-            <div style="font-size:0.7rem;color:var(--text-dim);">Tier 1 (Trust) / 70%</div>
-        </div>
-        <div class="chart-card" style="text-align:center;padding:0.75rem;">
-            <div style="font-size:1.4rem;font-weight:700;" id="cal-t2">—</div>
-            <div style="font-size:0.7rem;color:var(--text-dim);">Tier 2 (Revenue) / 50%</div>
-        </div>
-        <div class="chart-card" style="text-align:center;padding:0.75rem;">
-            <div style="font-size:1.4rem;font-weight:700;" id="cal-t3">—</div>
-            <div style="font-size:0.7rem;color:var(--text-dim);">Tier 3 (Feature) / 30%</div>
-        </div>
-        <div class="chart-card" style="text-align:center;padding:0.75rem;">
-            <div style="font-size:1.4rem;font-weight:700;" id="cal-t4">—</div>
-            <div style="font-size:0.7rem;color:var(--text-dim);">Tier 4 (Infra) / 20%</div>
-        </div>
-    </div>
-
     <!-- Coverage Trend Chart -->
-    <div class="chart-card full-width" style="margin-bottom:1.5rem;"><h3 style="margin:0 0 8px 0;font-size:0.95rem;">Line Coverage Trend</h3><canvas id="chart-cal-trend" height="200"></canvas></div>
+    <div class="chart-card full-width" style="margin-bottom:1.5rem;"><h3 style="margin:0 0 8px 0;font-size:0.95rem;">Stats Coverage Trend</h3><canvas id="chart-cal-trend" height="200"></canvas></div>
 
     <!-- Certificates Section -->
     <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Calibration Certificates</h3>
@@ -4897,12 +4877,6 @@ async function loadCalibration() {
         setKpi('cal-golden', s.golden_file_count, '');
         setKpi('cal-complexity', s.complexity_violations, '', s.complexity_violations > 0 ? 'var(--danger,#ef4444)' : 'var(--accent-primary,#4a9f6e)');
 
-        // Tier coverage
-        setKpi('cal-t1', s.tier1_coverage != null ? s.tier1_coverage.toFixed(1) : null, '%', covColor(s.tier1_coverage, 70));
-        setKpi('cal-t2', s.tier2_coverage != null ? s.tier2_coverage.toFixed(1) : null, '%', covColor(s.tier2_coverage, 50));
-        setKpi('cal-t3', s.tier3_coverage != null ? s.tier3_coverage.toFixed(1) : null, '%', covColor(s.tier3_coverage, 30));
-        setKpi('cal-t4', s.tier4_coverage != null ? s.tier4_coverage.toFixed(1) : null, '%', covColor(s.tier4_coverage, 20));
-
         // Coverage trend chart
         if (d.trend && d.trend.length) {
             makeChart('chart-cal-trend', {
@@ -4910,7 +4884,7 @@ async function loadCalibration() {
                 data: {
                     labels: d.trend.map(t => t.date),
                     datasets: [{
-                        label: 'Line Coverage',
+                        label: 'Stats Coverage',
                         data: d.trend.map(t => t.coverage),
                         borderColor: cc(0),
                         backgroundColor: cca(0, 0.15),

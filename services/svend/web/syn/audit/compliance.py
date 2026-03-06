@@ -4565,7 +4565,7 @@ def check_roadmap():
 
 
 @register("symbol_coverage", "processing_integrity", soc2_controls=["CC8.1", "CC4.1"])
-def check_symbol_coverage():
+def check_symbol_coverage(file_filter=None):
     """Non-gameable symbol-level governance metric.
 
     AST-walks all production .py files to inventory every public top-level
@@ -4577,6 +4577,10 @@ def check_symbol_coverage():
       ungoverned        — no impl hook references this symbol
 
     Risk score per file = ungoverned_loc * 1.0 + specified_untested_loc * 0.5
+
+    Args:
+        file_filter: optional callable(rel_path) -> bool to scope to a subset
+                     of files (e.g. statistical engines only for calibration).
     """
     import ast
     import os
@@ -4617,6 +4621,9 @@ def check_symbol_coverage():
                 continue
             full_path = os.path.join(root, f)
             rel = os.path.relpath(full_path, web_root)
+
+            if file_filter and not file_filter(rel):
+                continue
 
             try:
                 with open(full_path) as fh:

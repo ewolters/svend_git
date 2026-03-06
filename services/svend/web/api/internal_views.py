@@ -5431,20 +5431,21 @@ def api_calibration(request):
             for r in reports_qs
         ]
 
-        # Coverage trend (all reports, chronological)
+        # Coverage trend (latest per date, chronological)
         trend_qs = (
             CalibrationReport.objects.filter(overall_coverage__isnull=False)
             .order_by("date")
             .values("date", "overall_coverage", "ratchet_baseline")
         )
-        trend = [
-            {
+        # Deduplicate: keep only latest entry per date
+        trend_by_date = {}
+        for r in trend_qs:
+            trend_by_date[r["date"].isoformat()] = {
                 "date": r["date"].isoformat(),
                 "coverage": r["overall_coverage"],
                 "ratchet": r["ratchet_baseline"],
             }
-            for r in trend_qs
-        ]
+        trend = list(trend_by_date.values())
 
         # Certificates only
         certs_qs = CalibrationReport.objects.filter(is_certificate=True).order_by("-date")[:10]

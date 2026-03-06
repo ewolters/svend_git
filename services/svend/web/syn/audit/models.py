@@ -1759,7 +1759,7 @@ class CalibrationReport(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     date = models.DateField(db_index=True)
-    overall_coverage = models.FloatField(null=True, blank=True, help_text="Overall line coverage %")
+    overall_coverage = models.FloatField(null=True, blank=True, help_text="Symbol governance coverage %")
     tier1_coverage = models.FloatField(null=True, blank=True, help_text="Tier 1 (Customer Trust) coverage %")
     tier2_coverage = models.FloatField(null=True, blank=True, help_text="Tier 2 (Revenue Path) coverage %")
     tier3_coverage = models.FloatField(null=True, blank=True, help_text="Tier 3 (Feature Surface) coverage %")

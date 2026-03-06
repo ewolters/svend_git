@@ -8,7 +8,6 @@ Standard: CAL-001 §10.3, §11
 Compliance: SOC 2 CC4.1, ISO/IEC 17025:2017
 """
 
-import json
 from datetime import date
 from pathlib import Path
 
@@ -36,17 +35,17 @@ class Command(BaseCommand):
             findings.append(f"Calibration run error: {e}")
             status_overall = "fail"
 
-        # 2. Read coverage data if available
+        # 2. Compute symbol coverage scoped to statistical engines
         overall_coverage = None
-        coverage_json = base / "coverage.json"
-        if coverage_json.exists():
-            try:
-                data = json.loads(coverage_json.read_text())
-                overall_coverage = data.get("totals", {}).get("percent_covered", 0)
-            except Exception as e:
-                findings.append(f"Coverage read error: {e}")
-        else:
-            findings.append("coverage.json not found — run coverage before generating cert")
+        try:
+            from syn.audit.compliance import check_symbol_coverage
+            from syn.audit.management.commands.measure_coverage import _is_statistical_file
+
+            cov_result = check_symbol_coverage(file_filter=_is_statistical_file)
+            cov_details = cov_result.get("details", {})
+            overall_coverage = cov_details.get("covered_pct", 0)
+        except Exception as e:
+            findings.append(f"Symbol coverage error: {e}")
 
         # 3. Count golden files
         golden_dir = base / "agents_api" / "tests" / "golden"
