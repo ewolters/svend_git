@@ -5124,8 +5124,30 @@ function runBayesReliabilityParam(analysisId, config, title) {
     .then(data => {
         if (data.error) { outputTab.innerHTML = `<div class="error-box">${data.error}</div>`; return; }
         let html = '';
-        if (data.summary) html += `<div class="stats-summary">${formatSummary(data.summary)}</div>`;
-        if (data.narrative) html += `<div class="narrative-box">${data.narrative}</div>`;
+        // Narrative block (dict or string)
+        if (data.narrative && typeof data.narrative === 'object') {
+            const n = data.narrative;
+            html += '<div class="dsw-narrative">';
+            if (n.verdict) html += `<div class="dsw-verdict">${n.verdict}</div>`;
+            if (n.body) html += `<div class="dsw-narrative-body">${n.body}</div>`;
+            if (n.chart_guidance) html += `<div class="dsw-chart-guidance">${n.chart_guidance}</div>`;
+            if (n.next_steps) html += `<div class="dsw-next">${n.next_steps}</div>`;
+            html += '</div>';
+        } else if (data.narrative) {
+            html += `<div class="narrative-box">${data.narrative}</div>`;
+        }
+        if (data.summary) {
+            const formatted = data.summary
+                .replace(/<<COLOR:accent>>(.*?)<<\/COLOR>>/g, '<span class="color-accent">$1</span>')
+                .replace(/<<COLOR:title>>(.*?)<<\/COLOR>>/g, '<span class="color-title">$1</span>')
+                .replace(/<<COLOR:highlight>>(.*?)<<\/COLOR>>/g, '<span class="color-highlight">$1</span>')
+                .replace(/<<COLOR:text>>(.*?)<<\/COLOR>>/g, '<span class="color-text">$1</span>')
+                .replace(/<<COLOR:dim>>(.*?)<<\/COLOR>>/g, '<span class="color-dim">$1</span>')
+                .replace(/<<COLOR:good>>(.*?)<<\/COLOR>>/g, '<span class="color-success">$1</span>')
+                .replace(/<<COLOR:warning>>(.*?)<<\/COLOR>>/g, '<span class="color-warning">$1</span>')
+                .replace(/<<COLOR:bad>>(.*?)<<\/COLOR>>/g, '<span class="color-danger">$1</span>');
+            html += `<details class="dsw-details"><summary class="dsw-details-toggle">Statistical Details</summary><pre class="stats-summary">${formatted}</pre></details>`;
+        }
         if (data.plots && data.plots.length) {
             data.plots.forEach((plot, i) => {
                 const plotId = 'brp-plot-' + Date.now() + '-' + i;

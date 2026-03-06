@@ -178,8 +178,6 @@ def run_visualization(df, analysis_id, config):
             )
 
         if trendline:
-            import numpy as np
-
             x = df[x_var].dropna()
             y = df[y_var].loc[x.index].dropna()
             common_idx = x.index.intersection(y.index)
@@ -217,8 +215,6 @@ def run_visualization(df, analysis_id, config):
         )
 
     elif analysis_id == "heatmap":
-        import numpy as np
-
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         corr = df[numeric_cols].corr()
 
@@ -290,8 +286,6 @@ def run_visualization(df, analysis_id, config):
             result["summary"] += f"  {cat}: {val} ({pct:.1f}%)\n"
 
     elif analysis_id == "matrix":
-        import numpy as np
-
         vars_list = config.get("vars", [])
         color_var = config.get("color")
 
@@ -362,8 +356,6 @@ def run_visualization(df, analysis_id, config):
         result["plots"].append({"title": "Matrix Plot", "data": fig_data, "layout": layout})
 
     elif analysis_id == "timeseries":
-        import numpy as np
-
         x_col = config.get("x")
         y_cols = config.get("y", [])
         show_markers = config.get("markers", False)
@@ -397,7 +389,6 @@ def run_visualization(df, analysis_id, config):
         )
 
     elif analysis_id == "probability":
-        import numpy as np
         from scipy import stats
 
         var = config.get("var")
@@ -475,7 +466,6 @@ def run_visualization(df, analysis_id, config):
             )
 
     elif analysis_id == "individual_value_plot":
-        import numpy as np
         from scipy import stats
 
         var = config.get("var")
@@ -587,7 +577,6 @@ def run_visualization(df, analysis_id, config):
             )
 
     elif analysis_id == "interval_plot":
-        import numpy as np
         from scipy import stats
 
         var = config.get("var")
@@ -654,8 +643,6 @@ def run_visualization(df, analysis_id, config):
             )
 
     elif analysis_id == "dotplot":
-        import numpy as np
-
         var = config.get("var")
         groupby = config.get("group")
 
