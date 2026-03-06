@@ -1618,7 +1618,7 @@
         </div>
         <div class="chart-card" style="text-align:center;padding:1rem;">
             <div style="font-size:2rem;font-weight:700;" id="compliance-coverage">—</div>
-            <div style="font-size:0.75rem;color:var(--text-dim);">Symbol Coverage</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);" title="% of code symbols with both impl and test hooks in standards docs">Symbol Governance</div>
         </div>
         <div class="chart-card" style="text-align:center;padding:1rem;">
             <div style="font-size:2rem;font-weight:700;" id="compliance-soc2">—</div>
@@ -1792,7 +1792,7 @@
             </div>
             <div class="chart-card" style="text-align:center;padding:1rem;">
                 <div style="font-size:1.6rem;font-weight:700;" id="cov-percent">—</div>
-                <div style="font-size:0.7rem;color:var(--text-dim);">Covered %</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);" title="% of symbols with impl hook + linked test in standards">Governed %</div>
             </div>
             <div class="chart-card" style="text-align:center;padding:1rem;">
                 <div style="font-size:1.6rem;font-weight:700;color:var(--danger,#ef4444);" id="cov-ungoverned-loc">—</div>
@@ -2375,7 +2375,7 @@
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:1.5rem;">
         <div class="chart-card" style="text-align:center;padding:1rem;">
             <div style="font-size:2rem;font-weight:700;" id="cal-coverage">—</div>
-            <div style="font-size:0.75rem;color:var(--text-dim);">Coverage %</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);" title="pytest line coverage from latest calibration run">Line Coverage</div>
         </div>
         <div class="chart-card" style="text-align:center;padding:1rem;">
             <div style="font-size:2rem;font-weight:700;" id="cal-ratchet">—</div>
@@ -2416,7 +2416,7 @@
     </div>
 
     <!-- Coverage Trend Chart -->
-    <div class="chart-card full-width" style="margin-bottom:1.5rem;"><h3 style="margin:0 0 8px 0;font-size:0.95rem;">Coverage Trend</h3><canvas id="chart-cal-trend" height="200"></canvas></div>
+    <div class="chart-card full-width" style="margin-bottom:1.5rem;"><h3 style="margin:0 0 8px 0;font-size:0.95rem;">Line Coverage Trend</h3><canvas id="chart-cal-trend" height="200"></canvas></div>
 
     <!-- Certificates Section -->
     <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Calibration Certificates</h3>
@@ -3424,7 +3424,7 @@ async function loadCompliance() {
         const covPct = cov.covered_pct || 0;
         const covEl = document.getElementById('compliance-coverage');
         covEl.textContent = covPct + '%';
-        covEl.title = (cov.covered_symbols || 0) + ' / ' + (cov.total_symbols || 0) + ' symbols covered';
+        covEl.title = (cov.covered_symbols || 0) + ' / ' + (cov.total_symbols || 0) + ' symbols governed (impl + test hooks in standards)';
         covEl.style.color = covPct >= 50 ? 'var(--accent-primary)' : covPct >= 30 ? 'var(--warning,#f59e0b)' : 'var(--danger,#ef4444)';
         document.getElementById('compliance-soc2').textContent = stats.soc2_controls_covered || 0;
 
@@ -4910,7 +4910,7 @@ async function loadCalibration() {
                 data: {
                     labels: d.trend.map(t => t.date),
                     datasets: [{
-                        label: 'Coverage %',
+                        label: 'Line Coverage',
                         data: d.trend.map(t => t.coverage),
                         borderColor: cc(0),
                         backgroundColor: cca(0, 0.15),
