@@ -1851,3 +1851,254 @@ class EducationCoverageEnforcementTest(SimpleTestCase):
                 orphaned.append(f"{key[0]}/{key[1]}")
         if orphaned:
             self.fail(f"Education entries for non-existent analyses: {', '.join(orphaned[:10])}")
+
+
+# ── DSW-002 §5+§7: Full Sweep — Narrative & Education Structure ─────────
+
+# Narrative keys that MUST exist when narrative is a dict
+_NARRATIVE_KEYS = ("verdict", "body", "next_steps", "chart_guidance")
+
+
+class NarrativeStructureSweepTest(SimpleTestCase):
+    """DSW-002 §5: Verify narrative structure across ALL registered analyses.
+
+    Hard assertions on structural correctness when narrative exists.
+    Graceful soft-fail reporting for missing/empty narratives — printed as
+    warnings so test output doubles as a coverage diagnostic.
+    """
+
+    def test_all_analyses_narrative_is_dict(self):
+        """Every analysis produces a dict narrative after standardize_output()."""
+        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.dsw.standardize import standardize_output
+
+        for atype, aid in ANALYSIS_REGISTRY:
+            with self.subTest(analysis=f"{atype}/{aid}"):
+                result = standardize_output({"summary": "test"}, atype, aid)
+                nar = result.get("narrative")
+                self.assertIsNotNone(nar, f"{atype}/{aid}: narrative is None")
+                self.assertIsInstance(nar, dict, f"{atype}/{aid}: narrative is {type(nar).__name__}, not dict")
+
+    def test_all_analyses_narrative_has_canonical_keys(self):
+        """Every narrative dict has verdict, body, next_steps, chart_guidance."""
+        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.dsw.standardize import standardize_output
+
+        for atype, aid in ANALYSIS_REGISTRY:
+            with self.subTest(analysis=f"{atype}/{aid}"):
+                result = standardize_output({"summary": "test"}, atype, aid)
+                nar = result.get("narrative", {})
+                if not isinstance(nar, dict):
+                    continue  # covered by test above
+                for key in _NARRATIVE_KEYS:
+                    self.assertIn(key, nar, f"{atype}/{aid}: narrative missing '{key}'")
+
+    def test_all_analyses_narrative_values_are_strings(self):
+        """All narrative values are strings (never None, int, list, etc.)."""
+        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.dsw.standardize import standardize_output
+
+        for atype, aid in ANALYSIS_REGISTRY:
+            with self.subTest(analysis=f"{atype}/{aid}"):
+                result = standardize_output({"summary": "test"}, atype, aid)
+                nar = result.get("narrative", {})
+                if not isinstance(nar, dict):
+                    continue
+                for key in _NARRATIVE_KEYS:
+                    val = nar.get(key)
+                    self.assertIsInstance(val, str, f"{atype}/{aid}: narrative.{key} is {type(val).__name__}, not str")
+
+    def test_all_analyses_narrative_no_html_tags(self):
+        """No narrative field contains HTML tags."""
+        import re
+
+        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.dsw.standardize import standardize_output
+
+        html_re = re.compile(r"<(?:div|p|span|strong|em|br|a|ul|li|ol|h[1-6])\b", re.IGNORECASE)
+        for atype, aid in ANALYSIS_REGISTRY:
+            with self.subTest(analysis=f"{atype}/{aid}"):
+                result = standardize_output({"summary": "test"}, atype, aid)
+                nar = result.get("narrative", {})
+                if not isinstance(nar, dict):
+                    continue
+                for key in _NARRATIVE_KEYS:
+                    val = nar.get(key, "")
+                    if val and html_re.search(val):
+                        self.fail(f"{atype}/{aid}: narrative.{key} contains HTML: {val[:80]}")
+
+    def test_all_analyses_narrative_no_box_drawing(self):
+        """No narrative field contains box-drawing characters."""
+        import re
+
+        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.dsw.standardize import standardize_output
+
+        box_re = re.compile(r"[═─│╔╗╚╝╠╣╬╦╩╤╧╪╫]")
+        for atype, aid in ANALYSIS_REGISTRY:
+            with self.subTest(analysis=f"{atype}/{aid}"):
+                result = standardize_output({"summary": "test"}, atype, aid)
+                nar = result.get("narrative", {})
+                if not isinstance(nar, dict):
+                    continue
+                for key in _NARRATIVE_KEYS:
+                    val = nar.get(key, "")
+                    if val and box_re.search(val):
+                        self.fail(f"{atype}/{aid}: narrative.{key} has box-drawing: {val[:80]}")
+
+    def test_narrative_verdict_quality_report(self):
+        """Report which analyses have empty or short verdicts (soft diagnostic).
+
+        Uses a realistic summary so the fallback narrative has a real verdict.
+        Prints coverage report. Hard-fails only on structural issues.
+        """
+        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.dsw.standardize import standardize_output
+
+        realistic_summary = (
+            "The sample mean (52.3) is significantly different from the target value (50.0).\n"
+            "Effect size (Cohen's d = 0.82) indicates a large practical difference."
+        )
+        empty = []
+        short = []
+        good = 0
+        for atype, aid in ANALYSIS_REGISTRY:
+            result = standardize_output({"summary": realistic_summary}, atype, aid)
+            nar = result.get("narrative", {})
+            if not isinstance(nar, dict):
+                continue
+            verdict = nar.get("verdict", "")
+            if not verdict:
+                empty.append(f"{atype}/{aid}")
+            elif len(verdict) < 10:
+                short.append(f"{atype}/{aid} ({len(verdict)} chars)")
+            else:
+                good += 1
+        total = len(ANALYSIS_REGISTRY)
+        # Print diagnostic report — this is the coverage surface
+        print(f"\n  [NARRATIVE VERDICT REPORT] {good}/{total} have verdict >= 10 chars")
+        if empty:
+            print(f"    Empty verdict ({len(empty)}): {', '.join(empty[:15])}")
+            if len(empty) > 15:
+                print(f"    ... and {len(empty) - 15} more")
+        if short:
+            print(f"    Short verdict ({len(short)}): {', '.join(short[:15])}")
+        # Hard-fail only on structural regression — at least some should have real verdicts
+        self.assertGreater(good, 0, "No analyses produce a verdict >= 10 chars with realistic input")
+
+
+class EducationStructureSweepTest(SimpleTestCase):
+    """DSW-002 §7: Verify education structure across ALL registered analyses.
+
+    Hard assertions on structural correctness when education exists.
+    Graceful soft-fail reporting for missing education — printed as
+    warnings so test output doubles as a coverage diagnostic.
+    """
+
+    def test_education_coverage_report(self):
+        """Report education coverage across all registered analyses (soft diagnostic).
+
+        Prints which analyses have education and which don't.
+        Hard-fails only if coverage drops below 50% (catastrophic regression).
+        """
+        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.dsw.standardize import standardize_output
+
+        has_edu = []
+        missing_edu = []
+        for atype, aid in ANALYSIS_REGISTRY:
+            result = standardize_output({"summary": "test"}, atype, aid)
+            edu = result.get("education")
+            if edu and isinstance(edu, dict) and edu.get("title") and edu.get("content"):
+                has_edu.append(f"{atype}/{aid}")
+            else:
+                missing_edu.append(f"{atype}/{aid}")
+        total = len(ANALYSIS_REGISTRY)
+        pct = len(has_edu) * 100 / total if total else 0
+        print(f"\n  [EDUCATION COVERAGE REPORT] {len(has_edu)}/{total} ({pct:.0f}%) have education")
+        if missing_edu:
+            print(f"    Missing education ({len(missing_edu)}):")
+            for m in missing_edu[:20]:
+                print(f"      - {m}")
+            if len(missing_edu) > 20:
+                print(f"      ... and {len(missing_edu) - 20} more")
+        self.assertGreater(pct, 50, f"Education coverage catastrophically low: {pct:.0f}% ({len(has_edu)}/{total})")
+
+    def test_existing_education_has_title_and_content(self):
+        """Education entries that exist have both title and content keys."""
+        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.dsw.standardize import standardize_output
+
+        for atype, aid in ANALYSIS_REGISTRY:
+            result = standardize_output({"summary": "test"}, atype, aid)
+            edu = result.get("education")
+            if edu is None:
+                continue  # missing education is reported elsewhere
+            with self.subTest(analysis=f"{atype}/{aid}"):
+                self.assertIsInstance(edu, dict, f"{atype}/{aid}: education is {type(edu).__name__}")
+                self.assertIn("title", edu, f"{atype}/{aid}: education missing 'title'")
+                self.assertIn("content", edu, f"{atype}/{aid}: education missing 'content'")
+
+    def test_existing_education_title_quality(self):
+        """Education titles are at least 15 characters when present."""
+        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.dsw.standardize import standardize_output
+
+        for atype, aid in ANALYSIS_REGISTRY:
+            result = standardize_output({"summary": "test"}, atype, aid)
+            edu = result.get("education")
+            if not edu or not isinstance(edu, dict):
+                continue
+            title = edu.get("title", "")
+            with self.subTest(analysis=f"{atype}/{aid}"):
+                self.assertGreaterEqual(
+                    len(title), 15, f"{atype}/{aid}: education title too short ({len(title)} chars): '{title}'"
+                )
+
+    def test_existing_education_content_depth(self):
+        """Education content is at least 200 characters when present."""
+        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.dsw.standardize import standardize_output
+
+        for atype, aid in ANALYSIS_REGISTRY:
+            result = standardize_output({"summary": "test"}, atype, aid)
+            edu = result.get("education")
+            if not edu or not isinstance(edu, dict):
+                continue
+            content = edu.get("content", "")
+            with self.subTest(analysis=f"{atype}/{aid}"):
+                self.assertGreaterEqual(
+                    len(content), 200, f"{atype}/{aid}: education content too shallow ({len(content)} chars)"
+                )
+
+    def test_existing_education_dl_structure(self):
+        """Education content uses <dl>/<dt>/<dd> HTML structure when present."""
+        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.dsw.standardize import standardize_output
+
+        for atype, aid in ANALYSIS_REGISTRY:
+            result = standardize_output({"summary": "test"}, atype, aid)
+            edu = result.get("education")
+            if not edu or not isinstance(edu, dict):
+                continue
+            content = edu.get("content", "")
+            if len(content) < 50:
+                continue  # too short to meaningfully check structure
+            with self.subTest(analysis=f"{atype}/{aid}"):
+                self.assertIn("<dl>", content, f"{atype}/{aid}: education missing <dl> structure")
+                self.assertIn("<dt>", content, f"{atype}/{aid}: education missing <dt>")
+                self.assertIn("<dd>", content, f"{atype}/{aid}: education missing <dd>")
+
+    def test_existing_education_no_empty_title(self):
+        """No education entry has an empty or whitespace-only title."""
+        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.dsw.standardize import standardize_output
+
+        for atype, aid in ANALYSIS_REGISTRY:
+            result = standardize_output({"summary": "test"}, atype, aid)
+            edu = result.get("education")
+            if not edu or not isinstance(edu, dict):
+                continue
+            with self.subTest(analysis=f"{atype}/{aid}"):
+                title = edu.get("title", "")
+                self.assertTrue(title.strip(), f"{atype}/{aid}: education has empty title")
