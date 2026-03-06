@@ -104,6 +104,7 @@ CHECK_SEVERITY = {
     "calibration_coverage": 1.0,
     "endpoint_coverage": 1.0,
     "complexity_governance": 1.0,
+    "risk_registry": 1.0,
     # low (0.5): administrative hygiene
     "code_style": 0.5,
     "roadmap": 0.5,
@@ -657,7 +658,7 @@ WEEKDAY_ROTATION = {
         "complexity_governance",
         "endpoint_coverage",
     ],
-    3: ["data_retention", "rate_limiting", "code_style", "roadmap", "statistical_calibration"],
+    3: ["data_retention", "rate_limiting", "code_style", "roadmap", "statistical_calibration", "risk_registry"],
     4: ["dependency_vuln", "ssl_tls"],
 }
 
@@ -5330,4 +5331,52 @@ def check_endpoint_coverage():
             "modules": module_stats,
         },
         "soc2_controls": ["CC4.1", "CC7.2"],
+    }
+
+
+@register("risk_registry", "processing_integrity", soc2_controls=["CC3.2", "CC9.1"])
+def check_risk_registry():
+    """RISK-001 §5: Verify no high-risk items lack mitigation plans.
+
+    Queries RiskEntry model for open risks (identified/mitigating).
+    Fails if any high-RPN item (>60) has no mitigation_plan.
+    Warns if any high-RPN item is still in 'identified' status.
+
+    Standard: RISK-001 §5
+    Compliance: SOC 2 CC3.2, CC9.1
+    """
+    from syn.audit.models import RiskEntry
+
+    all_entries = RiskEntry.objects.all()
+    total = all_entries.count()
+    open_entries = all_entries.filter(status__in=["identified", "mitigating"])
+    open_count = open_entries.count()
+
+    high_without_mitigation = []
+    high_not_mitigating = []
+
+    for entry in open_entries.filter(rpn__gt=60):
+        if not entry.mitigation_plan.strip():
+            high_without_mitigation.append(
+                {"id": str(entry.id), "title": entry.title, "rpn": entry.rpn, "status": entry.status}
+            )
+        elif entry.status == "identified":
+            high_not_mitigating.append({"id": str(entry.id), "title": entry.title, "rpn": entry.rpn})
+
+    if high_without_mitigation:
+        status = "fail"
+    elif high_not_mitigating:
+        status = "warning"
+    else:
+        status = "pass"
+
+    return {
+        "status": status,
+        "details": {
+            "total_risks": total,
+            "open_risks": open_count,
+            "high_without_mitigation": high_without_mitigation,
+            "high_not_mitigating": high_not_mitigating,
+        },
+        "soc2_controls": ["CC3.2", "CC9.1"],
     }

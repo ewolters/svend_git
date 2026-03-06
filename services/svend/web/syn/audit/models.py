@@ -1741,6 +1741,91 @@ class AgentVote(models.Model):
 
 
 # ---------------------------------------------------------------------------
+# Risk Registry (RISK-001, FEAT-090)
+# ---------------------------------------------------------------------------
+
+
+class RiskEntry(models.Model):
+    """
+    Persistent risk register entry with FMEA-style RPN scoring.
+
+    Tracks identified risks beyond individual ChangeRequests — enables
+    trending, mitigation tracking, and compliance verification.
+
+    Standard: RISK-001 §3
+    Compliance: SOC 2 CC3.2 (Risk Assessment), CC9.1 (Risk Mitigation)
+    References: AS9100 §6.1, ISO 9001 §6.1, FDA 21 CFR 820.30(g)
+    """
+
+    CATEGORY_CHOICES = [
+        ("security", "Security"),
+        ("availability", "Availability"),
+        ("integrity", "Integrity"),
+        ("confidentiality", "Confidentiality"),
+        ("privacy", "Privacy"),
+        ("operational", "Operational"),
+        ("compliance", "Compliance"),
+    ]
+
+    STATUS_CHOICES = [
+        ("identified", "Identified"),
+        ("mitigating", "Mitigating"),
+        ("accepted", "Accepted"),
+        ("mitigated", "Mitigated"),
+        ("closed", "Closed"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    likelihood = models.IntegerField(help_text="1-5: probability of occurrence")
+    severity = models.IntegerField(help_text="1-5: impact if it occurs")
+    detectability = models.IntegerField(help_text="1-5: difficulty of detection (5=hardest)")
+    rpn = models.IntegerField(default=0, help_text="Risk Priority Number (L×S×D, max 125)")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="identified")
+    mitigation_plan = models.TextField(blank=True, default="")
+    owner = models.CharField(max_length=100, help_text="Person or role responsible")
+    source_cr = models.ForeignKey(
+        "ChangeRequest",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="risk_entries",
+        help_text="Originating ChangeRequest",
+    )
+    related_crs = models.JSONField(default=list, blank=True, help_text="UUIDs of related ChangeRequests")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "syn_audit_risk_entry"
+        ordering = ["-rpn", "-created_at"]
+        indexes = [
+            models.Index(fields=["status"], name="risk_entry_status"),
+            models.Index(fields=["-rpn"], name="risk_entry_rpn"),
+        ]
+        verbose_name = "Risk Entry"
+        verbose_name_plural = "Risk Entries"
+
+    def save(self, *args, **kwargs):
+        self.rpn = self.likelihood * self.severity * self.detectability
+        super().save(*args, **kwargs)
+
+    @property
+    def risk_level(self):
+        """Return risk level based on RPN thresholds."""
+        if self.rpn > 60:
+            return "high"
+        if self.rpn > 20:
+            return "medium"
+        return "low"
+
+    def __str__(self):
+        return f"[{self.risk_level.upper()}] {self.title} (RPN={self.rpn})"
+
+
+# ---------------------------------------------------------------------------
 # Calibration Reports (CAL-001)
 # ---------------------------------------------------------------------------
 
