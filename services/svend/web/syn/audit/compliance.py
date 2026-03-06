@@ -66,6 +66,77 @@ def get_all_soc2_controls():
 
 
 # ---------------------------------------------------------------------------
+# Severity weights for compliance checks — CMP-001 §7.5
+# Tiers: critical=3.0, high=2.0, medium=1.0, low=0.5
+# ---------------------------------------------------------------------------
+
+CHECK_SEVERITY = {
+    # critical (3.0): SOC 2 CC6/CC7/CC8 — direct security and integrity
+    "audit_integrity": 3.0,
+    "security_config": 3.0,
+    "access_logging": 3.0,
+    "change_management": 3.0,
+    "secret_management": 3.0,
+    "session_security": 3.0,
+    "permission_coverage": 3.0,
+    # high (2.0): configuration and access controls
+    "encryption_status": 2.0,
+    "ssl_tls": 2.0,
+    "dependency_vuln": 2.0,
+    "password_policy": 2.0,
+    "rate_limiting": 2.0,
+    "security_headers": 2.0,
+    "backup_freshness": 2.0,
+    "incident_readiness": 2.0,
+    "sla_compliance": 2.0,
+    "error_handling": 2.0,
+    # medium (1.0): process and coverage checks
+    "standards_compliance": 1.0,
+    "log_completeness": 1.0,
+    "data_retention": 1.0,
+    "privacy_data_export": 1.0,
+    "caching": 1.0,
+    "architecture": 1.0,
+    "architecture_map": 1.0,
+    "symbol_coverage": 1.0,
+    "statistical_calibration": 1.0,
+    "output_quality": 1.0,
+    "calibration_coverage": 1.0,
+    "endpoint_coverage": 1.0,
+    "complexity_governance": 1.0,
+    # low (0.5): administrative hygiene
+    "code_style": 0.5,
+    "roadmap": 0.5,
+    "policy_review": 0.5,
+}
+
+_DEFAULT_SEVERITY = 1.0
+
+
+def get_check_weight(name):
+    """Return severity weight for a check. Defaults to medium (1.0) if unlisted."""
+    return CHECK_SEVERITY.get(name, _DEFAULT_SEVERITY)
+
+
+def compute_weighted_pass_rate(check_statuses):
+    """Compute severity-weighted pass rate from check statuses.
+
+    Args:
+        check_statuses: {check_name: status} where status is pass/fail/warning/error.
+
+    Returns:
+        Weighted pass rate 0.0-100.0. Returns 0.0 if no checks provided.
+    """
+    if not check_statuses:
+        return 0.0
+    total_weight = sum(get_check_weight(name) for name in check_statuses)
+    if total_weight == 0:
+        return 0.0
+    passed_weight = sum(get_check_weight(name) for name, status in check_statuses.items() if status == "pass")
+    return round(passed_weight / total_weight * 100, 1)
+
+
+# ---------------------------------------------------------------------------
 # SOC 2 Control Matrix — all 44 controls mapped to compliance checks
 # ---------------------------------------------------------------------------
 
@@ -2486,6 +2557,14 @@ def generate_monthly_report():
                 "soc2_controls": latest.soc2_controls if latest else [],
             }
 
+    # Severity-weighted pass rate (CMP-001 §7.5)
+    period_statuses = {
+        name: info["latest_status"] for name, info in check_summary.items() if info["latest_status"] != "unknown"
+    }
+    weighted_pass_rate = compute_weighted_pass_rate(period_statuses)
+    for name, info in check_summary.items():
+        info["severity_weight"] = get_check_weight(name)
+
     # Build category summary
     category_summary = {}
     for name, info in check_summary.items():
@@ -2507,6 +2586,7 @@ def generate_monthly_report():
     full_report = {
         "check_summary": check_summary,
         "category_summary": category_summary,
+        "weighted_pass_rate": weighted_pass_rate,
         "soc2_controls_covered": sorted(all_controls),
         "total_controls_covered": len(all_controls),
     }
@@ -2520,6 +2600,7 @@ def generate_monthly_report():
             cat: {"pass_rate": data["pass_rate"], "status": "passing" if data["pass_rate"] >= 90 else "needs_attention"}
             for cat, data in category_summary.items()
         },
+        "weighted_pass_rate": weighted_pass_rate,
         "soc2_controls_covered": len(all_controls),
         "checks": {
             name: {

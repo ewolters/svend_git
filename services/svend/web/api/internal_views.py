@@ -3946,6 +3946,12 @@ def api_compliance(request):
         all_passed = checks_passed + standards_passed
         overall_rate = round(all_passed / all_total * 100, 1) if all_total > 0 else 0
 
+        # Severity-weighted pass rate (CMP-001 §7.5)
+        from syn.audit.compliance import compute_weighted_pass_rate
+
+        infra_statuses = {c["check_name"]: c["status"] for c in latest_checks if c["status"] != "pending"}
+        infra_weighted_pass_rate = compute_weighted_pass_rate(infra_statuses)
+
         return Response(
             {
                 "checks": latest_checks,
@@ -3954,6 +3960,7 @@ def api_compliance(request):
                     "total_checks_run": total_checks_run,
                     "checks_today": today_checks,
                     "overall_pass_rate": overall_rate,
+                    "infra_weighted_pass_rate": infra_weighted_pass_rate,
                     "infra_checks": checks_total,
                     "infra_passed": checks_passed,
                     "standards_assertions": standards_total,
