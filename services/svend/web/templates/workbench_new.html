@@ -3972,7 +3972,7 @@ function openBayesSigmaDialog(mode) {
             const tgt = document.getElementById('dlg-bs-target').value;
             if (tgt) config.target = parseFloat(tgt);
             closeModal();
-            runStatsAnalysis('spc', 'bayes_spc_capability', config, 'Bayesian Cpk');
+            runStatsAnalysis('viz', 'bayes_spc_capability', config, 'Bayesian Cpk');
         };
     } else if (mode === 'changepoint') {
         title = 'Bayesian Change Point Detection';
@@ -3982,7 +3982,7 @@ function openBayesSigmaDialog(mode) {
             <p style="color:#aaa;font-size:0.85em;margin-top:8px">Adams &amp; MacKay (2007) online algorithm. Finds process shifts without CUSUM/EWMA tuning.</p>`;
         onRun = () => {
             closeModal();
-            runStatsAnalysis('spc', 'bayes_spc_changepoint', {
+            runStatsAnalysis('viz', 'bayes_spc_changepoint', {
                 measurement: document.getElementById('dlg-bs-meas').value,
                 hazard_rate: parseFloat(document.getElementById('dlg-bs-hazard').value) || 0.01,
                 min_segment_length: parseInt(document.getElementById('dlg-bs-minseg').value) || 5
@@ -4002,7 +4002,7 @@ function openBayesSigmaDialog(mode) {
             if (rm) config.reference_mean = parseFloat(rm);
             if (rs) config.reference_std = parseFloat(rs);
             closeModal();
-            runStatsAnalysis('spc', 'bayes_spc_control', config, 'Bayesian Control Chart');
+            runStatsAnalysis('viz', 'bayes_spc_control', config, 'Bayesian Control Chart');
         };
     } else if (mode === 'acceptance') {
         title = 'Bayesian Acceptance Sampling';
@@ -4023,7 +4023,7 @@ function openBayesSigmaDialog(mode) {
             if (usl) config.usl = parseFloat(usl);
             if (lsl) config.lsl = parseFloat(lsl);
             closeModal();
-            runStatsAnalysis('spc', 'bayes_spc_acceptance', config, 'Bayesian Acceptance');
+            runStatsAnalysis('viz', 'bayes_spc_acceptance', config, 'Bayesian Acceptance');
         };
     }
     openModal(title, html, 'Run Analysis', onRun);
