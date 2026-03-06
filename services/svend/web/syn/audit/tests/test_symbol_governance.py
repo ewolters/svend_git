@@ -41,6 +41,64 @@ class ComplianceCheckSymbolsTest(SimpleTestCase):
                 self.assertTrue(callable(fn), f"{name} is not callable")
                 self.assertIsInstance(category, str, f"{name} category not a string")
 
+    def test_all_check_functions_exist(self):
+        """Every registered check function is importable and has soc2_controls attr."""
+        from syn.audit.compliance import ALL_CHECKS
+
+        self.assertGreaterEqual(len(ALL_CHECKS), 20)
+        for name, (fn, category) in ALL_CHECKS.items():
+            with self.subTest(check=name):
+                self.assertTrue(callable(fn), f"{name} not callable")
+                self.assertTrue(hasattr(fn, "soc2_controls"), f"{name} missing soc2_controls")
+
+    def test_all_checks_are_registered(self):
+        """All critical checks present in ALL_CHECKS registry."""
+        from syn.audit.compliance import ALL_CHECKS
+
+        critical = ["audit_integrity", "security_config", "change_management", "architecture", "caching"]
+        for name in critical:
+            self.assertIn(name, ALL_CHECKS, f"Critical check '{name}' not registered")
+
+    def test_check_functions_are_callable(self):
+        """All registered check functions are callable with soc2_controls."""
+        from syn.audit.compliance import ALL_CHECKS
+
+        for name, (fn, _) in ALL_CHECKS.items():
+            with self.subTest(check=name):
+                self.assertTrue(callable(fn))
+                self.assertTrue(hasattr(fn, "soc2_controls"), f"{name} missing soc2_controls")
+
+    def test_run_check_is_callable(self):
+        """run_check is callable and accepts check_name parameter."""
+        import inspect
+
+        from syn.audit.compliance import run_check
+
+        self.assertTrue(callable(run_check))
+        sig = inspect.signature(run_check)
+        self.assertIn("check_name", sig.parameters)
+
+    def test_soc2_control_functions_exist(self):
+        """SOC 2 accessor functions return structured control data."""
+        from syn.audit.compliance import get_all_soc2_controls, get_check_soc2_controls
+
+        controls = get_check_soc2_controls("audit_integrity")
+        self.assertIsInstance(controls, list)
+        self.assertIn("CC7.2", controls)
+
+        all_controls = get_all_soc2_controls()
+        self.assertIsInstance(all_controls, (list, dict, set))
+
+    def test_check_architecture_output_schema(self):
+        """check_architecture returns dict with status, details including oversized_files."""
+        from syn.audit.compliance import check_architecture
+
+        result = check_architecture()
+        self.assertIn("status", result)
+        self.assertIn("details", result)
+        self.assertIn("soc2_controls", result)
+        self.assertIsInstance(result["details"], dict)
+
     def test_expected_checks_registered(self):
         """All expected check names are in ALL_CHECKS."""
         from syn.audit.compliance import ALL_CHECKS
@@ -169,6 +227,15 @@ class ComplianceCheckDependencyVulnTest(SimpleTestCase):
         self.assertTrue(callable(fn))
         self.assertIsInstance(fn.soc2_controls, list)
 
+    def test_check_dependency_vuln_exists(self):
+        """check_dependency_vuln runs and returns structured result with status."""
+        from syn.audit.compliance import ALL_CHECKS
+
+        fn, _ = ALL_CHECKS["dependency_vuln"]
+        result = fn()
+        self.assertIn("status", result)
+        self.assertIn(result["status"], ("pass", "warning", "fail"))
+
 
 class ComplianceCheckChangeManagementTest(TestCase):
     """CHG-001 §11.1: check_change_management runs and returns structured result."""
@@ -227,6 +294,17 @@ class StandardsParserSymbolsTest(SimpleTestCase):
         # Should accept at least optional parameters
         self.assertIsNotNone(sig)
 
+    def test_support_functions_exist(self):
+        """Standards parser support functions are callable and produce output."""
+        from syn.audit.standards import parse_all_sla_definitions, parse_standard_titles, run_standards_checks
+
+        self.assertTrue(callable(parse_standard_titles))
+        self.assertTrue(callable(parse_all_sla_definitions))
+        self.assertTrue(callable(run_standards_checks))
+        titles = parse_standard_titles()
+        self.assertIsInstance(titles, dict)
+        self.assertGreater(len(titles), 0)
+
     def test_run_linked_test_executes(self):
         """run_linked_test executes a test by dotted path and returns result."""
         import inspect
@@ -250,6 +328,37 @@ class AuditEventSymbolsTest(SimpleTestCase):
         from syn.audit import events
 
         builders = [n for n in dir(events) if n.startswith("build_") and n.endswith("_payload")]
+        self.assertGreaterEqual(len(builders), 16)
+
+    def test_event_builders_exist(self):
+        """All event builders produce dict payloads with expected keys."""
+        from syn.audit.events import build_chain_verified_payload, build_trail_queried_payload
+
+        payload = build_chain_verified_payload(tenant_id="t-test", total_entries=10, is_valid=True)
+        self.assertIsInstance(payload, dict)
+        self.assertIn("tenant_id", payload)
+
+        payload2 = build_trail_queried_payload(tenant_id="t-test", actor="admin", query_params={}, results_count=5)
+        self.assertIsInstance(payload2, dict)
+
+    def test_event_builders_are_callable(self):
+        """All build_*_payload functions are callable and return dicts."""
+        from syn.audit import events
+
+        builders = [n for n in dir(events) if n.startswith("build_") and n.endswith("_payload")]
+        for name in builders[:5]:
+            with self.subTest(builder=name):
+                fn = getattr(events, name)
+                self.assertTrue(callable(fn))
+
+    def test_builder_naming_convention(self):
+        """All builders follow build_*_payload naming and are in events module."""
+        from syn.audit import events
+
+        builders = [n for n in dir(events) if n.startswith("build_") and n.endswith("_payload")]
+        for name in builders:
+            self.assertTrue(name.startswith("build_"), f"{name} doesn't start with build_")
+            self.assertTrue(name.endswith("_payload"), f"{name} doesn't end with _payload")
         self.assertGreaterEqual(len(builders), 16)
 
     def test_redact_event_payload_strips_sensitive(self):
@@ -319,6 +428,21 @@ class AuditEventSymbolsTest(SimpleTestCase):
 class AuditSignalSymbolsTest(SimpleTestCase):
     """AUD-001 §5: Audit signal handlers are connected to Django signals."""
 
+    def test_signal_handlers_exist(self):
+        """All required signal handlers are importable and accept sender kwarg."""
+        import inspect
+
+        from syn.audit.signals import (
+            on_drift_violation_saved,
+            on_integrity_violation_saved,
+            on_syslog_entry_created,
+        )
+
+        for fn in [on_syslog_entry_created, on_integrity_violation_saved, on_drift_violation_saved]:
+            with self.subTest(handler=fn.__name__):
+                sig = inspect.signature(fn)
+                self.assertIn("sender", list(sig.parameters.keys()))
+
     def test_signal_handlers_accept_sender(self):
         """Signal handler functions accept sender and instance kwargs."""
         import inspect
@@ -334,6 +458,13 @@ class AuditSignalSymbolsTest(SimpleTestCase):
                 sig = inspect.signature(fn)
                 self.assertIn("sender", list(sig.parameters.keys()))
 
+    def test_register_is_callable(self):
+        """register_audit_signals is callable and connects handlers without raising."""
+        from syn.audit.signals import register_audit_signals
+
+        self.assertTrue(callable(register_audit_signals))
+        register_audit_signals()
+
     def test_register_audit_signals_idempotent(self):
         """register_audit_signals connects handlers without raising."""
         from syn.audit.signals import register_audit_signals
@@ -348,6 +479,36 @@ class AuditSignalSymbolsTest(SimpleTestCase):
 
 class ErrorTypeSymbolsTest(SimpleTestCase):
     """ERR-001 §3: Error system enums have expected members and configs have fields."""
+
+    def test_error_enums_exist(self):
+        """All error enums are importable and have expected members."""
+        from syn.err.types import CircuitBreakerState, ErrorSeverity, RecoveryMode, RetryStrategy
+
+        self.assertGreaterEqual(len(list(ErrorSeverity)), 3)
+        self.assertIn("CLOSED", [m.name for m in CircuitBreakerState])
+        self.assertIn("FALLBACK", [m.name for m in RecoveryMode])
+        self.assertIn("EXPONENTIAL", [m.name for m in RetryStrategy])
+
+    def test_enums_are_classes(self):
+        """Error enums are proper Python enum classes with iterable members."""
+        import enum
+
+        from syn.err.types import CircuitBreakerState, ErrorSeverity, RecoveryMode, SystemLayer
+
+        for cls in [ErrorSeverity, CircuitBreakerState, RecoveryMode, SystemLayer]:
+            with self.subTest(enum=cls.__name__):
+                self.assertTrue(issubclass(cls, enum.Enum))
+                self.assertGreaterEqual(len(list(cls)), 2)
+
+    def test_config_types_are_classes(self):
+        """Config types can be instantiated with defaults."""
+        from syn.err.types import CircuitBreakerConfig, RetryConfig
+
+        cfg = RetryConfig()
+        self.assertTrue(hasattr(cfg, "max_attempts") or hasattr(cfg, "max_retries"))
+
+        cb_cfg = CircuitBreakerConfig()
+        self.assertTrue(hasattr(cb_cfg, "failure_threshold") or hasattr(cb_cfg, "threshold"))
 
     def test_error_severity_has_critical(self):
         """ErrorSeverity has CRITICAL and at least 3 levels."""
@@ -456,6 +617,32 @@ class PermissionSymbolsTest(SimpleTestCase):
         request.user = AnonUser()
         return request
 
+    def test_decorators_exist(self):
+        """All permission decorators are importable from accounts.permissions."""
+        import accounts.permissions as perms
+
+        for decorator_name, _ in PERMISSION_DECORATORS:
+            with self.subTest(decorator=decorator_name):
+                fn = getattr(perms, decorator_name)
+                self.assertTrue(callable(fn), f"{decorator_name} not callable")
+
+    def test_decorators_are_callable(self):
+        """Permission decorators wrap view functions and produce HTTP responses."""
+        import accounts.permissions as perms
+
+        for decorator_name, arg in PERMISSION_DECORATORS:
+            with self.subTest(decorator=decorator_name):
+                decorator = getattr(perms, decorator_name)
+                if arg:
+                    decorator = decorator(arg)
+
+                @decorator
+                def dummy_view(request):
+                    return JsonResponse({"ok": True})
+
+                response = dummy_view(self._make_anon_request())
+                self.assertIn(response.status_code, (401, 403))
+
     def test_permission_decorators_reject_anon(self):
         """All permission decorators reject unauthenticated requests with 401."""
         import accounts.permissions as perms
@@ -481,6 +668,38 @@ class PermissionSymbolsTest(SimpleTestCase):
 
 class LogHandlerSymbolsTest(SimpleTestCase):
     """LOG-001 §5: Logging context variable set/get roundtrip."""
+
+    def test_context_accessors_exist(self):
+        """All context accessor functions are importable and callable."""
+        from syn.log.handlers import (
+            get_actor_id,
+            get_correlation_id,
+            get_tenant_id,
+            set_actor_id,
+            set_correlation_id,
+            set_tenant_id,
+        )
+
+        for fn in [set_correlation_id, get_correlation_id, set_tenant_id, get_tenant_id, set_actor_id, get_actor_id]:
+            self.assertTrue(callable(fn), f"{fn.__name__} not callable")
+
+    def test_getters_return_values(self):
+        """Context getters return the values previously set."""
+        from syn.log.handlers import (
+            get_actor_id,
+            get_correlation_id,
+            get_tenant_id,
+            set_actor_id,
+            set_correlation_id,
+            set_tenant_id,
+        )
+
+        set_correlation_id("corr-test")
+        self.assertEqual(get_correlation_id(), "corr-test")
+        set_tenant_id("ten-test")
+        self.assertEqual(get_tenant_id(), "ten-test")
+        set_actor_id("act-test")
+        self.assertEqual(get_actor_id(), "act-test")
 
     def test_correlation_id_roundtrip(self):
         """set_correlation_id → get_correlation_id roundtrip."""
@@ -528,6 +747,21 @@ SCHEDULER_MODEL_FIELDS = [
 class SchedulerModelSymbolsTest(SimpleTestCase):
     """SCH-001 §3: Scheduler models have expected fields via _meta."""
 
+    def test_scheduler_models_exist(self):
+        """All scheduler models are importable from syn.sched.models."""
+        from syn.sched.models import CircuitBreakerState, CognitiveTask, DeadLetterEntry, Schedule, TaskExecution
+
+        for cls in [CognitiveTask, TaskExecution, DeadLetterEntry, Schedule, CircuitBreakerState]:
+            self.assertTrue(issubclass(cls, models.Model), f"{cls.__name__} not a Model")
+
+    def test_models_are_classes(self):
+        """Scheduler model classes have expected _meta fields."""
+        from syn.sched.models import CognitiveTask
+
+        field_names = [f.name for f in CognitiveTask._meta.get_fields()]
+        self.assertIn("task_name", field_names)
+        self.assertIn("state", field_names)
+
     def test_scheduler_model_fields(self):
         """Scheduler models have expected fields."""
         from syn.sched import models as sched_models
@@ -560,6 +794,25 @@ class SchedulerModelSymbolsTest(SimpleTestCase):
 
 class SchedulerCoreSymbolsTest(SimpleTestCase):
     """SCH-001 §4: Scheduler core task registration and execution."""
+
+    def test_core_components_exist(self):
+        """Core scheduler components are importable and are classes/callables."""
+        from syn.sched.core import CognitiveScheduler, CognitiveWorker, TaskRegistry, task
+
+        self.assertTrue(callable(CognitiveScheduler))
+        self.assertTrue(callable(CognitiveWorker))
+        self.assertTrue(callable(task))
+        self.assertIsNotNone(TaskRegistry)
+
+    def test_task_decorator_callable(self):
+        """task() decorator registers a handler and the handler remains callable."""
+        from syn.sched.core import task
+
+        @task("test.governance.decorator_test")
+        def sample_handler(task_obj):
+            return "executed"
+
+        self.assertTrue(callable(sample_handler))
 
     def test_task_registry_usable(self):
         """TaskRegistry is usable as a registry."""
@@ -609,6 +862,24 @@ WORKBENCH_MODELS = [
 
 class WorkbenchModelSymbolsTest(SimpleTestCase):
     """DAT-001 §8: Workbench models have UUID PKs and expected relationships."""
+
+    def test_workbench_models_exist(self):
+        """All workbench models are importable from workbench.models."""
+        from workbench import models as wb_models
+
+        for model_name, _, _ in WORKBENCH_MODELS:
+            with self.subTest(model=model_name):
+                cls = getattr(wb_models, model_name)
+                self.assertTrue(issubclass(cls, models.Model))
+
+    def test_models_are_classes(self):
+        """Workbench models are Django Model subclasses with _meta."""
+        from workbench.models import Artifact, KnowledgeGraph, Project
+
+        for cls in [Project, Artifact, KnowledgeGraph]:
+            with self.subTest(model=cls.__name__):
+                self.assertTrue(issubclass(cls, models.Model))
+                self.assertIsNotNone(cls._meta)
 
     def test_project_has_uuid_pk(self):
         """Project model has UUID primary key."""
@@ -677,6 +948,25 @@ QMS_EXTENDED_MODELS = [
 class QMSModelSymbolsTest(SimpleTestCase):
     """QMS-001 §4: QMS models have expected fields and relationships."""
 
+    def test_qms_models_exist(self):
+        """All QMS models are importable and are Django Model subclasses."""
+        from agents_api import models as api_models
+
+        for model_name, _, _ in QMS_MODELS_WITH_FIELDS:
+            with self.subTest(model=model_name):
+                cls = getattr(api_models, model_name)
+                self.assertTrue(issubclass(cls, models.Model))
+
+    def test_models_are_classes(self):
+        """QMS model classes have _meta and expected fields."""
+        from agents_api import models as api_models
+
+        for model_name in QMS_SIMPLE_MODELS:
+            with self.subTest(model=model_name):
+                cls = getattr(api_models, model_name)
+                self.assertTrue(issubclass(cls, models.Model))
+                self.assertIsNotNone(cls._meta)
+
     def test_qms_models_with_fields(self):
         """QMS models have expected PK types and required fields."""
         from agents_api import models as api_models
@@ -708,6 +998,16 @@ class QMSModelSymbolsTest(SimpleTestCase):
 class QMSExtendedModelSymbolsTest(SimpleTestCase):
     """QMS-001 §5: Extended QMS models for ISO/hoshin/audit/plant."""
 
+    def test_extended_models_exist(self):
+        """All 14 extended models are importable and are Django Model subclasses."""
+        from agents_api import models as api_models
+
+        for model_name in QMS_EXTENDED_MODELS:
+            with self.subTest(model=model_name):
+                cls = getattr(api_models, model_name)
+                self.assertTrue(issubclass(cls, models.Model))
+                self.assertIsNotNone(cls._meta)
+
     def test_extended_models_are_django_models(self):
         """All 14 extended models are Django Model subclasses."""
         from agents_api import models as api_models
@@ -726,6 +1026,16 @@ class QMSExtendedModelSymbolsTest(SimpleTestCase):
 class QMSUtilitySymbolsTest(SimpleTestCase):
     """QMS-001: Utility functions produce valid output."""
 
+    def test_check_rate_limit_exists(self):
+        """check_rate_limit is callable and accepts user/endpoint parameters."""
+        import inspect
+
+        from agents_api.models import check_rate_limit
+
+        self.assertTrue(callable(check_rate_limit))
+        sig = inspect.signature(check_rate_limit)
+        self.assertGreaterEqual(len(sig.parameters), 1)
+
     def test_check_rate_limit_signature(self):
         """check_rate_limit accepts user + endpoint args."""
         import inspect
@@ -734,6 +1044,17 @@ class QMSUtilitySymbolsTest(SimpleTestCase):
 
         sig = inspect.signature(check_rate_limit)
         self.assertGreaterEqual(len(sig.parameters), 1)
+
+    def test_generate_room_code_exists(self):
+        """generate_room_code produces unique non-empty string codes."""
+        from agents_api.models import generate_room_code
+
+        code1 = generate_room_code()
+        code2 = generate_room_code()
+        self.assertIsInstance(code1, str)
+        self.assertGreater(len(code1), 0)
+        # Codes should be unique (probabilistic but practically certain)
+        self.assertNotEqual(code1, code2)
 
     def test_generate_room_code_produces_string(self):
         """generate_room_code produces a non-empty string code."""

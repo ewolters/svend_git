@@ -78,6 +78,20 @@ class TierConstantsTest(TestCase):
         for tier in PAID_TIERS:
             self.assertTrue(is_paid_tier(tier), f"{tier} should be a paid tier")
 
+    def test_tier_limits_has_entry_for_each_tier(self):
+        """TIER_LIMITS has an entry for every Tier enum value."""
+        for tier in ALL_TIERS:
+            self.assertIn(tier, TIER_LIMITS, f"TIER_LIMITS missing entry for {tier}")
+            self.assertIsInstance(TIER_LIMITS[tier], int)
+            self.assertGreater(TIER_LIMITS[tier], 0)
+
+    def test_tier_features_has_entry_for_each_tier(self):
+        """TIER_FEATURES has an entry for every Tier enum value with feature mappings."""
+        for tier in ALL_TIERS:
+            self.assertIn(tier, TIER_FEATURES, f"TIER_FEATURES missing entry for {tier}")
+            self.assertIsInstance(TIER_FEATURES[tier], (dict, list, set, tuple))
+            self.assertGreater(len(TIER_FEATURES[tier]), 0)
+
     def test_get_daily_limit_known_tiers(self):
         """get_daily_limit should return the correct value for each tier."""
         self.assertEqual(get_daily_limit(Tier.FREE), 5)

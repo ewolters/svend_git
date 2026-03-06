@@ -31,6 +31,25 @@ WEB_ROOT = Path(settings.BASE_DIR)
 class CacheMiddlewareTest(SimpleTestCase):
     """CACHE-001 §4: HTTP cache control middleware."""
 
+    def test_no_cache_middleware_present(self):
+        """NoCacheDynamicMiddleware is in MIDDLEWARE and sets Cache-Control on responses."""
+        from accounts.middleware import NoCacheDynamicMiddleware
+
+        self.assertIn(
+            "accounts.middleware.NoCacheDynamicMiddleware",
+            settings.MIDDLEWARE,
+            "NoCacheDynamicMiddleware not in MIDDLEWARE",
+        )
+        # Functional: verify the middleware sets Cache-Control on a bare response
+        from django.http import HttpRequest, HttpResponse
+
+        def dummy_get_response(request):
+            return HttpResponse("ok")
+
+        mw = NoCacheDynamicMiddleware(dummy_get_response)
+        response = mw(HttpRequest())
+        self.assertIn("no-store", response["Cache-Control"])
+
     def test_middleware_position(self):
         """WhiteNoise comes before NoCacheDynamic in MIDDLEWARE."""
         issues = _check_cache_middleware(WEB_ROOT)
@@ -69,27 +88,31 @@ class AppCacheTest(SimpleTestCase):
         self.assertEqual(IDEMPOTENCY_TTL_HOURS, 24)
 
 
-# ── In-Memory Cache Bounds (subTest pattern) ─────────────────────────────
-
-CACHE_BOUNDS = [
-    ("agents_api.dsw_views", "MODEL_CACHE_MAX_SIZE", 1, 500),
-    ("agents_api.spc_views", "_CACHE_MAX_SIZE", 1, 1000),
-    ("agents_api.synara_views", "_SYNARA_CACHE_MAX", 1, 500),
-    ("agents_api.problem_views", "_INTERVIEW_CACHE_MAX", 1, 500),
-]
-
-
 class MemoryCacheTest(SimpleTestCase):
     """CACHE-001 §6: In-memory caches have size bounds."""
 
-    def test_cache_constants_within_bounds(self):
-        """All known cache constants are within expected min/max bounds."""
-        for module_path, attr_name, min_val, max_val in CACHE_BOUNDS:
-            with self.subTest(cache=f"{module_path}.{attr_name}"):
-                module = importlib.import_module(module_path)
-                value = getattr(module, attr_name)
-                self.assertGreaterEqual(value, min_val)
-                self.assertLessEqual(value, max_val)
+    def _assert_cache_bounded(self, module_path, attr_name, min_val, max_val):
+        """Verify a cache constant exists and is within bounds."""
+        module = importlib.import_module(module_path)
+        value = getattr(module, attr_name)
+        self.assertGreaterEqual(value, min_val, f"{module_path}.{attr_name}={value} < {min_val}")
+        self.assertLessEqual(value, max_val, f"{module_path}.{attr_name}={value} > {max_val}")
+
+    def test_dsw_cache_has_bounds(self):
+        """DSW model cache (MODEL_CACHE_MAX_SIZE) is bounded."""
+        self._assert_cache_bounded("agents_api.dsw_views", "MODEL_CACHE_MAX_SIZE", 1, 500)
+
+    def test_spc_cache_has_bounds(self):
+        """SPC parsed data cache (_CACHE_MAX_SIZE) is bounded."""
+        self._assert_cache_bounded("agents_api.spc_views", "_CACHE_MAX_SIZE", 1, 1000)
+
+    def test_synara_cache_has_bounds(self):
+        """Synara session cache (_SYNARA_CACHE_MAX) is bounded."""
+        self._assert_cache_bounded("agents_api.synara_views", "_SYNARA_CACHE_MAX", 1, 500)
+
+    def test_interview_cache_has_bounds(self):
+        """Interview session cache (_INTERVIEW_CACHE_MAX) is bounded."""
+        self._assert_cache_bounded("agents_api.problem_views", "_INTERVIEW_CACHE_MAX", 1, 500)
 
     def test_all_known_caches_checked(self):
         """All known in-memory caches are in the compliance check inventory."""
@@ -110,7 +133,7 @@ class MemoryCacheTest(SimpleTestCase):
 class SessionCacheTest(TestCase):
     """CACHE-001 §5.3: SessionCache JSON-only serialization."""
 
-    def test_session_cache_set_stores_json(self):
+    def test_session_cache_json_only(self):
         """SessionCache.set stores as JSON value_type, not pickle."""
         from agents_api.cache import SessionCache
         from agents_api.models import CacheEntry
@@ -127,7 +150,7 @@ class SessionCacheTest(TestCase):
         self.assertEqual(json.loads(raw), {"key": "value"})
         entry.delete()
 
-    def test_session_cache_namespaces(self):
+    def test_session_cache_has_namespaces(self):
         """SessionCache supports synara and model namespaces."""
         from agents_api.cache import ModelCache, SynaraCache
 
@@ -213,6 +236,11 @@ class CheckRegistrationTest(SimpleTestCase):
 
     def test_check_registered(self):
         self.assertIn("caching", ALL_CHECKS)
+
+    def test_check_is_callable(self):
+        """Caching compliance check function is callable."""
+        fn, _category = ALL_CHECKS["caching"]
+        self.assertTrue(callable(fn), "check_caching is not callable")
 
     def test_check_returns_valid_structure(self):
         """Caching compliance check returns dict with status, details, soc2_controls."""
