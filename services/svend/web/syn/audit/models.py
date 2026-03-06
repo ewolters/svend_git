@@ -41,8 +41,7 @@ class SysLogEntry(SynaraImmutableLog):
     timestamp = models.DateTimeField(default=timezone.now, db_index=True, help_text="When this log entry was created")
 
     actor = models.CharField(
-        max_length=255, db_index=True, default="system",
-        help_text="User or system component that performed the action"
+        max_length=255, db_index=True, default="system", help_text="User or system component that performed the action"
     )
 
     event_name = models.CharField(max_length=255, db_index=True, help_text="Name of the event being logged")
@@ -106,14 +105,13 @@ class SysLogEntry(SynaraImmutableLog):
         """
         # Enforce immutability: prevent updates
         if self.pk is not None:
-            raise ValidationError(
-                "Audit log entries are immutable and cannot be modified. " "Create a new entry instead."
-            )
+            raise ValidationError("Audit log entries are immutable and cannot be modified. Create a new entry instead.")
 
         # CTG-001 §5: Validate correlation_id is provided
         # Log warning if missing (field allows null for legacy compatibility)
         if not self.correlation_id:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.warning(
                 f"[AUDIT] SysLogEntry created without correlation_id: "
@@ -280,7 +278,9 @@ class IntegrityViolation(SynaraImmutableLog):
 
     detected_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="When the violation was detected")
 
-    tenant_id = models.UUIDField(db_index=True, null=True, blank=True, help_text="Tenant affected by the violation (SEC-001 §5.2)")
+    tenant_id = models.UUIDField(
+        db_index=True, null=True, blank=True, help_text="Tenant affected by the violation (SEC-001 §5.2)"
+    )
 
     violation_type = models.CharField(
         max_length=50,
@@ -297,7 +297,9 @@ class IntegrityViolation(SynaraImmutableLog):
 
     details = models.JSONField(default=dict, help_text="Detailed information about the violation")
 
-    is_resolved = models.BooleanField(default=False, help_text="Whether this violation has been investigated and resolved")
+    is_resolved = models.BooleanField(
+        default=False, help_text="Whether this violation has been investigated and resolved"
+    )
 
     resolved_at = models.DateTimeField(null=True, blank=True, help_text="When the violation was resolved")
 
@@ -360,214 +362,145 @@ class DriftViolation(SynaraImmutableLog):
     # ========== Identity ==========
 
     id = models.UUIDField(
-        primary_key=True,
-        default=uuid.uuid4,
-        editable=False,
-        help_text="Unique identifier for this drift violation"
+        primary_key=True, default=uuid.uuid4, editable=False, help_text="Unique identifier for this drift violation"
     )
 
     drift_signature = models.CharField(
         max_length=64,
         unique=True,
         db_index=True,
-        help_text="Unique hash signature of this drift violation (prevents duplicates)"
+        help_text="Unique hash signature of this drift violation (prevents duplicates)",
     )
 
     # ========== Classification ==========
 
     severity = models.CharField(
-        max_length=10,
-        choices=SEVERITY_CHOICES,
-        db_index=True,
-        help_text="Severity level of the drift violation"
+        max_length=10, choices=SEVERITY_CHOICES, db_index=True, help_text="Severity level of the drift violation"
     )
 
     enforcement_check = models.CharField(
         max_length=20,
         choices=ENFORCEMENT_CHECK_CHOICES,
         db_index=True,
-        help_text="Enforcement check that detected this violation"
+        help_text="Enforcement check that detected this violation",
     )
 
     # ========== Location ==========
 
-    file_path = models.CharField(
-        max_length=512,
-        db_index=True,
-        help_text="File path where the violation was detected"
-    )
+    file_path = models.CharField(max_length=512, db_index=True, help_text="File path where the violation was detected")
 
-    line_number = models.IntegerField(
-        null=True,
-        blank=True,
-        help_text="Line number where the violation was detected"
-    )
+    line_number = models.IntegerField(null=True, blank=True, help_text="Line number where the violation was detected")
 
     function_name = models.CharField(
         max_length=255,
         null=True,
         blank=True,
         db_index=True,
-        help_text="Function or class name where the violation was detected"
+        help_text="Function or class name where the violation was detected",
     )
 
     # ========== Detection Metadata ==========
 
     detected_at = models.DateTimeField(
-        default=timezone.now,
-        db_index=True,
-        help_text="When this violation was detected"
+        default=timezone.now, db_index=True, help_text="When this violation was detected"
     )
 
-    detected_by = models.CharField(
-        max_length=255,
-        help_text="System or user that detected the violation"
-    )
+    detected_by = models.CharField(max_length=255, help_text="System or user that detected the violation")
 
     # ========== Git Context ==========
 
     git_commit_sha = models.CharField(
-        max_length=40,
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="Git commit SHA where the violation was detected"
+        max_length=40, null=True, blank=True, db_index=True, help_text="Git commit SHA where the violation was detected"
     )
 
     git_author = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True,
-        help_text="Git commit author (for accountability)"
+        max_length=255, null=True, blank=True, help_text="Git commit author (for accountability)"
     )
 
     # ========== Violation Details ==========
 
-    violation_message = models.TextField(
-        help_text="Human-readable description of the violation"
-    )
+    violation_message = models.TextField(help_text="Human-readable description of the violation")
 
-    code_snippet = models.TextField(
-        null=True,
-        blank=True,
-        help_text="Code snippet showing the violation"
-    )
+    code_snippet = models.TextField(null=True, blank=True, help_text="Code snippet showing the violation")
 
     canonical_pattern = models.TextField(
-        null=True,
-        blank=True,
-        help_text="Description or example of the canonical pattern"
+        null=True, blank=True, help_text="Description or example of the canonical pattern"
     )
 
     # ========== Remediation ==========
 
     is_remediation_available = models.BooleanField(
-        default=False,
-        help_text="Whether automated remediation is available"
+        default=False, help_text="Whether automated remediation is available"
     )
 
     is_auto_fix_safe = models.BooleanField(
-        default=False,
-        help_text="Whether automated fix can be safely applied without review"
+        default=False, help_text="Whether automated fix can be safely applied without review"
     )
 
     remediation_script = models.CharField(
-        max_length=512,
-        null=True,
-        blank=True,
-        help_text="Path to remediation script or tool"
+        max_length=512, null=True, blank=True, help_text="Path to remediation script or tool"
     )
 
     remediation_sla_hours = models.IntegerField(
-        null=True,
-        blank=True,
-        help_text="SLA hours for remediation based on severity"
+        null=True, blank=True, help_text="SLA hours for remediation based on severity"
     )
 
     remediation_due_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="When remediation is due (detected_at + SLA)"
+        null=True, blank=True, db_index=True, help_text="When remediation is due (detected_at + SLA)"
     )
 
     is_sla_breached = models.BooleanField(
-        default=False,
-        db_index=True,
-        help_text="Whether the remediation SLA has been breached"
+        default=False, db_index=True, help_text="Whether the remediation SLA has been breached"
     )
 
     # ========== Governance Integration ==========
 
     is_governance_escalated = models.BooleanField(
-        default=False,
-        db_index=True,
-        help_text="Whether this violation has been escalated to governance"
+        default=False, db_index=True, help_text="Whether this violation has been escalated to governance"
     )
 
     governance_rule_id = models.UUIDField(
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="Governance rule UUID (FK removed for Svend integration)"
+        null=True, blank=True, db_index=True, help_text="Governance rule UUID (FK removed for Svend integration)"
     )
 
     governance_judgment_id = models.UUIDField(
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="Governance judgment UUID (FK removed for Svend integration)"
+        null=True, blank=True, db_index=True, help_text="Governance judgment UUID (FK removed for Svend integration)"
     )
 
     # ========== Causal Trace Graph Integration ==========
 
     correlation_id = models.UUIDField(
-        db_index=True,
-        default=uuid.uuid4,
-        help_text="Correlation ID for causal trace graph"
+        db_index=True, default=uuid.uuid4, help_text="Correlation ID for causal trace graph"
     )
 
     ctg_node_id = models.UUIDField(
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="CTG node UUID (FK removed for Svend integration)"
+        null=True, blank=True, db_index=True, help_text="CTG node UUID (FK removed for Svend integration)"
     )
 
     # ========== Multi-Tenancy ==========
 
     tenant_id = models.UUIDField(
-        db_index=True,
-        null=True,
-        blank=True,
-        help_text="Tenant identifier for multi-tenant deployments"
+        db_index=True, null=True, blank=True, help_text="Tenant identifier for multi-tenant deployments"
     )
 
     # ========== Resolution ==========
 
     resolved_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="When this violation was resolved"
+        null=True, blank=True, db_index=True, help_text="When this violation was resolved"
     )
 
     resolved_by = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True,
-        help_text="User or system that resolved the violation"
+        max_length=255, null=True, blank=True, help_text="User or system that resolved the violation"
     )
 
-    resolution_notes = models.TextField(
-        blank=True,
-        help_text="Notes about how the violation was resolved"
-    )
+    resolution_notes = models.TextField(blank=True, help_text="Notes about how the violation was resolved")
 
     # UUID chain backlink — which ChangeRequest remediates this violation
     remediation_change_id = models.UUIDField(
-        null=True, blank=True, db_index=True,
-        help_text="UUID of the ChangeRequest that remediates this violation (CHG-001 §8.4)"
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="UUID of the ChangeRequest that remediates this violation (CHG-001 §8.4)",
     )
 
     class Meta(SynaraImmutableLog.Meta):
@@ -606,9 +539,13 @@ class DriftViolation(SynaraImmutableLog):
     # Fields that may be updated post-creation (resolution tracking).
     # All other fields are immutable per SynaraImmutableLog contract.
     MUTABLE_FIELDS = {
-        "resolved_at", "resolved_by", "resolution_notes",
-        "remediation_change_id", "is_sla_breached",
-        "is_governance_escalated", "governance_judgment_id",
+        "resolved_at",
+        "resolved_by",
+        "resolution_notes",
+        "remediation_change_id",
+        "is_sla_breached",
+        "is_governance_escalated",
+        "governance_judgment_id",
     }
 
     def save(self, *args, **kwargs):
@@ -636,6 +573,7 @@ class DriftViolation(SynaraImmutableLog):
         # New record — compute derived fields before creation
         if self.remediation_sla_hours and not self.remediation_due_at:
             from datetime import timedelta
+
             self.remediation_due_at = self.detected_at + timedelta(hours=self.remediation_sla_hours)
 
         if self.remediation_due_at and not self.resolved_at:
@@ -686,8 +624,10 @@ class ComplianceCheck(models.Model):
 
     # UUID chain backlink — which ChangeRequest remediates this finding
     remediation_change_id = models.UUIDField(
-        null=True, blank=True, db_index=True,
-        help_text="UUID of the ChangeRequest that remediates this finding (CHG-001 §8.4)"
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="UUID of the ChangeRequest that remediates this finding (CHG-001 §8.4)",
     )
 
     class Meta:
@@ -714,21 +654,10 @@ class HealthPing(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     timestamp = models.DateTimeField(default=timezone.now, db_index=True)
-    is_healthy = models.BooleanField(
-        help_text="True if /api/health/ returned 200 with expected JSON"
-    )
-    status_code = models.IntegerField(
-        null=True, blank=True,
-        help_text="HTTP status code (null if connection failed)"
-    )
-    response_time_ms = models.FloatField(
-        null=True, blank=True,
-        help_text="Response time in milliseconds"
-    )
-    error = models.CharField(
-        max_length=500, blank=True, default="",
-        help_text="Error message if ping failed"
-    )
+    is_healthy = models.BooleanField(help_text="True if /api/health/ returned 200 with expected JSON")
+    status_code = models.IntegerField(null=True, blank=True, help_text="HTTP status code (null if connection failed)")
+    response_time_ms = models.FloatField(null=True, blank=True, help_text="Response time in milliseconds")
+    error = models.CharField(max_length=500, blank=True, default="", help_text="Error message if ping failed")
 
     class Meta:
         db_table = "audit_health_ping"
@@ -793,22 +722,14 @@ class Incident(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    title = models.CharField(
-        max_length=255,
-        help_text="Short description of the incident"
-    )
+    title = models.CharField(max_length=255, help_text="Short description of the incident")
 
-    description = models.TextField(
-        help_text="Detailed description of the incident and its impact"
-    )
+    description = models.TextField(help_text="Detailed description of the incident and its impact")
 
     # ========== Classification ==========
 
     severity = models.CharField(
-        max_length=10,
-        choices=SEVERITY_CHOICES,
-        db_index=True,
-        help_text="Incident severity (INC-001 §3.1)"
+        max_length=10, choices=SEVERITY_CHOICES, db_index=True, help_text="Incident severity (INC-001 §3.1)"
     )
 
     status = models.CharField(
@@ -816,61 +737,35 @@ class Incident(models.Model):
         choices=STATUS_CHOICES,
         default="detected",
         db_index=True,
-        help_text="Current lifecycle state (INC-001 §5.1)"
+        help_text="Current lifecycle state (INC-001 §5.1)",
     )
 
     category = models.CharField(
-        max_length=15,
-        choices=CATEGORY_CHOICES,
-        default="other",
-        help_text="Incident category (INC-001 §3.2)"
+        max_length=15, choices=CATEGORY_CHOICES, default="other", help_text="Incident category (INC-001 §3.2)"
     )
 
     # ========== Lifecycle Timestamps (INC-001 §5.3) ==========
 
-    detected_at = models.DateTimeField(
-        default=timezone.now,
-        help_text="When the incident was detected"
-    )
+    detected_at = models.DateTimeField(default=timezone.now, help_text="When the incident was detected")
 
-    acknowledged_at = models.DateTimeField(
-        null=True, blank=True,
-        help_text="When staff acknowledged the incident"
-    )
+    acknowledged_at = models.DateTimeField(null=True, blank=True, help_text="When staff acknowledged the incident")
 
-    investigating_at = models.DateTimeField(
-        null=True, blank=True,
-        help_text="When investigation began"
-    )
+    investigating_at = models.DateTimeField(null=True, blank=True, help_text="When investigation began")
 
-    mitigating_at = models.DateTimeField(
-        null=True, blank=True,
-        help_text="When mitigation/fix began"
-    )
+    mitigating_at = models.DateTimeField(null=True, blank=True, help_text="When mitigation/fix began")
 
-    resolved_at = models.DateTimeField(
-        null=True, blank=True,
-        help_text="When the incident was resolved"
-    )
+    resolved_at = models.DateTimeField(null=True, blank=True, help_text="When the incident was resolved")
 
     closed_at = models.DateTimeField(
-        null=True, blank=True,
-        help_text="When post-mortem was completed and incident closed"
+        null=True, blank=True, help_text="When post-mortem was completed and incident closed"
     )
 
     # ========== Actors ==========
 
-    reported_by = models.CharField(
-        max_length=255,
-        default="system",
-        help_text="Who or what reported the incident"
-    )
+    reported_by = models.CharField(max_length=255, default="system", help_text="Who or what reported the incident")
 
     assigned_to = models.CharField(
-        max_length=255,
-        blank=True,
-        default="",
-        help_text="Staff member assigned to the incident"
+        max_length=255, blank=True, default="", help_text="Staff member assigned to the incident"
     )
 
     # ========== Linking ==========
@@ -881,29 +776,21 @@ class Incident(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="incidents",
-        help_text="Remediation ChangeRequest (INC-001 §8.3)"
+        help_text="Remediation ChangeRequest (INC-001 §8.3)",
     )
 
     correlation_id = models.UUIDField(
-        null=True, blank=True, db_index=True,
-        help_text="Correlation ID for audit trail linkage"
+        null=True, blank=True, db_index=True, help_text="Correlation ID for audit trail linkage"
     )
 
     # ========== Resolution ==========
 
-    root_cause = models.TextField(
-        blank=True, default="",
-        help_text="Root cause analysis (INC-001 §8.2)"
-    )
+    root_cause = models.TextField(blank=True, default="", help_text="Root cause analysis (INC-001 §8.2)")
 
-    resolution_summary = models.TextField(
-        blank=True, default="",
-        help_text="How the incident was resolved"
-    )
+    resolution_summary = models.TextField(blank=True, default="", help_text="How the incident was resolved")
 
     post_mortem_notes = models.TextField(
-        blank=True, default="",
-        help_text="Post-mortem analysis, lessons learned, prevention measures"
+        blank=True, default="", help_text="Post-mortem analysis, lessons learned, prevention measures"
     )
 
     class Meta:
@@ -976,51 +863,24 @@ class IncidentLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     incident = models.ForeignKey(
-        Incident,
-        on_delete=models.CASCADE,
-        related_name="logs",
-        help_text="The incident this log entry belongs to"
+        Incident, on_delete=models.CASCADE, related_name="logs", help_text="The incident this log entry belongs to"
     )
 
-    timestamp = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="When this log entry was created"
-    )
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True, help_text="When this log entry was created")
 
-    actor = models.CharField(
-        max_length=255,
-        help_text="Who or what created this log entry"
-    )
+    actor = models.CharField(max_length=255, help_text="Who or what created this log entry")
 
     action = models.CharField(
-        max_length=20,
-        choices=ACTION_CHOICES,
-        db_index=True,
-        help_text="Type of action being logged"
+        max_length=20, choices=ACTION_CHOICES, db_index=True, help_text="Type of action being logged"
     )
 
-    from_state = models.CharField(
-        max_length=20,
-        blank=True,
-        help_text="Previous state of the incident"
-    )
+    from_state = models.CharField(max_length=20, blank=True, help_text="Previous state of the incident")
 
-    to_state = models.CharField(
-        max_length=20,
-        blank=True,
-        help_text="New state of the incident"
-    )
+    to_state = models.CharField(max_length=20, blank=True, help_text="New state of the incident")
 
-    details = models.JSONField(
-        default=dict,
-        help_text="Structured details: severity change, CR link, etc."
-    )
+    details = models.JSONField(default=dict, help_text="Structured details: severity change, CR link, etc.")
 
-    message = models.TextField(
-        blank=True,
-        help_text="Human-readable description of what happened"
-    )
+    message = models.TextField(blank=True, help_text="Human-readable description of what happened")
 
     class Meta:
         db_table = "syn_audit_incident_log"
@@ -1034,7 +894,11 @@ class IncidentLog(models.Model):
         default_permissions = ("add", "view")  # Immutable — no change/delete
 
     def __str__(self):
-        return f"[{self.timestamp}] {self.action}: {self.message[:80]}" if self.message else f"[{self.timestamp}] {self.action}"
+        return (
+            f"[{self.timestamp}] {self.action}: {self.message[:80]}"
+            if self.message
+            else f"[{self.timestamp}] {self.action}"
+        )
 
     def save(self, *args, **kwargs):
         """Enforce immutability — prevent updates to existing log entries."""
@@ -1149,22 +1013,14 @@ class ChangeRequest(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    title = models.CharField(
-        max_length=255,
-        help_text="Short description of the change"
-    )
+    title = models.CharField(max_length=255, help_text="Short description of the change")
 
-    description = models.TextField(
-        help_text="Detailed description of what is being changed and why"
-    )
+    description = models.TextField(help_text="Detailed description of what is being changed and why")
 
     # ========== Classification ==========
 
     change_type = models.CharField(
-        max_length=20,
-        choices=CHANGE_TYPE_CHOICES,
-        db_index=True,
-        help_text="Category of change (CHG-001 §4.1)"
+        max_length=20, choices=CHANGE_TYPE_CHOICES, db_index=True, help_text="Category of change (CHG-001 §4.1)"
     )
 
     risk_level = models.CharField(
@@ -1172,14 +1028,11 @@ class ChangeRequest(models.Model):
         choices=RISK_LEVEL_CHOICES,
         default="medium",
         db_index=True,
-        help_text="Risk classification (CHG-001 §4.2)"
+        help_text="Risk classification (CHG-001 §4.2)",
     )
 
     priority = models.CharField(
-        max_length=10,
-        choices=PRIORITY_CHOICES,
-        default="medium",
-        help_text="Priority level per DEBT-001.md"
+        max_length=10, choices=PRIORITY_CHOICES, default="medium", help_text="Priority level per DEBT-001.md"
     )
 
     status = models.CharField(
@@ -1187,114 +1040,65 @@ class ChangeRequest(models.Model):
         choices=STATUS_CHOICES,
         default="draft",
         db_index=True,
-        help_text="Current lifecycle state (CHG-001 §5.1)"
+        help_text="Current lifecycle state (CHG-001 §5.1)",
     )
 
     is_emergency = models.BooleanField(
-        default=False,
-        db_index=True,
-        help_text="Emergency change flag — bypasses normal approval (CHG-001 §9)"
+        default=False, db_index=True, help_text="Emergency change flag — bypasses normal approval (CHG-001 §9)"
     )
 
     # ========== Planning ==========
 
-    justification = models.TextField(
-        blank=True,
-        help_text="Business justification for the change"
-    )
+    justification = models.TextField(blank=True, help_text="Business justification for the change")
 
-    affected_files = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="List of files to be modified"
-    )
+    affected_files = models.JSONField(default=list, blank=True, help_text="List of files to be modified")
 
-    implementation_plan = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Steps for implementing the change"
-    )
+    implementation_plan = models.JSONField(default=dict, blank=True, help_text="Steps for implementing the change")
 
-    rollback_plan = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Steps for reverting the change if it fails"
-    )
+    rollback_plan = models.JSONField(default=dict, blank=True, help_text="Steps for reverting the change if it fails")
 
     testing_plan = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Steps for verifying the change after implementation"
+        default=dict, blank=True, help_text="Steps for verifying the change after implementation"
     )
 
     # ========== Planning Linkage (CHG-001 §5.6.1) ==========
 
     feature_id = models.UUIDField(
-        null=True, blank=True, db_index=True,
-        help_text="Feature UUID from planning system (FEAT-xxx)"
+        null=True, blank=True, db_index=True, help_text="Feature UUID from planning system (FEAT-xxx)"
     )
 
     task_id = models.UUIDField(
-        null=True, blank=True, db_index=True,
-        help_text="PlanTask UUID from planning system (TASK-xxx)"
+        null=True, blank=True, db_index=True, help_text="PlanTask UUID from planning system (TASK-xxx)"
     )
 
     # ========== Linking ==========
 
-    issue_url = models.URLField(
-        blank=True,
-        help_text="Link to source issue (GitHub, internal tracker)"
-    )
+    issue_url = models.URLField(blank=True, help_text="Link to source issue (GitHub, internal tracker)")
 
     parent_change_id = models.UUIDField(
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="Parent change request (for sub-tasks)"
+        null=True, blank=True, db_index=True, help_text="Parent change request (for sub-tasks)"
     )
 
-    related_change_ids = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="List of related change request UUIDs"
-    )
+    related_change_ids = models.JSONField(default=list, blank=True, help_text="List of related change request UUIDs")
 
-    debt_item = models.CharField(
-        max_length=255,
-        blank=True,
-        help_text="Reference to DEBT.md item being closed"
-    )
+    debt_item = models.CharField(max_length=255, blank=True, help_text="Reference to DEBT.md item being closed")
 
-    commit_shas = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Git commit SHAs associated with this change"
-    )
+    commit_shas = models.JSONField(default=list, blank=True, help_text="Git commit SHAs associated with this change")
 
-    log_md_ref = models.CharField(
-        max_length=255,
-        blank=True,
-        help_text="Reference to log.md section"
-    )
+    log_md_ref = models.CharField(max_length=255, blank=True, help_text="Reference to log.md section")
 
     # ========== UUID Linking (Synara Convention) ==========
 
     compliance_check_ids = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="UUIDs of ComplianceCheck records that triggered or relate to this change"
+        default=list, blank=True, help_text="UUIDs of ComplianceCheck records that triggered or relate to this change"
     )
 
     drift_violation_ids = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="UUIDs of DriftViolation records this change remediates"
+        default=list, blank=True, help_text="UUIDs of DriftViolation records this change remediates"
     )
 
     audit_entry_ids = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="IDs of SysLogEntry records related to this change"
+        default=list, blank=True, help_text="IDs of SysLogEntry records related to this change"
     )
 
     # ========== Lifecycle Timestamps ==========
@@ -1309,30 +1113,18 @@ class ChangeRequest(models.Model):
 
     # ========== Actors ==========
 
-    author = models.CharField(
-        max_length=255,
-        help_text="Who created the change request"
-    )
+    author = models.CharField(max_length=255, help_text="Who created the change request")
 
-    approver = models.CharField(
-        max_length=255,
-        blank=True,
-        help_text="Who approved the change"
-    )
+    approver = models.CharField(max_length=255, blank=True, help_text="Who approved the change")
 
     # ========== Correlation ==========
 
     correlation_id = models.UUIDField(
-        default=uuid.uuid4,
-        db_index=True,
-        help_text="Correlation ID for audit trail linkage"
+        default=uuid.uuid4, db_index=True, help_text="Correlation ID for audit trail linkage"
     )
 
     tenant_id = models.UUIDField(
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="Tenant identifier for multi-tenant isolation"
+        null=True, blank=True, db_index=True, help_text="Tenant identifier for multi-tenant isolation"
     )
 
     class Meta:
@@ -1365,8 +1157,13 @@ class ChangeRequest(models.Model):
 
     # ALL types requiring any risk assessment
     RISK_ASSESSMENT_TYPES = {
-        "feature", "enhancement", "bugfix", "security",
-        "infrastructure", "migration", "debt",
+        "feature",
+        "enhancement",
+        "bugfix",
+        "security",
+        "infrastructure",
+        "migration",
+        "debt",
     }
 
     # States that are "past approved" for enforcement purposes
@@ -1401,8 +1198,12 @@ class ChangeRequest(models.Model):
         is_exempt = self.change_type in self.EXEMPT_TYPES
 
         SUBMITTED_PLUS = {
-            "submitted", "risk_assessed", "approved",
-            "in_progress", "testing", "completed",
+            "submitted",
+            "risk_assessed",
+            "approved",
+            "in_progress",
+            "testing",
+            "completed",
         }
         APPROVED_PLUS = {"approved", "in_progress", "testing", "completed"}
 
@@ -1417,22 +1218,15 @@ class ChangeRequest(models.Model):
         if target_state in APPROVED_PLUS:
             if not is_exempt:
                 if not self.implementation_plan or self.implementation_plan == {}:
-                    errors.append(
-                        "implementation_plan is required before approval"
-                    )
+                    errors.append("implementation_plan is required before approval")
                 if not self.testing_plan or self.testing_plan == {}:
                     errors.append("testing_plan is required before approval")
             if self.change_type in self.ROLLBACK_REQUIRED_TYPES:
                 if not self.rollback_plan or self.rollback_plan == {}:
-                    errors.append(
-                        "rollback_plan is required for this change type"
-                    )
+                    errors.append("rollback_plan is required for this change type")
             if self.change_type in self.RISK_ASSESSMENT_TYPES:
                 if not self.risk_assessments.exists():
-                    errors.append(
-                        f"RiskAssessment required for {self.change_type} "
-                        f"before approval"
-                    )
+                    errors.append(f"RiskAssessment required for {self.change_type} before approval")
 
         # completed requirements
         if target_state == "completed" and not is_exempt:
@@ -1463,10 +1257,9 @@ class ChangeRequest(models.Model):
         # Write back to planning models (best-effort)
         try:
             from api.models import Feature, PlanTask
+
             if task_id:
-                PlanTask.objects.filter(
-                    id=task_id, change_request_id__isnull=True
-                ).update(change_request_id=self.id)
+                PlanTask.objects.filter(id=task_id, change_request_id__isnull=True).update(change_request_id=self.id)
             if feature_id:
                 feat = Feature.objects.filter(id=feature_id).first()
                 if feat and str(self.id) not in [str(x) for x in feat.change_request_ids]:
@@ -1494,6 +1287,10 @@ class ChangeRequest(models.Model):
         Sets related_change_ids on both sides and creates ChangeLog entries
         on both CRs. This is the ONLY correct way to link CRs — never
         manipulate related_change_ids directly.
+
+        Usage (CHG-001 §8.4)::
+
+            cr.link_related(other_cr.id, actor="claude@svend.ai", message="Related: compliance expansion")
 
         Args:
             other_id: UUID string of the other ChangeRequest.
@@ -1548,6 +1345,14 @@ class ChangeRequest(models.Model):
         Sets compliance_check_ids on this CR and remediation_change_id on each
         ComplianceCheck. Creates a single ChangeLog entry.
 
+        Usage (CHG-001 §8.4/§8.5)::
+
+            cr.link_compliance_checks(
+                [str(c.id) for c in source_checks],
+                actor="claude@svend.ai",
+                message="Remediated session_security, error_handling warnings",
+            )
+
         Args:
             check_ids: List of ComplianceCheck UUID strings.
             actor: Who is creating the link.
@@ -1596,6 +1401,10 @@ class ChangeRequest(models.Model):
 
         Sets drift_violation_ids on this CR and remediation_change_id on each
         DriftViolation. Creates a single ChangeLog entry.
+
+        Usage (CHG-001 §8.4)::
+
+            cr.link_drift_violations([violation.id], actor="claude@svend.ai")
 
         Args:
             violation_ids: List of DriftViolation UUID strings.
@@ -1664,48 +1473,26 @@ class ChangeLog(models.Model):
         ChangeRequest,
         on_delete=models.CASCADE,
         related_name="logs",
-        help_text="The change request this log entry belongs to"
+        help_text="The change request this log entry belongs to",
     )
 
-    timestamp = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="When this log entry was created"
-    )
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True, help_text="When this log entry was created")
 
-    actor = models.CharField(
-        max_length=255,
-        help_text="Who or what created this log entry"
-    )
+    actor = models.CharField(max_length=255, help_text="Who or what created this log entry")
 
     action = models.CharField(
-        max_length=30,
-        choices=ACTION_CHOICES,
-        db_index=True,
-        help_text="Type of action being logged"
+        max_length=30, choices=ACTION_CHOICES, db_index=True, help_text="Type of action being logged"
     )
 
-    from_state = models.CharField(
-        max_length=30,
-        blank=True,
-        help_text="Previous state of the change request"
-    )
+    from_state = models.CharField(max_length=30, blank=True, help_text="Previous state of the change request")
 
-    to_state = models.CharField(
-        max_length=30,
-        blank=True,
-        help_text="New state of the change request"
-    )
+    to_state = models.CharField(max_length=30, blank=True, help_text="New state of the change request")
 
     details = models.JSONField(
-        default=dict,
-        help_text="Structured details: commit_sha, log_md_ref, issue_url, test_results, etc."
+        default=dict, help_text="Structured details: commit_sha, log_md_ref, issue_url, test_results, etc."
     )
 
-    message = models.TextField(
-        blank=True,
-        help_text="Human-readable description of what happened"
-    )
+    message = models.TextField(blank=True, help_text="Human-readable description of what happened")
 
     class Meta:
         db_table = "syn_audit_change_log"
@@ -1719,7 +1506,11 @@ class ChangeLog(models.Model):
         default_permissions = ("add", "view")  # Immutable — no change/delete
 
     def __str__(self):
-        return f"[{self.timestamp}] {self.action}: {self.message[:80]}" if self.message else f"[{self.timestamp}] {self.action}"
+        return (
+            f"[{self.timestamp}] {self.action}: {self.message[:80]}"
+            if self.message
+            else f"[{self.timestamp}] {self.action}"
+        )
 
     def save(self, *args, **kwargs):
         """Enforce immutability — prevent updates to existing log entries."""
@@ -1768,13 +1559,11 @@ class RiskAssessment(models.Model):
         ChangeRequest,
         on_delete=models.CASCADE,
         related_name="risk_assessments",
-        help_text="The change request being assessed"
+        help_text="The change request being assessed",
     )
 
     assessment_type = models.CharField(
-        max_length=20,
-        choices=ASSESSMENT_TYPE_CHOICES,
-        help_text="Type of risk assessment performed"
+        max_length=20, choices=ASSESSMENT_TYPE_CHOICES, help_text="Type of risk assessment performed"
     )
 
     # Aggregate risk scores (1-5 per dimension)
@@ -1789,31 +1578,20 @@ class RiskAssessment(models.Model):
         max_length=30,
         choices=RECOMMENDATION_CHOICES,
         default="approve",
-        help_text="Aggregate recommendation from all votes"
+        help_text="Aggregate recommendation from all votes",
     )
 
-    conditions = models.JSONField(
-        default=list,
-        help_text="Required conditions/mitigations if approve_with_conditions"
-    )
+    conditions = models.JSONField(default=list, help_text="Required conditions/mitigations if approve_with_conditions")
 
-    summary = models.TextField(
-        blank=True,
-        help_text="Human-readable summary of the risk assessment"
-    )
+    summary = models.TextField(blank=True, help_text="Human-readable summary of the risk assessment")
 
     is_retroactive = models.BooleanField(
-        default=False,
-        help_text="True if this is a retroactive assessment for an emergency change"
+        default=False, help_text="True if this is a retroactive assessment for an emergency change"
     )
 
     assessed_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
-    assessed_by = models.CharField(
-        max_length=255,
-        default="system",
-        help_text="Who or what performed the assessment"
-    )
+    assessed_by = models.CharField(max_length=255, default="system", help_text="Who or what performed the assessment")
 
     class Meta:
         db_table = "syn_audit_risk_assessment"
@@ -1846,15 +1624,22 @@ class RiskAssessment(models.Model):
 
         # Per-dimension: average
         self.security_score = sum(scores["security"]) / len(scores["security"]) if scores["security"] else 0
-        self.availability_score = sum(scores["availability"]) / len(scores["availability"]) if scores["availability"] else 0
+        self.availability_score = (
+            sum(scores["availability"]) / len(scores["availability"]) if scores["availability"] else 0
+        )
         self.integrity_score = sum(scores["integrity"]) / len(scores["integrity"]) if scores["integrity"] else 0
-        self.confidentiality_score = sum(scores["confidentiality"]) / len(scores["confidentiality"]) if scores["confidentiality"] else 0
+        self.confidentiality_score = (
+            sum(scores["confidentiality"]) / len(scores["confidentiality"]) if scores["confidentiality"] else 0
+        )
         self.privacy_score = sum(scores["privacy"]) / len(scores["privacy"]) if scores["privacy"] else 0
 
         # Overall: max of dimensions
         self.overall_score = max(
-            self.security_score, self.availability_score, self.integrity_score,
-            self.confidentiality_score, self.privacy_score
+            self.security_score,
+            self.availability_score,
+            self.integrity_score,
+            self.confidentiality_score,
+            self.privacy_score,
         )
 
         # Recommendation: majority vote, security_analyst has veto on reject
@@ -1906,34 +1691,22 @@ class AgentVote(models.Model):
         RiskAssessment,
         on_delete=models.CASCADE,
         related_name="votes",
-        help_text="The risk assessment this vote belongs to"
+        help_text="The risk assessment this vote belongs to",
     )
 
     agent_role = models.CharField(
-        max_length=30,
-        choices=AGENT_ROLE_CHOICES,
-        help_text="Role perspective of the voting agent"
+        max_length=30, choices=AGENT_ROLE_CHOICES, help_text="Role perspective of the voting agent"
     )
 
-    recommendation = models.CharField(
-        max_length=30,
-        choices=RECOMMENDATION_CHOICES,
-        help_text="Agent's recommendation"
-    )
+    recommendation = models.CharField(max_length=30, choices=RECOMMENDATION_CHOICES, help_text="Agent's recommendation")
 
     risk_scores = models.JSONField(
-        default=dict,
-        help_text="Risk scores per dimension: {security: 1-5, availability: 1-5, ...}"
+        default=dict, help_text="Risk scores per dimension: {security: 1-5, availability: 1-5, ...}"
     )
 
-    rationale = models.TextField(
-        help_text="Structured justification for the recommendation"
-    )
+    rationale = models.TextField(help_text="Structured justification for the recommendation")
 
-    conditions = models.JSONField(
-        default=list,
-        help_text="Required mitigations if approve_with_conditions"
-    )
+    conditions = models.JSONField(default=list, help_text="Required mitigations if approve_with_conditions")
 
     voted_at = models.DateTimeField(auto_now_add=True, db_index=True)
 

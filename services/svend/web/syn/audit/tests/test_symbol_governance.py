@@ -173,6 +173,13 @@ class ComplianceCheckDependencyVulnTest(SimpleTestCase):
 class ComplianceCheckChangeManagementTest(TestCase):
     """CHG-001 §11.1: check_change_management runs and returns structured result."""
 
+    def test_check_change_management_exists(self):
+        """Verify check_change_management is registered and callable."""
+        from syn.audit.compliance import ALL_CHECKS, check_change_management
+
+        self.assertIn("change_management", ALL_CHECKS)
+        self.assertTrue(callable(check_change_management))
+
     def test_check_change_management_output(self):
         from syn.audit.compliance import check_change_management
 
