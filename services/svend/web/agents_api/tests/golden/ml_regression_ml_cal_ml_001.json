@@ -1,0 +1,23 @@
+{
+  "case_id": "CAL-ML-001",
+  "analysis_type": "ml",
+  "analysis_id": "regression_ml",
+  "description": "ML regression: Random Forest on y=2*x1-3*x2+noise, R² near 0.95",
+  "config": {
+    "target": "y",
+    "features": ["x1", "x2"]
+  },
+  "expected": {
+    "guide_observation_contains": "R²",
+    "summary_contains": "R²",
+    "statistics.conformal.empirical_coverage": {
+      "value": 0.8933,
+      "tolerance": 0.15
+    },
+    "statistics.conformal.nominal_coverage": {
+      "value": 0.9,
+      "tolerance": 0
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-ML-001, verified 2026-03-06"
+}

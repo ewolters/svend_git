@@ -1760,7 +1760,7 @@ def _build_reference_pool():
             analysis_type="simulation",
             analysis_id="tolerance_stackup",
             config={
-                "components": [
+                "dimensions": [
                     {"name": "a", "nominal": 10, "tolerance": 0.1},
                     {"name": "b", "nominal": 20, "tolerance": 0.2},
                     {"name": "c", "nominal": 5, "tolerance": 0.05},

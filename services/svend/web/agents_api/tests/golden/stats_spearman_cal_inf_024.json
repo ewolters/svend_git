@@ -1,0 +1,33 @@
+{
+  "case_id": "CAL-INF-024",
+  "analysis_type": "stats",
+  "analysis_id": "spearman",
+  "description": "Spearman correlation: strong monotonic relationship (rho near 1)",
+  "config": {
+    "var1": "x",
+    "var2": "y"
+  },
+  "expected": {
+    "statistics.spearman_rho": {
+      "value": 0.9901,
+      "tolerance": 0.02
+    },
+    "statistics.p_value": {
+      "value": 0.0,
+      "tolerance": 0.005
+    },
+    "statistics.n": {
+      "value": 150,
+      "tolerance": 0
+    },
+    "statistics.ci_lower": {
+      "value": 0.9863,
+      "tolerance": 0.02
+    },
+    "statistics.ci_upper": {
+      "value": 0.9928,
+      "tolerance": 0.02
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-INF-024, verified 2026-03-06"
+}

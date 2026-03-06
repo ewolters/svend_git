@@ -1,0 +1,15 @@
+{
+  "case_id": "CAL-ML-003",
+  "analysis_type": "ml",
+  "analysis_id": "clustering",
+  "description": "ML clustering: K-Means on 3 well-separated clusters, silhouette > 0.7",
+  "config": {
+    "features": ["x", "y"],
+    "n_clusters": 3
+  },
+  "expected": {
+    "guide_observation_contains": "silhouette",
+    "summary_contains": "CLUSTERING"
+  },
+  "reference": "Generated from calibration pool case CAL-ML-003, verified 2026-03-06"
+}

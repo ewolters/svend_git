@@ -1,0 +1,23 @@
+{
+  "case_id": "CAL-ML-002",
+  "analysis_type": "ml",
+  "analysis_id": "classification",
+  "description": "ML classification: RF on linearly separable data, ~100% accuracy",
+  "config": {
+    "target": "label",
+    "features": ["x1", "x2"]
+  },
+  "expected": {
+    "guide_observation_contains": "accuracy",
+    "summary_contains": "CLASSIFICATION",
+    "statistics.conformal.nominal_coverage": {
+      "value": 0.9,
+      "tolerance": 0
+    },
+    "statistics.conformal.empirical_coverage": {
+      "value": 1.0,
+      "tolerance": 0.15
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-ML-002, verified 2026-03-06"
+}

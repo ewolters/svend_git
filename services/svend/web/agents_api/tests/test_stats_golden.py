@@ -22,11 +22,30 @@ GOLDEN_DIR = Path(__file__).parent / "golden"
 
 
 def _extract_nested(d, key):
-    """Extract value from nested dict using dot notation."""
+    """Extract value from nested dict using dot notation and bracket indexing.
+
+    Supports: "statistics.pairs[0].meandiff", "statistics.p_value", etc.
+    """
+    import re
+
     parts = key.split(".")
     current = d
     for part in parts:
-        if isinstance(current, dict):
+        if current is None:
+            return None
+        # Handle bracket indexing: e.g. "pairs[0]"
+        bracket = re.match(r"^(\w+)\[(\d+)\]$", part)
+        if bracket:
+            name, idx = bracket.group(1), int(bracket.group(2))
+            if isinstance(current, dict):
+                current = current.get(name)
+            else:
+                return None
+            if isinstance(current, list) and idx < len(current):
+                current = current[idx]
+            else:
+                return None
+        elif isinstance(current, dict):
             current = current.get(part)
         else:
             return None
@@ -92,9 +111,23 @@ class GoldenFileTest(TestCase):
         failures = []
 
         for key, spec in expected.items():
+            # Handle "_contains" assertions: check substring in result field
+            if key.endswith("_contains"):
+                field = key.rsplit("_contains", 1)[0]
+                actual_str = str(result.get(field, ""))
+                if spec not in actual_str:
+                    failures.append(f"  {key}: '{spec}' not found in {field}")
+                continue
+
             actual = _extract_nested(result, key)
             if actual is None:
                 failures.append(f"  {key}: not found in result")
+                continue
+
+            # Handle boolean expected values
+            if isinstance(spec.get("value"), bool):
+                if actual != spec["value"]:
+                    failures.append(f"  {key}: expected {spec['value']}, got {actual}")
                 continue
 
             try:

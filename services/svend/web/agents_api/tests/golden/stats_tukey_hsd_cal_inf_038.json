@@ -1,0 +1,49 @@
+{
+  "case_id": "CAL-INF-038",
+  "analysis_type": "stats",
+  "analysis_id": "tukey_hsd",
+  "description": "Tukey HSD post-hoc: 3 groups with clear differences, all pairs significant",
+  "config": {
+    "response": "value",
+    "factor": "group"
+  },
+  "expected": {
+    "statistics.n_significant": {
+      "value": 3,
+      "tolerance": 0
+    },
+    "statistics.n_comparisons": {
+      "value": 3,
+      "tolerance": 0
+    },
+    "statistics.pairs[0].meandiff": {
+      "value": 19.0308,
+      "tolerance": 1.0
+    },
+    "statistics.pairs[0].p_adj": {
+      "value": 0.0,
+      "tolerance": 0.005
+    },
+    "statistics.pairs[0].reject": {
+      "value": true,
+      "tolerance": 0
+    },
+    "statistics.pairs[1].meandiff": {
+      "value": 40.0296,
+      "tolerance": 1.0
+    },
+    "statistics.pairs[1].p_adj": {
+      "value": 0.0,
+      "tolerance": 0.005
+    },
+    "statistics.pairs[2].meandiff": {
+      "value": 20.9988,
+      "tolerance": 1.0
+    },
+    "statistics.pairs[2].p_adj": {
+      "value": 0.0,
+      "tolerance": 0.005
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-INF-038, verified 2026-03-06"
+}

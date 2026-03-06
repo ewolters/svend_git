@@ -1,0 +1,25 @@
+{
+  "case_id": "CAL-INF-030",
+  "analysis_type": "stats",
+  "analysis_id": "mood_median",
+  "description": "Mood's median test: two groups with same median, p>0.05",
+  "config": {
+    "var": "value",
+    "group_var": "group"
+  },
+  "expected": {
+    "statistics.chi_squared": {
+      "value": 0.0333,
+      "tolerance": 0.1
+    },
+    "statistics.df": {
+      "value": 1,
+      "tolerance": 0
+    },
+    "statistics.p_value": {
+      "value": 0.8551,
+      "tolerance": 0.01
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-INF-030, verified 2026-03-06"
+}
