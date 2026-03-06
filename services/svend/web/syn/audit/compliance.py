@@ -4284,7 +4284,7 @@ _CACHE_WHITENOISE_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesSto
 
 # In-memory caches that must have max-size constants
 _CACHE_MEMORY_BOUNDS = {
-    "agents_api/dsw_views.py": "MODEL_CACHE_MAX_SIZE",
+    "agents_api/dsw/common.py": "MODEL_CACHE_MAX_SIZE",
     "agents_api/problem_views.py": "_INTERVIEW_CACHE_MAX",
     "agents_api/spc_views.py": "_CACHE_MAX_SIZE",
     "agents_api/synara_views.py": "_SYNARA_CACHE_MAX",
@@ -5013,7 +5013,6 @@ def check_policy_review():
 # File size exemptions — files documented in DEBT.md as known large modules.
 # Maps relative path suffix → DEBT.md priority for exemption.
 _COMPLEXITY_EXEMPTIONS = {
-    "agents_api/dsw_views.py": "P2",
     "agents_api/dsw/stats.py": "P3",
     "agents_api/learn_content.py": "P3",
     "api/internal_views.py": "P3",

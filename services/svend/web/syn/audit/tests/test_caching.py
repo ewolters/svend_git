@@ -100,7 +100,7 @@ class MemoryCacheTest(SimpleTestCase):
 
     def test_dsw_cache_has_bounds(self):
         """DSW model cache (MODEL_CACHE_MAX_SIZE) is bounded."""
-        self._assert_cache_bounded("agents_api.dsw_views", "MODEL_CACHE_MAX_SIZE", 1, 500)
+        self._assert_cache_bounded("agents_api.dsw.common", "MODEL_CACHE_MAX_SIZE", 1, 500)
 
     def test_spc_cache_has_bounds(self):
         """SPC parsed data cache (_CACHE_MAX_SIZE) is bounded."""
@@ -122,7 +122,7 @@ class MemoryCacheTest(SimpleTestCase):
     def test_inventory_complete(self):
         """The memory bounds inventory covers all known caches."""
         expected = {
-            "agents_api/dsw_views.py",
+            "agents_api/dsw/common.py",
             "agents_api/problem_views.py",
             "agents_api/spc_views.py",
             "agents_api/synara_views.py",
