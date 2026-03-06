@@ -1,0 +1,11 @@
+{
+  "case_id": "CAL-SPC-010",
+  "analysis_type": "spc",
+  "analysis_id": "cusum",
+  "description": "CUSUM: stable N(50,2) \u2192 no shift detected",
+  "config": {
+    "measurement": "x"
+  },
+  "expected": {},
+  "reference": "Generated from calibration pool case CAL-SPC-010, verified 2026-03-06"
+}

@@ -1,0 +1,33 @@
+{
+  "case_id": "CAL-INF-012",
+  "analysis_type": "stats",
+  "analysis_id": "chi2",
+  "description": "Chi-square: structured association (p(yes|high)=0.7 vs p(yes|low)=0.3) \u2192 p<0.05",
+  "config": {
+    "var1": "exposure",
+    "var2": "outcome"
+  },
+  "expected": {
+    "statistics.chi2": {
+      "value": 51.7117,
+      "tolerance": 2.585586475299415
+    },
+    "statistics.dof": {
+      "value": 1.0,
+      "tolerance": 0.1
+    },
+    "statistics.p_value": {
+      "value": 0.0,
+      "tolerance": 0.01
+    },
+    "statistics.cramers_v": {
+      "value": 0.4152,
+      "tolerance": 0.1
+    },
+    "statistics.n": {
+      "value": 300.0,
+      "tolerance": 15.0
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-INF-012, verified 2026-03-06"
+}

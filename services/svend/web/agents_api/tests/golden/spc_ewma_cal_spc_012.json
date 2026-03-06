@@ -1,0 +1,11 @@
+{
+  "case_id": "CAL-SPC-012",
+  "analysis_type": "spc",
+  "analysis_id": "ewma",
+  "description": "EWMA: stable N(50,2) \u2192 in-control",
+  "config": {
+    "measurement": "x"
+  },
+  "expected": {},
+  "reference": "Generated from calibration pool case CAL-SPC-012, verified 2026-03-06"
+}

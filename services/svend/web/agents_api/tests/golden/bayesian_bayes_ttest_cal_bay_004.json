@@ -1,0 +1,29 @@
+{
+  "case_id": "CAL-BAY-004",
+  "analysis_type": "bayesian",
+  "analysis_id": "bayes_ttest",
+  "description": "Bayesian t-test: both N(50,10) \u2192 BF\u2081\u2080<1 (evidence for null)",
+  "config": {
+    "var1": "a",
+    "var2": "b"
+  },
+  "expected": {
+    "statistics.cohens_d": {
+      "value": 0.1774,
+      "tolerance": 0.05
+    },
+    "statistics.bf10": {
+      "value": 0.42,
+      "tolerance": 1.0
+    },
+    "statistics.d_ci_low": {
+      "value": -0.1003,
+      "tolerance": 0.1
+    },
+    "statistics.d_ci_high": {
+      "value": 0.4551,
+      "tolerance": 0.1
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-BAY-004, verified 2026-03-06"
+}

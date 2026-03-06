@@ -1,0 +1,23 @@
+{
+  "case_id": "CAL-INF-005",
+  "analysis_type": "stats",
+  "analysis_id": "correlation",
+  "description": "Correlation: y=2x+noise \u2192 strong positive correlation (r>0.85)",
+  "config": {
+    "variables": [
+      "x",
+      "y"
+    ]
+  },
+  "expected": {
+    "statistics.r(x,y)": {
+      "value": 0.9619,
+      "tolerance": 0.1
+    },
+    "statistics.p(x,y)": {
+      "value": 0.0,
+      "tolerance": 0.1
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-INF-005, verified 2026-03-06"
+}

@@ -1,0 +1,33 @@
+{
+  "case_id": "CAL-INF-019",
+  "analysis_type": "stats",
+  "analysis_id": "wilcoxon",
+  "description": "Wilcoxon: paired data + negligible noise \u2192 no difference",
+  "config": {
+    "var1": "before",
+    "var2": "after"
+  },
+  "expected": {
+    "statistics.W_statistic": {
+      "value": 355.0,
+      "tolerance": 0.5
+    },
+    "statistics.p_value": {
+      "value": 0.467972,
+      "tolerance": 0.01
+    },
+    "statistics.effect_size_r": {
+      "value": 0.1169,
+      "tolerance": 0.05
+    },
+    "statistics.median_diff": {
+      "value": -0.0158,
+      "tolerance": 0.1
+    },
+    "statistics.n_pairs": {
+      "value": 40.0,
+      "tolerance": 2.0
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-INF-019, verified 2026-03-06"
+}

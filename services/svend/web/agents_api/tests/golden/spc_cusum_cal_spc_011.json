@@ -1,0 +1,11 @@
+{
+  "case_id": "CAL-SPC-011",
+  "analysis_type": "spc",
+  "analysis_id": "cusum",
+  "description": "CUSUM: mean shift 50\u219255 \u2192 shift detected",
+  "config": {
+    "measurement": "x"
+  },
+  "expected": {},
+  "reference": "Generated from calibration pool case CAL-SPC-011, verified 2026-03-06"
+}

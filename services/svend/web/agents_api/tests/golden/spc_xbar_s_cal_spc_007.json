@@ -1,0 +1,12 @@
+{
+  "case_id": "CAL-SPC-007",
+  "analysis_type": "spc",
+  "analysis_id": "xbar_s",
+  "description": "Xbar-S: mean shift 50\u219260 \u2192 out-of-control",
+  "config": {
+    "measurement": "x",
+    "subgroup_size": 10
+  },
+  "expected": {},
+  "reference": "Generated from calibration pool case CAL-SPC-007, verified 2026-03-06"
+}

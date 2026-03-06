@@ -1,0 +1,30 @@
+{
+  "case_id": "CAL-INF-023",
+  "analysis_type": "stats",
+  "analysis_id": "stepwise",
+  "description": "Stepwise: 2 real + 2 noise predictors \u2192 model selection works",
+  "config": {
+    "response": "y",
+    "predictors": [
+      "x1",
+      "x2",
+      "x3",
+      "x4"
+    ]
+  },
+  "expected": {
+    "statistics.R\u00b2": {
+      "value": 0.9771,
+      "tolerance": 0.02
+    },
+    "statistics.Adj_R\u00b2": {
+      "value": 0.9769,
+      "tolerance": 0.02
+    },
+    "statistics.n_selected": {
+      "value": 2.0,
+      "tolerance": 0.1
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-INF-023, verified 2026-03-06"
+}

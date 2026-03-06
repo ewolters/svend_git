@@ -1,0 +1,38 @@
+{
+  "case_id": "CAL-INF-010",
+  "analysis_type": "stats",
+  "analysis_id": "paired_t",
+  "description": "Paired t-test: 5-unit shift \u2192 reject null, p<0.05",
+  "config": {
+    "var1": "before",
+    "var2": "after",
+    "conf": 95
+  },
+  "expected": {
+    "statistics.mean_difference": {
+      "value": -4.9515,
+      "tolerance": 0.24757260888166158
+    },
+    "statistics.std_difference": {
+      "value": 0.9865,
+      "tolerance": 0.1
+    },
+    "statistics.n_pairs": {
+      "value": 100.0,
+      "tolerance": 5.0
+    },
+    "statistics.t_statistic": {
+      "value": -50.1928,
+      "tolerance": 0.5
+    },
+    "statistics.p_value": {
+      "value": 0.0,
+      "tolerance": 0.01
+    },
+    "statistics.cohens_d": {
+      "value": -5.0193,
+      "tolerance": 0.05
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-INF-010, verified 2026-03-06"
+}

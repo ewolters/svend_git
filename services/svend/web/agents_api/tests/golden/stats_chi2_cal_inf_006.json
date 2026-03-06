@@ -1,0 +1,33 @@
+{
+  "case_id": "CAL-INF-006",
+  "analysis_type": "stats",
+  "analysis_id": "chi2",
+  "description": "Chi-square: independent categorical columns \u2192 p>0.05",
+  "config": {
+    "var1": "a",
+    "var2": "b"
+  },
+  "expected": {
+    "statistics.chi2": {
+      "value": 4.2848,
+      "tolerance": 0.21424081433097714
+    },
+    "statistics.dof": {
+      "value": 2.0,
+      "tolerance": 0.1
+    },
+    "statistics.p_value": {
+      "value": 0.117372,
+      "tolerance": 0.01
+    },
+    "statistics.cramers_v": {
+      "value": 0.1195,
+      "tolerance": 0.1
+    },
+    "statistics.n": {
+      "value": 300.0,
+      "tolerance": 15.0
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-INF-006, verified 2026-03-06"
+}

@@ -1,0 +1,13 @@
+{
+  "case_id": "CAL-SPC-014",
+  "analysis_type": "spc",
+  "analysis_id": "capability",
+  "description": "Capability: N(50,8) LSL=45 USL=55 \u2192 needs improvement (Cpk<<1)",
+  "config": {
+    "measurement": "x",
+    "lsl": 45,
+    "usl": 55
+  },
+  "expected": {},
+  "reference": "Generated from calibration pool case CAL-SPC-014, verified 2026-03-06"
+}

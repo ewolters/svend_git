@@ -1,0 +1,23 @@
+{
+  "case_id": "CAL-INF-022",
+  "analysis_type": "stats",
+  "analysis_id": "logistic",
+  "description": "Logistic regression: strong separation \u2192 model fits",
+  "config": {
+    "response": "y",
+    "predictors": [
+      "x"
+    ]
+  },
+  "expected": {
+    "statistics.AUC": {
+      "value": 0.9475,
+      "tolerance": 0.1
+    },
+    "statistics.accuracy": {
+      "value": 0.825,
+      "tolerance": 0.1
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-INF-022, verified 2026-03-06"
+}

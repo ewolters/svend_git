@@ -1,0 +1,29 @@
+{
+  "case_id": "CAL-INF-014",
+  "analysis_type": "stats",
+  "analysis_id": "fisher_exact",
+  "description": "Fisher exact: strong 2\u00d72 association \u2192 p<0.001",
+  "config": {
+    "var1": "group",
+    "var2": "outcome"
+  },
+  "expected": {
+    "statistics.odds_ratio": {
+      "value": 25.0,
+      "tolerance": 1.25
+    },
+    "statistics.p_value": {
+      "value": 0.0,
+      "tolerance": 0.01
+    },
+    "statistics.or_ci_lower": {
+      "value": 6.43,
+      "tolerance": 0.3214994874417248
+    },
+    "statistics.or_ci_upper": {
+      "value": 97.2008,
+      "tolerance": 4.860038852420313
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-INF-014, verified 2026-03-06"
+}

@@ -1,0 +1,67 @@
+{
+  "case_id": "CAL-INF-021",
+  "analysis_type": "stats",
+  "analysis_id": "regression",
+  "description": "Regression: y=2x+3+noise \u2192 R\u00b2>0.9",
+  "config": {
+    "response": "y",
+    "predictors": [
+      "x"
+    ]
+  },
+  "expected": {
+    "statistics.R\u00b2": {
+      "value": 0.9425,
+      "tolerance": 0.02
+    },
+    "statistics.Adj_R\u00b2": {
+      "value": 0.9422,
+      "tolerance": 0.02
+    },
+    "statistics.RMSE": {
+      "value": 0.521,
+      "tolerance": 0.1
+    },
+    "statistics.F_statistic": {
+      "value": 3244.6755,
+      "tolerance": 0.5
+    },
+    "statistics.F_p_value": {
+      "value": 0.0,
+      "tolerance": 0.1
+    },
+    "statistics.n": {
+      "value": 200.0,
+      "tolerance": 10.0
+    },
+    "statistics.predictors": {
+      "value": 1.0,
+      "tolerance": 0.1
+    },
+    "statistics.coef(x)": {
+      "value": 2.0126,
+      "tolerance": 0.10062789505122227
+    },
+    "statistics.p_value(x)": {
+      "value": 0.0,
+      "tolerance": 0.1
+    },
+    "regression_metrics.r_squared": {
+      "value": 0.9425,
+      "tolerance": 0.02
+    },
+    "regression_metrics.adj_r_squared": {
+      "value": 0.9422,
+      "tolerance": 0.02
+    },
+    "regression_metrics.f_stat": {
+      "value": 3244.6755,
+      "tolerance": 0.02
+    },
+    "regression_metrics.rmse": {
+      "value": 0.521,
+      "tolerance": 0.02
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-INF-021, verified 2026-03-06"
+}

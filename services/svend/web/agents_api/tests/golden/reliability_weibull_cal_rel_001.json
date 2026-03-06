@@ -1,0 +1,11 @@
+{
+  "case_id": "CAL-REL-001",
+  "analysis_type": "reliability",
+  "analysis_id": "weibull",
+  "description": "Weibull on exponential data \u2192 shape\u22481.0 (constant hazard)",
+  "config": {
+    "time": "t"
+  },
+  "expected": {},
+  "reference": "Generated from calibration pool case CAL-REL-001, verified 2026-03-06"
+}

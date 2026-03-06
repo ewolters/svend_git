@@ -1,0 +1,12 @@
+{
+  "case_id": "CAL-SPC-009",
+  "analysis_type": "spc",
+  "analysis_id": "p_chart",
+  "description": "P-chart: defect rate 5%\u219225% \u2192 out-of-control",
+  "config": {
+    "defectives": "defects",
+    "sample_size": "n"
+  },
+  "expected": {},
+  "reference": "Generated from calibration pool case CAL-SPC-009, verified 2026-03-06"
+}

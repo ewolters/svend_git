@@ -1,0 +1,29 @@
+{
+  "case_id": "CAL-INF-013",
+  "analysis_type": "stats",
+  "analysis_id": "fisher_exact",
+  "description": "Fisher exact: independent 2\u00d72 \u2192 p>0.05",
+  "config": {
+    "var1": "group",
+    "var2": "outcome"
+  },
+  "expected": {
+    "statistics.odds_ratio": {
+      "value": 0.6618,
+      "tolerance": 0.1
+    },
+    "statistics.p_value": {
+      "value": 0.450831,
+      "tolerance": 0.01
+    },
+    "statistics.or_ci_lower": {
+      "value": 0.2384,
+      "tolerance": 0.1
+    },
+    "statistics.or_ci_upper": {
+      "value": 1.8369,
+      "tolerance": 0.1
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-INF-013, verified 2026-03-06"
+}

@@ -1,0 +1,14 @@
+{
+  "case_id": "CAL-BAY-003",
+  "analysis_type": "bayesian",
+  "analysis_id": "bayes_regression",
+  "description": "Bayesian regression: y=3x+1 \u2192 summary contains R\u00b2",
+  "config": {
+    "target": "y",
+    "features": [
+      "x"
+    ]
+  },
+  "expected": {},
+  "reference": "Generated from calibration pool case CAL-BAY-003, verified 2026-03-06"
+}

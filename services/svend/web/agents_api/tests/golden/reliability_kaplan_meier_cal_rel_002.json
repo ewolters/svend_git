@@ -1,0 +1,12 @@
+{
+  "case_id": "CAL-REL-002",
+  "analysis_type": "reliability",
+  "analysis_id": "kaplan_meier",
+  "description": "Kaplan-Meier: exponential lifetimes with 30% censoring \u2192 survival curve",
+  "config": {
+    "time": "time",
+    "event": "event"
+  },
+  "expected": {},
+  "reference": "Generated from calibration pool case CAL-REL-002, verified 2026-03-06"
+}

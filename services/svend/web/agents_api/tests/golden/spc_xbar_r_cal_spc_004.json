@@ -1,0 +1,12 @@
+{
+  "case_id": "CAL-SPC-004",
+  "analysis_type": "spc",
+  "analysis_id": "xbar_r",
+  "description": "Xbar-R: stable N(50,2) subgroups of 5 \u2192 in-control",
+  "config": {
+    "measurement": "x",
+    "subgroup_size": 5
+  },
+  "expected": {},
+  "reference": "Generated from calibration pool case CAL-SPC-004, verified 2026-03-06"
+}

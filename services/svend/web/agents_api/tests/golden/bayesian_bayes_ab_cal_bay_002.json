@@ -1,0 +1,29 @@
+{
+  "case_id": "CAL-BAY-002",
+  "analysis_type": "bayesian",
+  "analysis_id": "bayes_ab",
+  "description": "Bayesian A/B: equal conversion rates \u2192 prob_better\u22480.5 (\u00b10.35)",
+  "config": {
+    "group": "group",
+    "success": "converted"
+  },
+  "expected": {
+    "statistics.prob_better": {
+      "value": 0.2071,
+      "tolerance": 0.05
+    },
+    "statistics.rate_a": {
+      "value": 0.486,
+      "tolerance": 0.1
+    },
+    "statistics.rate_b": {
+      "value": 0.512,
+      "tolerance": 0.1
+    },
+    "statistics.lift": {
+      "value": -0.0508,
+      "tolerance": 0.1
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-BAY-002, verified 2026-03-06"
+}

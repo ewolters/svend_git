@@ -1,0 +1,37 @@
+{
+  "case_id": "CAL-INF-003",
+  "analysis_type": "stats",
+  "analysis_id": "anova",
+  "description": "One-way ANOVA: 3 identical N(50,10) groups \u2192 no effect, p>0.05",
+  "config": {
+    "response": "value",
+    "factor": "group"
+  },
+  "expected": {
+    "statistics.f_statistic": {
+      "value": 1.7124,
+      "tolerance": 0.1
+    },
+    "statistics.p_value": {
+      "value": 0.18265,
+      "tolerance": 0.01
+    },
+    "statistics.eta_squared": {
+      "value": 0.0142,
+      "tolerance": 0.05
+    },
+    "statistics.omega_squared": {
+      "value": 0.0059,
+      "tolerance": 0.1
+    },
+    "statistics.n_groups": {
+      "value": 3.0,
+      "tolerance": 0.15000000000000002
+    },
+    "statistics.n_total": {
+      "value": 240.0,
+      "tolerance": 12.0
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-INF-003, verified 2026-03-06"
+}

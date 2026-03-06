@@ -1,0 +1,29 @@
+{
+  "case_id": "CAL-BAY-001",
+  "analysis_type": "bayesian",
+  "analysis_id": "bayes_ttest",
+  "description": "Bayesian t-test: N(100,15) vs N(120,15) \u2192 BF\u2081\u2080>3 (evidence for difference)",
+  "config": {
+    "var1": "a",
+    "var2": "b"
+  },
+  "expected": {
+    "statistics.cohens_d": {
+      "value": -1.3181,
+      "tolerance": 0.05
+    },
+    "statistics.bf10": {
+      "value": 153062949620505.47,
+      "tolerance": 30612589924101.094
+    },
+    "statistics.d_ci_low": {
+      "value": -1.6239,
+      "tolerance": 0.1
+    },
+    "statistics.d_ci_high": {
+      "value": -1.0123,
+      "tolerance": 0.1
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-BAY-001, verified 2026-03-06"
+}

@@ -1,0 +1,46 @@
+{
+  "case_id": "CAL-INF-008",
+  "analysis_type": "stats",
+  "analysis_id": "ttest",
+  "description": "One-sample t-test: N(105,10) vs \u03bc\u2080=100 \u2192 reject null, p<0.05",
+  "config": {
+    "var1": "x",
+    "mu": 100,
+    "conf": 95
+  },
+  "expected": {
+    "statistics.mean(x)": {
+      "value": 105.8825,
+      "tolerance": 5.294124358659139
+    },
+    "statistics.std(x)": {
+      "value": 9.6147,
+      "tolerance": 0.48073655707004925
+    },
+    "statistics.n(x)": {
+      "value": 150.0,
+      "tolerance": 7.5
+    },
+    "statistics.t_statistic": {
+      "value": 7.4932,
+      "tolerance": 0.5
+    },
+    "statistics.p_value": {
+      "value": 0.0,
+      "tolerance": 0.01
+    },
+    "statistics.cohens_d": {
+      "value": 0.6118,
+      "tolerance": 0.05
+    },
+    "statistics.ci_lower(x)": {
+      "value": 104.3312,
+      "tolerance": 5.216561937786686
+    },
+    "statistics.ci_upper(x)": {
+      "value": 107.4337,
+      "tolerance": 5.371686779531592
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-INF-008, verified 2026-03-06"
+}

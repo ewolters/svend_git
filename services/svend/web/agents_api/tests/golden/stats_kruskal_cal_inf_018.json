@@ -1,0 +1,25 @@
+{
+  "case_id": "CAL-INF-018",
+  "analysis_type": "stats",
+  "analysis_id": "kruskal",
+  "description": "Kruskal-Wallis: groups at 30/50/70 \u2192 clear difference, p<0.05",
+  "config": {
+    "var": "value",
+    "group_var": "group"
+  },
+  "expected": {
+    "statistics.H_statistic": {
+      "value": 130.0238,
+      "tolerance": 6.501188459177411
+    },
+    "statistics.p_value": {
+      "value": 0.0,
+      "tolerance": 0.01
+    },
+    "statistics.epsilon_squared": {
+      "value": 0.7233,
+      "tolerance": 0.1
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-INF-018, verified 2026-03-06"
+}

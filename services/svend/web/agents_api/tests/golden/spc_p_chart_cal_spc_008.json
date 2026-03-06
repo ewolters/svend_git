@@ -1,0 +1,12 @@
+{
+  "case_id": "CAL-SPC-008",
+  "analysis_type": "spc",
+  "analysis_id": "p_chart",
+  "description": "P-chart: stable 5% defect rate \u2192 in-control",
+  "config": {
+    "defectives": "defects",
+    "sample_size": "n"
+  },
+  "expected": {},
+  "reference": "Generated from calibration pool case CAL-SPC-008, verified 2026-03-06"
+}

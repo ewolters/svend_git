@@ -1,0 +1,11 @@
+{
+  "case_id": "CAL-SPC-001",
+  "analysis_type": "spc",
+  "analysis_id": "imr",
+  "description": "I-MR on stable N(50,2) \u2192 control chart runs without error",
+  "config": {
+    "measurement": "x"
+  },
+  "expected": {},
+  "reference": "Generated from calibration pool case CAL-SPC-001, verified 2026-03-06"
+}

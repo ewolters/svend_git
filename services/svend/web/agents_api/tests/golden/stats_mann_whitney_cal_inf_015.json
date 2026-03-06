@@ -1,0 +1,25 @@
+{
+  "case_id": "CAL-INF-015",
+  "analysis_type": "stats",
+  "analysis_id": "mann_whitney",
+  "description": "Mann-Whitney: both N(50,10) \u2192 no difference, p>0.05",
+  "config": {
+    "var": "value",
+    "group_var": "group"
+  },
+  "expected": {
+    "statistics.U_statistic": {
+      "value": 3163.0,
+      "tolerance": 0.5
+    },
+    "statistics.p_value": {
+      "value": 0.900871,
+      "tolerance": 0.01
+    },
+    "statistics.effect_size_r": {
+      "value": 0.0116,
+      "tolerance": 0.05
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-INF-015, verified 2026-03-06"
+}

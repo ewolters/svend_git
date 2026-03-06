@@ -1,0 +1,13 @@
+{
+  "case_id": "CAL-SPC-003",
+  "analysis_type": "spc",
+  "analysis_id": "capability",
+  "description": "Capability: N(50,2) LSL=40 USL=60 \u2192 process capable (Cpk>1.33)",
+  "config": {
+    "measurement": "x",
+    "lsl": 40,
+    "usl": 60
+  },
+  "expected": {},
+  "reference": "Generated from calibration pool case CAL-SPC-003, verified 2026-03-06"
+}

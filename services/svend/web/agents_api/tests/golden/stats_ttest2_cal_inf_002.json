@@ -1,0 +1,38 @@
+{
+  "case_id": "CAL-INF-002",
+  "analysis_type": "stats",
+  "analysis_id": "ttest2",
+  "description": "Two-sample t-test: N(100,15) vs N(115,15) \u2192 p<0.05, significant",
+  "config": {
+    "var1": "a",
+    "var2": "b",
+    "conf": 95
+  },
+  "expected": {
+    "statistics.mean(a)": {
+      "value": 100.9734,
+      "tolerance": 5.048672189825337
+    },
+    "statistics.mean(b)": {
+      "value": 116.6026,
+      "tolerance": 5.830130090522978
+    },
+    "statistics.difference": {
+      "value": -15.6292,
+      "tolerance": 0.781457900697641
+    },
+    "statistics.t_statistic": {
+      "value": -7.4476,
+      "tolerance": 0.5
+    },
+    "statistics.p_value": {
+      "value": 0.0,
+      "tolerance": 0.01
+    },
+    "statistics.cohens_d": {
+      "value": -1.0532,
+      "tolerance": 0.05
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-INF-002, verified 2026-03-06"
+}

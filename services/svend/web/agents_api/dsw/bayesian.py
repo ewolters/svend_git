@@ -765,15 +765,15 @@ def run_bayesian_analysis(df, analysis_id, config):
             }
         ]
 
-        for cp in changepoints:
+        for cp_idx, _cp_bf in changepoints:
             plot_data.append(
                 {
                     "type": "scatter",
-                    "x": [time_idx[cp], time_idx[cp]],
+                    "x": [time_idx[cp_idx], time_idx[cp_idx]],
                     "y": [min(data), max(data)],
                     "mode": "lines",
                     "line": {"color": "#e85747", "dash": "dash", "width": 2},
-                    "name": f"Change @ {cp}",
+                    "name": f"Change @ {cp_idx}",
                 }
             )
 

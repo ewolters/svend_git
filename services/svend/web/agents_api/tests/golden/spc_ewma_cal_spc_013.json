@@ -1,0 +1,11 @@
+{
+  "case_id": "CAL-SPC-013",
+  "analysis_type": "spc",
+  "analysis_id": "ewma",
+  "description": "EWMA: mean shift 50\u219256 \u2192 out-of-control",
+  "config": {
+    "measurement": "x"
+  },
+  "expected": {},
+  "reference": "Generated from calibration pool case CAL-SPC-013, verified 2026-03-06"
+}

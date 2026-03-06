@@ -1,0 +1,29 @@
+{
+  "case_id": "CAL-BAY-007",
+  "analysis_type": "bayesian",
+  "analysis_id": "bayes_ab",
+  "description": "Bayesian A/B: 70% vs 30% conversion \u2192 prob_better>0.95",
+  "config": {
+    "group": "group",
+    "success": "converted"
+  },
+  "expected": {
+    "statistics.prob_better": {
+      "value": 1.0,
+      "tolerance": 0.05
+    },
+    "statistics.rate_a": {
+      "value": 0.655,
+      "tolerance": 0.1
+    },
+    "statistics.rate_b": {
+      "value": 0.315,
+      "tolerance": 0.1
+    },
+    "statistics.lift": {
+      "value": 1.0794,
+      "tolerance": 0.1
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-BAY-007, verified 2026-03-06"
+}

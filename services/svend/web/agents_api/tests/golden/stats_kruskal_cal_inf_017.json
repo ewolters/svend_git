@@ -1,0 +1,25 @@
+{
+  "case_id": "CAL-INF-017",
+  "analysis_type": "stats",
+  "analysis_id": "kruskal",
+  "description": "Kruskal-Wallis: 3 identical N(50,10) groups \u2192 p>0.05",
+  "config": {
+    "var": "value",
+    "group_var": "group"
+  },
+  "expected": {
+    "statistics.H_statistic": {
+      "value": 1.0718,
+      "tolerance": 0.1
+    },
+    "statistics.p_value": {
+      "value": 0.585132,
+      "tolerance": 0.01
+    },
+    "statistics.epsilon_squared": {
+      "value": 0.0,
+      "tolerance": 0.1
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-INF-017, verified 2026-03-06"
+}
