@@ -2370,6 +2370,105 @@
     </div>
 </div>
 
+<div class="tab-content" id="tab-calibration">
+    <!-- KPI Cards -->
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:1.5rem;">
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="cal-coverage">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">Coverage %</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="cal-ratchet">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">Ratchet Floor</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="cal-pass-rate">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">Calibration Pass</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="cal-golden">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">Golden Files</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="cal-complexity">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">Complexity Issues</div>
+        </div>
+    </div>
+
+    <!-- Per-Tier Coverage -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem;">
+        <div class="chart-card" style="text-align:center;padding:0.75rem;">
+            <div style="font-size:1.4rem;font-weight:700;" id="cal-t1">—</div>
+            <div style="font-size:0.7rem;color:var(--text-dim);">Tier 1 (Trust) / 70%</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:0.75rem;">
+            <div style="font-size:1.4rem;font-weight:700;" id="cal-t2">—</div>
+            <div style="font-size:0.7rem;color:var(--text-dim);">Tier 2 (Revenue) / 50%</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:0.75rem;">
+            <div style="font-size:1.4rem;font-weight:700;" id="cal-t3">—</div>
+            <div style="font-size:0.7rem;color:var(--text-dim);">Tier 3 (Feature) / 30%</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:0.75rem;">
+            <div style="font-size:1.4rem;font-weight:700;" id="cal-t4">—</div>
+            <div style="font-size:0.7rem;color:var(--text-dim);">Tier 4 (Infra) / 20%</div>
+        </div>
+    </div>
+
+    <!-- Coverage Trend Chart -->
+    <div class="chart-card full-width" style="margin-bottom:1.5rem;"><h3 style="margin:0 0 8px 0;font-size:0.95rem;">Coverage Trend</h3><canvas id="chart-cal-trend" height="200"></canvas></div>
+
+    <!-- Certificates Section -->
+    <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Calibration Certificates</h3>
+    <div style="overflow-x:auto;margin-bottom:1.5rem;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+            <thead style="border-bottom:1px solid var(--border);">
+                <tr style="color:var(--text-dim);">
+                    <th style="padding:8px;text-align:left;">Date</th>
+                    <th style="padding:8px;text-align:center;">Coverage</th>
+                    <th style="padding:8px;text-align:center;">Calibration</th>
+                    <th style="padding:8px;text-align:center;">Golden Files</th>
+                    <th style="padding:8px;text-align:center;">Complexity</th>
+                    <th style="padding:8px;text-align:center;">Status</th>
+                </tr>
+            </thead>
+            <tbody id="cal-certs-table">
+                <tr><td colspan="6" style="padding:1rem;text-align:center;color:var(--text-dim);">No certificates yet. Run: python3 manage.py generate_calibration_cert</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Recent Reports -->
+    <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Recent Reports</h3>
+    <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+            <thead style="border-bottom:1px solid var(--border);">
+                <tr style="color:var(--text-dim);">
+                    <th style="padding:8px;text-align:left;">Date</th>
+                    <th style="padding:8px;text-align:center;">Coverage</th>
+                    <th style="padding:8px;text-align:center;">Ratchet</th>
+                    <th style="padding:8px;text-align:center;">Cases</th>
+                    <th style="padding:8px;text-align:center;">Type</th>
+                </tr>
+            </thead>
+            <tbody id="cal-reports-table">
+                <tr><td colspan="5" style="padding:1rem;text-align:center;color:var(--text-dim);">No reports yet. Run: python3 manage.py measure_coverage</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Certificate Detail Modal -->
+    <div id="cal-cert-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
+        <div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;padding:1.5rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                <h3 style="margin:0;font-size:1rem;">Certificate Detail</h3>
+                <button onclick="document.getElementById('cal-cert-modal').style.display='none'" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text-dim);">×</button>
+            </div>
+            <div id="cal-cert-detail" style="font-size:0.8rem;"></div>
+        </div>
+    </div>
+</div>
+
 <script>
 // =========================================================================
 // Dashboard State
@@ -4773,6 +4872,125 @@ async function loadAuditEntries() {
 }
 
 // =========================================================================
+// Calibration (CAL-001)
+// =========================================================================
+async function loadCalibration() {
+    try {
+        const d = await apiFetch('calibration');
+        const s = d.stats || {};
+
+        // KPI cards
+        function covColor(v, target) {
+            if (v == null) return 'var(--text-dim)';
+            return v >= target ? 'var(--accent-primary,#4a9f6e)' : v >= target * 0.5 ? 'var(--warning,#f59e0b)' : 'var(--danger,#ef4444)';
+        }
+        function setKpi(id, val, suffix, color) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = val != null ? val + (suffix || '') : '—';
+            if (color) el.style.color = color;
+        }
+
+        setKpi('cal-coverage', s.overall_coverage != null ? s.overall_coverage.toFixed(1) : null, '%', covColor(s.overall_coverage, 40));
+        setKpi('cal-ratchet', s.ratchet_baseline != null ? s.ratchet_baseline.toFixed(1) : null, '%');
+        setKpi('cal-pass-rate', s.calibration_pass_rate != null ? s.calibration_pass_rate.toFixed(0) : null, '%', covColor(s.calibration_pass_rate, 100));
+        setKpi('cal-golden', s.golden_file_count, '');
+        setKpi('cal-complexity', s.complexity_violations, '', s.complexity_violations > 0 ? 'var(--danger,#ef4444)' : 'var(--accent-primary,#4a9f6e)');
+
+        // Tier coverage
+        setKpi('cal-t1', s.tier1_coverage != null ? s.tier1_coverage.toFixed(1) : null, '%', covColor(s.tier1_coverage, 70));
+        setKpi('cal-t2', s.tier2_coverage != null ? s.tier2_coverage.toFixed(1) : null, '%', covColor(s.tier2_coverage, 50));
+        setKpi('cal-t3', s.tier3_coverage != null ? s.tier3_coverage.toFixed(1) : null, '%', covColor(s.tier3_coverage, 30));
+        setKpi('cal-t4', s.tier4_coverage != null ? s.tier4_coverage.toFixed(1) : null, '%', covColor(s.tier4_coverage, 20));
+
+        // Coverage trend chart
+        if (d.trend && d.trend.length) {
+            makeChart('chart-cal-trend', {
+                type: 'line',
+                data: {
+                    labels: d.trend.map(t => t.date),
+                    datasets: [{
+                        label: 'Coverage %',
+                        data: d.trend.map(t => t.coverage),
+                        borderColor: cc(0),
+                        backgroundColor: cca(0, 0.15),
+                        fill: true,
+                        tension: 0.3,
+                    }, {
+                        label: 'Ratchet Floor',
+                        data: d.trend.map(t => t.ratchet),
+                        borderColor: cc(3),
+                        borderDash: [5, 5],
+                        fill: false,
+                        tension: 0,
+                        pointRadius: 0,
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { display: true, position: 'top' } }, scales: { y: { min: 0 } } }
+            });
+        }
+
+        // Certificates table
+        const certBody = document.getElementById('cal-certs-table');
+        if (d.certificates && d.certificates.length) {
+            certBody.innerHTML = d.certificates.map(c => {
+                const statusColor = c.status === 'pass' ? 'var(--accent-primary,#4a9f6e)' : c.status === 'warning' ? 'var(--warning,#f59e0b)' : 'var(--danger,#ef4444)';
+                const statusBadge = `<span style="background:${statusColor}22;color:${statusColor};padding:2px 8px;border-radius:4px;font-size:0.7rem;font-weight:600;text-transform:uppercase;">${c.status}</span>`;
+                return `<tr style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="showCertDetail('${c.id}')">
+                    <td style="padding:8px;">${c.date}</td>
+                    <td style="padding:8px;text-align:center;">${c.overall_coverage != null ? c.overall_coverage.toFixed(1) + '%' : '—'}</td>
+                    <td style="padding:8px;text-align:center;">${c.calibration_cases_passed}/${c.calibration_cases_run}</td>
+                    <td style="padding:8px;text-align:center;">${c.golden_file_count}</td>
+                    <td style="padding:8px;text-align:center;">${c.complexity_violations}</td>
+                    <td style="padding:8px;text-align:center;">${statusBadge}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        // Reports table
+        const repBody = document.getElementById('cal-reports-table');
+        if (d.reports && d.reports.length) {
+            repBody.innerHTML = d.reports.map(r => {
+                const typeBadge = r.is_certificate
+                    ? '<span style="background:var(--accent-primary,#4a9f6e)22;color:var(--accent-primary,#4a9f6e);padding:2px 6px;border-radius:3px;font-size:0.7rem;font-weight:600;">CERT</span>'
+                    : '<span style="color:var(--text-dim);font-size:0.7rem;">report</span>';
+                return `<tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:8px;">${r.date}</td>
+                    <td style="padding:8px;text-align:center;">${r.overall_coverage != null ? r.overall_coverage.toFixed(1) + '%' : '—'}</td>
+                    <td style="padding:8px;text-align:center;">${r.ratchet_baseline.toFixed(1)}%</td>
+                    <td style="padding:8px;text-align:center;">${r.calibration_cases_passed}/${r.calibration_cases_run}</td>
+                    <td style="padding:8px;text-align:center;">${typeBadge}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        // Store cert data for modal
+        window._calCerts = d.certificates || [];
+    } catch(e) {
+        console.error('Calibration load failed:', e);
+    }
+}
+
+function showCertDetail(certId) {
+    const cert = (window._calCerts || []).find(c => c.id === certId);
+    if (!cert) return;
+    const detail = document.getElementById('cal-cert-detail');
+    detail.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:1rem;">
+            <div><strong>Date:</strong> ${cert.date}</div>
+            <div><strong>Status:</strong> <span style="text-transform:uppercase;font-weight:600;">${cert.status}</span></div>
+            <div><strong>Coverage:</strong> ${cert.overall_coverage != null ? cert.overall_coverage.toFixed(1) + '%' : '—'}</div>
+            <div><strong>Pass Rate:</strong> ${cert.calibration_pass_rate != null ? cert.calibration_pass_rate + '%' : '—'}</div>
+            <div><strong>Cases:</strong> ${cert.calibration_cases_passed}/${cert.calibration_cases_run}</div>
+            <div><strong>Golden Files:</strong> ${cert.golden_file_count}</div>
+            <div><strong>Complexity:</strong> ${cert.complexity_violations} violations</div>
+        </div>
+        ${cert.findings && cert.findings.length ? '<h4 style="margin:1rem 0 0.5rem 0;font-size:0.85rem;">Findings</h4><ul style="margin:0;padding-left:1.2rem;">' + cert.findings.map(f => `<li style="margin-bottom:4px;">${f}</li>`).join('') + '</ul>' : '<div style="color:var(--text-dim);margin-top:1rem;">No findings.</div>'}
+    `;
+    document.getElementById('cal-cert-modal').style.display = 'flex';
+}
+
+// =========================================================================
 // Tab & Time Management
 // =========================================================================
 const loaders = {
@@ -4797,12 +5015,13 @@ const loaders = {
     standards: loadStandards,
     roadmap: loadRoadmap,
     features: loadFeatures,
+    calibration: loadCalibration,
 };
 
 const groups = {
     product:  ['users', 'dsw', 'hypotheses', 'performance', 'activity', 'roadmap', 'features'],
     growth:   ['business', 'onboarding', 'email', 'content', 'crm', 'site'],
-    ops:      ['automation', 'insights', 'anthropic', 'compliance', 'changes', 'incidents', 'infra', 'standards'],
+    ops:      ['automation', 'insights', 'anthropic', 'compliance', 'changes', 'incidents', 'infra', 'standards', 'calibration'],
 };
 
 const tabLabels = {
@@ -4812,6 +5031,7 @@ const tabLabels = {
     automation: 'Automation', insights: 'AI Insights', anthropic: 'Anthropic', compliance: 'Compliance', changes: 'Changes', incidents: 'Incidents', infra: 'Infra', standards: 'Standards',
     roadmap: 'Roadmap',
     features: 'Features',
+    calibration: 'Calibration',
 };
 
 let activeGroup = 'product';

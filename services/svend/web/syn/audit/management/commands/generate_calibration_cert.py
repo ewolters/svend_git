@@ -31,7 +31,7 @@ class Command(BaseCommand):
         try:
             from agents_api.calibration import run_calibration
 
-            cal_data = run_calibration(n=None)  # Run ALL cases
+            cal_data = run_calibration(subset_size=0)  # Run ALL cases
         except Exception as e:
             findings.append(f"Calibration run error: {e}")
             status_overall = "fail"

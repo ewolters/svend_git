@@ -5387,3 +5387,115 @@ def api_features_add_note(request, feature_id):
 
     f.save()
     return Response({"ok": True, "entry": entry})
+
+
+# =============================================================================
+# Calibration (CAL-001)
+# =============================================================================
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_calibration(request):
+    """Return calibration report data for dashboard. CAL-001 §11.2."""
+    try:
+        from syn.audit.models import CalibrationReport
+
+        # Latest 20 reports
+        reports_qs = CalibrationReport.objects.order_by("-date")[:20]
+        reports = [
+            {
+                "id": str(r.id),
+                "date": r.date.isoformat(),
+                "overall_coverage": r.overall_coverage,
+                "tier1_coverage": r.tier1_coverage,
+                "tier2_coverage": r.tier2_coverage,
+                "tier3_coverage": r.tier3_coverage,
+                "tier4_coverage": r.tier4_coverage,
+                "calibration_pass_rate": r.calibration_pass_rate,
+                "calibration_cases_run": r.calibration_cases_run,
+                "calibration_cases_passed": r.calibration_cases_passed,
+                "golden_file_count": r.golden_file_count,
+                "complexity_violations": r.complexity_violations,
+                "ratchet_baseline": r.ratchet_baseline,
+                "is_certificate": r.is_certificate,
+                "details": r.details,
+            }
+            for r in reports_qs
+        ]
+
+        # Coverage trend (all reports, chronological)
+        trend_qs = (
+            CalibrationReport.objects.filter(overall_coverage__isnull=False)
+            .order_by("date")
+            .values("date", "overall_coverage", "ratchet_baseline")
+        )
+        trend = [
+            {
+                "date": r["date"].isoformat(),
+                "coverage": r["overall_coverage"],
+                "ratchet": r["ratchet_baseline"],
+            }
+            for r in trend_qs
+        ]
+
+        # Certificates only
+        certs_qs = CalibrationReport.objects.filter(is_certificate=True).order_by("-date")[:10]
+        certificates = [
+            {
+                "id": str(c.id),
+                "date": c.date.isoformat(),
+                "overall_coverage": c.overall_coverage,
+                "calibration_pass_rate": c.calibration_pass_rate,
+                "calibration_cases_run": c.calibration_cases_run,
+                "calibration_cases_passed": c.calibration_cases_passed,
+                "golden_file_count": c.golden_file_count,
+                "complexity_violations": c.complexity_violations,
+                "status": c.details.get("status", "unknown"),
+                "findings": c.details.get("findings", []),
+            }
+            for c in certs_qs
+        ]
+
+        # Summary stats from latest report
+        latest = CalibrationReport.objects.order_by("-date").first()
+        stats = {}
+        if latest:
+            stats = {
+                "overall_coverage": latest.overall_coverage,
+                "tier1_coverage": latest.tier1_coverage,
+                "tier2_coverage": latest.tier2_coverage,
+                "tier3_coverage": latest.tier3_coverage,
+                "tier4_coverage": latest.tier4_coverage,
+                "ratchet_baseline": latest.ratchet_baseline,
+                "golden_file_count": latest.golden_file_count,
+                "complexity_violations": latest.complexity_violations,
+                "calibration_pass_rate": latest.calibration_pass_rate,
+                "last_report_date": latest.date.isoformat(),
+            }
+
+        # Latest certificate
+        latest_cert = CalibrationReport.objects.filter(is_certificate=True).order_by("-date").first()
+        if latest_cert:
+            stats["last_cert_date"] = latest_cert.date.isoformat()
+            stats["last_cert_status"] = latest_cert.details.get("status", "unknown")
+
+        return Response(
+            {
+                "reports": reports,
+                "certificates": certificates,
+                "trend": trend,
+                "stats": stats,
+            }
+        )
+    except Exception as e:
+        logger.warning("Calibration data query failed: %s", e)
+        return Response(
+            {
+                "reports": [],
+                "certificates": [],
+                "trend": [],
+                "stats": {},
+                "error": str(e),
+            }
+        )
