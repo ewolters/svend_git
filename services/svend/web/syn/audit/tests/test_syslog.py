@@ -13,7 +13,7 @@ Compliance: SOC 2 CC7.2 / ISO 27001 A.12.7
 import uuid
 
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 
 from syn.audit.models import IntegrityViolation, SysLogEntry
 from syn.audit.utils import (
@@ -489,3 +489,47 @@ class TestComplianceRequirements(TestCase):
         # Violation should be recorded in DB
         self.assertIsNotNone(violation.id)
         self.assertEqual(violation.violation_type, "chain_break")
+
+
+class TestConcurrentChainWrites(TransactionTestCase):
+    """Test advisory lock prevents chain breaks under concurrent writes."""
+
+    def test_concurrent_writes_maintain_chain(self):
+        """Concurrent writes to the same tenant serialize via advisory lock.
+
+        Reproduces the race condition that caused the entry 928/929 chain break:
+        multiple threads writing simultaneously must not produce duplicate
+        previous_hash values.
+        """
+        import concurrent.futures
+
+        from django.db import close_old_connections
+
+        tenant = uuid.uuid4()
+
+        # Seed the chain
+        SysLogEntry.objects.create(tenant_id=tenant, actor="setup", event_name="seed", payload={})
+
+        def write_entry(i):
+            close_old_connections()
+            try:
+                SysLogEntry.objects.create(
+                    tenant_id=tenant, actor=f"writer-{i}", event_name=f"concurrent.{i}", payload={"i": i}
+                )
+            finally:
+                close_old_connections()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+            futures = [pool.submit(write_entry, i) for i in range(8)]
+            for f in futures:
+                f.result()  # raise if any failed
+
+        # Verify the entire chain is intact
+        result = verify_chain_integrity(tenant)
+        self.assertTrue(result["is_valid"], f"Chain broken after concurrent writes: {result['violations']}")
+        self.assertEqual(result["total_entries"], 9)  # 1 seed + 8 concurrent
+
+        # Verify no duplicate previous_hash values (the exact bug we're preventing)
+        entries = list(SysLogEntry.objects.filter(tenant_id=tenant).order_by("id"))
+        prev_hashes = [e.previous_hash for e in entries if not e.is_genesis]
+        self.assertEqual(len(prev_hashes), len(set(prev_hashes)), "Duplicate previous_hash found — race condition")

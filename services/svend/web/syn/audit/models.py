@@ -124,10 +124,18 @@ class SysLogEntry(SynaraImmutableLog):
 
         # Get previous entry for chain linkage
         with transaction.atomic():
-            # Lock the table to ensure chain integrity
-            previous_entry = (
-                SysLogEntry.objects.select_for_update().filter(tenant_id=self.tenant_id).order_by("-id").first()
-            )
+            # Advisory lock serializes all chain appends for this tenant.
+            # select_for_update() alone has a TOCTOU race: TX2 waits for TX1's
+            # row lock, but its query already returned the stale "latest" entry.
+            # pg_advisory_xact_lock blocks until no other transaction holds the
+            # same lock, then we query the true latest entry.
+            from django.db import connection
+
+            lock_id = hash(str(self.tenant_id)) & 0x7FFFFFFF
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_xact_lock(%s)", [lock_id])
+
+            previous_entry = SysLogEntry.objects.filter(tenant_id=self.tenant_id).order_by("-id").first()
 
             if previous_entry is None:
                 # First entry in chain (genesis)
