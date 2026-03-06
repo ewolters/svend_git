@@ -349,6 +349,25 @@ AUDIT_EVENTS: dict[str, dict[str, Any]] = {
         },
     },
     # =========================================================================
+    # QUALITY EVENTS (QUAL-001, FEAT-093)
+    # =========================================================================
+    "quality.analysis_rejected": {
+        "description": "DSW analysis request rejected due to validation failure",
+        "category": "quality",
+        "audit": True,
+        "priority": 3,
+        "siem_forward": False,
+        "payload_schema": {
+            "type": "object",
+            "properties": {
+                "reason": {"type": "string"},
+                "analysis_type": {"type": ["string", "null"]},
+                "analysis_id": {"type": ["string", "null"]},
+            },
+            "required": ["reason"],
+        },
+    },
+    # =========================================================================
     # AUDIT TRAIL QUERY EVENTS
     # =========================================================================
     "audit.trail.queried": {

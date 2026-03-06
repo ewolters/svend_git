@@ -20,6 +20,27 @@ from .common import get_cached_model, log_agent_action, safe_json_response
 logger = logging.getLogger(__name__)
 
 
+def _log_rejection(request, reason, analysis_type=None, analysis_id=None):
+    """Log DSW validation rejection to audit trail (FEAT-093, QUAL-001)."""
+    try:
+        from syn.audit.utils import generate_entry
+
+        tenant_id = getattr(request.user, "tenant_id", None)
+        actor = getattr(request.user, "email", "anonymous")
+        generate_entry(
+            tenant_id=tenant_id,
+            actor=actor,
+            event_name="quality.analysis_rejected",
+            payload={
+                "reason": reason,
+                "analysis_type": analysis_type,
+                "analysis_id": analysis_id,
+            },
+        )
+    except Exception:
+        logger.warning("Failed to log quality rejection", exc_info=True)
+
+
 def _read_csv_safe(file_or_path):
     """Read CSV with encoding fallback: UTF-8 → latin-1."""
     import io
@@ -64,6 +85,7 @@ def run_analysis(request):
     try:
         body = json.loads(request.body)
     except json.JSONDecodeError:
+        _log_rejection(request, "invalid_json")
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     analysis_type = body.get("type")
@@ -89,8 +111,10 @@ def run_analysis(request):
             try:
                 df = pd.DataFrame(inline_data)
                 if len(df) > 10000:
+                    _log_rejection(request, "inline_data_too_large", analysis_type, analysis_id)
                     return JsonResponse({"error": "Inline data limited to 10,000 rows"}, status=400)
             except Exception as e:
+                _log_rejection(request, f"invalid_inline_data: {e}", analysis_type, analysis_id)
                 return JsonResponse({"error": f"Invalid inline data: {e}"}, status=400)
 
         # Source 1: Uploaded via upload_data endpoint (data_xxx format)
@@ -126,6 +150,7 @@ def run_analysis(request):
         if df is None and analysis_type in ("simulation", "bayesian"):
             df = pd.DataFrame()  # Simulation can run without data (user-defined distributions)
         elif df is None:
+            _log_rejection(request, "no_data_loaded", analysis_type, analysis_id)
             return JsonResponse({"error": "No data loaded. Please load a dataset first."}, status=400)
 
         result = {"plots": [], "summary": "", "guide_observation": ""}
@@ -199,6 +224,7 @@ def run_analysis(request):
                     model_feats = cached.get("meta", {}).get("features", [])
             result = run_interventional_shap(df, analysis_id, config, model=model_obj, model_features=model_feats)
         else:
+            _log_rejection(request, f"unknown_analysis_type: {analysis_type}", analysis_type, analysis_id)
             return JsonResponse({"error": f"Unknown analysis type: {analysis_type}"}, status=400)
 
         latency = int((time.time() - start_time) * 1000)

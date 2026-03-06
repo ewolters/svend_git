@@ -285,6 +285,27 @@ Data quality issues MUST be reported in the `diagnostics` array, never as silent
 {"severity": "warning", "message": "Column 'x' has 23% missing values (46 of 200 rows)"}
 ```
 
+### 7.3 Rejection Quality Records
+
+<!-- rule: mandatory -->
+
+When DSW input validation rejects an analysis request, a quality record MUST be created in the hash-chained audit trail via `generate_entry()`. This enables nonconformance trending and root cause analysis on user data quality issues.
+
+**Rejection reasons logged:** invalid JSON, inline data too large, invalid inline data format, no data loaded, unknown analysis type.
+
+**Event:** `quality.analysis_rejected` — payload includes `reason`, `analysis_type`, `analysis_id`.
+
+<!-- assert: DSW validation rejections create audit trail quality records | check=qual-rejection-logging -->
+<!-- impl: agents_api/dsw/dispatch.py:_log_rejection -->
+<!-- test: syn.audit.tests.test_quality_records.QualityRejectionLoggingTest.test_invalid_json_creates_entry -->
+<!-- test: syn.audit.tests.test_quality_records.QualityRejectionLoggingTest.test_no_data_creates_entry -->
+<!-- test: syn.audit.tests.test_quality_records.QualityRejectionLoggingTest.test_unknown_type_creates_entry -->
+
+<!-- assert: quality.analysis_rejected event is registered in audit event catalog | check=qual-event-registered -->
+<!-- impl: syn/audit/events.py:AUDIT_EVENTS -->
+<!-- test: syn.audit.tests.test_quality_records.QualityEventCatalogTest.test_event_registered -->
+<!-- test: syn.audit.tests.test_quality_records.QualityEventCatalogTest.test_event_has_payload_schema -->
+
 ---
 
 ## **8. MODULE-SPECIFIC QUALITY**
@@ -418,3 +439,4 @@ The `output_quality` compliance check validates:
 |---------|------|--------|---------|
 | 1.0 | 2026-03-05 | Eric + Claude | Initial release. Three pillars framework, calibration codification, output validation, data quality, module-specific quality |
 | 1.1 | 2026-03-05 | Eric + Claude | Supersedes DSW-002. Absorbed DSW output quality requirements (narrative, charts, education, evidence grade, what-if, diagnostics). Fixed compliance header to XRF-001 format |
+| 1.2 | 2026-03-06 | Eric + Claude | Added §7.3 Rejection Quality Records — DSW validation rejections logged to audit trail (FEAT-093) |
