@@ -128,7 +128,7 @@
                 "name": "How do I know the statistical results are correct?",
                 "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "We treat Svend like a calibrated measurement instrument. 42 golden-file test cases verify statistical outputs against known correct results — every p-value, Cpk, control limit, and effect size checked against defined tolerance bands (p-value ±0.005, Cpk ±0.05, correlation ±0.02). Eight cases run daily on rotation. Monthly calibration certificates record full results. If any analysis drifts outside tolerance, a DriftViolation is created automatically. Coverage can only ratchet up, never regress. Everything is visible on our public compliance dashboard at svend.ai/compliance/, including raw pass/fail results. We also maintain 25 internal standards with 400+ machine-readable assertions, all verified automatically."
+                    "text": "We treat Svend like a calibrated measurement instrument. Golden-file test cases verify statistical outputs against known correct results — every p-value, Cpk, control limit, and effect size checked against defined tolerance bands (p-value ±0.005, Cpk ±0.05, correlation ±0.02). Eight cases run daily on rotation. Monthly calibration certificates record full results. If any analysis drifts outside tolerance, a DriftViolation is created automatically. Coverage can only ratchet up, never regress. Everything is visible on our public compliance dashboard at svend.ai/compliance/, including raw pass/fail results. We also maintain 25 internal standards with 400+ machine-readable assertions, all verified automatically."
                 }
             },
             {
@@ -1606,7 +1606,7 @@
 
             <div style="display: flex; justify-content: center; gap: 0; padding: 2rem 0; max-width: 700px; margin: 0 auto;">
                 <div style="flex: 1; text-align: center; padding: 0 1rem; border-right: 1px solid rgba(255,255,255,0.08);">
-                    <div style="font-size: 2rem; font-weight: 700; color: var(--accent-primary);">42</div>
+                    <div style="font-size: 2rem; font-weight: 700; color: var(--accent-primary);">{{ calibration_count }}</div>
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Golden-file calibration cases</div>
                     <div style="font-size: 0.7rem; color: var(--text-dim); margin-top: 2px;">with tolerance bands</div>
                 </div>
@@ -1860,7 +1860,7 @@
 
             <div class="faq-item">
                 <div class="faq-question">How do I know the statistical results are correct?</div>
-                <div class="faq-answer">We treat Svend like a calibrated measurement instrument. 42 golden-file test cases verify statistical outputs against known correct results &mdash; every p-value, Cpk, control limit, and effect size checked against defined tolerance bands (p-value &plusmn;0.005, Cpk &plusmn;0.05, correlation &plusmn;0.02). Eight cases run daily on rotation. Monthly calibration certificates record full results. If any analysis drifts outside tolerance, a DriftViolation is created automatically and the issue is flagged before it reaches users. Coverage can only ratchet up &mdash; never regress. Everything is visible on our <a href="/compliance/" style="color: var(--accent-primary);">public compliance dashboard</a>, including the raw pass/fail results. We also maintain 25 internal standards with 400+ machine-readable assertions, all verified automatically.</div>
+                <div class="faq-answer">We treat Svend like a calibrated measurement instrument. {{ calibration_count }} golden-file test cases verify statistical outputs against known correct results &mdash; every p-value, Cpk, control limit, and effect size checked against defined tolerance bands (p-value &plusmn;0.005, Cpk &plusmn;0.05, correlation &plusmn;0.02). Eight cases run daily on rotation. Monthly calibration certificates record full results. If any analysis drifts outside tolerance, a DriftViolation is created automatically and the issue is flagged before it reaches users. Coverage can only ratchet up &mdash; never regress. Everything is visible on our <a href="/compliance/" style="color: var(--accent-primary);">public compliance dashboard</a>, including the raw pass/fail results. We also maintain 25 internal standards with 400+ machine-readable assertions, all verified automatically.</div>
             </div>
 
             <div class="faq-item">

@@ -208,6 +208,16 @@ def get_pricing_context(request):
     }
 
 
+def _get_calibration_count():
+    """Return the number of calibration cases in REFERENCE_POOL."""
+    try:
+        from agents_api.calibration import REFERENCE_POOL
+
+        return len(REFERENCE_POOL)
+    except Exception:
+        return 0
+
+
 def landing_view(request):
     """Render landing page with localized pricing."""
     from api.models import RoadmapItem
@@ -216,6 +226,7 @@ def landing_view(request):
     ctx["roadmap_items"] = RoadmapItem.objects.filter(
         is_public=True,
     ).exclude(status__in=["cancelled", "shipped"])
+    ctx["calibration_count"] = _get_calibration_count()
     return render(request, "landing.html", ctx)
 
 
@@ -240,12 +251,14 @@ def iso_audit_playbook_view(request):
 def svend_vs_minitab_view(request):
     """Render Svend vs Minitab comparison page with localized pricing."""
     ctx = get_pricing_context(request)
+    ctx["calibration_count"] = _get_calibration_count()
     return render(request, "svend_vs_minitab.html", ctx)
 
 
 def svend_vs_jmp_view(request):
     """Render Svend vs JMP comparison page with localized pricing."""
     ctx = get_pricing_context(request)
+    ctx["calibration_count"] = _get_calibration_count()
     return render(request, "svend_vs_jmp.html", ctx)
 
 
