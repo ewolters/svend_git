@@ -109,6 +109,28 @@ class ErrorEnvelopeTest(TestCase):
             # Non-API paths use HTML error pages, not JSON envelopes
             self.assertNotIn("application/json", content_type)
 
+    def test_skips_already_enveloped(self):
+        """Responses already containing error envelope are not double-wrapped."""
+        # Use direct middleware invocation to control inner response precisely
+        request = _make_request(path="/api/test/")
+        existing_envelope = {
+            "error": {
+                "code": "custom_error",
+                "message": "Already formatted",
+                "retryable": False,
+            }
+        }
+        inner_response = JsonResponse(existing_envelope, status=400)
+        middleware = ErrorEnvelopeMiddleware(lambda r: inner_response)
+        response = middleware(request)
+
+        data = json.loads(response.content)
+        # Should preserve existing envelope, not nest it
+        self.assertEqual(data["error"]["code"], "custom_error")
+        self.assertEqual(data["error"]["message"], "Already formatted")
+        # Should add request_id if missing
+        self.assertEqual(data["error"]["request_id"], "test-req-001")
+
 
 class ErrorCodeMappingTest(SimpleTestCase):
     """API-001 §10: HTTP status codes mapped to error codes."""
