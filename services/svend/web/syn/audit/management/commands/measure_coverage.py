@@ -1,53 +1,136 @@
 """
-Management command to measure statistical symbol coverage and store a CalibrationReport.
+Management command to measure code coverage and store a CalibrationReport.
 
 Usage:
+    coverage run manage.py test --keepdb && coverage json
     python manage.py measure_coverage
 
 Standard: CAL-001 §5, §10.2
 Compliance: SOC 2 CC4.1 (Monitoring Activities)
-
-Coverage metric: symbol governance scoped to statistical engine files —
-% of symbols (functions/classes) in DSW, SPC, PBS, and calibration modules
-with both <!-- impl: file:Symbol --> and <!-- test: --> hooks in standards.
 """
 
+import json
 from datetime import date
+from pathlib import Path
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 
-# Statistical engine file prefixes — the code that calibration verifies
-STATISTICAL_PREFIXES = (
-    "agents_api/dsw/",
-    "agents_api/spc.py",
-    "agents_api/spc_views.py",
-    "agents_api/pbs_engine.py",
+# Module tier classification per CAL-001 §4
+TIER1_MODULES = [
+    "agents_api/dsw/stats.py",
+    "agents_api/dsw/stats_parametric.py",
+    "agents_api/dsw/stats_nonparametric.py",
+    "agents_api/dsw/stats_regression.py",
+    "agents_api/dsw/stats_posthoc.py",
+    "agents_api/dsw/stats_quality.py",
+    "agents_api/dsw/stats_advanced.py",
+    "agents_api/dsw/stats_exploratory.py",
+    "agents_api/dsw/spc.py",
+    "agents_api/dsw/bayesian.py",
+    "agents_api/dsw/reliability.py",
+    "agents_api/dsw/dispatch.py",
+    "agents_api/dsw/standardize.py",
+    "agents_api/dsw/common.py",
     "agents_api/calibration.py",
-)
+]
+
+TIER2_MODULES = [
+    "agents_api/dsw/ml.py",
+    "agents_api/dsw_views.py",
+    "agents_api/spc_views.py",
+    "agents_api/experimenter_views.py",
+    "agents_api/synara_views.py",
+    "accounts/permissions.py",
+    "accounts/models.py",
+    "core/views.py",
+    "agents_api/dsw/viz.py",
+    "agents_api/dsw/simulation.py",
+]
+
+TIER3_MODULES = [
+    "agents_api/fmea_views.py",
+    "agents_api/rca_views.py",
+    "agents_api/a3_views.py",
+    "agents_api/hoshin_views.py",
+    "agents_api/vsm_views.py",
+    "agents_api/whiteboard_views.py",
+    "agents_api/problem_views.py",
+    "agents_api/report_views.py",
+    "agents_api/iso_views.py",
+    "agents_api/learn_views.py",
+    "agents_api/triage_views.py",
+    "agents_api/forecast_views.py",
+    "agents_api/guide_views.py",
+    "agents_api/capa_views.py",
+    "agents_api/autopilot_views.py",
+    "agents_api/xmatrix_views.py",
+    "agents_api/workflow_views.py",
+    "agents_api/plantsim_views.py",
+    "workbench/views.py",
+    "forge/views.py",
+    "files/views.py",
+    "chat/views.py",
+    "notifications/views.py",
+]
+
+TIER4_MODULES = [
+    "syn/audit/compliance.py",
+    "syn/sched/core.py",
+    "api/internal_views.py",
+    "api/views.py",
+    "syn/audit/models.py",
+    "syn/audit/standards.py",
+    "agents_api/models.py",
+    "syn/sched/models.py",
+    "workbench/models.py",
+]
 
 
-def _is_statistical_file(rel_path):
-    """Return True if rel_path is a statistical engine file."""
-    return any(rel_path.startswith(p) for p in STATISTICAL_PREFIXES)
+def _tier_coverage(coverage_data, tier_modules):
+    """Compute average coverage for a set of modules."""
+    total_stmts = 0
+    total_covered = 0
+    files = coverage_data.get("files", {})
+    for mod_path in tier_modules:
+        # coverage.json uses absolute paths or relative — try both
+        for key, data in files.items():
+            if key.endswith(mod_path):
+                summary = data.get("summary", {})
+                total_stmts += summary.get("num_statements", 0)
+                total_covered += summary.get("covered_lines", 0)
+                break
+    if total_stmts == 0:
+        return None
+    return round(total_covered / total_stmts * 100, 1)
 
 
 class Command(BaseCommand):
-    help = "Measure statistical symbol coverage and store a CalibrationReport (CAL-001 §5)"
+    help = "Measure code coverage and store a CalibrationReport (CAL-001 §5)"
 
     def handle(self, *args, **options):
-        from pathlib import Path
-
-        from django.conf import settings
-
-        from syn.audit.compliance import check_symbol_coverage
         from syn.audit.models import CalibrationReport
 
         base = Path(settings.BASE_DIR)
+        coverage_json = base / "coverage.json"
 
-        # Primary metric: symbol governance scoped to statistical engines
-        cov_result = check_symbol_coverage(file_filter=_is_statistical_file)
-        details = cov_result.get("details", {})
-        overall = details.get("covered_pct", 0)
+        if not coverage_json.exists():
+            self.stderr.write(
+                self.style.ERROR(
+                    "coverage.json not found. Run:\n  coverage run manage.py test --keepdb && coverage json"
+                )
+            )
+            return
+
+        data = json.loads(coverage_json.read_text())
+        totals = data.get("totals", {})
+        overall = totals.get("percent_covered", 0)
+
+        # Per-tier coverage
+        t1 = _tier_coverage(data, TIER1_MODULES)
+        t2 = _tier_coverage(data, TIER2_MODULES)
+        t3 = _tier_coverage(data, TIER3_MODULES)
+        t4 = _tier_coverage(data, TIER4_MODULES)
 
         # Golden file count
         golden_dir = base / "agents_api" / "tests" / "golden"
@@ -77,25 +160,24 @@ class Command(BaseCommand):
         report = CalibrationReport.objects.create(
             date=date.today(),
             overall_coverage=overall,
+            tier1_coverage=t1,
+            tier2_coverage=t2,
+            tier3_coverage=t3,
+            tier4_coverage=t4,
             golden_file_count=golden_count,
             complexity_violations=complexity_violations,
             ratchet_baseline=new_ratchet,
             details={
-                "metric": "statistical_symbol_governance",
-                "scope": "statistical_engines",
-                "file_prefixes": list(STATISTICAL_PREFIXES),
-                "total_symbols": details.get("total_symbols", 0),
-                "covered_symbols": details.get("covered_symbols", 0),
-                "specified_untested": details.get("specified_untested", 0),
-                "ungoverned": details.get("ungoverned", 0),
+                "total_statements": totals.get("num_statements", 0),
+                "covered_lines": totals.get("covered_lines", 0),
+                "missing_lines": totals.get("missing_lines", 0),
             },
         )
 
         self.stdout.write(self.style.SUCCESS(f"CalibrationReport created: {report.id}"))
         self.stdout.write(f"  Date: {report.date}")
-        self.stdout.write(f"  Statistical symbol coverage: {overall:.1f}%")
-        self.stdout.write(f"  Symbols: {details.get('covered_symbols', 0)} / {details.get('total_symbols', 0)}")
-        self.stdout.write(f"  Scope: {', '.join(STATISTICAL_PREFIXES)}")
+        self.stdout.write(f"  Overall coverage: {overall:.1f}%")
+        self.stdout.write(f"  Tier 1: {t1}%  Tier 2: {t2}%  Tier 3: {t3}%  Tier 4: {t4}%")
         self.stdout.write(f"  Golden files: {golden_count}")
         self.stdout.write(f"  Complexity violations: {complexity_violations}")
         self.stdout.write(f"  Ratchet baseline: {ratchet_baseline:.1f}% → {new_ratchet:.1f}%")
