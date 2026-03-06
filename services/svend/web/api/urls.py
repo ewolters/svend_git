@@ -153,6 +153,8 @@ urlpatterns = [
         internal_views.api_compliance_publish,
         name="internal_compliance_publish",
     ),
+    # Risk Registry (staff-only, RISK-001)
+    path("internal/risks/", internal_views.api_risk_registry, name="internal_risks"),
     # Change Management (staff-only, CHG-001)
     path("internal/changes/", internal_views.api_change_management, name="internal_changes"),
     path("internal/changes/create/", internal_views.api_change_create, name="internal_change_create"),
@@ -164,6 +166,7 @@ urlpatterns = [
     ),
     # Calibration (staff-only, CAL-001)
     path("internal/calibration/", internal_views.api_calibration, name="internal_calibration"),
+    path("internal/calibration/run/", internal_views.api_calibration_run, name="internal_calibration_run"),
     # Incident Management (staff-only, INC-001)
     path("internal/incidents/", internal_views.api_incident_list, name="internal_incidents"),
     path("internal/incidents/create/", internal_views.api_incident_create, name="internal_incident_create"),

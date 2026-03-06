@@ -2371,6 +2371,15 @@
 </div>
 
 <div class="tab-content" id="tab-calibration">
+    <!-- Actions Panel -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="display:flex;gap:8px;align-items:center;">
+            <button id="btn-cal-measure" onclick="runCalibrationAction('measure_coverage')" style="padding:8px 16px;background:var(--accent-primary,#4a9f6e);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:600;">Measure Coverage</button>
+            <button id="btn-cal-cert" onclick="runCalibrationAction('generate_cert')" style="padding:8px 16px;background:var(--accent-secondary,#3b82f6);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:600;">Generate Certificate</button>
+        </div>
+        <div id="cal-action-status" style="font-size:0.75rem;color:var(--text-dim);"></div>
+    </div>
+    <div id="cal-action-output" style="display:none;margin-bottom:12px;padding:10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:0.72rem;white-space:pre-wrap;max-height:200px;overflow-y:auto;"></div>
     <!-- KPI Cards -->
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:1.5rem;">
         <div class="chart-card" style="text-align:center;padding:1rem;">
@@ -4874,6 +4883,55 @@ async function loadAuditEntries() {
 // =========================================================================
 // Calibration (CAL-001)
 // =========================================================================
+async function runCalibrationAction(action) {
+    const btnId = action === 'measure_coverage' ? 'btn-cal-measure' : 'btn-cal-cert';
+    const btn = document.getElementById(btnId);
+    const statusEl = document.getElementById('cal-action-status');
+    const outputEl = document.getElementById('cal-action-output');
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    btn.textContent = 'Running...';
+    statusEl.textContent = '';
+    outputEl.style.display = 'none';
+    try {
+        const resp = await fetch('/api/internal/calibration/run/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCSRF()},
+            body: JSON.stringify({action}),
+        });
+        const ct = resp.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+            statusEl.textContent = 'Timeout — try again';
+            statusEl.style.color = 'var(--danger,#ef4444)';
+            btn.textContent = origText;
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            return;
+        }
+        const data = await resp.json();
+        if (data.ok) {
+            const secs = (data.duration_ms / 1000).toFixed(1);
+            statusEl.textContent = `Done in ${secs}s`;
+            statusEl.style.color = 'var(--accent-primary,#4a9f6e)';
+            if (data.output) {
+                outputEl.textContent = data.output;
+                outputEl.style.display = 'block';
+            }
+            await loadCalibration();
+        } else {
+            statusEl.textContent = data.error || 'Failed';
+            statusEl.style.color = 'var(--danger,#ef4444)';
+        }
+    } catch (e) {
+        statusEl.textContent = 'Error: ' + e.message;
+        statusEl.style.color = 'var(--danger,#ef4444)';
+    }
+    btn.textContent = origText;
+    btn.disabled = false;
+    btn.style.opacity = '1';
+}
+
 async function loadCalibration() {
     try {
         const d = await apiFetch('calibration');

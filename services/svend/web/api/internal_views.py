@@ -1,5 +1,6 @@
 """Internal telemetry dashboard — staff and org-admin views."""
 
+import io
 import json
 import logging
 import re
@@ -4052,6 +4053,69 @@ def api_compliance_run(request):
 
 
 # =============================================================================
+# Risk Registry (RISK-001, FEAT-090)
+# =============================================================================
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_risk_registry(request):
+    """Return risk registry entries and stats for dashboard."""
+    try:
+        from syn.audit.models import RiskEntry
+
+        qs = RiskEntry.objects.all()
+
+        # Filters
+        if status := request.query_params.get("status"):
+            qs = qs.filter(status=status)
+        if category := request.query_params.get("category"):
+            qs = qs.filter(category=category)
+
+        entries = []
+        for entry in qs[:100]:
+            entries.append(
+                {
+                    "id": str(entry.id),
+                    "title": entry.title,
+                    "description": entry.description,
+                    "category": entry.category,
+                    "likelihood": entry.likelihood,
+                    "severity": entry.severity,
+                    "detectability": entry.detectability,
+                    "rpn": entry.rpn,
+                    "risk_level": entry.risk_level,
+                    "status": entry.status,
+                    "mitigation_plan": entry.mitigation_plan,
+                    "owner": entry.owner,
+                    "source_cr": str(entry.source_cr_id) if entry.source_cr_id else None,
+                    "created_at": entry.created_at.isoformat(),
+                    "updated_at": entry.updated_at.isoformat(),
+                }
+            )
+
+        total = RiskEntry.objects.count()
+        open_count = RiskEntry.objects.filter(status__in=["identified", "mitigating"]).count()
+        high_count = RiskEntry.objects.filter(rpn__gt=60).count()
+        mitigated_count = RiskEntry.objects.filter(status__in=["mitigated", "closed"]).count()
+
+        return Response(
+            {
+                "entries": entries,
+                "stats": {
+                    "total": total,
+                    "open": open_count,
+                    "high_rpn": high_count,
+                    "mitigated": mitigated_count,
+                },
+            }
+        )
+    except Exception as e:
+        logger.warning("Risk registry query failed: %s", e)
+        return Response({"entries": [], "stats": {}, "error": str(e)})
+
+
+# =============================================================================
 # Change Management (CHG-001)
 # =============================================================================
 
@@ -5516,3 +5580,44 @@ def api_calibration(request):
                 "error": str(e),
             }
         )
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_calibration_run(request):
+    """Run calibration actions from dashboard.
+
+    POST {"action": "measure_coverage"} — runs measure_coverage command
+    POST {"action": "generate_cert"} — runs generate_calibration_cert command
+    """
+    import time
+
+    from django.core.management import call_command
+
+    data = request.data or {}
+    action = data.get("action")
+
+    if action not in ("measure_coverage", "generate_cert"):
+        return Response({"ok": False, "error": f"Unknown action: {action}"}, status=400)
+
+    try:
+        start = time.time()
+        output = io.StringIO()
+
+        if action == "measure_coverage":
+            call_command("measure_coverage", stdout=output, stderr=output)
+        elif action == "generate_cert":
+            call_command("generate_calibration_cert", stdout=output, stderr=output)
+
+        duration_ms = round((time.time() - start) * 1000)
+        return Response(
+            {
+                "ok": True,
+                "action": action,
+                "output": output.getvalue(),
+                "duration_ms": duration_ms,
+            }
+        )
+    except Exception as e:
+        logger.exception("Calibration action %s failed", action)
+        return Response({"ok": False, "error": str(e)}, status=500)
