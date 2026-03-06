@@ -1,0 +1,33 @@
+[run]
+source = .
+omit =
+    */migrations/*
+    */tests/*
+    */test_*
+    */__pycache__/*
+    manage.py
+    gunicorn.conf.py
+    staticfiles/*
+    media/*
+    logs/*
+    */apps.py
+    */admin.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if __name__ == .__main__
+    raise NotImplementedError
+    pass
+    except ImportError
+    if TYPE_CHECKING
+show_missing = True
+precision = 1
+fail_under = 0
+
+[html]
+directory = htmlcov
+
+[json]
+output = coverage.json

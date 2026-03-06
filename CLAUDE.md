@@ -138,9 +138,9 @@ Skipping this creates compliance failures that are permanently visible in the au
 │   │   │   ├── sched/                 # Task scheduler (syn.sched — replaces Celery)
 │   │   │   └── audit/                 # Audit & compliance subsystem
 │   │   │       ├── models.py          # SysLogEntry, IntegrityViolation, DriftViolation,
-│   │   │       │                      #   ComplianceCheck, ComplianceReport,
+│   │   │       │                      #   ComplianceCheck, ComplianceReport, CalibrationReport,
 │   │   │       │                      #   ChangeRequest, ChangeLog, RiskAssessment, AgentVote
-│   │   │       ├── compliance.py      # 25 automated compliance checks
+│   │   │       ├── compliance.py      # 28 automated compliance checks
 │   │   │       ├── standards.py       # Standards parser (machine-readable hooks)
 │   │   │       ├── utils.py           # generate_entry(), verify_chain_integrity()
 │   │   │       ├── events.py          # Audit event catalog
@@ -401,14 +401,15 @@ Default view shows only features from **active** initiatives. To see everything,
 | ARCH-001 | Architecture & structure, layer boundaries | 6 |
 | CACHE-001 | Caching patterns, HTTP cache control, CDN integrity | 6 |
 | QUAL-001 | Output quality assurance, calibration, bounds checking | 12 |
+| CAL-001 | Software calibration & verification, coverage ratchet, golden files | 12 |
 
 Standards support `<!-- test: module.Class.method -->` hooks that link assertions to executable tests. The compliance system verifies test existence and can run them:
 
 Run `python manage.py run_compliance --standards` to verify all assertions + test existence.
 Run `python manage.py run_compliance --standards --run-tests` to execute linked tests.
-Run `python manage.py run_compliance --all` to run all 25 infrastructure checks.
+Run `python manage.py run_compliance --all` to run all 28 infrastructure checks.
 
-## Compliance Checks (25)
+## Compliance Checks (28)
 
 | Check | Category | Schedule | SOC 2 |
 |-------|----------|----------|-------|
@@ -425,6 +426,9 @@ Run `python manage.py run_compliance --all` to run all 25 infrastructure checks.
 | backup_freshness | availability | Wednesday | CC9.2 |
 | data_retention | privacy | Thursday | CC7.2 |
 | output_quality | processing_integrity | Wednesday | CC4.1, CC7.2 |
+| calibration_coverage | processing_integrity | Wednesday | CC4.1, CC7.2 |
+| complexity_governance | processing_integrity | Wednesday | CC4.1 |
+| endpoint_coverage | processing_integrity | Wednesday | CC4.1, CC7.2 |
 
 ## Data Model (Two Systems — Dual-Write Phase 2)
 

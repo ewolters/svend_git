@@ -582,6 +582,9 @@ WEEKDAY_ROTATION = {
         "incident_readiness",
         "symbol_coverage",
         "output_quality",
+        "calibration_coverage",
+        "complexity_governance",
+        "endpoint_coverage",
     ],
     3: ["data_retention", "rate_limiting", "code_style", "roadmap", "statistical_calibration"],
     4: ["dependency_vuln", "ssl_tls"],
@@ -4870,4 +4873,248 @@ def check_policy_review():
             "stale_policies": len(findings),
             "findings": findings,
         },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Calibration & Verification (CAL-001)
+# ---------------------------------------------------------------------------
+
+# File size exemptions — files documented in DEBT.md as known large modules.
+# Maps relative path suffix → DEBT.md priority for exemption.
+_COMPLEXITY_EXEMPTIONS = {
+    "agents_api/dsw_views.py": "P2",
+    "agents_api/dsw/stats.py": "P3",
+    "agents_api/learn_content.py": "P3",
+    "api/internal_views.py": "P3",
+    "agents_api/models.py": "P3",
+    "syn/audit/compliance.py": "P3",
+    "agents_api/dsw/spc.py": "P3",
+    "agents_api/dsw/bayesian.py": "P3",
+    "agents_api/dsw/ml.py": "P3",
+    "agents_api/dsw/common.py": "P3",
+    "agents_api/dsw/viz.py": "P3",
+    "agents_api/dsw/pbs_engine.py": "P3",
+    "agents_api/dsw/d_type.py": "P3",
+    "agents_api/dsw/endpoints_data.py": "P3",
+    "agents_api/pbs_engine.py": "P3",
+}
+
+
+@register("calibration_coverage", "processing_integrity", soc2_controls=["CC4.1", "CC7.2"])
+def check_calibration_coverage():
+    """CAL-001 §5/§6: Coverage measurement, golden files, ratchet.
+
+    Validates that:
+    - .coveragerc exists and is configured
+    - coverage.json exists and is reasonably fresh
+    - Coverage hasn't regressed below ratchet baseline
+    - Golden file directory exists
+
+    Standard: CAL-001 §5, §6
+    Compliance: SOC 2 CC4.1, ISO/IEC 17025:2017
+    """
+    issues = []
+    base = Path(settings.BASE_DIR)
+
+    # 1. Check .coveragerc exists
+    coveragerc = base / ".coveragerc"
+    if not coveragerc.exists():
+        issues.append(".coveragerc not found — create per CAL-001 §5.1")
+
+    # 2. Check coverage.json freshness
+    coverage_json = base / "coverage.json"
+    has_coverage = False
+    current_coverage = 0
+    if not coverage_json.exists():
+        issues.append("coverage.json not found — run: coverage run manage.py test --keepdb && coverage json")
+    else:
+        age_days = (time.time() - coverage_json.stat().st_mtime) / 86400
+        if age_days > 14:
+            issues.append(f"coverage.json is {age_days:.0f} days old (>14 days)")
+        try:
+            data = json.loads(coverage_json.read_text())
+            current_coverage = data.get("totals", {}).get("percent_covered", 0)
+            has_coverage = True
+        except Exception as e:
+            issues.append(f"coverage.json parse error: {e}")
+
+    # 3. Ratchet baseline check
+    try:
+        from syn.audit.models import CalibrationReport
+
+        last_report = CalibrationReport.objects.order_by("-date").first()
+        if last_report and has_coverage:
+            if current_coverage < last_report.ratchet_baseline:
+                issues.append(
+                    f"Coverage regression: {current_coverage:.1f}% < ratchet baseline {last_report.ratchet_baseline:.1f}%"
+                )
+    except Exception:
+        pass  # Model may not exist yet during initial setup
+
+    # 4. Golden file count
+    golden_dir = base / "agents_api" / "tests" / "golden"
+    golden_count = len(list(golden_dir.glob("*.json"))) if golden_dir.exists() else 0
+
+    # Determine status
+    has_ratchet_fail = any("regression" in i.lower() for i in issues)
+    has_missing_rc = any(".coveragerc" in i for i in issues)
+
+    if has_ratchet_fail:
+        status = "fail"
+    elif has_missing_rc:
+        status = "fail"
+    elif issues:
+        status = "warning"
+    else:
+        status = "pass"
+
+    return {
+        "status": status,
+        "details": {
+            "coveragerc_exists": coveragerc.exists(),
+            "coverage_measured": has_coverage,
+            "current_coverage": current_coverage if has_coverage else None,
+            "golden_file_count": golden_count,
+            "issues": issues,
+        },
+        "soc2_controls": ["CC4.1", "CC7.2"],
+    }
+
+
+@register("complexity_governance", "processing_integrity", soc2_controls=["CC4.1"])
+def check_complexity_governance():
+    """CAL-001 §8: File size within budget.
+
+    Checks all Python source files against the 3000-line limit from ARCH-001 §7.
+    Files documented in DEBT.md are exempt.
+
+    Standard: CAL-001 §8, ARCH-001 §7
+    Compliance: SOC 2 CC4.1
+    """
+    base = Path(settings.BASE_DIR)
+    violations = []
+    warnings = []
+    files_checked = 0
+
+    for py_file in sorted(base.rglob("*.py")):
+        rel = str(py_file.relative_to(base))
+        # Skip non-source files
+        if any(skip in rel for skip in ["/migrations/", "/test", "/__pycache__/", "/staticfiles/", "_tests.py"]):
+            continue
+        files_checked += 1
+
+        try:
+            line_count = sum(1 for _ in py_file.open())
+        except Exception:
+            continue
+
+        # Check exemption
+        is_exempt = any(rel.endswith(exempt_path) for exempt_path in _COMPLEXITY_EXEMPTIONS)
+
+        if line_count > 3000 and not is_exempt:
+            violations.append({"file": rel, "lines": line_count, "limit": 3000})
+        elif line_count > 2000:
+            warnings.append({"file": rel, "lines": line_count, "threshold": 2000})
+
+    if violations:
+        status = "fail"
+    elif warnings:
+        status = "warning"
+    else:
+        status = "pass"
+
+    return {
+        "status": status,
+        "details": {
+            "files_checked": files_checked,
+            "violations": violations,
+            "warnings": warnings,
+            "exemptions": list(_COMPLEXITY_EXEMPTIONS.keys()),
+        },
+        "soc2_controls": ["CC4.1"],
+    }
+
+
+@register("endpoint_coverage", "processing_integrity", soc2_controls=["CC4.1", "CC7.2"])
+def check_endpoint_coverage():
+    """CAL-001 §7: Every view function has at least one test.
+
+    Scans all *_views.py and views.py files for public view functions,
+    then checks for corresponding test coverage.
+
+    Standard: CAL-001 §7
+    Compliance: SOC 2 CC4.1, CC7.2
+    """
+    base = Path(settings.BASE_DIR)
+    view_files = sorted(set(list(base.rglob("*_views.py")) + list(base.rglob("views.py"))))
+
+    total_endpoints = 0
+    tested_endpoints = 0
+    module_stats = []
+
+    # Collect all test files for cross-reference
+    test_files = list(base.rglob("test_*.py")) + list(base.rglob("*_tests.py"))
+    test_content_cache = {}
+    for tf in test_files:
+        try:
+            test_content_cache[str(tf)] = tf.read_text()
+        except Exception:
+            pass
+    all_test_content = "\n".join(test_content_cache.values())
+
+    for vf in view_files:
+        rel = str(vf.relative_to(base))
+        # Skip test files, migrations, staticfiles
+        if any(skip in rel for skip in ["/test", "/migrations/", "/__pycache__/", "/staticfiles/"]):
+            continue
+
+        try:
+            source = vf.read_text()
+        except Exception:
+            continue
+
+        # Extract view function names — functions decorated with @require_auth, @gated, etc.
+        # or functions that take 'request' as first parameter
+        tree = ast.parse(source)
+        view_funcs = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and not node.name.startswith("_"):
+                # Check if it has 'request' as first arg
+                args = node.args
+                if args.args and args.args[0].arg == "request":
+                    view_funcs.append(node.name)
+
+        endpoint_count = len(view_funcs)
+        total_endpoints += endpoint_count
+
+        # Check which view functions have tests
+        tested = 0
+        for fn_name in view_funcs:
+            # Look for test methods that reference this function name
+            if fn_name in all_test_content:
+                tested += 1
+        tested_endpoints += tested
+
+        if endpoint_count > 0:
+            module_stats.append(
+                {
+                    "file": rel,
+                    "endpoints": endpoint_count,
+                    "tested": tested,
+                    "gap": endpoint_count - tested,
+                }
+            )
+
+    coverage_pct = (tested_endpoints / total_endpoints * 100) if total_endpoints else 0
+
+    return {
+        "status": "pass",  # Informational in Phase 1 — no enforcement yet
+        "details": {
+            "total_endpoints": total_endpoints,
+            "tested_endpoints": tested_endpoints,
+            "coverage_pct": round(coverage_pct, 1),
+            "modules": module_stats,
+        },
+        "soc2_controls": ["CC4.1", "CC7.2"],
     }

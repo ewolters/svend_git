@@ -1729,3 +1729,55 @@ class AgentVote(models.Model):
 
     def __str__(self):
         return f"[{self.agent_role}] {self.recommendation}"
+
+
+# ---------------------------------------------------------------------------
+# Calibration Reports (CAL-001)
+# ---------------------------------------------------------------------------
+
+
+class CalibrationReport(models.Model):
+    """
+    Point-in-time calibration snapshot.
+
+    Records code coverage, calibration pass rates, endpoint coverage,
+    and golden file counts. The ratchet_baseline field ensures coverage
+    never decreases between cycles.
+
+    Standard: CAL-001 §11
+    Compliance: SOC 2 CC4.1 (Monitoring), ISO/IEC 17025:2017
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    date = models.DateField(db_index=True)
+    overall_coverage = models.FloatField(null=True, blank=True, help_text="Overall line coverage %")
+    tier1_coverage = models.FloatField(null=True, blank=True, help_text="Tier 1 (Customer Trust) coverage %")
+    tier2_coverage = models.FloatField(null=True, blank=True, help_text="Tier 2 (Revenue Path) coverage %")
+    tier3_coverage = models.FloatField(null=True, blank=True, help_text="Tier 3 (Feature Surface) coverage %")
+    tier4_coverage = models.FloatField(null=True, blank=True, help_text="Tier 4 (Infrastructure) coverage %")
+    calibration_pass_rate = models.FloatField(null=True, blank=True, help_text="Calibration case pass rate %")
+    calibration_cases_run = models.IntegerField(default=0, help_text="Number of calibration cases executed")
+    calibration_cases_passed = models.IntegerField(default=0, help_text="Number of calibration cases that passed")
+    endpoint_coverage = models.FloatField(null=True, blank=True, help_text="Endpoint smoke test coverage %")
+    golden_file_count = models.IntegerField(default=0, help_text="Number of golden files in agents_api/tests/golden/")
+    complexity_violations = models.IntegerField(
+        default=0, help_text="Files exceeding 3000-line limit without exemption"
+    )
+    ratchet_baseline = models.FloatField(default=0.0, help_text="Coverage floor — next report must meet or exceed this")
+    is_certificate = models.BooleanField(default=False, help_text="True for monthly calibration certificates")
+    details = models.JSONField(default=dict, help_text="Per-module breakdown and additional metrics")
+
+    class Meta:
+        db_table = "syn_audit_calibration_report"
+        ordering = ["-date"]
+        indexes = [
+            models.Index(fields=["-date"], name="calibration_report_date"),
+        ]
+        default_permissions = ("add", "view")  # Immutable — no change/delete
+        verbose_name = "Calibration Report"
+        verbose_name_plural = "Calibration Reports"
+
+    def __str__(self):
+        cert = " [CERTIFICATE]" if self.is_certificate else ""
+        cov = f"{self.overall_coverage:.1f}%" if self.overall_coverage is not None else "unmeasured"
+        return f"Calibration {self.date} — {cov}{cert}"
