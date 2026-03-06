@@ -1235,6 +1235,15 @@ class ChangeRequest(models.Model):
             if self.change_type in self.RISK_ASSESSMENT_TYPES:
                 if not self.risk_assessments.exists():
                     errors.append(f"RiskAssessment required for {self.change_type} before approval")
+            # IVR-001: Mechanical veto — security_analyst rejection blocks transition
+            if self.change_type in self.MULTI_AGENT_TYPES:
+                for ra in self.risk_assessments.all():
+                    if ra.votes.filter(
+                        agent_role="security_analyst",
+                        recommendation="reject",
+                    ).exists():
+                        errors.append("Security analyst veto — change blocked (IVR-001)")
+                        break
 
         # completed requirements
         if target_state == "completed" and not is_exempt:
