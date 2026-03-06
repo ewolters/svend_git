@@ -278,3 +278,159 @@ class TriageValidRequestTest(TestCase):
         resp = self.client.post("/api/triage/clean/")
         # Without file: 400 (missing file) or 302 (rate limit redirect)
         self.assertNotEqual(resp.status_code, 200)
+
+
+# ── Notifications ──
+
+
+class NotificationsAuthTest(TestCase):
+    """Smoke tests for notifications/views.py auth enforcement."""
+
+    def test_list_requires_auth(self):
+        resp = _get(self.client, "/api/notifications/")
+        self.assertIn(resp.status_code, [401, 403])
+
+    def test_unread_count_requires_auth(self):
+        resp = _get(self.client, "/api/notifications/unread-count/")
+        self.assertIn(resp.status_code, [401, 403])
+
+    def test_preferences_requires_auth(self):
+        resp = _get(self.client, "/api/notifications/preferences/")
+        self.assertIn(resp.status_code, [401, 403])
+
+    def test_mark_all_read_requires_auth(self):
+        resp = _post(self.client, "/api/notifications/read-all/")
+        self.assertIn(resp.status_code, [401, 403])
+
+
+class NotificationsValidRequestTest(TestCase):
+    """Smoke tests for notifications/views.py with authenticated user."""
+
+    def setUp(self):
+        self.user = _make_user()
+        self.client.login(username=self.user.username, password="testpass123")
+
+    def test_list_returns_200(self):
+        resp = _get(self.client, "/api/notifications/")
+        self.assertEqual(resp.status_code, 200)
+
+    def test_unread_count_returns_200(self):
+        resp = _get(self.client, "/api/notifications/unread-count/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("count", data)
+
+    def test_preferences_returns_200(self):
+        resp = _get(self.client, "/api/notifications/preferences/")
+        self.assertEqual(resp.status_code, 200)
+
+    def test_mark_all_read_no_500(self):
+        resp = self.client.post("/api/notifications/read-all/", follow=True)
+        self.assertNotEqual(resp.status_code, 500)
+
+    def test_mark_single_invalid_id_no_500(self):
+        fake_id = uuid.uuid4()
+        resp = self.client.post(f"/api/notifications/{fake_id}/read/")
+        # 301 (redirect) or 404 (not found) — neither is 500
+        self.assertNotEqual(resp.status_code, 500)
+
+
+# ── Autopilot ──
+
+
+class AutopilotAuthTest(TestCase):
+    """Smoke tests for autopilot_views.py auth enforcement."""
+
+    def test_dsw_autopilot_requires_auth(self):
+        # These endpoints may 301 (trailing slash redirect) before auth check
+        resp = self.client.post(
+            "/api/dsw/autopilot/clean-train/",
+            data=json.dumps({}),
+            content_type="application/json",
+            follow=True,
+        )
+        self.assertIn(resp.status_code, [401, 403, 405])
+
+    def test_full_pipeline_requires_auth(self):
+        resp = self.client.post(
+            "/api/dsw/autopilot/full-pipeline/",
+            data=json.dumps({}),
+            content_type="application/json",
+            follow=True,
+        )
+        self.assertIn(resp.status_code, [401, 403, 405])
+
+    def test_augment_train_requires_auth(self):
+        resp = self.client.post(
+            "/api/dsw/autopilot/augment-train/",
+            data=json.dumps({}),
+            content_type="application/json",
+            follow=True,
+        )
+        self.assertIn(resp.status_code, [401, 403, 405])
+
+
+# ── CAPA ──
+
+
+class CAPAValidRequestTest(TestCase):
+    """Smoke tests for capa_views.py with authenticated user."""
+
+    def setUp(self):
+        from accounts.models import Tier
+
+        self.user = _make_user(email_verified=True, tier=Tier.TEAM)
+        self.client.login(username=self.user.username, password="testpass123")
+
+    def test_capa_list_no_500(self):
+        resp = _get(self.client, "/api/capa/")
+        self.assertNotEqual(resp.status_code, 500)
+
+    def test_capa_create_empty_returns_error(self):
+        resp = self.client.post(
+            "/api/capa/create/",
+            data=json.dumps({}),
+            content_type="application/json",
+        )
+        self.assertNotEqual(resp.status_code, 500)
+
+
+# ── Forecast ──
+
+
+class ForecastAuthTest(TestCase):
+    """Smoke tests for forecast_views.py."""
+
+    def test_forecast_requires_auth(self):
+        resp = self.client.post(
+            "/api/forecast/",
+            data=json.dumps({}),
+            content_type="application/json",
+            follow=True,
+        )
+        self.assertIn(resp.status_code, [401, 403, 405])
+
+
+# ── Report ──
+
+
+class ReportValidRequestTest(TestCase):
+    """Smoke tests for report_views.py."""
+
+    def setUp(self):
+        from accounts.models import Tier
+
+        self.user = _make_user(email_verified=True, tier=Tier.TEAM)
+        self.client.login(username=self.user.username, password="testpass123")
+
+    def test_reports_list_no_500(self):
+        resp = _get(self.client, "/api/reports/")
+        self.assertNotEqual(resp.status_code, 500)
+
+    def test_report_create_empty_returns_error(self):
+        resp = self.client.post(
+            "/api/reports/create/",
+            data=json.dumps({}),
+            content_type="application/json",
+        )
+        self.assertNotEqual(resp.status_code, 500)

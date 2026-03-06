@@ -2866,11 +2866,11 @@ def _run_advanced(analysis_id, df, config):
         # Repeatability: residual after all factors
         # Group by all factors, compute within-cell variance
         if len(all_factors) > 1:
-            cell_vars = data_grr.groupby(all_factors)[measurement].var(dropna=True)
+            cell_vars = data_grr.groupby(all_factors)[measurement].var()
             data_grr.groupby(all_factors)[measurement].count()
             repeatability_var = float(cell_vars.mean()) if not cell_vars.isna().all() else 0
         else:
-            within_var = data_grr.groupby(part)[measurement].var(dropna=True)
+            within_var = data_grr.groupby(part)[measurement].var()
             repeatability_var = float(within_var.mean()) if not within_var.isna().all() else 0
 
         # Estimate variance component for each factor

@@ -4579,6 +4579,8 @@ def run_spc_analysis(df, analysis_id, config):
 
     elif analysis_id == "degradation_capability":
         # Degradation-Aware Capability — Cpk as a function of time/usage
+        from scipy import stats as sp_stats
+
         meas_col = config.get("var") or config.get("measurement") or config.get("column")
         time_col = config.get("time_column") or config.get("time")
         usl = config.get("usl")

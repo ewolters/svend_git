@@ -819,6 +819,7 @@ def run_bayesian_analysis(df, analysis_id, config):
             n = int(manual_n)
             a_prior = float(config.get("prior_a", 1))
             b_prior = float(config.get("prior_b", 1))
+            prior_type = "custom" if (a_prior != 1 or b_prior != 1) else "uniform"
         else:
             # Column-based mode: read from dataframe
             success_col = config.get("success")
