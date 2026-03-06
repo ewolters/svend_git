@@ -5013,7 +5013,8 @@ def check_policy_review():
 # File size exemptions — files documented in DEBT.md as known large modules.
 # Maps relative path suffix → DEBT.md priority for exemption.
 _COMPLEXITY_EXEMPTIONS = {
-    "agents_api/dsw/stats.py": "P3",
+    "agents_api/dsw/stats_advanced.py": "P3",
+    "agents_api/dsw/stats_exploratory.py": "P3",
     "agents_api/learn_content.py": "P3",
     "api/internal_views.py": "P3",
     "agents_api/models.py": "P3",

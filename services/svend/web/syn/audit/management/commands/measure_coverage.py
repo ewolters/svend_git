@@ -19,6 +19,13 @@ from django.core.management.base import BaseCommand
 # Module tier classification per CAL-001 §4
 TIER1_MODULES = [
     "agents_api/dsw/stats.py",
+    "agents_api/dsw/stats_parametric.py",
+    "agents_api/dsw/stats_nonparametric.py",
+    "agents_api/dsw/stats_regression.py",
+    "agents_api/dsw/stats_posthoc.py",
+    "agents_api/dsw/stats_quality.py",
+    "agents_api/dsw/stats_advanced.py",
+    "agents_api/dsw/stats_exploratory.py",
     "agents_api/dsw/spc.py",
     "agents_api/dsw/bayesian.py",
     "agents_api/dsw/reliability.py",
