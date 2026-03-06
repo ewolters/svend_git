@@ -5472,8 +5472,8 @@ def api_calibration(request):
     try:
         from syn.audit.models import CalibrationReport
 
-        # Latest 20 reports
-        reports_qs = CalibrationReport.objects.order_by("-date")[:20]
+        # Latest 20 reports (tiebreak by id for same-day runs)
+        reports_qs = CalibrationReport.objects.order_by("-date", "-id")[:20]
         reports = [
             {
                 "id": str(r.id),
@@ -5495,23 +5495,26 @@ def api_calibration(request):
             for r in reports_qs
         ]
 
-        # Coverage trend (all reports, chronological)
+        # Coverage trend — latest report per day only
         trend_qs = (
             CalibrationReport.objects.filter(overall_coverage__isnull=False)
-            .order_by("date")
+            .order_by("date", "-id")
             .values("date", "overall_coverage", "ratchet_baseline")
         )
+        seen_dates = {}
+        for r in trend_qs:
+            seen_dates[r["date"]] = r  # last write wins = latest id per date
         trend = [
             {
                 "date": r["date"].isoformat(),
                 "coverage": r["overall_coverage"],
                 "ratchet": r["ratchet_baseline"],
             }
-            for r in trend_qs
+            for r in sorted(seen_dates.values(), key=lambda x: x["date"])
         ]
 
         # Certificates only
-        certs_qs = CalibrationReport.objects.filter(is_certificate=True).order_by("-date")[:10]
+        certs_qs = CalibrationReport.objects.filter(is_certificate=True).order_by("-date", "-id")[:10]
         certificates = [
             {
                 "id": str(c.id),
@@ -5528,8 +5531,8 @@ def api_calibration(request):
             for c in certs_qs
         ]
 
-        # Summary stats from latest report
-        latest = CalibrationReport.objects.order_by("-date").first()
+        # Summary stats from latest report (tiebreak by id for same-day runs)
+        latest = CalibrationReport.objects.order_by("-date", "-id").first()
         stats = {}
         if latest:
             stats = {
@@ -5548,7 +5551,7 @@ def api_calibration(request):
             }
 
         # Latest certificate — fill in calibration stats if latest report doesn't have them
-        latest_cert = CalibrationReport.objects.filter(is_certificate=True).order_by("-date").first()
+        latest_cert = CalibrationReport.objects.filter(is_certificate=True).order_by("-date", "-id").first()
         if latest_cert:
             stats["last_cert_date"] = latest_cert.date.isoformat()
             stats["last_cert_status"] = latest_cert.details.get("status", "unknown")
