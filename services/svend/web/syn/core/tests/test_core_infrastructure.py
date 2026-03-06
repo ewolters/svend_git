@@ -1155,10 +1155,12 @@ class VersionManagerTest(SimpleTestCase):
             class DoesNotExist(Exception):
                 pass
 
-            class objects:
+            class Objects:
                 @staticmethod
                 def get(**kwargs):
                     raise FakeModel.DoesNotExist()
+
+            objects = Objects()
 
         vm = VersionManager(FakeModel, "tenant-1")
         result = vm.get_current_version("entity-1")

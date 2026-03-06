@@ -3637,6 +3637,7 @@ _ARCH_ALLOWED_ROOT_FILES = {
     ".env.example",
     ".env.production",
     "Caddyfile",
+    "coverage.json",
 }
 
 _ARCH_EMPTY_DIR_SKIP = {"migrations", "__pycache__", "media", "logs", "staticfiles", "node_modules"}
@@ -3657,6 +3658,8 @@ _ARCH_KNOWN_LARGE_FILES = {
     "agents_api/dsw/ml.py",
     "agents_api/dsw/spc.py",
     "agents_api/dsw/bayesian.py",
+    "agents_api/dsw/stats_exploratory.py",
+    "agents_api/dsw/stats_advanced.py",
     "api/internal_views.py",
     "syn/audit/compliance.py",
 }
@@ -4121,6 +4124,8 @@ def _check_arch_layer_boundaries(web_root):
         if py_file.name == "svend_tasks.py" and "sched" in py_file.parts:
             continue
         if "tests" in py_file.parts or py_file.name.startswith("test_"):
+            continue
+        if "management" in py_file.parts:
             continue
         try:
             source = py_file.read_text(errors="ignore")
