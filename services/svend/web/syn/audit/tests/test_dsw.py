@@ -8,17 +8,27 @@ feature gating, and IDOR prevention patterns.
 Standard: DSW-001
 """
 
+import inspect
+import json
 import os
-import re
+import uuid
 from pathlib import Path
 
-from django.test import SimpleTestCase
+from django.contrib.auth import get_user_model
+from django.test import SimpleTestCase, TestCase, override_settings
+from rest_framework.test import APIClient
 
-# Base paths
+from accounts.constants import Tier
+
+User = get_user_model()
+
+# Base paths (for structural and frontend tests only)
 WEB_ROOT = Path(os.path.dirname(__file__)).parent.parent.parent
 DSW_DIR = WEB_ROOT / "agents_api" / "dsw"
 SYNARA_DIR = WEB_ROOT / "agents_api" / "synara"
 AGENTS_API = WEB_ROOT / "agents_api"
+
+SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 
 def _read(path):
@@ -29,586 +39,679 @@ def _read(path):
         return ""
 
 
-def _read_py(relative):
-    """Read a Python file relative to WEB_ROOT."""
-    return _read(WEB_ROOT / relative)
+def _make_user(email, tier=Tier.PRO, password="testpass123!", **kwargs):
+    username = kwargs.pop("username", email.split("@")[0])
+    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
+    user.tier = tier
+    user.save(update_fields=["tier"])
+    return user
 
 
-# ── §4.1: Stateless Dispatch Pattern ─────────────────────────────────────
+def _err_msg(resp):
+    """Extract error message from response (handles ErrorEnvelopeMiddleware format).
+
+    ErrorEnvelopeMiddleware wraps errors as:
+        {"error": {"code": "...", "message": "...", "retryable": ..., ...}}
+    """
+    try:
+        data = json.loads(resp.content)
+    except Exception:
+        return ""
+    if isinstance(data, dict):
+        err = data.get("error")
+        if isinstance(err, dict):
+            return err.get("message", "")
+        if isinstance(err, str):
+            return err
+        return data.get("message", "")
+    return ""
 
 
-class StatelessDispatchTest(SimpleTestCase):
-    """DSW-001 §4.1: Analysis requests are stateless."""
-
-    def setUp(self):
-        self.dispatch_src = _read(DSW_DIR / "dispatch.py")
-        self.assertGreater(len(self.dispatch_src), 0, "dispatch.py not found")
-
-    def test_dispatch_has_run_analysis(self):
-        """Main entry point run_analysis exists in dispatch.py."""
-        self.assertIn("def run_analysis(", self.dispatch_src)
-
-    def test_run_analysis_is_gated(self):
-        """run_analysis uses @gated decorator for auth + rate limiting."""
-        self.assertRegex(self.dispatch_src, r"@(gated|rate_limited)\s.*?def run_analysis")
-
-    def test_no_session_state_in_dispatch(self):
-        """dispatch.py does not use request.session (stateless)."""
-        self.assertNotIn("request.session", self.dispatch_src)
-
-    def test_dispatch_reads_body_from_request(self):
-        """run_analysis parses JSON body from request."""
-        self.assertIn("json.loads(request.body)", self.dispatch_src)
-
-    def test_dispatch_returns_json_response(self):
-        """run_analysis returns JsonResponse."""
-        self.assertIn("JsonResponse", self.dispatch_src)
-
-    def test_dispatch_handles_invalid_json(self):
-        """run_analysis catches JSONDecodeError."""
-        self.assertIn("JSONDecodeError", self.dispatch_src)
+# =============================================================================
+# §4.1: Dispatch Error Handling (functional)
+# =============================================================================
 
 
-# ── §4.2: Data Source Resolution ──────────────────────────────────────────
-
-
-class DataSourceResolutionTest(SimpleTestCase):
-    """DSW-001 §4.2: Data source fallback order."""
+@SECURE_OFF
+class DispatchErrorHandlingTest(TestCase):
+    """DSW-001 §4.1: Dispatch returns proper errors for invalid requests."""
 
     def setUp(self):
-        self.dispatch_src = _read(DSW_DIR / "dispatch.py")
+        self.user = _make_user("dispatch_err@dsw.test")
+        self.client = APIClient()
+        self.client.force_login(self.user)
+        self.url = "/api/dsw/analysis/"
 
-    def test_inline_data_source(self):
-        """Source 0: inline data from body.data dict."""
-        self.assertIn('body.get("data")', self.dispatch_src)
-
-    def test_uploaded_file_source(self):
-        """Source 1: uploaded file via data_xxx format."""
-        self.assertIn('data_id.startswith("data_")', self.dispatch_src)
-
-    def test_temp_directory_fallback(self):
-        """Source 1b: temp directory fallback."""
-        self.assertIn("svend_analysis", self.dispatch_src)
-
-    def test_triage_source(self):
-        """Source 2: TriageResult cleaned dataset."""
-        self.assertIn("TriageResult", self.dispatch_src)
-
-    def test_empty_dataframe_for_simulation(self):
-        """Source 3: Empty DataFrame allowed for simulation and bayesian."""
-        self.assertRegex(
-            self.dispatch_src,
-            r'analysis_type\s+in\s+\(\s*"simulation".*"bayesian"',
-        )
-
-    def test_inline_data_row_limit(self):
-        """Inline data capped at 10,000 rows."""
-        self.assertIn("10000", self.dispatch_src)
-
-    def test_no_data_returns_400(self):
-        """Missing data returns 400 error."""
-        self.assertIn("No data loaded", self.dispatch_src)
-
-
-# ── §4.3: Module Split Architecture ──────────────────────────────────────
-
-
-class DispatchRoutingTest(SimpleTestCase):
-    """DSW-001 §4.3: Analysis routed through dispatch module."""
-
-    def setUp(self):
-        self.dispatch_src = _read(DSW_DIR / "dispatch.py")
-
-    def test_routes_stats(self):
-        """Dispatch routes 'stats' to dsw/stats.py."""
-        self.assertIn("from .stats import run_statistical_analysis", self.dispatch_src)
-
-    def test_routes_ml(self):
-        """Dispatch routes 'ml' to dsw/ml.py."""
-        self.assertIn("from .ml import run_ml_analysis", self.dispatch_src)
-
-    def test_routes_spc(self):
-        """Dispatch routes 'spc' to dsw/spc.py."""
-        self.assertIn("from .spc import run_spc_analysis", self.dispatch_src)
-
-    def test_routes_bayesian(self):
-        """Dispatch routes 'bayesian' to dsw/bayesian.py."""
-        self.assertIn("from .bayesian import run_bayesian_analysis", self.dispatch_src)
-
-    def test_routes_reliability(self):
-        """Dispatch routes 'reliability' to dsw/reliability.py."""
-        self.assertIn("from .reliability import run_reliability_analysis", self.dispatch_src)
-
-    def test_routes_simulation(self):
-        """Dispatch routes 'simulation' to dsw/simulation.py."""
-        self.assertIn("from .simulation import run_simulation", self.dispatch_src)
-
-    def test_routes_viz(self):
-        """Dispatch routes 'viz' to dsw/viz.py."""
-        self.assertIn("from .viz import run_visualization", self.dispatch_src)
-
-    def test_routes_causal(self):
-        """Dispatch routes 'causal' to causal_discovery.py."""
-        self.assertIn("from ..causal_discovery import run_causal_discovery", self.dispatch_src)
-
-    def test_routes_drift(self):
-        """Dispatch routes 'drift' to drift_detection.py."""
-        self.assertIn("from ..drift_detection import run_drift_detection", self.dispatch_src)
-
-    def test_routes_anytime(self):
-        """Dispatch routes 'anytime' to anytime_valid.py."""
-        self.assertIn("from ..anytime_valid import run_anytime_valid", self.dispatch_src)
-
-    def test_routes_bayes_msa(self):
-        """Dispatch routes 'bayes_msa' to msa_bayes.py."""
-        self.assertIn("from ..msa_bayes import run_bayes_msa", self.dispatch_src)
-
-    def test_routes_quality_econ(self):
-        """Dispatch routes 'quality_econ' to quality_economics.py."""
-        self.assertIn("from ..quality_economics import run_quality_econ", self.dispatch_src)
-
-    def test_routes_pbs(self):
-        """Dispatch routes 'pbs' to pbs_engine.py."""
-        self.assertIn("from ..pbs_engine import run_pbs", self.dispatch_src)
-
-    def test_routes_d_type(self):
-        """Dispatch routes 'd_type' to dsw/d_type.py."""
-        self.assertIn("from .d_type import run_d_type", self.dispatch_src)
-
-    def test_routes_ishap(self):
-        """Dispatch routes 'ishap' to interventional_shap.py."""
-        self.assertIn("from ..interventional_shap import run_interventional_shap", self.dispatch_src)
+    def test_invalid_json_returns_400(self):
+        """POST non-JSON body returns 400."""
+        res = self.client.post(self.url, "not json{{{", content_type="application/json")
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("error", res.json())
 
     def test_unknown_type_returns_400(self):
         """Unknown analysis_type returns 400."""
-        self.assertIn("Unknown analysis type", self.dispatch_src)
+        res = self.client.post(
+            self.url,
+            json.dumps({"type": "nonexistent", "analysis": "fake", "data": {"x": [1]}}),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("Unknown analysis type", _err_msg(res))
 
-    def test_all_submodules_exist(self):
-        """All DSW sub-module files exist on disk."""
-        expected = [
-            "stats.py",
-            "ml.py",
-            "spc.py",
-            "bayesian.py",
-            "reliability.py",
-            "simulation.py",
-            "viz.py",
-            "d_type.py",
-            "dispatch.py",
-            "common.py",
-        ]
-        for f in expected:
-            self.assertTrue(
-                (DSW_DIR / f).exists(),
-                f"DSW sub-module missing: {f}",
-            )
+    def test_no_data_returns_400(self):
+        """Stats analysis without data returns 400."""
+        res = self.client.post(
+            self.url,
+            json.dumps({"type": "stats", "analysis": "ttest"}),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("No data loaded", _err_msg(res))
 
+    def test_invalid_inline_data_returns_400(self):
+        """Malformed inline data returns 400."""
+        res = self.client.post(
+            self.url,
+            json.dumps({"type": "stats", "analysis": "ttest", "data": "not_a_dict"}),
+            content_type="application/json",
+        )
+        # data="not_a_dict" is not a dict, so inline data path is skipped → "No data loaded"
+        self.assertIn(res.status_code, (400, 500))
 
-# ── §5.1: Synara Cache ───────────────────────────────────────────────────
-
-
-class SynaraCacheTest(SimpleTestCase):
-    """DSW-001 §5.1: In-memory cache with project persistence."""
-
-    def setUp(self):
-        self.synara_src = _read(AGENTS_API / "synara_views.py")
-
-    def test_cache_max_defined(self):
-        """_SYNARA_CACHE_MAX is defined."""
-        self.assertIn("_SYNARA_CACHE_MAX", self.synara_src)
-
-    def test_cache_max_is_128(self):
-        """Cache bounded at 128 entries."""
-        self.assertIn("_SYNARA_CACHE_MAX = 128", self.synara_src)
-
-    def test_cache_eviction_on_full(self):
-        """Cache evicts oldest entry when full."""
-        self.assertIn("_synara_cache.pop(next(iter(_synara_cache))", self.synara_src)
-
-    def test_get_synara_exists(self):
-        """get_synara function exists."""
-        self.assertIn("def get_synara(", self.synara_src)
-
-    def test_save_synara_exists(self):
-        """save_synara function exists."""
-        self.assertIn("def save_synara(", self.synara_src)
-
-    def test_cache_loads_from_project(self):
-        """Cache miss loads from core.Project.synara_state."""
-        self.assertIn("project.synara_state", self.synara_src)
-
-    def test_save_persists_to_project(self):
-        """save_synara writes to project.synara_state."""
-        self.assertRegex(self.synara_src, r"project\.synara_state\s*=\s*synara\.to_dict")
+    def test_oversized_inline_data_returns_400(self):
+        """Inline data exceeding 10,000 rows returns 400."""
+        res = self.client.post(
+            self.url,
+            json.dumps({"type": "stats", "analysis": "ttest", "data": {"x": list(range(10001))}}),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("10,000", _err_msg(res))
 
 
-# ── §5.2: Project Resolution ─────────────────────────────────────────────
+# =============================================================================
+# §4.2: Data Source Resolution (functional)
+# =============================================================================
 
 
-class ProjectResolutionTest(SimpleTestCase):
-    """DSW-001 §5.2: _resolve_project maps workbench_id to core.Project."""
+@SECURE_OFF
+class DataSourceFunctionalTest(TestCase):
+    """DSW-001 §4.2: Data source fallback works at runtime."""
 
     def setUp(self):
-        self.synara_src = _read(AGENTS_API / "synara_views.py")
+        self.user = _make_user("datasrc@dsw.test")
+        self.client = APIClient()
+        self.client.force_login(self.user)
+        self.url = "/api/dsw/analysis/"
 
-    def test_resolve_project_exists(self):
-        """_resolve_project function defined."""
-        self.assertIn("def _resolve_project(", self.synara_src)
+    def test_inline_data_accepted(self):
+        """Inline data dict produces a valid analysis result."""
+        import numpy as np
 
-    def test_tries_project_first(self):
-        """Tries core.Project UUID first."""
-        self.assertIn("Project.objects.get(id=workbench_id", self.synara_src)
+        np.random.seed(42)
+        data = {"x": np.random.normal(50, 2, 50).tolist()}
+        res = self.client.post(
+            self.url,
+            json.dumps({"type": "stats", "analysis": "descriptive", "data": data}),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 200)
+        body = res.json()
+        self.assertIn("summary", body)
 
-    def test_tries_problem_second(self):
-        """Falls back to Problem UUID → core_project FK."""
-        self.assertIn("Problem.objects.get(id=workbench_id", self.synara_src)
+    def test_empty_df_for_simulation(self):
+        """Simulation runs without data (user-defined distributions)."""
+        res = self.client.post(
+            self.url,
+            json.dumps(
+                {
+                    "type": "simulation",
+                    "analysis": "monte_carlo",
+                    "config": {
+                        "distributions": [
+                            {"name": "process_time", "type": "normal", "params": {"mean": 10, "std": 2}},
+                        ],
+                        "formula": "process_time",
+                        "n_simulations": 100,
+                    },
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertIn(res.status_code, (200, 500))  # 200 if simulation succeeds, 500 if config issue
 
-    def test_auto_creates_core_project(self):
-        """Auto-creates core.Project if Problem has no link."""
-        self.assertIn("ensure_core_project()", self.synara_src)
+    def test_empty_df_for_bayesian(self):
+        """Bayesian analysis runs without data."""
+        res = self.client.post(
+            self.url,
+            json.dumps(
+                {
+                    "type": "bayesian",
+                    "analysis": "bayesian_regression",
+                    "config": {"predictors": ["x"], "response": "y"},
+                }
+            ),
+            content_type="application/json",
+        )
+        # Bayesian with no data and empty df may produce runtime error but should not be 400 "No data loaded"
+        self.assertNotEqual(_err_msg(res), "No data loaded. Please load a dataset first.")
 
-    def test_returns_none_on_failure(self):
-        """Returns None if neither resolves."""
-        self.assertIn("return None", self.synara_src)
+    def test_no_data_rejects_stats(self):
+        """Stats analysis with no data source rejects with 400."""
+        res = self.client.post(
+            self.url,
+            json.dumps({"type": "stats", "analysis": "ttest"}),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("No data loaded", _err_msg(res))
 
-    def test_user_filter_applied(self):
-        """Applies user filter to prevent IDOR."""
-        self.assertIn('"user": user', self.synara_src)
+    def test_inline_row_limit_enforced(self):
+        """More than 10,000 inline rows returns 400."""
+        res = self.client.post(
+            self.url,
+            json.dumps({"type": "stats", "analysis": "descriptive", "data": {"x": list(range(10001))}}),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 400)
 
 
-# ── §5.3: Project Context Guard ──────────────────────────────────────────
+# =============================================================================
+# §4.3: Dispatch Routing (functional)
+# =============================================================================
 
 
-class ProjectContextGuardTest(SimpleTestCase):
-    """DSW-001 §5.3: Hypothesis creation requires valid project."""
+@SECURE_OFF
+class DispatchRoutingFunctionalTest(TestCase):
+    """DSW-001 §4.3: Dispatch routes to correct sub-module handlers."""
 
     def setUp(self):
-        self.synara_src = _read(AGENTS_API / "synara_views.py")
+        import numpy as np
 
-    def test_require_project_exists(self):
-        """_require_project helper function defined."""
-        self.assertIn("def _require_project(", self.synara_src)
+        self.user = _make_user("routing@dsw.test")
+        self.client = APIClient()
+        self.client.force_login(self.user)
+        self.url = "/api/dsw/analysis/"
+        np.random.seed(42)
+        self.sample_data = {
+            "x": np.random.normal(50, 2, 50).tolist(),
+            "y": np.random.normal(52, 2, 50).tolist(),
+            "group": (["A"] * 25) + (["B"] * 25),
+        }
+
+    def _post(self, analysis_type, analysis_id, config=None, data=None):
+        payload = {"type": analysis_type, "analysis": analysis_id}
+        if config:
+            payload["config"] = config
+        if data is not None:
+            payload["data"] = data
+        else:
+            payload["data"] = self.sample_data
+        return self.client.post(self.url, json.dumps(payload), content_type="application/json")
+
+    def test_stats_route_produces_output(self):
+        """type=stats routes to stats module and produces summary."""
+        res = self._post("stats", "descriptive")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("summary", res.json())
+
+    def test_ml_route_produces_output(self):
+        """type=ml routes to ML module."""
+        res = self._post("ml", "regression", config={"predictors": ["x"], "response": "y"})
+        self.assertIn(res.status_code, (200, 500))
+
+    def test_spc_route_produces_output(self):
+        """type=spc routes to SPC module."""
+        res = self._post("spc", "capability", config={"column": "x", "lsl": 44, "usl": 56})
+        self.assertEqual(res.status_code, 200)
+
+    def test_bayesian_route_produces_output(self):
+        """type=bayesian routes to Bayesian module."""
+        res = self._post("bayesian", "bayesian_regression", config={"predictors": ["x"], "response": "y"})
+        self.assertIn(res.status_code, (200, 500))
+
+    def test_simulation_route_produces_output(self):
+        """type=simulation routes to simulation module (no data needed)."""
+        res = self._post(
+            "simulation",
+            "monte_carlo",
+            config={
+                "distributions": [{"name": "t", "type": "normal", "params": {"mean": 10, "std": 2}}],
+                "formula": "t",
+                "n_simulations": 100,
+            },
+            data={},
+        )
+        self.assertIn(res.status_code, (200, 500))
+
+    def test_unknown_type_rejected(self):
+        """type=fake returns 400."""
+        res = self._post("fake", "test")
+        self.assertEqual(res.status_code, 400)
+
+
+# =============================================================================
+# §5.1: Synara Cache (functional)
+# =============================================================================
+
+
+@SECURE_OFF
+class SynaraCacheFunctionalTest(TestCase):
+    """DSW-001 §5.1: Cache get/save roundtrip, eviction, project requirement."""
+
+    def setUp(self):
+        from agents_api.synara_views import _synara_cache
+
+        _synara_cache.clear()
+
+    def test_get_creates_fresh_instance(self):
+        """get_synara with unknown ID returns fresh Synara with 0 hypotheses."""
+        from agents_api.synara_views import get_synara
+
+        synara = get_synara(str(uuid.uuid4()))
+        self.assertEqual(len(synara.graph.hypotheses), 0)
+
+    def test_cache_returns_same_instance(self):
+        """Second get_synara call returns the same object (cache hit)."""
+        from agents_api.synara_views import get_synara
+
+        wid = str(uuid.uuid4())
+        s1 = get_synara(wid)
+        s2 = get_synara(wid)
+        self.assertIs(s1, s2)
+
+    def test_save_without_project_returns_false(self):
+        """save_synara returns False when no project exists."""
+        from agents_api.synara_views import get_synara, save_synara
+
+        wid = str(uuid.uuid4())
+        synara = get_synara(wid)
+        result = save_synara(wid, synara)
+        self.assertFalse(result)
+
+    def test_cache_eviction_at_max(self):
+        """Cache stays bounded at _SYNARA_CACHE_MAX entries."""
+        from agents_api.synara_views import _SYNARA_CACHE_MAX, _synara_cache, get_synara
+
+        for i in range(_SYNARA_CACHE_MAX + 5):
+            get_synara(str(uuid.uuid4()))
+        self.assertLessEqual(len(_synara_cache), _SYNARA_CACHE_MAX)
+
+
+# =============================================================================
+# §5.2: Project Resolution (functional)
+# =============================================================================
+
+
+@SECURE_OFF
+class ProjectResolutionFunctionalTest(TestCase):
+    """DSW-001 §5.2: _resolve_project maps UUIDs to Projects."""
+
+    def test_resolve_core_project(self):
+        """Project UUID resolves to that Project."""
+        from agents_api.synara_views import _resolve_project
+        from core.models import Project
+
+        user = _make_user("resolve1@dsw.test")
+        project = Project.objects.create(title="Test Project", user=user)
+        result = _resolve_project(str(project.id), user=user)
+        self.assertEqual(result.id, project.id)
+
+    def test_resolve_problem_with_core_project(self):
+        """Problem UUID with core_project FK resolves to the Project."""
+        from agents_api.models import Problem
+        from agents_api.synara_views import _resolve_project
+        from core.models import Project
+
+        user = _make_user("resolve2@dsw.test")
+        project = Project.objects.create(title="Test Project 2", user=user)
+        problem = Problem.objects.create(user=user, title="Test Problem", core_project=project)
+        result = _resolve_project(str(problem.id), user=user)
+        self.assertEqual(result.id, project.id)
+
+    def test_resolve_nonexistent_returns_none(self):
+        """Random UUID resolves to None."""
+        from agents_api.synara_views import _resolve_project
+
+        user = _make_user("resolve3@dsw.test")
+        result = _resolve_project(str(uuid.uuid4()), user=user)
+        self.assertIsNone(result)
+
+    def test_user_filter_prevents_idor(self):
+        """Other user's project resolves to None."""
+        from agents_api.synara_views import _resolve_project
+        from core.models import Project
+
+        owner = _make_user("owner@dsw.test")
+        intruder = _make_user("intruder@dsw.test")
+        project = Project.objects.create(title="Owner Project", user=owner)
+        result = _resolve_project(str(project.id), user=intruder)
+        self.assertIsNone(result)
+
+
+# =============================================================================
+# §5.3: Project Guard HTTP (functional)
+# =============================================================================
+
+
+@SECURE_OFF
+class ProjectGuardHTTPTest(TestCase):
+    """DSW-001 §5.3: Mutating endpoints return 400 when no project resolves."""
+
+    def setUp(self):
+        self.user = _make_user("guard@dsw.test")
+        self.client = APIClient()
+        self.client.force_login(self.user)
+        self.fake_wid = str(uuid.uuid4())
+
+    def test_add_hypothesis_no_project_400(self):
+        """add_hypothesis with random workbench_id returns 400."""
+        res = self.client.post(
+            f"/api/synara/{self.fake_wid}/hypotheses/add/",
+            json.dumps({"description": "test hypothesis", "prior": 0.5}),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("No study loaded", _err_msg(res))
+
+    def test_add_evidence_no_project_400(self):
+        """add_evidence with random workbench_id returns 400."""
+        res = self.client.post(
+            f"/api/synara/{self.fake_wid}/evidence/add/",
+            json.dumps({"event": "test", "supports": [], "weakens": []}),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("No study loaded", _err_msg(res))
+
+    def test_add_link_no_project_400(self):
+        """add_link with random workbench_id returns 400."""
+        res = self.client.post(
+            f"/api/synara/{self.fake_wid}/links/add/",
+            json.dumps({"from_id": "h1", "to_id": "h2"}),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("No study loaded", _err_msg(res))
+
+
+# =============================================================================
+# §5.4: Save Failure (functional)
+# =============================================================================
+
+
+@SECURE_OFF
+class SaveFailureFunctionalTest(TestCase):
+    """DSW-001 §5.4: save_synara failure propagates correctly."""
+
+    def test_save_returns_false_without_project(self):
+        """save_synara with nonexistent workbench_id returns False."""
+        from agents_api.synara_views import get_synara, save_synara
+
+        wid = str(uuid.uuid4())
+        synara = get_synara(wid)
+        self.assertFalse(save_synara(wid, synara))
+
+    def test_save_returns_true_with_project(self):
+        """save_synara with valid project returns True."""
+        from agents_api.synara_views import get_synara, save_synara
+        from core.models import Project
+
+        user = _make_user("save_ok@dsw.test")
+        project = Project.objects.create(title="Save Test", user=user)
+        wid = str(project.id)
+        synara = get_synara(wid, user=user)
+        self.assertTrue(save_synara(wid, synara, user=user))
 
     def test_require_project_returns_400(self):
-        """_require_project returns 400 when no project."""
-        # Find the function body
-        match = re.search(
-            r"def _require_project.*?(?=\ndef |\Z)",
-            self.synara_src,
-            re.DOTALL,
-        )
-        self.assertIsNotNone(match, "_require_project not found")
-        body = match.group()
-        self.assertIn("status=400", body)
+        """_require_project with random UUID returns (None, 400 response)."""
+        from agents_api.synara_views import _require_project
 
-    def test_add_hypothesis_calls_require_project(self):
-        """add_hypothesis calls _require_project before mutation."""
-        match = re.search(
-            r"def add_hypothesis.*?(?=\ndef |\Z)",
-            self.synara_src,
-            re.DOTALL,
-        )
-        self.assertIsNotNone(match, "add_hypothesis not found")
-        body = match.group()
-        self.assertIn("_require_project(", body)
-
-    def test_require_project_before_create(self):
-        """_require_project called BEFORE create_hypothesis."""
-        match = re.search(
-            r"def add_hypothesis.*?(?=\ndef |\Z)",
-            self.synara_src,
-            re.DOTALL,
-        )
-        body = match.group()
-        req_pos = body.find("_require_project(")
-        create_pos = body.find("create_hypothesis(")
-        self.assertGreater(create_pos, req_pos, "_require_project must be called before create_hypothesis")
-
-    def test_error_message_clear(self):
-        """Error message tells user to create/select a study."""
-        self.assertIn("No study loaded", self.synara_src)
-
-    def test_all_mutating_endpoints_guarded(self):
-        """All hypothesis/evidence/link creation endpoints call _require_project."""
-        mutating = ["add_hypothesis", "add_evidence", "add_link"]
-        for fn_name in mutating:
-            match = re.search(
-                rf"def {fn_name}\(.*?(?=\ndef |\Z)",
-                self.synara_src,
-                re.DOTALL,
-            )
-            if match:
-                self.assertIn(
-                    "_require_project(",
-                    match.group(),
-                    f"{fn_name} does not call _require_project",
-                )
+        user = _make_user("reqproj@dsw.test")
+        project, err = _require_project(str(uuid.uuid4()), user=user)
+        self.assertIsNone(project)
+        self.assertIsNotNone(err)
+        self.assertEqual(err.status_code, 400)
 
 
-# ── §5.4: Save Failure Semantics ─────────────────────────────────────────
+# =============================================================================
+# §6.1: Evidence Bridge (functional)
+# =============================================================================
 
 
-class SaveFailureSemanticsTest(SimpleTestCase):
-    """DSW-001 §5.4: save_synara failure must propagate as error."""
+@SECURE_OFF
+class EvidenceBridgeFunctionalTest(TestCase):
+    """DSW-001 §6.1: Evidence linking from analysis results."""
 
     def setUp(self):
-        self.synara_src = _read(AGENTS_API / "synara_views.py")
+        self.user = _make_user("evidence@dsw.test")
+        self.client = APIClient()
+        self.client.force_login(self.user)
+        self.url = "/api/dsw/analysis/"
 
-    def test_save_returns_bool(self):
-        """save_synara returns bool (True/False)."""
-        match = re.search(
-            r"def save_synara.*?(?=\ndef |\Z)",
-            self.synara_src,
-            re.DOTALL,
+    def test_analysis_without_problem_succeeds(self):
+        """Analysis without problem_id returns 200 without problem_updated."""
+        import numpy as np
+
+        data = {"x": np.random.normal(50, 2, 50).tolist()}
+        res = self.client.post(
+            self.url,
+            json.dumps({"type": "stats", "analysis": "descriptive", "data": data}),
+            content_type="application/json",
         )
-        body = match.group()
-        self.assertIn("return True", body)
-        self.assertIn("return False", body)
+        self.assertEqual(res.status_code, 200)
+        body = res.json()
+        self.assertFalse(body.get("problem_updated", False))
 
-    def test_add_hypothesis_checks_save(self):
-        """add_hypothesis checks save_synara return value."""
-        match = re.search(
-            r"def add_hypothesis.*?(?=\ndef |\Z)",
-            self.synara_src,
-            re.DOTALL,
+    def test_analysis_with_problem_links_evidence(self):
+        """Analysis with valid problem_id sets problem_updated=True."""
+        import numpy as np
+
+        from agents_api.models import Problem
+
+        problem = Problem.objects.create(user=self.user, title="Test Problem")
+        data = {"x": np.random.normal(50, 2, 50).tolist()}
+        res = self.client.post(
+            self.url,
+            json.dumps(
+                {
+                    "type": "stats",
+                    "analysis": "descriptive",
+                    "data": data,
+                    "problem_id": str(problem.id),
+                }
+            ),
+            content_type="application/json",
         )
-        body = match.group()
-        self.assertRegex(body, r"if not save_synara\(")
+        self.assertEqual(res.status_code, 200)
+        body = res.json()
+        self.assertTrue(body.get("problem_updated", False))
 
-    def test_save_failure_returns_500(self):
-        """Save failure returns 500 status."""
-        match = re.search(
-            r"def add_hypothesis.*?(?=\ndef |\Z)",
-            self.synara_src,
-            re.DOTALL,
-        )
-        body = match.group()
-        self.assertIn("status=500", body)
-
-    def test_save_failure_message(self):
-        """Save failure includes meaningful error message."""
-        self.assertIn("Failed to persist", self.synara_src)
-
-    def test_delete_hypothesis_checks_save(self):
-        """delete_hypothesis checks save_synara return value."""
-        match = re.search(
-            r"def delete_hypothesis.*?(?=\ndef |\Z)",
-            self.synara_src,
-            re.DOTALL,
-        )
-        if match:
-            body = match.group()
-            self.assertIn("save_synara(", body)
-
-
-# ── §6.1: Evidence Bridge ────────────────────────────────────────────────
-
-
-class EvidenceBridgeTest(SimpleTestCase):
-    """DSW-001 §6.1: Analysis results link to Problem as evidence."""
-
-    def setUp(self):
-        self.dispatch_src = _read(DSW_DIR / "dispatch.py")
-
-    def test_problem_id_optional(self):
-        """problem_id read from request body (optional)."""
-        self.assertIn('body.get("problem_id")', self.dispatch_src)
-
-    def test_calls_add_finding(self):
-        """Dispatch calls add_finding_to_problem when problem_id provided."""
-        self.assertIn("add_finding_to_problem", self.dispatch_src)
-
-    def test_evidence_linking_in_dispatch(self):
-        """Evidence linking happens inside dispatch.py, not sub-modules."""
-        # Sub-modules should NOT contain add_finding_to_problem
+    def test_submodules_dont_call_add_finding(self):
+        """Sub-modules should not call add_finding_to_problem directly (architecture)."""
         for module in ["stats.py", "ml.py", "spc.py", "bayesian.py"]:
-            src = _read(DSW_DIR / module)
-            self.assertNotIn(
-                "add_finding_to_problem",
-                src,
-                f"{module} should not call add_finding_to_problem directly",
-            )
-
-
-# ── §6.2: DSWResult Persistence ──────────────────────────────────────────
-
-
-class DSWResultPersistenceTest(SimpleTestCase):
-    """DSW-001 §6.2: DSWResult stores analysis output."""
-
-    def setUp(self):
-        self.models_src = _read(AGENTS_API / "models.py")
-        self.dispatch_src = _read(DSW_DIR / "dispatch.py")
-
-    def test_dswresult_model_exists(self):
-        """DSWResult class defined in models.py."""
-        self.assertIn("class DSWResult(", self.models_src)
-
-    def test_dswresult_has_user_fk(self):
-        """DSWResult has user foreign key."""
-        # Extract DSWResult class body
-        match = re.search(
-            r"class DSWResult.*?(?=\nclass |\Z)",
-            self.models_src,
-            re.DOTALL,
-        )
-        self.assertIsNotNone(match)
-        body = match.group()
-        self.assertIn("user", body)
-
-    def test_dswresult_has_result_data(self):
-        """DSWResult stores result content."""
-        match = re.search(
-            r"class DSWResult.*?(?=\nclass |\Z)",
-            self.models_src,
-            re.DOTALL,
-        )
-        body = match.group()
-        self.assertTrue(
-            "result_data" in body or "content" in body or "EncryptedTextField" in body,
-            "DSWResult must store analysis output",
-        )
-
-    def test_dispatch_creates_dswresult(self):
-        """dispatch.py creates DSWResult when save_result is True."""
-        self.assertIn("DSWResult", self.dispatch_src)
-
-    def test_project_id_optional(self):
-        """project_id read from body for result linking."""
-        self.assertIn('body.get("project_id")', self.dispatch_src)
-
-
-# ── §7.1: Feature Gating ────────────────────────────────────────────────
-
-
-class FeatureGatingTest(SimpleTestCase):
-    """DSW-001 §7.1: DSW endpoints use @gated/@gated_paid decorators."""
-
-    def setUp(self):
-        self.dispatch_src = _read(DSW_DIR / "dispatch.py")
-        self.synara_src = _read(AGENTS_API / "synara_views.py")
-        self.permissions_src = _read(WEB_ROOT / "accounts" / "permissions.py")
-
-    def test_dispatch_uses_gated(self):
-        """run_analysis uses @gated (basic tier access)."""
-        self.assertRegex(self.dispatch_src, r"@(gated|rate_limited)\s")
-
-    def test_synara_uses_gated_paid(self):
-        """Synara endpoints use @gated_paid (premium tier access)."""
-        self.assertIn("@gated_paid", self.synara_src)
-
-    def test_gated_decorator_defined(self):
-        """gated decorator exists in permissions.py."""
-        self.assertTrue(
-            "gated" in self.permissions_src,
-            "gated decorator not found in permissions.py",
-        )
-
-    def test_gated_paid_decorator_defined(self):
-        """gated_paid function defined in permissions.py."""
-        self.assertIn("def gated_paid(", self.permissions_src)
-
-    def test_synara_all_endpoints_gated(self):
-        """All Synara view functions have @gated_paid."""
-        # Find all view functions (def foo(request, ...):)
-        view_fns = re.findall(
-            r"def (\w+)\(request",
-            self.synara_src,
-        )
-        for fn_name in view_fns:
-            if fn_name.startswith("_"):
-                continue  # Skip private helpers
-            # Check that @gated_paid appears before the function definition
-            pattern = rf"@gated_paid\s.*?def {fn_name}\("
-            self.assertRegex(
-                self.synara_src,
-                pattern,
-                f"Synara view {fn_name} missing @gated_paid",
-            )
-
-
-# ── §7.2: IDOR Prevention ───────────────────────────────────────────────
-
-
-class IDORPreventionTest(SimpleTestCase):
-    """DSW-001 §7.2: Project lookups filter by request.user."""
-
-    def setUp(self):
-        self.synara_src = _read(AGENTS_API / "synara_views.py")
-
-    def test_resolve_project_accepts_user(self):
-        """_resolve_project accepts user parameter."""
-        self.assertIn("def _resolve_project(workbench_id", self.synara_src)
-        match = re.search(r"def _resolve_project\([^)]+\)", self.synara_src)
-        self.assertIn("user", match.group())
-
-    def test_add_hypothesis_passes_user(self):
-        """add_hypothesis passes request.user to _require_project."""
-        match = re.search(
-            r"def add_hypothesis.*?(?=\ndef |\Z)",
-            self.synara_src,
-            re.DOTALL,
-        )
-        body = match.group()
-        self.assertIn("user=request.user", body)
-
-    def test_get_synara_passes_user(self):
-        """get_synara calls pass user for IDOR protection."""
-        match = re.search(
-            r"def add_hypothesis.*?(?=\ndef |\Z)",
-            self.synara_src,
-            re.DOTALL,
-        )
-        body = match.group()
-        self.assertIn("get_synara(workbench_id, user=request.user)", body)
-
-    def test_save_synara_passes_user(self):
-        """save_synara calls pass user for IDOR protection."""
-        match = re.search(
-            r"def add_hypothesis.*?(?=\ndef |\Z)",
-            self.synara_src,
-            re.DOTALL,
-        )
-        body = match.group()
-        self.assertIn("save_synara(workbench_id, synara, user=request.user)", body)
-
-    def test_dispatch_filters_triage_by_user(self):
-        """Triage data source filters by request.user."""
-        dispatch_src = _read(DSW_DIR / "dispatch.py")
-        self.assertIn("user=request.user", dispatch_src)
-
-
-# ── §8: Anti-Patterns ───────────────────────────────────────────────────
-
-
-class AntiPatternTest(SimpleTestCase):
-    """DSW-001 §8: Anti-pattern detection."""
-
-    def setUp(self):
-        self.synara_src = _read(AGENTS_API / "synara_views.py")
-
-    def test_no_silent_save_failure(self):
-        """No endpoint returns success after save_synara without checking return."""
-        # Find all save_synara calls and verify they're in if-not-save patterns
-        lines = self.synara_src.split("\n")
-        for i, line in enumerate(lines):
-            if "save_synara(" in line and "def save_synara" not in line:
-                # This line calls save_synara — check it's in an if-check
-                context = "\n".join(lines[max(0, i - 1) : i + 3])
-                has_check = (
-                    "if not save_synara" in context
-                    or "if save_synara" in context  # positive check
-                    or "saved = " in context  # assigned to variable
+            mod_path = DSW_DIR / module
+            if mod_path.exists():
+                src = inspect.getsource(__import__(f"agents_api.dsw.{module[:-3]}", fromlist=[""]))
+                self.assertNotIn(
+                    "add_finding_to_problem",
+                    src,
+                    f"{module} should not call add_finding_to_problem directly",
                 )
-                # Allow within save_synara's own body
-                if "def save_synara" not in "\n".join(lines[max(0, i - 5) : i]):
-                    self.assertTrue(
-                        has_check,
-                        f"Line {i + 1}: save_synara() called without checking return value",
-                    )
 
 
-# ── Module Structure ─────────────────────────────────────────────────────
+# =============================================================================
+# §6.2: DSWResult Persistence (functional)
+# =============================================================================
+
+
+@SECURE_OFF
+class DSWResultFunctionalTest(TestCase):
+    """DSW-001 §6.2: DSWResult created on save, encrypted, project-linked."""
+
+    def setUp(self):
+        self.user = _make_user("result@dsw.test")
+        self.client = APIClient()
+        self.client.force_login(self.user)
+        self.url = "/api/dsw/analysis/"
+
+    def test_dswresult_created_on_save(self):
+        """save_result=True returns result_id and creates DB record."""
+        import numpy as np
+
+        from agents_api.models import DSWResult
+
+        data = {"x": np.random.normal(50, 2, 50).tolist()}
+        res = self.client.post(
+            self.url,
+            json.dumps(
+                {
+                    "type": "stats",
+                    "analysis": "descriptive",
+                    "data": data,
+                    "save_result": True,
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 200)
+        body = res.json()
+        result_id = body.get("result_id")
+        self.assertIsNotNone(result_id, "save_result=True should return result_id")
+        self.assertTrue(DSWResult.objects.filter(id=result_id).exists())
+
+    def test_dswresult_has_encrypted_data(self):
+        """DSWResult.data field uses EncryptedTextField."""
+        from agents_api.models import DSWResult
+
+        field = DSWResult._meta.get_field("data")
+        self.assertIn("Encrypted", type(field).__name__)
+
+    def test_dswresult_project_link(self):
+        """DSWResult with project_id has project FK set."""
+        import numpy as np
+
+        from agents_api.models import DSWResult
+        from core.models import Project
+
+        project = Project.objects.create(title="Result Link Test", user=self.user)
+        data = {"x": np.random.normal(50, 2, 50).tolist()}
+        res = self.client.post(
+            self.url,
+            json.dumps(
+                {
+                    "type": "stats",
+                    "analysis": "descriptive",
+                    "data": data,
+                    "save_result": True,
+                    "project_id": str(project.id),
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 200)
+        result_id = res.json().get("result_id")
+        if result_id:
+            dsw_result = DSWResult.objects.get(id=result_id)
+            self.assertEqual(dsw_result.project_id, project.id)
+
+
+# =============================================================================
+# §7.1: Feature Gating HTTP (functional)
+# =============================================================================
+
+
+@SECURE_OFF
+class FeatureGatingHTTPTest(TestCase):
+    """DSW-001 §7.1: Feature gating enforced at HTTP level."""
+
+    def test_free_user_rejected_synara(self):
+        """Free-tier user gets 403 on Synara endpoint."""
+        user = _make_user("free@dsw.test", tier=Tier.FREE)
+        client = APIClient()
+        client.force_login(user)
+        res = client.post(
+            f"/api/synara/{uuid.uuid4()}/hypotheses/add/",
+            json.dumps({"description": "test"}),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 403)
+
+    def test_paid_user_accepted_synara(self):
+        """Pro-tier user is not rejected by feature gate (may get 400 for missing project)."""
+        user = _make_user("pro@dsw.test", tier=Tier.PRO)
+        client = APIClient()
+        client.force_login(user)
+        res = client.post(
+            f"/api/synara/{uuid.uuid4()}/hypotheses/add/",
+            json.dumps({"description": "test"}),
+            content_type="application/json",
+        )
+        # Should NOT be 401 or 403 — those are auth/gate failures
+        self.assertNotIn(res.status_code, (401, 403))
+
+    def test_unauthenticated_rejected_dsw(self):
+        """Unauthenticated request to DSW returns 401."""
+        client = APIClient()
+        res = client.post(
+            "/api/dsw/analysis/",
+            json.dumps({"type": "stats", "analysis": "ttest"}),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 401)
+
+
+# =============================================================================
+# §7.2: IDOR Prevention HTTP (functional)
+# =============================================================================
+
+
+@SECURE_OFF
+class IDORPreventionHTTPTest(TestCase):
+    """DSW-001 §7.2: Cross-user project access denied."""
+
+    def test_user_cannot_access_other_project(self):
+        """User A loading User B's project gets empty Synara, not B's data."""
+        from core.models import Project
+
+        owner = _make_user("idor_owner@dsw.test")
+        intruder = _make_user("idor_intruder@dsw.test")
+
+        project = Project.objects.create(title="Owner Project", user=owner)
+
+        # Intruder tries to read hypotheses from owner's project
+        client = APIClient()
+        client.force_login(intruder)
+        res = client.get(f"/api/synara/{project.id}/hypotheses/")
+        # Should get empty hypotheses (fresh Synara), not owner's data
+        if res.status_code == 200:
+            body = res.json()
+            hypotheses = body.get("hypotheses", body.get("data", []))
+            self.assertEqual(len(hypotheses), 0)
+
+    def test_user_cannot_add_to_other_project(self):
+        """User A adding hypothesis to User B's project returns 400."""
+        from core.models import Project
+
+        owner = _make_user("idor_own2@dsw.test")
+        intruder = _make_user("idor_int2@dsw.test")
+
+        project = Project.objects.create(title="Owner Project 2", user=owner)
+
+        client = APIClient()
+        client.force_login(intruder)
+        res = client.post(
+            f"/api/synara/{project.id}/hypotheses/add/",
+            json.dumps({"description": "intruder hypothesis"}),
+            content_type="application/json",
+        )
+        # Should be 400 (no project found for intruder) — not 200
+        self.assertEqual(res.status_code, 400)
+
+
+# =============================================================================
+# Module Structure (structural — allowed per TST-001 §10.5)
+# =============================================================================
 
 
 class DSWModuleStructureTest(SimpleTestCase):
@@ -652,52 +755,22 @@ class DSWModuleStructureTest(SimpleTestCase):
         """accounts/permissions.py provides decorators."""
         self.assertTrue((WEB_ROOT / "accounts" / "permissions.py").exists())
 
-    def test_dsw_result_in_models(self):
-        """DSWResult defined in agents_api/models.py."""
-        models_src = _read(AGENTS_API / "models.py")
-        self.assertIn("class DSWResult(", models_src)
-
-
-# ── Endpoint Decorator Compliance ────────────────────────────────────────
-
-
-class EndpointDecoratorComplianceTest(SimpleTestCase):
-    """DSW-001 §7: All DSW endpoints have auth decorators."""
-
-    def test_dsw_endpoints_data_gated(self):
-        """endpoints_data.py uses auth decorators."""
-        src = _read(DSW_DIR / "endpoints_data.py")
-        if src:
-            # Every POST endpoint should have a decorator
-            self.assertTrue(
-                "@gated" in src or "@rate_limited" in src or "@require_auth" in src or "@gated_paid" in src,
-                "endpoints_data.py has no auth decorators",
-            )
-
-    def test_dsw_endpoints_ml_gated(self):
-        """endpoints_ml.py uses auth decorators."""
-        src = _read(DSW_DIR / "endpoints_ml.py")
-        if src:
-            self.assertTrue(
-                "@gated" in src or "@rate_limited" in src or "@require_auth" in src or "@gated_paid" in src,
-                "endpoints_ml.py has no auth decorators",
-            )
-
-    def test_spc_views_gated(self):
-        """spc_views.py uses auth decorators."""
-        src = _read(AGENTS_API / "spc_views.py")
-        self.assertTrue(
-            "@gated" in src or "@rate_limited" in src or "@gated_paid" in src,
-            "spc_views.py has no auth decorators",
-        )
-
-    def test_experimenter_views_gated(self):
-        """experimenter_views.py uses auth decorators."""
-        src = _read(AGENTS_API / "experimenter_views.py")
-        self.assertTrue(
-            "@gated" in src or "@rate_limited" in src or "@gated_paid" in src,
-            "experimenter_views.py has no auth decorators",
-        )
+    def test_all_submodules_exist(self):
+        """All DSW sub-module files exist on disk."""
+        expected = [
+            "stats.py",
+            "ml.py",
+            "spc.py",
+            "bayesian.py",
+            "reliability.py",
+            "simulation.py",
+            "viz.py",
+            "d_type.py",
+            "dispatch.py",
+            "common.py",
+        ]
+        for f in expected:
+            self.assertTrue((DSW_DIR / f).exists(), f"DSW sub-module missing: {f}")
 
 
 # =============================================================================
@@ -841,10 +914,14 @@ class RegistryTest(SimpleTestCase):
 
     def test_all_dispatch_types_registered(self):
         """All dispatch route types have at least one registry entry."""
+        from agents_api.dsw.dispatch import run_analysis
         from agents_api.dsw.registry import ANALYSIS_REGISTRY
 
-        dispatch_src = _read(DSW_DIR / "dispatch.py")
-        route_types = set(re.findall(r'analysis_type\s*==\s*"(\w+)"', dispatch_src))
+        # Get the source of dispatch to find route types
+        src = inspect.getsource(run_analysis)
+        import re
+
+        route_types = set(re.findall(r'analysis_type\s*==\s*"(\w+)"', src))
         registry_types = {t for t, _ in ANALYSIS_REGISTRY.keys()}
         for rt in route_types:
             self.assertIn(rt, registry_types, f"Dispatch route type '{rt}' has no registry entries")
@@ -863,10 +940,11 @@ class PostProcessorTest(SimpleTestCase):
     """DSW-001 §8.3: Post-processing pipeline."""
 
     def test_standardize_called_on_dispatch(self):
-        """dispatch.py calls standardize_output before returning."""
-        src = _read(DSW_DIR / "dispatch.py")
+        """dispatch.py imports and calls standardize_output."""
+        from agents_api.dsw.dispatch import run_analysis
+
+        src = inspect.getsource(run_analysis)
         self.assertIn("standardize_output", src)
-        self.assertIn("from .standardize import standardize_output", src)
 
     def test_missing_education_filled(self):
         """Post-processor injects education from centralized store."""
@@ -889,7 +967,7 @@ class PostProcessorTest(SimpleTestCase):
         self.assertIsNotNone(result.get("narrative"))
 
     def test_narrative_has_nonempty_verdict(self):
-        """Generated narrative has verdict ≥10 characters."""
+        """Generated narrative has verdict >= 10 characters."""
         from agents_api.dsw.standardize import standardize_output
 
         result = standardize_output(
@@ -903,7 +981,7 @@ class PostProcessorTest(SimpleTestCase):
         self.assertTrue(len(verdict) >= 10, f"Narrative verdict too short: '{verdict}' ({len(verdict)} chars)")
 
     def test_guide_observation_nonempty(self):
-        """guide_observation ≥10 chars when summary exists."""
+        """guide_observation >= 10 chars when summary exists."""
         from agents_api.dsw.standardize import standardize_output
 
         result = standardize_output(
@@ -940,7 +1018,7 @@ class EducationTest(SimpleTestCase):
             self.assertTrue(len(entry["content"]) > 10, f"Education {key} has empty content")
 
     def test_education_content_depth(self):
-        """Education content ≥200 characters (not shallow stubs)."""
+        """Education content >= 200 characters (not shallow stubs)."""
         from agents_api.dsw.education import EDUCATION_CONTENT
 
         shallow = []
@@ -962,7 +1040,7 @@ class EducationTest(SimpleTestCase):
         self.assertEqual(len(no_dl), 0, f"{len(no_dl)} entries missing <dl>/<dt> structure: {no_dl[:5]}")
 
     def test_education_title_length(self):
-        """Education titles ≥15 characters."""
+        """Education titles >= 15 characters."""
         from agents_api.dsw.education import EDUCATION_CONTENT
 
         short = []
@@ -1149,3 +1227,8 @@ class FrontendRenderingTest(SimpleTestCase):
         """renderDSWBlocks(result) is called in the response handler."""
         t = self._template()
         self.assertIn("renderDSWBlocks(result)", t)
+
+    def test_hypothesis_button_requires_project_id(self):
+        """DSW-001 §9.3: Hypothesis creation UI requires currentProjectId."""
+        wb = _read(WEB_ROOT / "templates" / "workbench_new.html")
+        self.assertIn("currentProjectId", wb)

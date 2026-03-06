@@ -10421,7 +10421,6 @@ def run_statistical_analysis(df, analysis_id, config):
         Estimates hazard ratios for covariates without assuming a baseline hazard distribution.
         Reports coefficients, hazard ratios, 95% CIs, concordance index.
         """
-        import numpy as np
         from scipy import stats as scipy_stats
 
         time_col = config.get("time_col") or config.get("time") or config.get("var1")
@@ -15605,7 +15604,6 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         Computes OC curve, AOQ curve, ATI, and determines accept/reject based on AQL and LTPD.
         Supports both attribute (defective count) and variable (normal) plans.
         """
-        import numpy as np
         from scipy import stats as scipy_stats
 
         plan_type = config.get("plan_type", "single")  # single, double
