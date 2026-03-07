@@ -4025,22 +4025,46 @@ def api_compliance_run(request):
             result["ok"] = True
             return Response(result)
 
-        # Store aggregated test results after running all standards
-        if check_name == "store_test_results":
-            from syn.audit.models import ComplianceCheck
+        # Run ALL standards tests in one request (avoids rate limiting)
+        if check_name == "run_all_standards_tests":
+            import time
 
-            test_data = data.get("data", {})
+            from syn.audit.models import ComplianceCheck
+            from syn.audit.standards import parse_all_standards
+
+            start = time.time()
+            assertions = parse_all_standards()
+            standards = sorted({a.standard for a in assertions})
+            total_passed = total_failed = total_skipped = 0
+            per_standard = {}
+
+            for std_name in standards:
+                result = run_standards_tests_for(std_name)
+                per_standard[std_name] = result
+                total_passed += result.get("tests_passed", 0)
+                total_failed += result.get("tests_failed", 0)
+                total_skipped += result.get("tests_skipped", 0)
+
+            # Store aggregated results
             std_check = ComplianceCheck.objects.filter(check_name="standards_compliance").order_by("-run_at").first()
             if std_check:
                 details = std_check.details or {}
-                details["tests_passed"] = test_data.get("tests_passed", 0)
-                details["tests_failed"] = test_data.get("tests_failed", 0)
-                details["tests_skipped"] = test_data.get("tests_skipped", 0)
+                details["tests_passed"] = total_passed
+                details["tests_failed"] = total_failed
+                details["tests_skipped"] = total_skipped
                 std_check.details = details
                 std_check.save(update_fields=["details"])
-                return Response({"ok": True})
+
+            duration_ms = round((time.time() - start) * 1000)
             return Response(
-                {"ok": False, "error": "No standards_compliance check found — run compliance first"}, status=404
+                {
+                    "ok": True,
+                    "tests_passed": total_passed,
+                    "tests_failed": total_failed,
+                    "tests_skipped": total_skipped,
+                    "standards_tested": len(standards),
+                    "duration_ms": duration_ms,
+                }
             )
 
         # Single check mode

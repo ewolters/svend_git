@@ -3380,51 +3380,29 @@ async function runStandardsTests() {
     const origText = btn.textContent;
     btn.disabled = true;
     btn.style.opacity = '0.6';
+    btn.textContent = 'Running all standards tests...';
 
-    // Get standard names from loaded compliance data
-    const byStd = (_complianceData && _complianceData.standards) ? _complianceData.standards.by_standard : null;
-    if (!byStd) {
-        btn.textContent = 'Load compliance first';
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        setTimeout(() => { btn.textContent = origText; }, 3000);
-        return;
-    }
-    const standards = Object.keys(byStd).sort();
     const headers = {'Content-Type': 'application/json', 'X-CSRFToken': getCSRF()};
-    let stdPassed = 0, stdFailed = 0, errors = 0;
     let totalTestsPassed = 0, totalTestsFailed = 0, totalTestsSkipped = 0;
+    let stdCount = 0, ok = false;
 
-    for (let i = 0; i < standards.length; i++) {
-        btn.textContent = `Testing ${standards[i]} (${i+1}/${standards.length})...`;
-        try {
-            const resp = await fetch('/api/internal/compliance/run/', {
-                method: 'POST', headers,
-                body: JSON.stringify({check: 'standards_tests', standard: standards[i]}),
-            });
-            const ct = resp.headers.get('content-type') || '';
-            if (!ct.includes('application/json')) { errors++; continue; }
-            const data = await resp.json();
-            if (data.ok && data.status === 'pass') { stdPassed++; } else { stdFailed++; }
-            totalTestsPassed += data.tests_passed || 0;
-            totalTestsFailed += data.tests_failed || 0;
-            totalTestsSkipped += data.tests_skipped || 0;
-        } catch (e) { errors++; }
-    }
-
-    // Store aggregated test results server-side for persistence
     try {
-        await fetch('/api/internal/compliance/run/', {
+        const resp = await fetch('/api/internal/compliance/run/', {
             method: 'POST', headers,
-            body: JSON.stringify({
-                check: 'store_test_results',
-                data: { tests_passed: totalTestsPassed, tests_failed: totalTestsFailed, tests_skipped: totalTestsSkipped }
-            }),
+            body: JSON.stringify({check: 'run_all_standards_tests'}),
         });
-    } catch (e) { /* best effort */ }
+        const data = await resp.json();
+        if (data.ok) {
+            ok = true;
+            totalTestsPassed = data.tests_passed || 0;
+            totalTestsFailed = data.tests_failed || 0;
+            totalTestsSkipped = data.tests_skipped || 0;
+            stdCount = data.standards_tested || 0;
+        }
+    } catch (e) { /* timeout or network error */ }
 
-    const errMsg = errors > 0 ? `, ${errors} timeout` : '';
-    btn.textContent = `Tests: ${stdPassed}/${standards.length} passed${errMsg}`;
+    const ran = totalTestsPassed + totalTestsFailed;
+    btn.textContent = ok ? `Done: ${totalTestsPassed}p / ${totalTestsFailed}f / ${totalTestsSkipped}s (${stdCount} standards)` : 'Error — check logs';
     btn.style.color = (stdFailed + errors) === 0 ? 'var(--accent-primary)' : 'var(--warning,#f59e0b)';
     btn.disabled = false;
     btn.style.opacity = '1';
