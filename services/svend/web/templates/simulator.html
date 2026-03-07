@@ -833,13 +833,19 @@
             <h3>Workforce</h3>
             <div class="operator-list" id="operator-list"></div>
             <div class="workforce-controls">
-                <button class="sim-btn" onclick="addOperator()" style="flex:1;">+ Operator</button>
-                <button class="sim-btn" onclick="removeOperator()" style="flex:1;">- Remove</button>
+                <button class="sim-btn" onclick="addOperator('operator')" style="flex:1;">+ Operator</button>
+                <button class="sim-btn" onclick="addOperator('maintenance')" style="flex:1;">+ Maint</button>
             </div>
             <div class="workforce-controls">
+                <button class="sim-btn" onclick="addOperator('agv_driver')" style="flex:1;">+ AGV</button>
+                <button class="sim-btn" onclick="addOperator('inspector')" style="flex:1;">+ Inspector</button>
+            </div>
+            <div class="workforce-controls">
+                <button class="sim-btn" onclick="removeOperator()" style="flex:1;">- Remove</button>
                 <button class="sim-btn" onclick="showTrainingDialog()" style="flex:1;">Cross-Train</button>
             </div>
             <div class="workforce-stat" id="workforce-stat">0 operators</div>
+            <div id="rto-display" style="font-size:0.6rem;color:var(--text-dim);margin-top:4px;line-height:1.5;"></div>
             <div class="prop-row" style="margin-top:4px;">
                 <span class="prop-label" style="font-size:0.65rem;">Calloff %</span>
                 <input type="number" class="prop-input" id="cfg-calloff" value="5" min="0" max="50" step="1" style="width:50px;">
@@ -7910,43 +7916,92 @@ function showReassignDialog() {
     if (!des) return;
     const ops = des.operators.filter(o => o.status !== 'quit');
     const stns = [...des.stations.values()].filter(s => s.type === 'machine');
-    const opChoice = prompt('Operators:\n' + ops.map((o, i) => `${i+1}. ${o.name} [${o.status}${o.assignedTo ? ' @ ' + (des.stations.get(o.assignedTo)?.name || o.assignedTo) : ''}]`).join('\n') + '\n\nEnter operator number:');
-    if (!opChoice) return;
-    const op = ops[parseInt(opChoice) - 1];
-    if (!op) return;
-    const stnChoice = prompt('Stations:\n' + stns.map((s, i) => `${i+1}. ${s.name} [queue:${s.queue.length}]`).join('\n') + '\n\nAssign to station number:');
-    if (!stnChoice) return;
-    const stn = stns[parseInt(stnChoice) - 1];
-    if (!stn) return;
-    des.interventionReassignOperator(op.id, stn.id);
-    updateCommandPanel();
+    const panel = document.getElementById('props-panel');
+    const content = document.getElementById('props-content');
+    panel.classList.add('active');
+    content.innerHTML = `
+        <div style="font-size:0.8rem;font-weight:600;margin-bottom:6px;">Reassign Operator</div>
+        <div class="prop-row"><span class="prop-label">Operator</span>
+            <select class="prop-input" id="reassign-op">
+                ${ops.map(o => `<option value="${o.id}">${o.name} [${o.status}]</option>`).join('')}
+            </select>
+        </div>
+        <div class="prop-row"><span class="prop-label">Station</span>
+            <select class="prop-input" id="reassign-stn">
+                ${stns.map(s => `<option value="${s.id}">${s.name} [q:${s.queue.length}]</option>`).join('')}
+            </select>
+        </div>
+        <button class="sim-btn" onclick="executeReassign()" style="width:100%;margin-top:6px;">Reassign</button>
+    `;
+}
+function executeReassign() {
+    const opId = document.getElementById('reassign-op')?.value;
+    const stnId = document.getElementById('reassign-stn')?.value;
+    if (opId && stnId && des) {
+        des.interventionReassignOperator(opId, stnId);
+        updateCommandPanel();
+        showToast('Operator reassigned');
+        document.getElementById('props-panel').classList.remove('active');
+    }
 }
 
 function showDispatchDialog() {
     if (!des) return;
     const stns = [...des.stations.values()].filter(s => s.type === 'machine');
-    const stnChoice = prompt('Stations:\n' + stns.map((s, i) => `${i+1}. ${s.name} [${s.dispatchRule || 'FIFO'}]`).join('\n') + '\n\nEnter station number:');
-    if (!stnChoice) return;
-    const stn = stns[parseInt(stnChoice) - 1];
-    if (!stn) return;
-    const rule = prompt('Dispatch rules: FIFO, SPT, EDD, CR, WSPT\nCurrent: ' + (stn.dispatchRule || 'FIFO') + '\n\nEnter new rule:');
-    if (!rule || !['FIFO','SPT','EDD','CR','WSPT'].includes(rule.toUpperCase())) return;
-    des.interventionChangeDispatchRule(stn.id, rule.toUpperCase());
-    updateCommandPanel();
+    const panel = document.getElementById('props-panel');
+    const content = document.getElementById('props-content');
+    panel.classList.add('active');
+    content.innerHTML = `
+        <div style="font-size:0.8rem;font-weight:600;margin-bottom:6px;">Change Dispatch Rule</div>
+        <div class="prop-row"><span class="prop-label">Station</span>
+            <select class="prop-input" id="dispatch-stn">
+                ${stns.map(s => `<option value="${s.id}">${s.name} [${s.dispatchRule || 'FIFO'}]</option>`).join('')}
+            </select>
+        </div>
+        <div class="prop-row"><span class="prop-label">Rule</span>
+            <select class="prop-input" id="dispatch-rule">
+                ${['FIFO','SPT','EDD','CR','WSPT'].map(r => `<option value="${r}">${r}</option>`).join('')}
+            </select>
+        </div>
+        <button class="sim-btn" onclick="executeDispatchChange()" style="width:100%;margin-top:6px;">Set Rule</button>
+    `;
+}
+function executeDispatchChange() {
+    const stnId = document.getElementById('dispatch-stn')?.value;
+    const rule = document.getElementById('dispatch-rule')?.value;
+    if (stnId && rule && des) {
+        des.interventionChangeDispatchRule(stnId, rule);
+        updateCommandPanel();
+        showToast('Dispatch rule changed');
+        document.getElementById('props-panel').classList.remove('active');
+    }
 }
 
 function showScrapDialog() {
     if (!des) return;
     const stns = [...des.stations.values()].filter(s => s.type === 'machine' && s.queue.length > 0);
     if (stns.length === 0) { showToast('No queued WIP to scrap'); return; }
-    const choice = prompt('Stations with WIP:\n' + stns.map((s, i) => `${i+1}. ${s.name} [${s.queue.length} queued]`).join('\n') + '\n\nScrap WIP at station number:');
-    if (!choice) return;
-    const stn = stns[parseInt(choice) - 1];
-    if (!stn) return;
-    if (confirm(`Scrap ${stn.queue.length} parts at ${stn.name}? This cannot be undone.`)) {
-        des.interventionScrapSuspectWIP(stn.id);
+    const panel = document.getElementById('props-panel');
+    const content = document.getElementById('props-content');
+    panel.classList.add('active');
+    content.innerHTML = `
+        <div style="font-size:0.8rem;font-weight:600;margin-bottom:6px;">Scrap Suspect WIP</div>
+        <div class="prop-row"><span class="prop-label">Station</span>
+            <select class="prop-input" id="scrap-stn">
+                ${stns.map(s => `<option value="${s.id}">${s.name} [${s.queue.length} queued]</option>`).join('')}
+            </select>
+        </div>
+        <button class="sim-btn" onclick="executeScrap()" style="width:100%;margin-top:6px;background:#e74c3c;color:#fff;">Scrap WIP</button>
+    `;
+}
+function executeScrap() {
+    const stnId = document.getElementById('scrap-stn')?.value;
+    if (stnId && des) {
+        des.interventionScrapSuspectWIP(stnId);
         updateCommandPanel();
         renderCanvas();
+        showToast('WIP scrapped');
+        document.getElementById('props-panel').classList.remove('active');
     }
 }
 
@@ -8712,13 +8767,29 @@ async function loadLayoutList() {
         const sims = data.simulations || [];
         if (sims.length === 0) { showToast('No saved simulations'); return; }
 
-        const choice = prompt('Saved simulations:\n' + sims.map((s, i) => `${i + 1}. ${s.name}`).join('\n') + '\n\nEnter number to load:');
-        if (!choice) return;
-        const idx = parseInt(choice) - 1;
-        if (idx >= 0 && idx < sims.length) {
-            loadSimulation(sims[idx]);
-        }
+        const panel = document.getElementById('props-panel');
+        const content = document.getElementById('props-content');
+        panel.classList.add('active');
+        window._pendingSims = sims;
+        content.innerHTML = `
+            <div style="font-size:0.8rem;font-weight:600;margin-bottom:6px;">Load Simulation</div>
+            <div class="prop-row"><span class="prop-label">Layout</span>
+                <select class="prop-input" id="load-sim-select">
+                    ${sims.map((s, i) => `<option value="${i}">${s.name}</option>`).join('')}
+                </select>
+            </div>
+            <button class="sim-btn" onclick="executeLoadSim()" style="width:100%;margin-top:6px;">Load</button>
+        `;
+        return;
     } catch (e) { showToast('Failed to load list'); }
+}
+
+function executeLoadSim() {
+    const idx = +document.getElementById('load-sim-select')?.value;
+    if (window._pendingSims && window._pendingSims[idx]) {
+        loadSimulation(window._pendingSims[idx]);
+        document.getElementById('props-panel').classList.remove('active');
+    }
 }
 
 function loadSimulation(sim) {
@@ -8829,12 +8900,31 @@ async function importFromVSM() {
         const maps = data.maps || [];
         if (maps.length === 0) { showToast('No VSMs found'); return; }
 
-        const choice = prompt('Value Stream Maps:\n' + maps.map((m, i) => `${i + 1}. ${m.name}`).join('\n') + '\n\nEnter number to import:');
-        if (!choice) return;
-        const idx = parseInt(choice) - 1;
-        if (idx < 0 || idx >= maps.length) return;
+        const panel = document.getElementById('props-panel');
+        const content = document.getElementById('props-content');
+        panel.classList.add('active');
+        window._pendingVSMs = maps;
+        window._pendingSimId = currentSimId;
+        content.innerHTML = `
+            <div style="font-size:0.8rem;font-weight:600;margin-bottom:6px;">Import from VSM</div>
+            <div class="prop-row"><span class="prop-label">VSM</span>
+                <select class="prop-input" id="import-vsm-select">
+                    ${maps.map((m, i) => `<option value="${i}">${m.name}</option>`).join('')}
+                </select>
+            </div>
+            <button class="sim-btn" onclick="executeVSMImport()" style="width:100%;margin-top:6px;">Import</button>
+        `;
+        return;
+    } catch (e) { showToast('Import failed'); }
+}
 
-        const importResp = await fetch(`/api/plantsim/${currentSimId}/import-vsm/`, {
+async function executeVSMImport() {
+    const idx = +document.getElementById('import-vsm-select')?.value;
+    const maps = window._pendingVSMs;
+    const simId = window._pendingSimId;
+    if (!maps || !maps[idx] || !simId) return;
+    try {
+        const importResp = await fetch(`/api/plantsim/${simId}/import-vsm/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
             body: JSON.stringify({ vsm_id: maps[idx].id }),
@@ -8844,6 +8934,7 @@ async function importFromVSM() {
             loadSimulation(result.simulation);
             showToast(`Imported ${result.imported_stations} stations from VSM`);
         }
+        document.getElementById('props-panel').classList.remove('active');
     } catch (e) { showToast('Import failed'); }
 }
 
@@ -8883,17 +8974,20 @@ const OPERATOR_NAMES = [
 
 let opNameIdx = 0;
 
-function addOperator() {
+function addOperator(role = 'operator') {
     const name = OPERATOR_NAMES[opNameIdx++ % OPERATOR_NAMES.length];
     // Skills: map of station_id -> skill level (0.0 to 1.0)
-    // New operators start with 0.3 skill on all existing machines
     const skills = {};
+    const startSkill = role === 'operator' ? 0.3 : 0;
     for (const stn of layout.stations) {
-        skills[stn.id] = 0.3;
+        skills[stn.id] = startSkill;
     }
     layout.operators.push({
         id: genId('op'),
         name,
+        role, // operator, maintenance, agv_driver, inspector
+        shift: 1, // Shift 1, 2, or 3
+        primaryStation: null, // explicit machine assignment (null = floating)
         skills, // { station_id: 0.0-1.0 }
         status: 'available', // available, busy, absent, training, quit
         assignedTo: null, // station_id currently working at
@@ -8910,20 +9004,24 @@ function removeOperator() {
 function renderOperatorList() {
     const list = document.getElementById('operator-list');
     list.innerHTML = '';
+    const roleLabels = { operator: 'Op', maintenance: 'Mt', agv_driver: 'AGV', inspector: 'Insp' };
     for (const op of layout.operators) {
         const row = document.createElement('div');
         row.className = 'operator-row' + (op.status === 'absent' || op.status === 'quit' ? ' absent' : '');
         const bestSkill = Object.values(op.skills || {}).reduce((a, b) => Math.max(a, b), 0);
         const skillBar = Math.round(bestSkill * 100);
-        // Show fatigue/morale from DES if running
         const desOp = des ? des.operators.find(o => o.id === op.id) : null;
         const fatiguePct = desOp ? Math.round(desOp.fatigue * 100) : 0;
         const moralePct = desOp ? Math.round(desOp.morale * 100) : 0;
         const fatigueColor = fatiguePct > 60 ? '#e74c3c' : fatiguePct > 30 ? '#f59e0b' : 'var(--text-dim)';
         const moraleColor = moralePct < 50 ? '#e74c3c' : moralePct < 70 ? '#f59e0b' : 'var(--text-dim)';
         const moraleIndicator = desOp ? `<span style="font-size:0.5rem;color:${moraleColor};" title="Morale ${moralePct}% / Fatigue ${fatiguePct}%"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="vertical-align:middle"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>${moralePct}</span>` : '';
+        const roleTag = roleLabels[op.role || 'operator'] || 'Op';
+        const shiftTag = op.shift ? `S${op.shift}` : '';
         row.innerHTML = `
             <span class="operator-name" title="${op.name}">${op.name}</span>
+            <span style="font-size:0.45rem;color:var(--accent-primary);padding:0 2px;border:1px solid var(--border);border-radius:2px;">${roleTag}</span>
+            ${shiftTag ? `<span style="font-size:0.45rem;color:var(--text-dim);">${shiftTag}</span>` : ''}
             ${moraleIndicator}
             <span style="font-size:0.6rem;color:${fatigueColor};">${desOp ? fatiguePct + 'F' : skillBar + '%'}</span>
             <span class="operator-status ${op.status}">${op.status}</span>
@@ -8934,6 +9032,33 @@ function renderOperatorList() {
     const available = layout.operators.filter(o => o.status === 'available' || o.status === 'busy').length;
     const total = layout.operators.length;
     document.getElementById('workforce-stat').textContent = `${available}/${total} available`;
+    updateRTODisplay();
+}
+
+function updateRTODisplay() {
+    const el = document.getElementById('rto-display');
+    if (!el) return;
+    const ops = layout.operators.filter(o => o.status !== 'quit');
+    const byRole = { operator: 0, maintenance: 0, agv_driver: 0, inspector: 0 };
+    for (const op of ops) byRole[op.role || 'operator']++;
+    const machines = layout.stations.filter(s => s.type !== 'source' && s.type !== 'sink');
+    const reqOps = machines.reduce((sum, m) => sum + (m.operators || 1), 0);
+    const reqMaint = +(document.getElementById('cfg-maint-crew')?.value || 0);
+    const reqAGV = +(document.getElementById('cfg-agv-fleet')?.value || 0);
+    const reqInsp = +(document.getElementById('cfg-inspector-pool')?.value || 0);
+    const totalReq = reqOps + reqMaint + reqAGV + reqInsp;
+    const totalHave = ops.length;
+    const short = Math.max(0, totalReq - totalHave);
+    const lines = [`<strong>RTO: ${totalHave} / ${totalReq}${short > 0 ? ` (${short} short)` : ''}</strong>`];
+    const check = (have, need, label) => {
+        const diff = need - have;
+        return `${label}: ${have}/${need} ${diff > 0 ? `(${diff} short)` : ''}`;
+    };
+    lines.push(check(byRole.operator, reqOps, 'Operators'));
+    if (reqMaint > 0) lines.push(check(byRole.maintenance, reqMaint, 'Maintenance'));
+    if (reqAGV > 0) lines.push(check(byRole.agv_driver, reqAGV, 'AGV'));
+    if (reqInsp > 0) lines.push(check(byRole.inspector, reqInsp, 'Inspectors'));
+    el.innerHTML = lines.join('<br>');
 }
 
 function showOperatorDetail(op) {
@@ -8947,6 +9072,10 @@ function showOperatorDetail(op) {
         const skill = op.skills[stn.id] ?? 0;
         const pct = (skill * 100).toFixed(0);
         const color = skill >= 0.8 ? '#4a9f6e' : skill >= 0.5 ? '#f59e0b' : '#e74c3c';
+        const hasTrainer = layout.operators.some(o => o.id !== op.id && o.status !== 'quit' && (o.skills[stn.id] || 0) > 0.3);
+        const trainBtn = skill < 0.9 && op.status === 'available'
+            ? `<button onclick="startCrossTraining('${op.id}', '${stn.id}')" style="font-size:0.5rem;padding:0 4px;background:var(--bg-tertiary);border:1px solid var(--border);color:var(--text-primary);cursor:pointer;border-radius:2px;margin-left:2px;" ${hasTrainer ? '' : 'disabled title="No experienced trainer available"'}>${hasTrainer ? 'Train' : 'No trainer'}</button>`
+            : '';
         skillRows += `
             <div class="prop-row">
                 <span class="prop-label" style="font-size:0.65rem;">${stn.name}</span>
@@ -8954,48 +9083,75 @@ function showOperatorDetail(op) {
                     <div style="width:${pct}%;height:100%;background:${color};border-radius:4px;"></div>
                 </div>
                 <span style="font-size:0.6rem;color:var(--text-dim);width:30px;text-align:right;">${pct}%</span>
+                ${trainBtn}
             </div>`;
     }
 
+    const desOp = des ? des.operators.find(o => o.id === op.id) : null;
+    const statsHtml = desOp ? `
+        <div style="margin-top:6px;border-top:1px solid var(--border);padding-top:4px;">
+            <div style="font-size:0.65rem;font-weight:600;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;">Stats</div>
+            <div style="font-size:0.6rem;color:var(--text-dim);line-height:1.6;">
+                Parts: ${desOp.partsProcessed || 0} · Fatigue: ${(desOp.fatigue * 100).toFixed(0)}% · Morale: ${(desOp.morale * 100).toFixed(0)}%
+            </div>
+        </div>` : '';
+
     content.innerHTML = `
-        <div style="font-size:0.8rem;font-weight:600;margin-bottom:6px;">${op.name}</div>
-        <div style="font-size:0.65rem;color:var(--text-dim);margin-bottom:8px;">Status: ${op.status}${op.assignedTo ? ' at ' + (layout.stations.find(s => s.id === op.assignedTo)?.name || op.assignedTo) : ''}</div>
+        <div class="prop-row"><span class="prop-label">Name</span><input class="prop-input" value="${op.name}" onchange="selectedElement.name = this.value; renderOperatorList();"></div>
+        <div class="prop-row"><span class="prop-label">Role</span>
+            <select class="prop-input" onchange="selectedElement.role = this.value; renderOperatorList();">
+                <option value="operator" ${(op.role || 'operator') === 'operator' ? 'selected' : ''}>Operator</option>
+                <option value="maintenance" ${op.role === 'maintenance' ? 'selected' : ''}>Maintenance</option>
+                <option value="agv_driver" ${op.role === 'agv_driver' ? 'selected' : ''}>AGV Driver</option>
+                <option value="inspector" ${op.role === 'inspector' ? 'selected' : ''}>Inspector</option>
+            </select>
+        </div>
+        <div class="prop-row"><span class="prop-label">Shift</span>
+            <select class="prop-input" onchange="selectedElement.shift = +this.value; renderOperatorList();">
+                <option value="1" ${(op.shift || 1) === 1 ? 'selected' : ''}>Shift 1</option>
+                <option value="2" ${op.shift === 2 ? 'selected' : ''}>Shift 2</option>
+                <option value="3" ${op.shift === 3 ? 'selected' : ''}>Shift 3</option>
+            </select>
+        </div>
+        <div class="prop-row"><span class="prop-label">Machine</span>
+            <select class="prop-input" onchange="selectedElement.primaryStation = this.value || null; renderOperatorList();">
+                <option value="" ${!op.primaryStation ? 'selected' : ''}>Floating (best match)</option>
+                ${layout.stations.filter(s => s.type !== 'source' && s.type !== 'sink').map(s =>
+                    \`<option value="\${s.id}" \${op.primaryStation === s.id ? 'selected' : ''}>\${s.name || s.id}</option>\`
+                ).join('')}
+            </select>
+        </div>
+        <div style="font-size:0.65rem;color:var(--text-dim);margin:4px 0 8px 0;">Status: ${op.status}${op.assignedTo ? ' at ' + (layout.stations.find(s => s.id === op.assignedTo)?.name || op.assignedTo) : ''}</div>
         <div style="font-size:0.65rem;font-weight:600;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;">Skills</div>
         ${skillRows || '<div style="font-size:0.7rem;color:var(--text-dim);">No machines placed</div>'}
+        ${statsHtml}
     `;
 }
 
-function showTrainingDialog() {
-    if (layout.operators.length === 0) { showToast('Add operators first'); return; }
-    if (layout.stations.length === 0) { showToast('Add machines first'); return; }
-
-    const availOps = layout.operators.filter(o => o.status === 'available');
-    if (availOps.length === 0) { showToast('No available operators to train'); return; }
-
-    const opChoice = prompt(
-        'Cross-Train Operator\n' +
-        availOps.map((o, i) => `${i + 1}. ${o.name}`).join('\n') +
-        '\n\nSelect operator #:'
-    );
-    if (!opChoice) return;
-    const op = availOps[parseInt(opChoice) - 1];
+function startCrossTraining(opId, stnId) {
+    const op = layout.operators.find(o => o.id === opId);
     if (!op) return;
-
-    const stnChoice = prompt(
-        'Train on which machine?\n' +
-        layout.stations.map((s, i) => `${i + 1}. ${s.name} (current skill: ${((op.skills[s.id] || 0) * 100).toFixed(0)}%)`).join('\n') +
-        '\n\nSelect machine #:'
-    );
-    if (!stnChoice) return;
-    const stn = layout.stations[parseInt(stnChoice) - 1];
-    if (!stn) return;
-
-    // Mark operator as training — DES engine will handle the time cost
-    op._trainingTarget = stn.id;
-    op._trainingHours = 4; // 4 hours of training
+    const stn = layout.stations.find(s => s.id === stnId);
+    const trainer = layout.operators.find(o => o.id !== opId && o.status !== 'quit' && (o.skills[stnId] || 0) > 0.3);
+    if (!trainer) { showToast('No experienced trainer available (>30% skill required)'); return; }
+    op._trainingTarget = stnId;
+    op._trainingHours = 4;
     op.status = 'training';
+    trainer._trainingTarget = stnId;
+    trainer._trainerFor = opId;
+    trainer.status = 'training';
     renderOperatorList();
-    showToast(`${op.name} training on ${stn.name} (4hr, unavailable)`);
+    showToast(`${op.name} training on ${stn?.name || stnId} with ${trainer.name} (4hr)`);
+    showOperatorDetail(op);
+}
+
+function showTrainingDialog() {
+    // CR-5: Use operator detail panel instead of prompt() dialogs
+    if (layout.operators.length === 0) { showToast('Add operators first'); return; }
+    const availOps = layout.operators.filter(o => o.status === 'available');
+    if (availOps.length === 0) { showToast('No available operators — select one from list'); return; }
+    showOperatorDetail(availOps[0]);
+    showToast('Select a station "Train" button to cross-train');
 }
 
 // Init operator list
