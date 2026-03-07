@@ -254,11 +254,8 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     <div class="ishi-main">
         <!-- Toolbar (hidden until diagram loaded) -->
         <div class="ishi-toolbar" id="ishi-toolbar" style="display:none;">
-            <label style="font-size:12px;color:var(--text-secondary);white-space:nowrap;">Title</label>
-            <input type="text" id="ishi-title" placeholder="Diagram title..." style="max-width:200px;" oninput="scheduleSave()">
-            <label style="font-size:12px;color:var(--text-secondary);white-space:nowrap;">Effect</label>
-            <input type="text" id="ishi-effect" placeholder="The process-level effect (fish head)..." style="flex:2;" oninput="scheduleSave()">
-            <select id="ishi-status" onchange="scheduleSave()">
+            <span id="ishi-toolbar-title" style="font-weight:600;font-size:14px;flex:1;"></span>
+            <select id="ishi-status" style="width:auto;min-width:100px;" onchange="scheduleSave()">
                 <option value="draft">Draft</option>
                 <option value="analyzing">Analyzing</option>
                 <option value="complete">Complete</option>
@@ -370,8 +367,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
             expandedNodes.clear();
             document.getElementById('ishi-toolbar').style.display = 'flex';
             document.getElementById('ishi-empty').style.display = 'none';
-            document.getElementById('ishi-title').value = currentDiagram.title || '';
-            document.getElementById('ishi-effect').value = currentDiagram.effect || '';
+            document.getElementById('ishi-toolbar-title').textContent = currentDiagram.title || currentDiagram.effect || 'Untitled';
             document.getElementById('ishi-status').value = currentDiagram.status;
             renderFishbone();
             loadDiagramList();
@@ -431,8 +427,6 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 
     function saveDiagram() {
         if (!currentDiagramId || !currentDiagram) return;
-        currentDiagram.title = document.getElementById('ishi-title').value.trim();
-        currentDiagram.effect = document.getElementById('ishi-effect').value.trim();
         currentDiagram.status = document.getElementById('ishi-status').value;
         apiFetch(API + currentDiagramId + '/update/', {
             method: 'PUT',
@@ -599,9 +593,9 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                 // Interpolate X position along the angled branch
                 const t = Math.abs(causeY - tipY) / Math.abs(spineY - tipY);
                 const branchX = tipX + (attachX - tipX) * t;
-                const causeX = branchX + 60;
+                const causeX = branchX + 160;
 
-                // Tick from branch
+                // Rib from branch line out to cause label
                 addLine(svg, branchX, causeY, causeX, causeY, 'ishi-sub-branch');
 
                 // Cause label
@@ -647,7 +641,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
         }
 
         let totalSlots = 0;
-        const indentX = 30;
+        const indentX = 80;
         const subX = parentX + indentX;
 
         children.forEach((child, cIdx) => {
