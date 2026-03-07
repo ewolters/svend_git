@@ -116,8 +116,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 }
 
 .ishi-canvas-wrap svg {
-    min-width: 900px;
-    min-height: 500px;
+    min-width: 1200px;
 }
 
 /* SVG styling */
@@ -255,9 +254,10 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     <div class="ishi-main">
         <!-- Toolbar (hidden until diagram loaded) -->
         <div class="ishi-toolbar" id="ishi-toolbar" style="display:none;">
-            <input type="text" id="ishi-title" placeholder="Diagram title..." oninput="scheduleSave()">
-            <label style="font-size:13px;color:var(--text-secondary);">Effect:</label>
-            <input type="text" id="ishi-effect" placeholder="Process-level effect (the fish head)..." style="flex:2;" oninput="scheduleSave()">
+            <label style="font-size:12px;color:var(--text-secondary);white-space:nowrap;">Title</label>
+            <input type="text" id="ishi-title" placeholder="Diagram title..." style="max-width:200px;" oninput="scheduleSave()">
+            <label style="font-size:12px;color:var(--text-secondary);white-space:nowrap;">Effect</label>
+            <input type="text" id="ishi-effect" placeholder="The process-level effect (fish head)..." style="flex:2;" oninput="scheduleSave()">
             <select id="ishi-status" onchange="scheduleSave()">
                 <option value="draft">Draft</option>
                 <option value="analyzing">Analyzing</option>
@@ -502,6 +502,20 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     };
 
     // --- SVG Fishbone Renderer ---
+
+    // Count visible slots a cause node needs (itself + visible children recursively)
+    function countSlots(node, depth, branchIdx, parentPath) {
+        let slots = 1; // this node
+        const children = node.children || [];
+        if (children.length === 0) return slots;
+        const nodeKey = branchIdx + '-' + parentPath.join('-');
+        if (depth >= MAX_VISIBLE_DEPTH && !expandedNodes.has(nodeKey)) return slots;
+        for (let i = 0; i < children.length; i++) {
+            slots += countSlots(children[i], depth + 1, branchIdx, [...parentPath, i]);
+        }
+        return slots;
+    }
+
     function renderFishbone() {
         if (!currentDiagram) return;
 
@@ -510,78 +524,106 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
         document.getElementById('ishi-empty').style.display = 'none';
 
         const branches = currentDiagram.branches || [];
-        const W = 1100, H = 600;
+        const SLOT_H = 28; // vertical space per cause slot
+        const BRANCH_PAD = 40; // padding above category label
+
+        // Calculate how many slots each side needs
+        let aboveSlots = 0, belowSlots = 0;
+        branches.forEach((branch, idx) => {
+            let branchSlots = 0;
+            (branch.causes || []).forEach((cause, cIdx) => {
+                branchSlots += countSlots(cause, 2, idx, [cIdx]);
+            });
+            branchSlots = Math.max(branchSlots, 1); // at least 1 for the "+ add" button
+            if (idx % 2 === 0) aboveSlots = Math.max(aboveSlots, branchSlots);
+            else belowSlots = Math.max(belowSlots, branchSlots);
+        });
+
+        // Dynamic canvas height: spine in middle, each side gets enough room
+        const sideHeight = Math.max(aboveSlots, belowSlots, 4) * SLOT_H + BRANCH_PAD + 50;
+        const W = 1500;
+        const H = Math.max(sideHeight * 2 + 60, 600);
         const spineY = H / 2;
-        const spineX1 = 60, spineX2 = W - 160;
+        const spineX1 = 60, spineX2 = W - 280;
         const headX = spineX2 + 10;
 
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
         svg.setAttribute('width', '100%');
-        svg.setAttribute('style', 'max-width: 1100px;');
+        svg.setAttribute('style', 'max-width: 1500px;');
 
         // Spine
         addLine(svg, spineX1, spineY, spineX2, spineY, 'ishi-spine');
 
         // Fish head (arrow/triangle)
         const headPath = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-        headPath.setAttribute('points', `${headX},${spineY - 30} ${headX + 80},${spineY} ${headX},${spineY + 30}`);
+        headPath.setAttribute('points', `${headX},${spineY - 40} ${headX + 100},${spineY} ${headX},${spineY + 40}`);
         headPath.setAttribute('class', 'ishi-head');
         svg.appendChild(headPath);
 
-        // Effect label
+        // Effect label — wrapped text
         const effectText = currentDiagram.effect || 'Effect';
-        const effectLabel = addText(svg, headX + 90, spineY + 5, effectText.length > 30 ? effectText.substring(0, 30) + '...' : effectText, 'ishi-effect-label');
+        addWrappedText(svg, headX + 115, spineY, effectText, 'ishi-effect-label', 150);
 
-        // 6M branches: 3 above, 3 below
-        const numBranches = branches.length;
-        const spacing = (spineX2 - spineX1 - 60) / Math.ceil(numBranches / 2);
-        const branchLength = 120;
+        // 6M branches: even=above, odd=below
+        const numCols = Math.ceil(branches.length / 2);
+        const colSpacing = (spineX2 - spineX1 - 80) / Math.max(numCols - 1, 1);
 
         branches.forEach((branch, idx) => {
             const isAbove = idx % 2 === 0;
             const col = Math.floor(idx / 2);
-            const attachX = spineX1 + 40 + col * spacing;
-            const endY = isAbove ? spineY - branchLength : spineY + branchLength;
+            const attachX = spineX1 + 40 + col * colSpacing;
 
-            // Main branch line
-            addLine(svg, attachX, spineY, attachX, endY, 'ishi-branch');
+            // Branch line: angled from spine outward
+            const tipY = isAbove ? spineY - sideHeight + 40 : spineY + sideHeight - 40;
+            const tipX = attachX - (isAbove ? 30 : 30); // slight angle
+            addLine(svg, attachX, spineY, tipX, tipY, 'ishi-branch');
 
-            // Category label (clickable to add cause)
-            const labelY = isAbove ? endY - 12 : endY + 18;
-            const catLabel = addText(svg, attachX, labelY, branch.category, 'ishi-category-label');
+            // Category label at the tip
+            const labelY = isAbove ? tipY - 14 : tipY + 20;
+            const catLabel = addText(svg, tipX, labelY, branch.category, 'ishi-category-label');
             catLabel.style.textAnchor = 'middle';
             catLabel.onclick = () => showCauseModal(idx, [], branch.category);
 
-            // Render causes
-            const causes = branch.causes || [];
-            causes.forEach((cause, cIdx) => {
-                const causeY = isAbove
-                    ? endY + 20 + cIdx * 28
-                    : endY - 20 - cIdx * 28;
-                const causeDir = isAbove ? 1 : -1;
-                const causeX = attachX + 20;
+            // Direction: above branches grow upward (-Y), below grow downward (+Y)
+            const dir = isAbove ? -1 : 1;
+            // Starting Y: just past the category label, heading AWAY from spine
+            const causesStartY = isAbove ? tipY + 20 : tipY - 10;
 
-                // Horizontal tick from branch
-                addLine(svg, attachX, causeY, causeX, causeY, 'ishi-sub-branch');
+            // Render causes along the branch, growing toward the spine
+            // (causes sit between the category label and the spine)
+            const causes = branch.causes || [];
+            let slotOffset = 0;
+            causes.forEach((cause, cIdx) => {
+                const causeY = causesStartY + slotOffset * SLOT_H * dir * -1;
+                // Interpolate X position along the angled branch
+                const t = Math.abs(causeY - tipY) / Math.abs(spineY - tipY);
+                const branchX = tipX + (attachX - tipX) * t;
+                const causeX = branchX + 60;
+
+                // Tick from branch
+                addLine(svg, branchX, causeY, causeX, causeY, 'ishi-sub-branch');
 
                 // Cause label
-                const cLabel = addText(svg, causeX + 4, causeY + 4, cause.text.length > 25 ? cause.text.substring(0, 25) + '...' : cause.text, 'ishi-cause-label');
+                const truncText = cause.text.length > 30 ? cause.text.substring(0, 30) + '...' : cause.text;
+                const cLabel = addText(svg, causeX + 4, causeY + 4, truncText, 'ishi-cause-label');
                 cLabel.onclick = () => showCauseModal(idx, [cIdx], cause.text);
-
-                // Right-click to delete
                 cLabel.oncontextmenu = (e) => { e.preventDefault(); removeCause(idx, [cIdx]); };
 
-                // Sub-causes (depth 3)
-                renderSubCauses(svg, cause.children || [], idx, [cIdx], causeX + 100, causeY, 2, isAbove);
+                slotOffset++;
+
+                // Sub-causes
+                const subResult = renderSubCauses(svg, cause.children || [], idx, [cIdx],
+                    causeX, causeY, 2, isAbove, dir, SLOT_H, tipX, tipY, attachX, spineY);
+                slotOffset += subResult.slotsUsed;
             });
 
-            // "+" button at end of branch
-            const plusY = isAbove
-                ? endY + 20 + causes.length * 28
-                : endY - 20 - causes.length * 28;
-            const plusLabel = addText(svg, attachX + 4, plusY + 4, '+ add', 'ishi-cause-label');
-            plusLabel.style.opacity = '0.5';
+            // "+ add" button
+            const addY = causesStartY + slotOffset * SLOT_H * dir * -1;
+            const addT = Math.abs(addY - tipY) / Math.max(Math.abs(spineY - tipY), 1);
+            const addBranchX = tipX + (attachX - tipX) * Math.min(addT, 1);
+            const plusLabel = addText(svg, addBranchX + 4, addY + 4, '+ add cause', 'ishi-cause-label');
+            plusLabel.style.opacity = '0.4';
             plusLabel.style.fontSize = '11px';
             plusLabel.onclick = () => showCauseModal(idx, [], branch.category);
         });
@@ -589,8 +631,8 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
         document.getElementById('ishi-canvas-wrap').appendChild(svg);
     }
 
-    function renderSubCauses(svg, children, branchIdx, parentPath, startX, startY, depth, isAbove) {
-        if (!children || children.length === 0) return;
+    function renderSubCauses(svg, children, branchIdx, parentPath, parentX, parentY, depth, isAbove, dir, slotH, tipX, tipY, attachX, spineY) {
+        if (!children || children.length === 0) return { slotsUsed: 0 };
 
         const nodeKey = branchIdx + '-' + parentPath.join('-');
         const isExpanded = expandedNodes.has(nodeKey);
@@ -598,34 +640,44 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
         // Depth >= MAX_VISIBLE_DEPTH: show collapse indicator
         if (depth >= MAX_VISIBLE_DEPTH && !isExpanded) {
             if (children.length > 0) {
-                const badge = addText(svg, startX + 4, startY + 4, `[+${children.length}]`, 'ishi-expand-badge');
+                const badge = addText(svg, parentX + 8, parentY - 10, `[+${children.length}]`, 'ishi-expand-badge');
                 badge.onclick = () => toggleExpand(nodeKey);
             }
-            return;
+            return { slotsUsed: 0 };
         }
+
+        let totalSlots = 0;
+        const indentX = 30;
+        const subX = parentX + indentX;
 
         children.forEach((child, cIdx) => {
             const childPath = [...parentPath, cIdx];
-            const offsetY = isAbove ? 16 : -16;
-            const childY = startY + (cIdx + 1) * offsetY;
-            const childX = startX + 15;
+            const childY = parentY + (totalSlots + 1) * slotH * dir * -1;
 
-            addLine(svg, startX - 5, childY, childX, childY, 'ishi-deep-branch');
+            // Connector line from parent area
+            addLine(svg, parentX + 4, childY, subX, childY, 'ishi-deep-branch');
 
-            const label = addText(svg, childX + 3, childY + 4, child.text.length > 20 ? child.text.substring(0, 20) + '...' : child.text, 'ishi-cause-label');
+            const truncText = child.text.length > 25 ? child.text.substring(0, 25) + '...' : child.text;
+            const label = addText(svg, subX + 4, childY + 4, truncText, 'ishi-cause-label');
             label.style.fontSize = '11px';
             label.onclick = () => showCauseModal(branchIdx, childPath, child.text);
             label.oncontextmenu = (e) => { e.preventDefault(); removeCause(branchIdx, childPath); };
 
+            totalSlots++;
+
             // Recurse deeper
-            renderSubCauses(svg, child.children || [], branchIdx, childPath, childX + 80, childY, depth + 1, isAbove);
+            const subResult = renderSubCauses(svg, child.children || [], branchIdx, childPath,
+                subX, childY, depth + 1, isAbove, dir, slotH, tipX, tipY, attachX, spineY);
+            totalSlots += subResult.slotsUsed;
         });
 
         // Collapse button when expanded past max depth
         if (depth >= MAX_VISIBLE_DEPTH && isExpanded) {
-            const collapseLabel = addText(svg, startX + 4, startY - 8, '[-]', 'ishi-expand-badge');
+            const collapseLabel = addText(svg, parentX + 8, parentY - 10, '[-]', 'ishi-expand-badge');
             collapseLabel.onclick = () => toggleExpand(nodeKey);
         }
+
+        return { slotsUsed: totalSlots };
     }
 
     // SVG helpers
@@ -645,6 +697,30 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
         el.textContent = text;
         svg.appendChild(el);
         return el;
+    }
+
+    function addWrappedText(svg, x, centerY, text, cls, maxWidth) {
+        // Break text into lines that fit within maxWidth (approx 8px per char)
+        const charWidth = 9;
+        const lineHeight = 20;
+        const charsPerLine = Math.floor(maxWidth / charWidth);
+        const words = text.split(' ');
+        const lines = [];
+        let current = '';
+        for (const word of words) {
+            const test = current ? current + ' ' + word : word;
+            if (test.length > charsPerLine && current) {
+                lines.push(current);
+                current = word;
+            } else {
+                current = test;
+            }
+        }
+        if (current) lines.push(current);
+        const startY = centerY - ((lines.length - 1) * lineHeight) / 2;
+        lines.forEach((line, i) => {
+            addText(svg, x, startY + i * lineHeight, line, cls);
+        });
     }
 
     function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
