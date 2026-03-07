@@ -1452,7 +1452,9 @@ class PlantDES {
                 dedicatedProduct: stn.dedicated_product || null,
                 workCenterId: stn.work_center_id || null,
                 scrapRate: stn.scrap_rate || 0,
+                defectRate: stn.defect_rate || 0,
                 reworkRate: stn.rework_rate || 0,
+                qualityByProduct: stn.quality_by_product || {},
                 shiftSchedule: stn.shift_schedule || '24/7',
                 breakDuration: stn.break_duration || 0,
                 setupMatrix: stn.setup_matrix || {},
@@ -2778,9 +2780,16 @@ class PlantDES {
         // Track first-article status
         stn.partsAfterRestart++;
 
+        // Per-product quality rates (CR-3): override flat rates if product-specific rates exist
+        const _qbp = stn.qualityByProduct || {};
+        const _pq = (job && _qbp[job.productType]) || {};
+        const baseScrap = _pq.scrap_rate ?? stn.scrapRate;
+        const baseDefect = _pq.defect_rate ?? (stn.defectRate || 0);
+        const baseRework = _pq.rework_rate ?? stn.reworkRate;
+
         // Inspector bottleneck: if pool is active, request an inspector
         // If no inspector is available, job queues (machine releases but job waits)
-        if (this.inspectorPool.size > 0 && stn.scrapRate + stn.reworkRate > 0) {
+        if (this.inspectorPool.size > 0 && (baseScrap + baseDefect + baseRework) > 0) {
             stn.stats.processed++;
             const jobToInspect = stn.currentJob;
             stn.currentJob = null;
@@ -2788,14 +2797,15 @@ class PlantDES {
             this._tryStartProcessing(stn.id); // machine is free immediately
             // Stash quality-relevant state on the job for deferred inspection
             jobToInspect._inspectionStation = stn.id;
-            jobToInspect._effectiveScrapRate = stn.scrapRate + stn.driftAccumulated;
-            jobToInspect._effectiveReworkRate = stn.reworkRate;
+            jobToInspect._effectiveScrapRate = baseScrap + stn.driftAccumulated;
+            jobToInspect._effectiveDefectRate = baseDefect;
+            jobToInspect._effectiveReworkRate = baseRework;
             jobToInspect._defectDetectionRate = stn.defectDetectionRate;
             this._requestInspection(jobToInspect, stn.id);
             return;
         }
 
-        // Quality check: scrap or rework (fatigue + drift + first-article increase error rates)
+        // Quality check: scrap, defect, or rework (fatigue + drift + first-article increase error rates)
         const fatigueErrorBoost = this.operators.length > 0
             ? (this.operators.find(o => o.id && o.jobsThisShift > 0)?.fatigue || 0) * 0.5
             : 0;
@@ -2803,7 +2813,7 @@ class PlantDES {
         const firstArticleBoost = (stn.firstArticlePenalty > 0 && stn.partsAfterRestart <= stn.firstArticleCount)
             ? stn.firstArticlePenalty : 0;
         // Bad material doubles the effective scrap contribution
-        const materialScrapBoost = job._badMaterial ? (stn.scrapRate + stn.driftAccumulated) : 0;
+        const materialScrapBoost = job._badMaterial ? (baseScrap + stn.driftAccumulated) : 0;
         // Tribal knowledge: process tweaks reduce scrap (experienced operator knows the tricks)
         const assignedOp = this.operators.find(o => o.assignedTo === stn.id && o.status === 'busy')
             || this.operators.find(o => o.lastWorkedAt[stn.id] === this.clock); // just released
@@ -2814,45 +2824,90 @@ class PlantDES {
             // Contaminated part that passes inspection but fails at customer
             job._contaminationDefect = true;
         }
-        const driftedScrap = stn.scrapRate + stn.driftAccumulated + firstArticleBoost + materialScrapBoost + contaminationBoost;
+        const driftedScrap = baseScrap + stn.driftAccumulated + firstArticleBoost + materialScrapBoost + contaminationBoost;
         const effectiveScrap = Math.min(0.5, driftedScrap * (1 + fatigueErrorBoost) * (1 - tweakQualityBoost));
-        const effectiveRework = Math.min(0.5, stn.reworkRate * (1 + fatigueErrorBoost) * (1 - tweakQualityBoost));
-        const roll = Math.random();
-        const isDefective = roll < effectiveScrap + effectiveRework;
-        const isScrap = roll < effectiveScrap;
+        const effectiveDefect = Math.min(0.5, baseDefect * (1 + fatigueErrorBoost) * (1 - tweakQualityBoost));
+        const effectiveRework = Math.min(0.5, baseRework * (1 + fatigueErrorBoost) * (1 - tweakQualityBoost));
 
-        if (isDefective) {
-            // Defect produced — but is it DETECTED here?
-            const detected = Math.random() < stn.defectDetectionRate;
-            if (detected) {
-                if (isScrap) {
-                    stn.stats.scrapped++;
-                    stn.stats.processed++;
-                    // Scrap cost = material wasted
-                    this.costs.scrapWaste += (job._materialCost || 0);
-                    stn.currentJob = null;
-                    this._updateStationTime(stn, 'idle');
-                    this._tryStartProcessing(stn.id);
-                    return;
-                } else {
-                    // Rework — route to rework cell or re-enter same queue
-                    stn.stats.reworked++;
-                    stn.stats.processed++;
-                    stn.currentJob = null;
-                    if (stn.reworkTarget && this.stations.has(stn.reworkTarget)) {
-                        // Route to dedicated rework station
-                        this._deliverJob(job, stn.reworkTarget);
+        if (baseDefect > 0) {
+            // CR-3: 3-stage quality model (scrap ≠ defects)
+            // Stage 1: Pure scrap (material waste — independent of defects)
+            if (Math.random() < effectiveScrap) {
+                stn.stats.scrapped++;
+                stn.stats.processed++;
+                this.costs.scrapWaste += (job._materialCost || 0);
+                stn.currentJob = null;
+                this._updateStationTime(stn, 'idle');
+                this._tryStartProcessing(stn.id);
+                return;
+            }
+            // Stage 2: Defect introduction (nonconformance)
+            if (Math.random() < effectiveDefect) {
+                const detected = Math.random() < stn.defectDetectionRate;
+                if (detected) {
+                    // Detected defect: reworkable or scrap?
+                    if (effectiveRework > 0 && Math.random() < effectiveRework) {
+                        stn.stats.reworked++;
+                        stn.stats.processed++;
+                        stn.currentJob = null;
+                        if (stn.reworkTarget && this.stations.has(stn.reworkTarget)) {
+                            this._deliverJob(job, stn.reworkTarget);
+                        } else {
+                            this._enqueueJob(stn, job);
+                        }
+                        this._updateStationTime(stn, 'idle');
+                        this._tryStartProcessing(stn.id);
+                        return;
                     } else {
-                        this._enqueueJob(stn, job);
+                        // Detected defect, not reworkable → scrap
+                        stn.stats.scrapped++;
+                        stn.stats.processed++;
+                        this.costs.scrapWaste += (job._materialCost || 0);
+                        stn.currentJob = null;
+                        this._updateStationTime(stn, 'idle');
+                        this._tryStartProcessing(stn.id);
+                        return;
                     }
-                    this._updateStationTime(stn, 'idle');
-                    this._tryStartProcessing(stn.id);
-                    return;
+                } else {
+                    // ESCAPED DEFECT — job continues downstream carrying a hidden defect
+                    this.escapedDefects++;
+                    job._hasDefect = true;
                 }
-            } else {
-                // ESCAPED DEFECT — job continues downstream carrying a hidden defect
-                this.escapedDefects++;
-                job._hasDefect = true;  // hidden flag, downstream stations may catch it
+            }
+        } else {
+            // Legacy behavior (defect_rate = 0): single roll for scrap + rework
+            const roll = Math.random();
+            const isDefective = roll < effectiveScrap + effectiveRework;
+            const isScrap = roll < effectiveScrap;
+
+            if (isDefective) {
+                const detected = Math.random() < stn.defectDetectionRate;
+                if (detected) {
+                    if (isScrap) {
+                        stn.stats.scrapped++;
+                        stn.stats.processed++;
+                        this.costs.scrapWaste += (job._materialCost || 0);
+                        stn.currentJob = null;
+                        this._updateStationTime(stn, 'idle');
+                        this._tryStartProcessing(stn.id);
+                        return;
+                    } else {
+                        stn.stats.reworked++;
+                        stn.stats.processed++;
+                        stn.currentJob = null;
+                        if (stn.reworkTarget && this.stations.has(stn.reworkTarget)) {
+                            this._deliverJob(job, stn.reworkTarget);
+                        } else {
+                            this._enqueueJob(stn, job);
+                        }
+                        this._updateStationTime(stn, 'idle');
+                        this._tryStartProcessing(stn.id);
+                        return;
+                    }
+                } else {
+                    this.escapedDefects++;
+                    job._hasDefect = true;
+                }
             }
         }
 
@@ -3297,35 +3352,70 @@ class PlantDES {
 
         // Now do the quality check
         const scrapRate = job._effectiveScrapRate || 0;
+        const defectRate = job._effectiveDefectRate || 0;
         const reworkRate = job._effectiveReworkRate || 0;
         const detectionRate = job._defectDetectionRate ?? 1.0;
-        const roll = Math.random();
-        const isDefective = roll < scrapRate + reworkRate;
-        const isScrap = roll < scrapRate;
 
-        if (isDefective) {
-            const detected = Math.random() < detectionRate;
-            if (detected) {
-                if (isScrap) {
-                    if (stn) stn.stats.scrapped++;
-                    this.costs.scrapWaste += (job._materialCost || 0);
-                } else {
-                    // Rework — send back to station
-                    if (stn) {
-                        if (stn.reworkTarget && this.stations.has(stn.reworkTarget)) {
-                            this._deliverJob(job, stn.reworkTarget);
-                        } else {
-                            this._enqueueJob(stn, job);
-                            this._tryStartProcessing(stn.id);
-                        }
-                    }
-                }
+        if (defectRate > 0) {
+            // CR-3: 3-stage quality model
+            if (Math.random() < scrapRate) {
+                if (stn) stn.stats.scrapped++;
+                this.costs.scrapWaste += (job._materialCost || 0);
                 this._dispatchNextInspection();
                 return;
             }
-            // Undetected defect — escapes downstream
-            job._hasDefect = true;
-            this.escapedDefects++;
+            if (Math.random() < defectRate) {
+                const detected = Math.random() < detectionRate;
+                if (detected) {
+                    if (reworkRate > 0 && Math.random() < reworkRate) {
+                        if (stn) {
+                            stn.stats.reworked++;
+                            if (stn.reworkTarget && this.stations.has(stn.reworkTarget)) {
+                                this._deliverJob(job, stn.reworkTarget);
+                            } else {
+                                this._enqueueJob(stn, job);
+                                this._tryStartProcessing(stn.id);
+                            }
+                        }
+                    } else {
+                        if (stn) stn.stats.scrapped++;
+                        this.costs.scrapWaste += (job._materialCost || 0);
+                    }
+                    this._dispatchNextInspection();
+                    return;
+                }
+                job._hasDefect = true;
+                this.escapedDefects++;
+            }
+        } else {
+            // Legacy: single roll for scrap + rework
+            const roll = Math.random();
+            const isDefective = roll < scrapRate + reworkRate;
+            const isScrap = roll < scrapRate;
+
+            if (isDefective) {
+                const detected = Math.random() < detectionRate;
+                if (detected) {
+                    if (isScrap) {
+                        if (stn) stn.stats.scrapped++;
+                        this.costs.scrapWaste += (job._materialCost || 0);
+                    } else {
+                        if (stn) {
+                            stn.stats.reworked++;
+                            if (stn.reworkTarget && this.stations.has(stn.reworkTarget)) {
+                                this._deliverJob(job, stn.reworkTarget);
+                            } else {
+                                this._enqueueJob(stn, job);
+                                this._tryStartProcessing(stn.id);
+                            }
+                        }
+                    }
+                    this._dispatchNextInspection();
+                    return;
+                }
+                job._hasDefect = true;
+                this.escapedDefects++;
+            }
         }
 
         // Route downstream (passed or escaped)
@@ -4880,8 +4970,9 @@ function showProperties(el, type) {
             </div>
             <div class="prop-row"><span class="prop-label">Operators</span><input type="number" class="prop-input" value="${el.operators || 1}" onchange="updateProp('operators', +this.value)" min="1"></div>
             <div class="prop-row"><span class="prop-label">Transfer Batch</span><input type="number" class="prop-input" value="${el.batch_size || 1}" onchange="updateProp('batch_size', +this.value)" min="1" title="Min parts in queue before machine starts processing"></div>
-            <div class="prop-row"><span class="prop-label">Scrap %</span><input type="number" class="prop-input" value="${((el.scrap_rate || 0) * 100).toFixed(0)}" onchange="updateProp('scrap_rate', +this.value/100)" step="1" min="0" max="100"><span class="prop-unit">%</span></div>
-            <div class="prop-row"><span class="prop-label">Rework %</span><input type="number" class="prop-input" value="${((el.rework_rate || 0) * 100).toFixed(0)}" onchange="updateProp('rework_rate', +this.value/100)" step="1" min="0" max="100"><span class="prop-unit">%</span></div>
+            <div class="prop-row"><span class="prop-label">Base Scrap %</span><input type="number" class="prop-input" value="${((el.scrap_rate || 0) * 100).toFixed(0)}" onchange="updateProp('scrap_rate', +this.value/100)" step="1" min="0" max="100" title="Material waste (part destroyed, independent of defects)"><span class="prop-unit">%</span></div>
+            <div class="prop-row"><span class="prop-label">Defect %</span><input type="number" class="prop-input" value="${((el.defect_rate || 0) * 100).toFixed(0)}" onchange="updateProp('defect_rate', +this.value/100)" step="1" min="0" max="100" title="Probability of nonconformance (separate from scrap). Enables 3-stage quality model."><span class="prop-unit">%</span></div>
+            <div class="prop-row"><span class="prop-label">Rework %</span><input type="number" class="prop-input" value="${((el.rework_rate || 0) * 100).toFixed(0)}" onchange="updateProp('rework_rate', +this.value/100)" step="1" min="0" max="100" title="${(el.defect_rate || 0) > 0 ? 'Probability a detected defect is reworkable (vs scrapped)' : 'Flat rework probability (legacy mode)'}"><span class="prop-unit">%</span></div>
             <div class="prop-row"><span class="prop-label">Rework →</span>
                 <select class="prop-input" onchange="updateProp('rework_target', this.value || null)" title="Where rework jobs go. Self = back into this machine's queue.">
                     <option value="" ${!el.rework_target ? 'selected' : ''}>Self</option>
@@ -4889,6 +4980,32 @@ function showProperties(el, type) {
                         `<option value="${s.id}" ${el.rework_target === s.id ? 'selected' : ''}>${s.name || s.id}</option>`
                     ).join('')}
                 </select>
+            </div>
+            <div style="margin-top:4px; border-top:1px solid var(--border); padding-top:4px;">
+                <span class="prop-label" style="width:auto; display:block; margin-bottom:2px; font-size:0.6rem;">Quality by Product <span style="color:var(--text-dim)">(blank = use defaults)</span></span>
+                ${getAllProductTypes().length === 0
+                    ? '<div style="font-size:0.5rem;color:var(--text-dim);">Add product sources first</div>'
+                    : getAllProductTypes().map(pt => {
+                        const _qp = (el.quality_by_product || {})[pt] || {};
+                        return \`<div style="font-size:0.55rem; margin-bottom:4px;">
+                            <strong>\${pt}</strong>
+                            <div style="display:flex; gap:4px; align-items:center; margin-top:1px;">
+                                <span style="font-size:0.5rem;color:var(--text-dim);">Scrap</span>
+                                <input type="number" class="prop-input" value="\${_qp.scrap_rate != null ? (_qp.scrap_rate * 100).toFixed(0) : ''}"
+                                    onchange="updateQualityByProduct('\${pt}', 'scrap_rate', this.value)"
+                                    placeholder="—" step="1" min="0" max="100" style="width:36px; padding:1px 2px; font-size:0.55rem;">
+                                <span style="font-size:0.5rem;color:var(--text-dim);">Def</span>
+                                <input type="number" class="prop-input" value="\${_qp.defect_rate != null ? (_qp.defect_rate * 100).toFixed(0) : ''}"
+                                    onchange="updateQualityByProduct('\${pt}', 'defect_rate', this.value)"
+                                    placeholder="—" step="1" min="0" max="100" style="width:36px; padding:1px 2px; font-size:0.55rem;">
+                                <span style="font-size:0.5rem;color:var(--text-dim);">Rwk</span>
+                                <input type="number" class="prop-input" value="\${_qp.rework_rate != null ? (_qp.rework_rate * 100).toFixed(0) : ''}"
+                                    onchange="updateQualityByProduct('\${pt}', 'rework_rate', this.value)"
+                                    placeholder="—" step="1" min="0" max="100" style="width:36px; padding:1px 2px; font-size:0.55rem;">
+                            </div>
+                        </div>\`;
+                    }).join('')
+                }
             </div>
             <div class="prop-row"><span class="prop-label">Shift</span>
                 <select class="prop-input" onchange="updateProp('shift_schedule', this.value)">
@@ -5078,6 +5195,21 @@ function showProperties(el, type) {
 function updateProp(key, value) {
     if (!selectedElement) return;
     selectedElement[key] = value;
+    renderCanvas();
+}
+
+// Per-product quality rate overrides (CR-3)
+function updateQualityByProduct(productType, field, valueStr) {
+    if (!selectedElement) return;
+    const qbp = selectedElement.quality_by_product || {};
+    if (!qbp[productType]) qbp[productType] = {};
+    if (valueStr === '' || valueStr == null) {
+        delete qbp[productType][field];
+        if (Object.keys(qbp[productType]).length === 0) delete qbp[productType];
+    } else {
+        qbp[productType][field] = +valueStr / 100;
+    }
+    selectedElement.quality_by_product = qbp;
     renderCanvas();
 }
 
