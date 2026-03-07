@@ -2254,7 +2254,25 @@ def _measure_durability(sla):
                 "current_value": f"{hours_since:.1f}h",
             }
 
-    # RTO and other durability SLAs are manual
+    # RTO: measure from incident recovery times
+    if "rto" in sla.sla_id or "recovery-time" in sla.sla_id:
+        from syn.audit.models import Incident
+
+        target_val, unit = _parse_target(sla.target)
+        resolved = Incident.objects.filter(
+            status__in=["resolved", "post_mortem", "closed"],
+            resolved_at__isnull=False,
+        ).order_by("-resolved_at")
+        if not resolved.exists():
+            return {"status": "met", "current_value": "No incidents", "reason": "No resolved incidents to measure RTO"}
+        # Use worst-case (max) resolution time from recent incidents
+        worst = max(i.resolution_elapsed_hours for i in resolved[:20])
+        if target_val and unit == "h":
+            return {
+                "status": "met" if worst <= target_val else "breach",
+                "current_value": f"{worst:.2f}h (worst-case)",
+            }
+
     return {"status": "unmeasurable", "current_value": None, "reason": "Requires operational verification"}
 
 
@@ -2411,40 +2429,46 @@ def _measure_response_time(sla):
 
 
 def _measure_incident_response(sla):
-    """Measure incident response SLAs using Incident model (INC-001 §6)."""
+    """Measure incident response SLAs using Incident model (INC-001 §6).
+
+    Target is in hours (e.g. '1h', '8h', '24h'). Each incident is checked
+    against the target. Returns worst-case elapsed time and breach count.
+    """
     from syn.audit.models import Incident
 
     now = timezone.now()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
+    target_val, unit = _parse_target(sla.target)
+    if target_val is None or unit != "h":
+        return {"status": "unmeasurable", "current_value": None, "reason": f"Cannot parse target: {sla.target}"}
+
     incidents = Incident.objects.filter(detected_at__gte=month_start)
     if not incidents.exists():
         return {"status": "met", "current_value": "No incidents", "reason": "No incidents recorded this month"}
 
-    # Check based on SLA sla_id: ack SLAs vs resolution SLAs
-    if "ack" in sla.sla_id.lower():
-        breached = sum(1 for i in incidents if i.is_ack_sla_breached)
+    is_ack = "ack" in sla.sla_id.lower()
+
+    if is_ack:
+        elapsed = [(i, i.ack_elapsed_hours) for i in incidents]
     else:
-        resolved = incidents.exclude(status__in=["detected", "acknowledged", "investigating", "mitigating"])
+        resolved = incidents.filter(status__in=["resolved", "post_mortem", "closed"])
         if not resolved.exists():
             return {
                 "status": "met",
                 "current_value": "No resolved incidents",
                 "reason": "No resolved incidents to measure resolution SLA against",
             }
-        breached = sum(1 for i in resolved if i.is_resolution_sla_breached)
+        elapsed = [(i, i.resolution_elapsed_hours) for i in resolved]
         incidents = resolved
 
-    total = incidents.count()
-    compliance_pct = ((total - breached) / total) * 100 if total else 100
-
-    target_val, _ = _parse_target(sla.target)
-    if target_val is None:
-        return {"status": "unmeasurable", "current_value": None, "reason": f"Cannot parse target: {sla.target}"}
+    breached = sum(1 for _, hrs in elapsed if hrs > target_val)
+    worst = max(hrs for _, hrs in elapsed) if elapsed else 0
+    total = len(elapsed)
 
     return {
-        "status": "met" if compliance_pct >= target_val else "breach",
-        "current_value": f"{compliance_pct:.1f}% ({breached}/{total} breached)",
+        "status": "met" if breached == 0 else "breach",
+        "current_value": f"{worst:.2f}h worst, {breached}/{total} breached (target: {target_val}h)",
     }
 
 
