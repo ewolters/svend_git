@@ -3392,7 +3392,8 @@ async function runStandardsTests() {
     }
     const standards = Object.keys(byStd).sort();
     const headers = {'Content-Type': 'application/json', 'X-CSRFToken': getCSRF()};
-    let passed = 0, failed = 0, errors = 0;
+    let stdPassed = 0, stdFailed = 0, errors = 0;
+    let totalTestsPassed = 0, totalTestsFailed = 0, totalTestsSkipped = 0;
 
     for (let i = 0; i < standards.length; i++) {
         btn.textContent = `Testing ${standards[i]} (${i+1}/${standards.length})...`;
@@ -3404,12 +3405,27 @@ async function runStandardsTests() {
             const ct = resp.headers.get('content-type') || '';
             if (!ct.includes('application/json')) { errors++; continue; }
             const data = await resp.json();
-            if (data.ok && data.status === 'pass') { passed++; } else { failed++; }
+            if (data.ok && data.status === 'pass') { stdPassed++; } else { stdFailed++; }
+            totalTestsPassed += data.tests_passed || 0;
+            totalTestsFailed += data.tests_failed || 0;
+            totalTestsSkipped += data.tests_skipped || 0;
         } catch (e) { errors++; }
     }
+
+    // Store aggregated test results server-side for persistence
+    try {
+        await fetch('/api/internal/compliance/run/', {
+            method: 'POST', headers,
+            body: JSON.stringify({
+                check: 'store_test_results',
+                data: { tests_passed: totalTestsPassed, tests_failed: totalTestsFailed, tests_skipped: totalTestsSkipped }
+            }),
+        });
+    } catch (e) { /* best effort */ }
+
     const errMsg = errors > 0 ? `, ${errors} timeout` : '';
-    btn.textContent = `Tests: ${passed}/${standards.length} passed${errMsg}`;
-    btn.style.color = (failed + errors) === 0 ? 'var(--accent-primary)' : 'var(--warning,#f59e0b)';
+    btn.textContent = `Tests: ${stdPassed}/${standards.length} passed${errMsg}`;
+    btn.style.color = (stdFailed + errors) === 0 ? 'var(--accent-primary)' : 'var(--warning,#f59e0b)';
     btn.disabled = false;
     btn.style.opacity = '1';
     await loadCompliance();

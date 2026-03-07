@@ -4025,6 +4025,24 @@ def api_compliance_run(request):
             result["ok"] = True
             return Response(result)
 
+        # Store aggregated test results after running all standards
+        if check_name == "store_test_results":
+            from syn.audit.models import ComplianceCheck
+
+            test_data = data.get("data", {})
+            std_check = ComplianceCheck.objects.filter(check_name="standards_compliance").order_by("-run_at").first()
+            if std_check:
+                details = std_check.details or {}
+                details["tests_passed"] = test_data.get("tests_passed", 0)
+                details["tests_failed"] = test_data.get("tests_failed", 0)
+                details["tests_skipped"] = test_data.get("tests_skipped", 0)
+                std_check.details = details
+                std_check.save(update_fields=["details"])
+                return Response({"ok": True})
+            return Response(
+                {"ok": False, "error": "No standards_compliance check found — run compliance first"}, status=404
+            )
+
         # Single check mode
         if check_name and check_name != "__all__":
             if check_name not in ALL_CHECKS:
