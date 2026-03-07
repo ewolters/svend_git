@@ -4500,12 +4500,12 @@ async function loadIncidents() {
         const sevFilter = document.getElementById('inc-filter-severity')?.value || '';
         const statusFilter = document.getElementById('inc-filter-status')?.value || '';
         const catFilter = document.getElementById('inc-filter-category')?.value || '';
-        let url = 'incidents/?limit=100';
-        if (sevFilter) url += '&severity=' + sevFilter;
-        if (statusFilter) url += '&status=' + statusFilter;
-        if (catFilter) url += '&category=' + catFilter;
+        let qs = '?limit=100';
+        if (sevFilter) qs += '&severity=' + sevFilter;
+        if (statusFilter) qs += '&status=' + statusFilter;
+        if (catFilter) qs += '&category=' + catFilter;
 
-        const d = await apiFetch(url);
+        const d = await apiFetch('incidents', qs);
         const stats = d.stats || {};
 
         document.getElementById('inc-active').textContent = stats.active ?? '—';
@@ -4548,7 +4548,7 @@ async function loadIncidents() {
 async function showIncidentDetail(incidentId) {
     _incActiveId = incidentId;
     try {
-        const d = await apiFetch(`incidents/${incidentId}/`);
+        const d = await apiFetch(`incidents/${incidentId}`);
         const inc = d.incident;
         const logs = d.logs || [];
 
