@@ -111,6 +111,14 @@ def run_reliability_analysis(df, analysis_id, config):
         result["guide_observation"] = f"Weibull β={shape:.2f}. " + (
             "Infant mortality pattern." if shape < 1 else "Wear-out pattern." if shape > 1 else "Random failures."
         )
+        result["statistics"] = {
+            "shape": float(shape),
+            "scale": float(scale),
+            "b10": float(b10),
+            "b50": float(b50),
+            "mttf": float(mttf),
+            "n": len(failed),
+        }
 
         # Narrative
         _wb_phase = (
@@ -473,6 +481,14 @@ def run_reliability_analysis(df, analysis_id, config):
         result["guide_observation"] = (
             f"Kaplan-Meier: {n_events} events, {n_censored} censored. Median survival: {median_survival}."
         )
+        _median_float = float(median_survival) if median_survival != "N/A" else None
+        result["statistics"] = {
+            "n": len(times),
+            "n_events": n_events,
+            "n_censored": n_censored,
+            "median_survival": _median_float,
+            "final_survival": float(km_survival[-1]),
+        }
 
         # Narrative
         _km_cens_pct = n_censored / len(times) * 100 if len(times) > 0 else 0

@@ -9,6 +9,8 @@
       "x"
     ]
   },
-  "expected": {},
-  "reference": "Generated from calibration pool case CAL-BAY-003, verified 2026-03-06"
+  "expected": {
+    "summary_contains": "R\u00b2"
+  },
+  "reference": "Generated from calibration pool case CAL-BAY-003, verified 2026-03-07"
 }

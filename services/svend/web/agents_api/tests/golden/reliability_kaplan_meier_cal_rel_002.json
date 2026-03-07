@@ -7,6 +7,29 @@
     "time": "time",
     "event": "event"
   },
-  "expected": {},
-  "reference": "Generated from calibration pool case CAL-REL-002, verified 2026-03-06"
+  "expected": {
+    "summary_contains": "Kaplan-Meier",
+    "guide_observation_contains": "Kaplan-Meier",
+    "statistics.n": {
+      "value": 100,
+      "tolerance": 0
+    },
+    "statistics.n_events": {
+      "value": 77,
+      "tolerance": 1
+    },
+    "statistics.n_censored": {
+      "value": 23,
+      "tolerance": 1
+    },
+    "statistics.median_survival": {
+      "value": 44.68,
+      "tolerance": 5.0
+    },
+    "statistics.final_survival": {
+      "value": 0.23,
+      "tolerance": 0.05
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-REL-002, verified 2026-03-07"
 }

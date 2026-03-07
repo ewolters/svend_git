@@ -7,6 +7,21 @@
     "defectives": "defects",
     "sample_size": "n"
   },
-  "expected": {},
-  "reference": "Generated from calibration pool case CAL-SPC-009, verified 2026-03-06"
+  "expected": {
+    "summary_contains": "P Chart",
+    "guide_observation_contains": "out-of-control",
+    "statistics.p_bar": {
+      "value": 0.154,
+      "tolerance": 0.02
+    },
+    "statistics.n_samples": {
+      "value": 30,
+      "tolerance": 0
+    },
+    "statistics.n_ooc": {
+      "value": 9,
+      "tolerance": 1
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-SPC-009, verified 2026-03-07"
 }

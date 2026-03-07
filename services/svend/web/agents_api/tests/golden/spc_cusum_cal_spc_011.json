@@ -6,6 +6,33 @@
   "config": {
     "measurement": "x"
   },
-  "expected": {},
-  "reference": "Generated from calibration pool case CAL-SPC-011, verified 2026-03-06"
+  "expected": {
+    "summary_contains": "CUSUM",
+    "guide_observation_contains": "shift",
+    "statistics.sigma": {
+      "value": 3.303,
+      "tolerance": 0.5
+    },
+    "statistics.k_param": {
+      "value": 0.5,
+      "tolerance": 0
+    },
+    "statistics.h_param": {
+      "value": 5.0,
+      "tolerance": 0
+    },
+    "statistics.n": {
+      "value": 60,
+      "tolerance": 0
+    },
+    "statistics.n_signals_up": {
+      "value": 21,
+      "tolerance": 1
+    },
+    "statistics.n_signals_down": {
+      "value": 18,
+      "tolerance": 1
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-SPC-011, verified 2026-03-07"
 }

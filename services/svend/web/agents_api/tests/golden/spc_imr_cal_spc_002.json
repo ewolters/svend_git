@@ -6,6 +6,33 @@
   "config": {
     "measurement": "x"
   },
-  "expected": {},
-  "reference": "Generated from calibration pool case CAL-SPC-002, verified 2026-03-06"
+  "expected": {
+    "summary_contains": "I-MR Chart Analysis",
+    "guide_observation_contains": "out-of-control",
+    "statistics.grand_mean": {
+      "value": 57.8019,
+      "tolerance": 2.9
+    },
+    "statistics.ucl": {
+      "value": 65.9329,
+      "tolerance": 3.3
+    },
+    "statistics.lcl": {
+      "value": 49.671,
+      "tolerance": 2.5
+    },
+    "statistics.sigma": {
+      "value": 2.7099,
+      "tolerance": 0.5
+    },
+    "statistics.n": {
+      "value": 50,
+      "tolerance": 0
+    },
+    "statistics.n_ooc": {
+      "value": 50,
+      "tolerance": 1
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-SPC-002, verified 2026-03-07"
 }

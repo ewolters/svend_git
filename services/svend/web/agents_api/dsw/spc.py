@@ -324,6 +324,15 @@ def run_spc_analysis(df, analysis_id, config):
         result["guide_observation"] = f"Control chart shows {ooc} out-of-control points." + (
             " Process appears stable." if ooc == 0 else " Investigation recommended."
         )
+        result["statistics"] = {
+            "grand_mean": float(x_bar),
+            "ucl": float(ucl),
+            "lcl": float(lcl),
+            "mr_bar": float(mr_bar),
+            "sigma": float(mr_bar / 1.128),
+            "n": n,
+            "n_ooc": ooc,
+        }
 
         # Narrative
         if ooc == 0:
@@ -448,6 +457,19 @@ def run_spc_analysis(df, analysis_id, config):
             result["guide_observation"] = f"Process capability Cpk = {cpk:.2f}. " + (
                 "Capable." if cpk >= 1.33 else "Needs improvement."
             )
+
+        result["statistics"] = {
+            "mean": float(mean),
+            "std": float(std),
+            "n": n,
+            "cp": float(cp) if cp is not None else None,
+            "cpk": float(cpk) if cpk is not None else None,
+            "pp": float(pp) if pp is not None else None,
+            "ppk": float(ppk) if ppk is not None else None,
+            "sigma_level": float(sigma_level),
+            "ppm_total": float(ppm_total),
+            "yield_pct": float(yield_pct),
+        }
 
         # ── Plot 1: Histogram with normal curve ─────────────────────
         x_range = np.linspace(float(np.min(data)) - 2 * std, float(np.max(data)) + 2 * std, 300)
@@ -956,6 +978,18 @@ def run_spc_analysis(df, analysis_id, config):
         result["summary"] = (
             f"Xbar-R Chart Analysis\n\nSubgroups: {n_subgroups}\nSubgroup size: {n}\n\nX̄ Chart:\n  X̿: {x_double_bar:.4f}\n  UCL: {xbar_ucl:.4f}\n  LCL: {xbar_lcl:.4f}\n  OOC points: {len(xbar_ooc)}\n\nR Chart:\n  R̄: {r_bar:.4f}\n  UCL: {r_ucl:.4f}\n  LCL: {r_lcl:.4f}\n  OOC points: {len(r_ooc)}{violations_text}"
         )
+        result["statistics"] = {
+            "grand_mean": float(x_double_bar),
+            "xbar_ucl": float(xbar_ucl),
+            "xbar_lcl": float(xbar_lcl),
+            "r_bar": float(r_bar),
+            "r_ucl": float(r_ucl),
+            "r_lcl": float(r_lcl),
+            "n_subgroups": n_subgroups,
+            "subgroup_size": n,
+            "n_ooc_xbar": len(xbar_ooc),
+            "n_ooc_r": len(r_ooc),
+        }
 
         _xr_ooc = len(xbar_ooc) + len(r_ooc)
         if _xr_ooc == 0:
@@ -1129,6 +1163,18 @@ def run_spc_analysis(df, analysis_id, config):
         result["summary"] = (
             f"Xbar-S Chart Analysis\n\nSubgroups: {n_subgroups}\nSubgroup size: {n}\n\nX̄ Chart:\n  X̿: {x_double_bar:.4f}\n  UCL: {xbar_ucl:.4f}\n  LCL: {xbar_lcl:.4f}\n  OOC points: {len(xbar_ooc)}\n\nS Chart:\n  S̄: {s_bar:.4f}\n  UCL: {s_ucl:.4f}\n  LCL: {s_lcl:.4f}\n  OOC points: {len(s_ooc)}{violations_text}"
         )
+        result["statistics"] = {
+            "grand_mean": float(x_double_bar),
+            "xbar_ucl": float(xbar_ucl),
+            "xbar_lcl": float(xbar_lcl),
+            "s_bar": float(s_bar),
+            "s_ucl": float(s_ucl),
+            "s_lcl": float(s_lcl),
+            "n_subgroups": n_subgroups,
+            "subgroup_size": n,
+            "n_ooc_xbar": len(xbar_ooc),
+            "n_ooc_s": len(s_ooc),
+        }
 
         _xs_ooc = len(xbar_ooc) + len(s_ooc)
         if _xs_ooc == 0:
@@ -1225,6 +1271,11 @@ def run_spc_analysis(df, analysis_id, config):
             f"P chart: {len(ooc_indices)} out-of-control points. p\u0304 = {p_bar * 100:.2f}%."
             + (" Process is stable." if len(ooc_indices) == 0 else " Investigation recommended.")
         )
+        result["statistics"] = {
+            "p_bar": float(p_bar),
+            "n_samples": k,
+            "n_ooc": len(ooc_indices),
+        }
 
         n_ooc = len(ooc_indices)
         if n_ooc == 0:
@@ -1640,6 +1691,16 @@ def run_spc_analysis(df, analysis_id, config):
         result["guide_observation"] = f"CUSUM chart: {_cusum_total} shift signal{'s' if _cusum_total != 1 else ''}." + (
             " Process appears stable." if _cusum_total == 0 else " Investigation recommended."
         )
+        result["statistics"] = {
+            "target": float(target),
+            "sigma": float(sigma),
+            "k_param": float(k_param),
+            "h_param": float(h_param),
+            "n": n,
+            "n_signals_up": _n_up,
+            "n_signals_down": _n_dn,
+            "n_ooc": _cusum_total,
+        }
         if _cusum_total == 0:
             result["narrative"] = _narrative(
                 "Process is in statistical control",
@@ -1764,6 +1825,16 @@ def run_spc_analysis(df, analysis_id, config):
             f"EWMA chart: {_ewma_n_ooc} out-of-control point{'s' if _ewma_n_ooc != 1 else ''}."
             + (" Process appears stable." if _ewma_n_ooc == 0 else " Investigation recommended.")
         )
+        result["statistics"] = {
+            "target": float(target),
+            "sigma": float(sigma),
+            "lambda_param": float(lambda_param),
+            "L": float(L),
+            "ucl_ss": float(ucl_ss),
+            "lcl_ss": float(lcl_ss),
+            "n": n,
+            "n_ooc": _ewma_n_ooc,
+        }
         if _ewma_n_ooc == 0:
             result["narrative"] = _narrative(
                 "Process is in statistical control",

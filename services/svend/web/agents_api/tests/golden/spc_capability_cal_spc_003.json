@@ -8,6 +8,37 @@
     "lsl": 40,
     "usl": 60
   },
-  "expected": {},
-  "reference": "Generated from calibration pool case CAL-SPC-003, verified 2026-03-06"
+  "expected": {
+    "summary_contains": "Capability Analysis",
+    "guide_observation_contains": "Capable",
+    "statistics.mean": {
+      "value": 49.9485,
+      "tolerance": 2.5
+    },
+    "statistics.std": {
+      "value": 1.897,
+      "tolerance": 0.5
+    },
+    "statistics.n": {
+      "value": 100,
+      "tolerance": 0
+    },
+    "statistics.cp": {
+      "value": 1.6408,
+      "tolerance": 0.5
+    },
+    "statistics.cpk": {
+      "value": 1.6323,
+      "tolerance": 0.5
+    },
+    "statistics.pp": {
+      "value": 1.7572,
+      "tolerance": 0.5
+    },
+    "statistics.ppk": {
+      "value": 1.7481,
+      "tolerance": 0.5
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-SPC-003, verified 2026-03-07"
 }

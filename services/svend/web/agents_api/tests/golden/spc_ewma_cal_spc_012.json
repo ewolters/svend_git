@@ -6,6 +6,37 @@
   "config": {
     "measurement": "x"
   },
-  "expected": {},
-  "reference": "Generated from calibration pool case CAL-SPC-012, verified 2026-03-06"
+  "expected": {
+    "summary_contains": "EWMA",
+    "guide_observation_contains": "stable",
+    "statistics.lambda_param": {
+      "value": 0.2,
+      "tolerance": 0
+    },
+    "statistics.L": {
+      "value": 3.0,
+      "tolerance": 0
+    },
+    "statistics.sigma": {
+      "value": 1.7333,
+      "tolerance": 0.5
+    },
+    "statistics.ucl_ss": {
+      "value": 52.0511,
+      "tolerance": 2.7
+    },
+    "statistics.lcl_ss": {
+      "value": 48.5845,
+      "tolerance": 2.5
+    },
+    "statistics.n": {
+      "value": 50,
+      "tolerance": 0
+    },
+    "statistics.n_ooc": {
+      "value": 0,
+      "tolerance": 0
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-SPC-012, verified 2026-03-07"
 }

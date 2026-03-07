@@ -7,6 +7,36 @@
     "measurement": "x",
     "subgroup_size": 10
   },
-  "expected": {},
-  "reference": "Generated from calibration pool case CAL-SPC-007, verified 2026-03-06"
+  "expected": {
+    "summary_contains": "Xbar-S",
+    "statistics.grand_mean": {
+      "value": 55.1029,
+      "tolerance": 2.8
+    },
+    "statistics.xbar_ucl": {
+      "value": 57.8872,
+      "tolerance": 2.9
+    },
+    "statistics.xbar_lcl": {
+      "value": 52.3186,
+      "tolerance": 2.7
+    },
+    "statistics.s_bar": {
+      "value": 2.8557,
+      "tolerance": 0.5
+    },
+    "statistics.n_subgroups": {
+      "value": 20,
+      "tolerance": 0
+    },
+    "statistics.subgroup_size": {
+      "value": 10,
+      "tolerance": 0
+    },
+    "statistics.n_ooc_xbar": {
+      "value": 20,
+      "tolerance": 1
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-SPC-007, verified 2026-03-07"
 }

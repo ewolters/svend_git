@@ -7,6 +7,25 @@
     "time": "time",
     "censor": "status"
   },
-  "expected": {},
-  "reference": "Generated from calibration pool case CAL-REL-003, verified 2026-03-06"
+  "expected": {
+    "summary_contains": "Weibull Analysis",
+    "guide_observation_contains": "Weibull",
+    "statistics.shape": {
+      "value": 2.0389,
+      "tolerance": 0.3
+    },
+    "statistics.scale": {
+      "value": 50.85,
+      "tolerance": 5.0
+    },
+    "statistics.mttf": {
+      "value": 45.05,
+      "tolerance": 5.0
+    },
+    "statistics.n": {
+      "value": 131,
+      "tolerance": 1
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-REL-003, verified 2026-03-07"
 }

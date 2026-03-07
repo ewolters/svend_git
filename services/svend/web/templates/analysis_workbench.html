@@ -2047,8 +2047,6 @@ function showModelDetails(modelId) {
         const dialog = document.getElementById('config-dialog');
         const title = document.getElementById('config-dialog-title');
         const body = document.getElementById('config-dialog-body');
-        const runBtn = document.getElementById('run-analysis-btn');
-
         title.textContent = model.name;
         body.innerHTML = `
             <div style="padding:8px 0;">
@@ -2091,7 +2089,6 @@ function showModelDetails(modelId) {
                 </button>
             </div>
         `;
-        runBtn.style.display = 'none';
         dialog.classList.add('active');
     });
 }
@@ -3989,7 +3986,7 @@ function generateConfigForm(type, id) {
             `;
         }
         if (id === 'friedman') {
-            const numColCheckboxes = columns.filter(c => c.dtype === 'number').map(c => `
+            const numColCheckboxes = columns.filter(c => c.dtype === 'numeric').map(c => `
                 <label class="aw-checkbox-item">
                     <input type="checkbox" name="vars" value="${c.name}">
                     <span>${c.name}</span>
@@ -5040,7 +5037,7 @@ function generateConfigForm(type, id) {
             return `
                 <div class="aw-form-group">
                     <label>Variable (binary / categorical):</label>
-                    <select id="cfg-var">${allCols}</select>
+                    <select id="cfg-var">${colOptions}</select>
                 </div>
                 <div class="aw-form-group">
                     <label>Event value (count as success):</label>
@@ -5068,11 +5065,11 @@ function generateConfigForm(type, id) {
             return `
                 <div class="aw-form-group">
                     <label>Variable (binary / categorical):</label>
-                    <select id="cfg-var">${allCols}</select>
+                    <select id="cfg-var">${colOptions}</select>
                 </div>
                 <div class="aw-form-group">
                     <label>Group variable:</label>
-                    <select id="cfg-group_var">${allCols}</select>
+                    <select id="cfg-group_var">${colOptions}</select>
                 </div>
                 <div class="aw-form-group">
                     <label>Event value (count as success):</label>
@@ -5096,11 +5093,11 @@ function generateConfigForm(type, id) {
             return `
                 <div class="aw-form-group">
                     <label>Row variable:</label>
-                    <select id="cfg-var">${allCols}</select>
+                    <select id="cfg-var">${colOptions}</select>
                 </div>
                 <div class="aw-form-group">
                     <label>Column variable:</label>
-                    <select id="cfg-var2">${allCols}</select>
+                    <select id="cfg-var2">${colOptions}</select>
                 </div>
                 <div class="aw-form-group">
                     <label>Alternative:</label>
@@ -7640,7 +7637,7 @@ ID: ${currentData.id}`);
 
         case 'clear':
             sessionHistory = [];
-            document.getElementById('session-history').innerHTML = '';
+            document.getElementById('session-output').innerHTML = '';
             appendSession('note', 'Session cleared.');
             break;
 
@@ -7840,7 +7837,7 @@ function showKeyboardShortcuts() {
         ['Ctrl + /', 'Show shortcuts'],
         ['Escape', 'Close dialogs'],
     ];
-    const container = document.getElementById('cmd-output');
+    const container = document.getElementById('session-output');
     container.innerHTML += `
         <div style="color:#6aaa8a;font-size:10px;margin-top:4px;">
             <strong>Keyboard Shortcuts:</strong><br>
