@@ -963,6 +963,38 @@ class FMEATest(SimpleTestCase):
         """Uses Plotly for risk visualization."""
         self.assertIn("Plotly.newPlot", self.content)
 
+    def test_study_status_labeled(self):
+        """QMS-001 §4.1.0a: Study Status dropdown has explicit label."""
+        self.assertIn(
+            "Study Status:",
+            self.content,
+            "FMEA toolbar must label the study status dropdown as 'Study Status:'",
+        )
+
+    def test_action_status_labeled(self):
+        """QMS-001 §4.1.0a: Action Status dropdown has explicit label."""
+        self.assertIn(
+            "Action Status",
+            self.content,
+            "FMEA row edit modal must label the action status dropdown as 'Action Status'",
+        )
+
+    def test_action_status_filter_exists(self):
+        """FMEA has action status filter for row-level filtering."""
+        self.assertIn(
+            "setActionFilter",
+            self.content,
+            "FMEA must have row-level action status filtering",
+        )
+
+    def test_list_status_filter_exists(self):
+        """FMEA list page has study status filter."""
+        self.assertIn(
+            "setListFilter",
+            self.content,
+            "FMEA list page must have study status filtering",
+        )
+
 
 class ModelsTest(SimpleTestCase):
     """JS-001: ML model training/prediction (1,909 JS lines)."""

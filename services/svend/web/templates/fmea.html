@@ -334,6 +334,55 @@
 .status-pill.in_progress { background: rgba(52, 152, 219, 0.15); color: #3498db; }
 .status-pill.complete { background: rgba(46, 204, 113, 0.15); color: #2ecc71; }
 
+/* ============ FILTER BAR ============ */
+
+.fmea-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.fmea-filter-bar .filter-label {
+    color: var(--text-dim);
+    font-weight: 500;
+    margin-right: 4px;
+}
+
+.filter-chip {
+    padding: 3px 10px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.15s;
+}
+
+.filter-chip:hover { border-color: var(--accent); color: var(--accent); }
+.filter-chip.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+/* ============ LIST FILTER BAR ============ */
+
+.fmea-list-filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    font-size: 12px;
+}
+
+.fmea-list-filters .filter-label {
+    color: var(--text-dim);
+    font-weight: 500;
+}
+
 .fmea-row-empty {
     text-align: center;
     padding: 40px 20px;
@@ -718,6 +767,14 @@
             <h1>FMEA Studies</h1>
             <button class="fmea-btn primary" onclick="showCreateModal()">+ New FMEA</button>
         </div>
+        <div class="fmea-list-filters" id="fmea-list-filters" style="display:none;">
+            <span class="filter-label">Study Status:</span>
+            <button class="filter-chip active" data-list-filter="all" onclick="setListFilter('all')">All</button>
+            <button class="filter-chip" data-list-filter="draft" onclick="setListFilter('draft')">Draft</button>
+            <button class="filter-chip" data-list-filter="active" onclick="setListFilter('active')">Active</button>
+            <button class="filter-chip" data-list-filter="review" onclick="setListFilter('review')">Under Review</button>
+            <button class="filter-chip" data-list-filter="complete" onclick="setListFilter('complete')">Complete</button>
+        </div>
         <div id="fmea-cards" class="fmea-cards"></div>
         <div id="fmea-empty-help" style="display:none; text-align:center; padding:3rem 1rem; color:var(--text-secondary);">
             <h3 style="margin-bottom:0.5rem; color:var(--text-primary);">Failure Mode and Effects Analysis</h3>
@@ -742,6 +799,7 @@
                 <input type="text" class="fmea-title-input" id="fmea-title" placeholder="FMEA Title" onchange="saveMeta()">
             </div>
             <div class="fmea-toolbar-group">
+                <span style="font-size:12px;color:var(--text-dim);">Study Status:</span>
                 <select class="fmea-status" id="fmea-status" onchange="saveMeta()">
                     <option value="draft">Draft</option>
                     <option value="active">Active</option>
@@ -761,6 +819,15 @@
                 <button class="fmea-btn small" id="summary-toggle-btn" onclick="toggleSummary()">Summary</button>
                 <button class="fmea-btn small danger" onclick="confirmDeleteFmea()">Delete</button>
             </div>
+        </div>
+
+        <!-- Row Filter Bar -->
+        <div class="fmea-filter-bar" id="fmea-filter-bar" style="display:none;">
+            <span class="filter-label">Action Status:</span>
+            <button class="filter-chip active" data-filter="all" onclick="setActionFilter('all')">All</button>
+            <button class="filter-chip" data-filter="not_started" onclick="setActionFilter('not_started')">Not Started</button>
+            <button class="filter-chip" data-filter="in_progress" onclick="setActionFilter('in_progress')">In Progress</button>
+            <button class="filter-chip" data-filter="complete" onclick="setActionFilter('complete')">Complete</button>
         </div>
 
         <!-- Failure Mode List -->
@@ -863,6 +930,9 @@ let currentActionItems = [];
 let linkingRowId = null;
 let editingRowId = null;
 let saveTimer = null;
+let actionFilter = 'all';
+let listFilter = 'all';
+let allFmeas = [];
 
 // ====== INIT ======
 
@@ -903,6 +973,8 @@ function populateProjectDropdowns() {
 
 // ====== LIST VIEW (FMEA studies) ======
 
+const studyStatusLabel = {draft: 'Draft', active: 'Active', review: 'Under Review', complete: 'Complete'};
+
 async function loadList() {
     document.getElementById('fmea-list-view').style.display = '';
     document.getElementById('fmea-editor-view').style.display = 'none';
@@ -910,16 +982,31 @@ async function loadList() {
     const resp = await fetch(API, {credentials: 'include'});
     if (!resp.ok) return;
     const data = await resp.json();
-    const fmeas = data.fmeas || [];
+    allFmeas = data.fmeas || [];
+
+    renderFmeaCards();
+}
+
+function renderFmeaCards() {
+    const fmeas = listFilter === 'all' ? allFmeas : allFmeas.filter(f => f.status === listFilter);
 
     const container = document.getElementById('fmea-cards');
     const emptyHelp = document.getElementById('fmea-empty-help');
-    if (fmeas.length === 0) {
+    const filterBar = document.getElementById('fmea-list-filters');
+
+    if (allFmeas.length === 0) {
         container.innerHTML = '';
         if (emptyHelp) emptyHelp.style.display = '';
+        if (filterBar) filterBar.style.display = 'none';
         return;
     }
     if (emptyHelp) emptyHelp.style.display = 'none';
+    if (filterBar) filterBar.style.display = allFmeas.length > 1 ? 'flex' : 'none';
+
+    if (fmeas.length === 0) {
+        container.innerHTML = '<div class="fmea-row-empty">No FMEAs match this filter.</div>';
+        return;
+    }
 
     container.innerHTML = fmeas.map(f => `
         <a href="/app/fmea/${f.id}/" class="fmea-card">
@@ -928,7 +1015,7 @@ async function loadList() {
                 <span class="fmea-card-type ${f.fmea_type}">${f.fmea_type}</span>
             </div>
             <div class="fmea-card-meta">
-                ${f.project_title ? esc(f.project_title) + ' &middot; ' : ''}${f.status}
+                ${f.project_title ? esc(f.project_title) + ' &middot; ' : ''}${studyStatusLabel[f.status] || f.status}
             </div>
             <div class="fmea-card-stats">
                 <span>${f.row_count} failure modes</span>
@@ -936,6 +1023,14 @@ async function loadList() {
             </div>
         </a>
     `).join('');
+}
+
+function setListFilter(val) {
+    listFilter = val;
+    document.querySelectorAll('[data-list-filter]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.listFilter === val);
+    });
+    renderFmeaCards();
 }
 
 // ====== EDITOR VIEW ======
@@ -967,16 +1062,42 @@ async function loadFmea(id) {
     renderFmeaActionItems(currentActionItems);
 }
 
+// ====== ACTION STATUS FILTER ======
+
+function setActionFilter(val) {
+    actionFilter = val;
+    document.querySelectorAll('[data-filter]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === val);
+    });
+    renderRows();
+}
+
 // ====== ROW LIST RENDERING ======
 
 function renderRows() {
     const container = document.getElementById('fmea-row-list');
+    const filterBar = document.getElementById('fmea-filter-bar');
+
+    // Show filter bar when there are rows with actions
+    const hasActions = currentRows.some(r => r.recommended_action || r.action_owner);
+    if (filterBar) filterBar.style.display = hasActions ? 'flex' : 'none';
+
     if (currentRows.length === 0) {
         container.innerHTML = '<div class="fmea-row-empty">No failure modes yet. Click "+ Add Row" to start.</div>';
         return;
     }
 
-    container.innerHTML = currentRows.map((r, i) => {
+    const filteredRows = actionFilter === 'all'
+        ? currentRows
+        : currentRows.filter(r => r.action_status === actionFilter);
+
+    if (filteredRows.length === 0) {
+        container.innerHTML = '<div class="fmea-row-empty">No rows match this filter.</div>';
+        return;
+    }
+
+    container.innerHTML = filteredRows.map((r) => {
+        const i = currentRows.indexOf(r);
         const hasAction = r.recommended_action || r.action_owner;
         const statusLabel = {not_started: 'Not Started', in_progress: 'In Progress', complete: 'Complete'};
 
@@ -1109,7 +1230,7 @@ function openEditModal(rowId) {
                     <input type="text" id="edit-action_owner" value="${esc(r.action_owner)}" data-field="action_owner" placeholder="Who is responsible?">
                 </div>
                 <div class="edit-field narrow">
-                    <label>Status</label>
+                    <label>Action Status</label>
                     <select id="edit-action_status" data-field="action_status">
                         <option value="not_started" ${r.action_status==='not_started'?'selected':''}>Not Started</option>
                         <option value="in_progress" ${r.action_status==='in_progress'?'selected':''}>In Progress</option>
