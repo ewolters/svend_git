@@ -1558,6 +1558,7 @@ class PlantDES {
                 bufferCapacity: conn.buffer_capacity,
                 transportType: conn.transport_type || 'none',
                 transportDistance: conn.transport_distance || 0,
+                routingRules: conn.routing_rules || [],
             });
             if (!this.reverseAdj.has(conn.to_id)) this.reverseAdj.set(conn.to_id, []);
             this.reverseAdj.get(conn.to_id).push(conn.from_id);
@@ -2014,18 +2015,31 @@ class PlantDES {
 
     _pickTarget(downstream, job = null) {
         if (downstream.length === 1) {
-            // Single downstream: check dedicated product filter
-            const stn = this.stations.get(downstream[0].toId);
+            const d = downstream[0];
+            // Routing rules filter (CR-4): if rules exist, product must be listed
+            if (d.routingRules?.length > 0 && job) {
+                const rule = d.routingRules.find(r => r.product === job.productType);
+                if (!rule) return null;
+                if (rule.weight < 1.0 && Math.random() > rule.weight) return null;
+            }
+            // Dedicated machine filter (CR-2)
+            const stn = this.stations.get(d.toId);
             if (stn && stn.dedicatedProduct && job && job.productType !== stn.dedicatedProduct) return null;
-            return downstream[0];
+            return d;
         }
         // Pick eligible station with shortest queue
         let best = null;
         let bestLen = Infinity;
         for (const d of downstream) {
+            // Routing rules filter (CR-4): if rules exist, product must be listed
+            if (d.routingRules?.length > 0 && job) {
+                const rule = d.routingRules.find(r => r.product === job.productType);
+                if (!rule) continue;
+                if (rule.weight < 1.0 && Math.random() > rule.weight) continue;
+            }
             const stn = this.stations.get(d.toId);
             if (!stn) continue;
-            // Dedicated machine filter: skip if product doesn't match
+            // Dedicated machine filter (CR-2)
             if (stn.dedicatedProduct && job && job.productType !== stn.dedicatedProduct) continue;
             const len = stn.queue.length;
             if (len < bestLen) { bestLen = len; best = d; }
@@ -5188,6 +5202,28 @@ function showProperties(el, type) {
                 ${tt.breakdownRate > 0 ? ` · ${(tt.breakdownRate * 100).toFixed(1)}% breakdown risk` : ''}
                 ${tt.maxContainerKg ? ` · max ${tt.maxContainerKg}kg` : ''}
             </div>
+            <div style="margin-top:6px; border-top:1px solid var(--border); padding-top:6px;">
+                <span class="prop-label" style="width:auto; display:block; margin-bottom:2px; font-size:0.6rem;">Product Routing <span style="color:var(--text-dim)">(empty = all products)</span></span>
+                <div id="routing-rules-list">
+                    ${(el.routing_rules || []).map((r, i) => \`
+                        <div style="display:flex; gap:4px; align-items:center; margin-bottom:3px;">
+                            <select class="prop-input" style="flex:1; font-size:0.55rem; padding:1px 2px;"
+                                onchange="updateRoutingRule(\${i}, 'product', this.value)">
+                                \${getAllProductTypes().map(pt =>
+                                    \\\`<option value="\\\${pt}" \\\${r.product === pt ? 'selected' : ''}>\\\${pt}</option>\\\`
+                                ).join('')}
+                            </select>
+                            <input type="number" class="prop-input" value="\${((r.weight ?? 1) * 100).toFixed(0)}"
+                                onchange="updateRoutingRule(\${i}, 'weight', +this.value/100)"
+                                min="1" max="100" step="5" style="width:40px; font-size:0.55rem; padding:1px 2px;"
+                                title="Routing weight (100% = always, 50% = half the time)">
+                            <span style="font-size:0.5rem;color:var(--text-dim);">%</span>
+                            <button onclick="removeRoutingRule(\${i})" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:0.7rem;padding:0 2px;" title="Remove rule">✕</button>
+                        </div>
+                    \`).join('')}
+                </div>
+                <button onclick="addRoutingRule()" style="font-size:0.55rem; padding:2px 6px; background:var(--bg-tertiary); border:1px solid var(--border); color:var(--text-primary); cursor:pointer; border-radius:3px; margin-top:2px;">+ Route Rule</button>
+            </div>
         `;
     }
 }
@@ -5196,6 +5232,27 @@ function updateProp(key, value) {
     if (!selectedElement) return;
     selectedElement[key] = value;
     renderCanvas();
+}
+
+// Product routing rules for connections (CR-4)
+function addRoutingRule() {
+    if (!selectedElement) return;
+    if (!selectedElement.routing_rules) selectedElement.routing_rules = [];
+    const pts = getAllProductTypes();
+    selectedElement.routing_rules.push({ product: pts[0] || 'Product', weight: 1.0 });
+    renderCanvas();
+    showProperties(selectedElement, 'connection');
+}
+function updateRoutingRule(idx, field, value) {
+    if (!selectedElement || !selectedElement.routing_rules) return;
+    selectedElement.routing_rules[idx][field] = value;
+    renderCanvas();
+}
+function removeRoutingRule(idx) {
+    if (!selectedElement || !selectedElement.routing_rules) return;
+    selectedElement.routing_rules.splice(idx, 1);
+    renderCanvas();
+    showProperties(selectedElement, 'connection');
 }
 
 // Per-product quality rate overrides (CR-3)
