@@ -1349,6 +1349,19 @@
             return d.innerHTML;
         }
 
+        /**
+         * Safely coerce any value to a display string.
+         * Handles ErrorEnvelopeMiddleware objects ({code, message, ...}),
+         * null/undefined, arrays, and nested objects.
+         */
+        function safeStr(val, fallback) {
+            if (val == null) return fallback || '';
+            if (typeof val === 'string') return val;
+            if (typeof val === 'object' && val.message) return val.message;
+            if (typeof val === 'object') try { return JSON.stringify(val); } catch(e) { return fallback || ''; }
+            return String(val);
+        }
+
         // Close panel on outside click
         document.addEventListener('click', function(e) {
             if (notifPanelOpen && !document.getElementById('notif-bell').contains(e.target)) {

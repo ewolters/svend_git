@@ -1041,10 +1041,10 @@ async function createHypothesis(e) {
 
             viewHypothesis(result.id);
         } else {
-            alert(result.error || 'Failed to create problem');
+            alert(safeStr(result.error, 'Failed to create problem'));
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -1054,7 +1054,7 @@ async function viewHypothesis(id) {
         currentHypothesis = await response.json();
         renderProblemDetail();
     } catch (err) {
-        alert('Failed to load problem: ' + err.message);
+        alert('Failed to load problem: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -1189,10 +1189,10 @@ async function addHypothesis(e) {
             viewHypothesis(currentHypothesis.id);
         } else {
             const result = await response.json();
-            alert(result.error || 'Failed to add hypothesis');
+            alert(safeStr(result.error, 'Failed to add hypothesis'));
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -1209,10 +1209,10 @@ async function generateHypotheses() {
         if (response.ok) {
             viewHypothesis(currentHypothesis.id);
         } else {
-            alert(result.error || 'Failed to generate hypotheses');
+            alert(safeStr(result.error, 'Failed to generate hypotheses'));
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -1262,10 +1262,10 @@ async function addEvidence(e) {
             viewHypothesis(currentHypothesis.id);
         } else {
             const result = await response.json();
-            alert(result.error || 'Failed to add evidence');
+            alert(safeStr(result.error, 'Failed to add evidence'));
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -1314,7 +1314,7 @@ async function resolveHypothesis(summary) {
             viewHypothesis(currentHypothesis.id);
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -1349,10 +1349,10 @@ async function startInterview() {
                 showInterviewModal(data);
             }
         } else {
-            alert(data.error || 'Failed to start interview');
+            alert(safeStr(data.error, 'Failed to start interview'));
         }
     } catch (err) {
-        alert('Error starting interview: ' + err.message);
+        alert('Error starting interview: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -1376,10 +1376,10 @@ async function resumeInterview() {
             currentQuestion = data.question;
             showInterviewModal(data);
         } else {
-            alert(data.error || 'Failed to resume interview');
+            alert(safeStr(data.error, 'Failed to resume interview'));
         }
     } catch (err) {
-        alert('Error resuming interview: ' + err.message);
+        alert('Error resuming interview: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -1399,10 +1399,10 @@ async function startFreshInterview() {
             currentQuestion = data.question;
             showInterviewModal(data);
         } else {
-            alert(data.error || 'Failed to start interview');
+            alert(safeStr(data.error, 'Failed to start interview'));
         }
     } catch (err) {
-        alert('Error starting interview: ' + err.message);
+        alert('Error starting interview: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -1420,10 +1420,10 @@ async function saveAndExitInterview() {
             closeInterviewModal();
             alert('Interview progress saved. You can resume later.');
         } else {
-            alert(data.error || 'Failed to save interview');
+            alert(safeStr(data.error, 'Failed to save interview'));
         }
     } catch (err) {
-        alert('Error saving interview: ' + err.message);
+        alert('Error saving interview: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -1583,10 +1583,10 @@ async function submitInterviewAnswer() {
             // Continue to next question
             updateInterviewUI(data);
         } else {
-            alert(data.error || 'Failed to submit answer');
+            alert(safeStr(data.error, 'Failed to submit answer'));
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -1601,10 +1601,10 @@ async function skipQuestion() {
         if (response.ok) {
             updateInterviewUI(data);
         } else {
-            alert(data.error || 'Cannot skip this question');
+            alert(safeStr(data.error, 'Cannot skip this question'));
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 

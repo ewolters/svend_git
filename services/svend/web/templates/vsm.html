@@ -3230,7 +3230,7 @@ async function createHypothesisFromKaizen() {
         renderVSM();
         saveVSM();
     } catch (e) {
-        alert('Failed to create hypothesis: ' + e.message);
+        alert('Failed to create hypothesis: ' + safeStr(e, 'Unknown error'));
     }
 }
 
@@ -3400,7 +3400,7 @@ async function generateVSMProposals() {
         if (!response.ok) {
             document.getElementById('proposal-loading').style.display = 'none';
             document.getElementById('proposal-error').style.display = 'block';
-            document.getElementById('proposal-error').textContent = data.error || 'Failed to generate proposals.';
+            document.getElementById('proposal-error').textContent = safeStr(data.error, 'Failed to generate proposals.');
             document.getElementById('proposal-params').style.display = 'block';
             return;
         }
@@ -3420,7 +3420,7 @@ async function generateVSMProposals() {
     } catch (err) {
         document.getElementById('proposal-loading').style.display = 'none';
         document.getElementById('proposal-error').style.display = 'block';
-        document.getElementById('proposal-error').textContent = 'Network error: ' + err.message;
+        document.getElementById('proposal-error').textContent = 'Network error: ' + safeStr(err, 'Unknown error');
         document.getElementById('proposal-params').style.display = 'block';
     }
 }
@@ -3479,7 +3479,7 @@ async function createSelectedProposals() {
 
         if (!response.ok) {
             const data = await response.json();
-            alert(data.error || 'Failed to create projects.');
+            alert(safeStr(data.error, 'Failed to create projects.'));
             return;
         }
 
@@ -3487,7 +3487,7 @@ async function createSelectedProposals() {
         closeProposalModal();
         alert(`Created ${data.created} CI project(s). View them in Hoshin Kanri.`);
     } catch (err) {
-        alert('Error creating projects: ' + err.message);
+        alert('Error creating projects: ' + safeStr(err, 'Unknown error'));
     }
 }
 

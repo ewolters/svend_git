@@ -148,7 +148,7 @@
                     statusDiv.innerHTML = `
                         <div class="status-icon error">!</div>
                         <h1>Verification Failed</h1>
-                        <p>${data.error || 'This link may have expired. Please request a new verification email.'}</p>
+                        <p>${safeStr(data.error, 'This link may have expired. Please request a new verification email.')}</p>
                         <a href="/login/" class="btn">Go to Login</a>
                     `;
                 }

@@ -962,7 +962,7 @@
                     savedPassword = password;
                     setTimeout(() => loginWithCredentials(username, password), 1000);
                 } else {
-                    document.getElementById('registerError').textContent = data.error || 'Registration failed';
+                    document.getElementById('registerError').textContent = safeStr(data.error, 'Registration failed');
                     document.getElementById('registerError').classList.remove('hidden');
                 }
             } catch (e) {
@@ -1330,7 +1330,7 @@
                 document.getElementById('loadingMsg')?.remove();
                 messagesContainer.innerHTML += `
                     <div class="message message-assistant">
-                        <div class="assistant-response blocked">Error: ${e.message}</div>
+                        <div class="assistant-response blocked">Error: ${safeStr(e, 'Unknown error')}</div>
                     </div>
                 `;
             }

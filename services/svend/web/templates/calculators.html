@@ -8495,7 +8495,7 @@ async function exportTaktToVSM() {
         };
         modal.style.display = 'flex';
     } catch (e) {
-        alert('Failed to export: ' + e.message);
+        alert('Failed to export: ' + safeStr(e, 'Unknown error'));
     }
 }
 
@@ -8510,7 +8510,7 @@ async function doExportTaktToVSM(target, taktSec) {
         if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
         alert(`Takt time (${taktSec.toFixed(1)}s) exported to "${target.name}"`);
     } catch (e) {
-        alert('Failed to export: ' + e.message);
+        alert('Failed to export: ' + safeStr(e, 'Unknown error'));
     }
 }
 
@@ -8553,7 +8553,7 @@ async function exportToVSM(payload, successMsg) {
         };
         modal.style.display = 'flex';
     } catch (e) {
-        showToast('Export failed: ' + e.message, 'error');
+        showToast('Export failed: ' + safeStr(e, 'Unknown error'), 'error');
     }
 }
 
@@ -8657,7 +8657,7 @@ async function exportOEEToVSM() {
             timestamp: new Date().toISOString()
         };
         await exportToVSM({ step_annotations: annotations }, `OEE (${oeeVal.toFixed(1)}%) exported to "${stepName}"`);
-    } catch (e) { showToast('Export failed: ' + e.message, 'error'); }
+    } catch (e) { showToast('Export failed: ' + safeStr(e, 'Unknown error'), 'error'); }
 }
 
 async function exportLineSimToVSM() {
@@ -8830,7 +8830,7 @@ async function pinDSWResultToVSM(summary, resultType, status) {
         });
         showToast('Pinned to VSM step: ' + stepName);
     } catch (e) {
-        showToast('Pin failed: ' + e.message, 'error');
+        showToast('Pin failed: ' + safeStr(e, 'Unknown error'), 'error');
     }
 }
 
@@ -8857,7 +8857,7 @@ async function pinSPCResultToVSM(summary, controlStatus) {
         await doGenericExportToVSM(maps[0], { step_annotations: { [stepName]: annotation } });
         showToast('Pinned SPC result to: ' + stepName);
     } catch (e) {
-        showToast('Pin failed: ' + e.message, 'error');
+        showToast('Pin failed: ' + safeStr(e, 'Unknown error'), 'error');
     }
 }
 
@@ -15239,7 +15239,7 @@ async function pullVSMCompareIntoBA() {
         renderBAInputs();
         showToast(`Loaded ${newData.length} metrics from VSM comparison`);
     } catch (e) {
-        showToast('Failed to pull VSM data: ' + e.message, 'error');
+        showToast('Failed to pull VSM data: ' + safeStr(e, 'Unknown error'), 'error');
     }
 }
 
@@ -15324,7 +15324,7 @@ async function logBAToSynara() {
             });
             showToast('Evidence logged to Synara');
         } catch (e) {
-            showToast('Failed to log evidence: ' + e.message, 'error');
+            showToast('Failed to log evidence: ' + safeStr(e, 'Unknown error'), 'error');
         }
     } else {
         sessionStorage.setItem('pendingEvidence', JSON.stringify({ source: 'Before/After', summary, confidence: improvedCount / baData.length }));
@@ -17842,7 +17842,7 @@ function importScenarios(event) {
                 }
             }
         } catch (err) {
-            alert('Invalid file format: ' + err.message);
+            alert('Invalid file format: ' + safeStr(err, 'Unknown error'));
         }
     };
     reader.readAsText(file);

@@ -3276,7 +3276,7 @@ async function handleFileUpload(file) {
         }
     } catch (err) {
         showLoading(false);
-        alert('Upload error: ' + err.message);
+        alert('Upload error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -4779,11 +4779,11 @@ async function runPrepareTransform(tool, config) {
     try {
         const { response, data } = await apiPost('/api/dsw/transform/', { tool, config, data_id: dswDataId });
         showLoading(false);
-        if (data.error) { alert(data.error); return; }
+        if (data.error) { alert(safeStr(data.error, 'Error')); return; }
         dswDataId = data.data_id;
         if (data.preview) { uploadedData = data.preview; displayDataTable(uploadedData); }
         showToast(data.message || 'Transform applied');
-    } catch (err) { showLoading(false); alert('Transform failed: ' + err.message); }
+    } catch (err) { showLoading(false); alert('Transform failed: ' + safeStr(err, 'Unknown error')); }
 }
 
 // =============================================================================
@@ -4831,8 +4831,8 @@ async function runCapabilityStudy() {
             const { response, data } = await apiPost('/api/spc/analyze/', body);
             showLoading(false);
             if (response.ok && data.success) renderStatsOutput(data, 'Capability Study');
-            else alert(data.error || 'Failed');
-        } catch (err) { showLoading(false); alert('Error: ' + err.message); }
+            else alert(safeStr(data.error, 'Failed'));
+        } catch (err) { showLoading(false); alert('Error: ' + safeStr(err, 'Unknown error')); }
         return;
     }
 
@@ -4847,8 +4847,8 @@ async function runCapabilityStudy() {
         const { response, data } = await apiPost('/api/spc/capability/', body);
         showLoading(false);
         if (response.ok) renderStatsOutput(data, 'Capability Study');
-        else alert(data.error || 'Failed');
-    } catch (err) { showLoading(false); alert('Error: ' + err.message); }
+        else alert(safeStr(data.error, 'Failed'));
+    } catch (err) { showLoading(false); alert('Error: ' + safeStr(err, 'Unknown error')); }
 }
 
 // =============================================================================
@@ -5122,7 +5122,7 @@ function runBayesReliabilityParam(analysisId, config, title) {
     })
     .then(r => r.json())
     .then(data => {
-        if (data.error) { outputTab.innerHTML = `<div class="error-box">${data.error}</div>`; return; }
+        if (data.error) { outputTab.innerHTML = `<div class="error-box">${safeStr(data.error, 'Error')}</div>`; return; }
         let html = '';
         // Narrative block (dict or string)
         if (data.narrative && typeof data.narrative === 'object') {
@@ -5158,7 +5158,7 @@ function runBayesReliabilityParam(analysisId, config, title) {
         if (data.statistics) html += `<details class="stats-details"><summary>Statistics</summary><pre>${JSON.stringify(data.statistics, null, 2)}</pre></details>`;
         outputTab.innerHTML = html;
     })
-    .catch(err => { outputTab.innerHTML = `<div class="error-box">Error: ${err.message}</div>`; });
+    .catch(err => { outputTab.innerHTML = `<div class="error-box">Error: ${safeStr(err, 'Unknown error')}</div>`; });
 }
 
 // =============================================================================
@@ -5455,8 +5455,8 @@ async function fetchAndRenderSummary(colName) {
         });
         showLoading(false);
         if (response.ok && data.success) renderSummaryOutput(colName, data.summary);
-        else alert(data.error || 'Failed');
-    } catch (err) { showLoading(false); alert('Error: ' + err.message); }
+        else alert(safeStr(data.error, 'Failed'));
+    } catch (err) { showLoading(false); alert('Error: ' + safeStr(err, 'Unknown error')); }
 }
 
 async function runSummaryAll(cols) {
@@ -6071,7 +6071,7 @@ async function runTriageFixFromPanel(dataId) {
     showLoading(true, 'Cleaning data...');
     try {
         const { data } = await apiPost('/api/dsw/triage/', { data_id: dataId, options });
-        if (!data.success) { showLoading(false); alert(data.error || 'Triage failed'); return; }
+        if (!data.success) { showLoading(false); alert(safeStr(data.error, 'Triage failed')); return; }
 
         // Re-upload cleaned CSV
         const blob = new Blob([data.cleaned_csv], { type: 'text/csv' });
@@ -6115,7 +6115,7 @@ async function runTriageFixFromPanel(dataId) {
         if (dswDataId) autoRunProfile(dswDataId);
     } catch (err) {
         showLoading(false);
-        alert('Triage fix error: ' + err.message);
+        alert('Triage fix error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -6608,10 +6608,10 @@ async function runStatsAnalysis(analysisType, analysisId, config, outputTitle) {
         }
         const { response, data } = await apiPost('/api/dsw/analysis/', payload);
         showLoading(false);
-        if (data.error) { alert(data.error); return; }
+        if (data.error) { alert(safeStr(data.error, 'Error')); return; }
         renderStatsOutput(data, outputTitle);
         svendTrack('feature_use', {category: 'dsw', action: analysisId, label: outputTitle});
-    } catch (err) { showLoading(false); alert('Analysis failed: ' + err.message); }
+    } catch (err) { showLoading(false); alert('Analysis failed: ' + safeStr(err, 'Unknown error')); }
 }
 
 const DSW_THEME = {
@@ -6827,7 +6827,7 @@ function attachSPCInspect(el, plot) {
                         window.open(`/app/rca/?session=${data.session.id}`, '_blank');
                         this.textContent = '\u2713 RCA opened';
                     } else {
-                        showToast(data.error || 'Could not create RCA session');
+                        showToast(safeStr(data.error, 'Could not create RCA session'));
                         this.disabled = false;
                         this.textContent = 'Investigate';
                     }
@@ -7124,7 +7124,7 @@ async function createHypothesisFromSelection(explanation, obsIndices, btn) {
             showToast('Hypothesis created and evidence linked');
             if (typeof synaraRefresh === 'function') synaraRefresh();
         } else {
-            showToast(data.error || 'Could not create hypothesis');
+            showToast(safeStr(data.error, 'Could not create hypothesis'));
             if (btn) { btn.disabled = false; btn.textContent = 'Create Hypothesis'; }
         }
     } catch (e) {
@@ -8395,7 +8395,7 @@ function openCopulaDialog() {
             await runStatsAnalysis('stats', 'copula', { var1: v1, var2: v2 }, 'Copula Analysis');
         });
         document.getElementById('dlg-cop-v2').selectedIndex = 1;
-    } catch (e) { alert('Copula dialog error: ' + e.message); console.error('openCopulaDialog:', e); }
+    } catch (e) { alert('Copula dialog error: ' + safeStr(e, 'Unknown error')); console.error('openCopulaDialog:', e); }
 }
 
 function openToleranceStackupDialog() {
@@ -8795,7 +8795,7 @@ async function runDOE() {
     try {
         const { response, data } = await apiPost('/api/experimenter/design/', payload);
         showLoading(false);
-        if (data.error) { alert(data.error); return; }
+        if (data.error) { alert(safeStr(data.error, 'Error')); return; }
         const design = data.design || data;
         const runs = design.runs || data.runs || [];
         // Store for later analysis
@@ -8828,7 +8828,7 @@ async function runDOE() {
             html = `<pre class="stats-summary">${JSON.stringify(design, null, 2)}</pre>`;
         }
         addOutput('DOE: ' + doeType.replace(/_/g, ' '), html);
-    } catch (err) { showLoading(false); alert('Error: ' + err.message); }
+    } catch (err) { showLoading(false); alert('Error: ' + safeStr(err, 'Unknown error')); }
 }
 
 // =============================================================================
@@ -8856,9 +8856,9 @@ async function analyzeDOEResults() {
             include_interactions: true,
         });
         showLoading(false);
-        if (data.error) { alert(data.error); return; }
+        if (data.error) { alert(safeStr(data.error, 'Error')); return; }
         renderExperimenterAnalysis(data, 'DOE Analysis');
-    } catch (err) { showLoading(false); alert('Analysis failed: ' + err.message); }
+    } catch (err) { showLoading(false); alert('Analysis failed: ' + safeStr(err, 'Unknown error')); }
 }
 
 function renderExperimenterAnalysis(data, title) {
@@ -8956,12 +8956,12 @@ async function importDOEToWorkbench() {
     try {
         const { response, data } = await apiPost('/api/dsw/upload-data/', formData, true);
         showLoading(false);
-        if (data.error) { alert(data.error); return; }
+        if (data.error) { alert(safeStr(data.error, 'Error')); return; }
         dswDataId = data.id;
         uploadedData = { filename: 'doe_design.csv', row_count: data.rows, columns: data.columns, preview: data.preview };
         displayDataTable(uploadedData);
         showToast('DOE data imported \u2014 all DSW analyses now available');
-    } catch (err) { showLoading(false); alert('Import failed: ' + err.message); }
+    } catch (err) { showLoading(false); alert('Import failed: ' + safeStr(err, 'Unknown error')); }
 }
 
 function exportDOECSV() {
@@ -9076,7 +9076,7 @@ function openDOEContourDialog() {
                 include_quadratic: true,
             });
             showLoading(false);
-            if (data.error) { alert(data.error); return; }
+            if (data.error) { alert(safeStr(data.error, 'Error')); return; }
 
             const c = data.contour || {};
             const plotId = `contour-${outputCounter}`;
@@ -9099,7 +9099,7 @@ function openDOEContourDialog() {
                 const _el = document.getElementById(plotId);
                 if (_el) _addExpandBtn(_el, { title: 'Response Surface', data: [{ type: 'contour', x: c.x, y: c.y, z: c.z, colorscale: 'Viridis', contours: { showlabels: true } }], layout: { xaxis: { title: c.x_label || xFactor }, yaxis: { title: c.y_label || yFactor } } });
             }, 50);
-        } catch (err) { showLoading(false); alert('Contour failed: ' + err.message); }
+        } catch (err) { showLoading(false); alert('Contour failed: ' + safeStr(err, 'Unknown error')); }
     });
 }
 
@@ -9146,7 +9146,7 @@ function openDOEOptimizeDialog() {
                 responses: [respConfig],
             });
             showLoading(false);
-            if (data.error) { alert(data.error); return; }
+            if (data.error) { alert(safeStr(data.error, 'Error')); return; }
 
             const opt = data.optimization || {};
             let html = '<h4 style="color:var(--text);margin:0 0 0.5rem;">Optimization Results</h4>';
@@ -9171,7 +9171,7 @@ function openDOEOptimizeDialog() {
                 html += '</div>';
             }
             addOutput('DOE Optimization', html);
-        } catch (err) { showLoading(false); alert('Optimization failed: ' + err.message); }
+        } catch (err) { showLoading(false); alert('Optimization failed: ' + safeStr(err, 'Unknown error')); }
     });
 }
 
@@ -9206,13 +9206,13 @@ function openDOEChatDialog() {
                 history: doeChat.slice(0, -1),
             });
             showLoading(false);
-            if (data.error) { alert(data.error); return; }
+            if (data.error) { alert(safeStr(data.error, 'Error')); return; }
             const reply = data.response || 'No response';
             doeChat.push({ role: 'assistant', content: reply });
             addOutput('DOE Guide', `<pre class="stats-summary">${reply}</pre>`);
             // Reopen chat so user can continue
             openDOEChatDialog();
-        } catch (err) { showLoading(false); alert('Chat failed: ' + err.message); }
+        } catch (err) { showLoading(false); alert('Chat failed: ' + safeStr(err, 'Unknown error')); }
     });
 }
 
@@ -9341,9 +9341,9 @@ function openMLDialog(mode) {
             try {
                 const { response: r, data: result } = await apiPost('/api/dsw/from-intent/', data);
                 showLoading(false);
-                if (result.error) { alert(result.error); return; }
+                if (result.error) { alert(safeStr(result.error, 'Error')); return; }
                 renderMLOutput(result);
-            } catch (err) { showLoading(false); alert('Error: ' + err.message); }
+            } catch (err) { showLoading(false); alert('Error: ' + safeStr(err, 'Unknown error')); }
         });
     } else {
         html = `
@@ -9368,9 +9368,9 @@ function openMLDialog(mode) {
             try {
                 const { response: r, data: result } = await apiPost('/api/dsw/from-data/', formData, true);
                 showLoading(false);
-                if (result.error) { alert(result.error); return; }
+                if (result.error) { alert(safeStr(result.error, 'Error')); return; }
                 renderMLOutput(result);
-            } catch (err) { showLoading(false); alert('Error: ' + err.message); }
+            } catch (err) { showLoading(false); alert('Error: ' + safeStr(err, 'Unknown error')); }
         });
     }
 }
@@ -9807,7 +9807,7 @@ async function saveModel(modelKey) {
     const name = nameInput?.value?.trim() || 'Untitled Model';
     try {
         const { response, data } = await apiPost('/api/dsw/models/save/', { model_key: modelKey, name });
-        if (data.error) throw new Error(data.error);
+        if (data.error) throw new Error(safeStr(data.error, 'Error'));
         const prompt = nameInput?.closest('.save-model-prompt');
         if (prompt) {
             prompt.innerHTML = `
@@ -9816,7 +9816,7 @@ async function saveModel(modelKey) {
             `;
         }
     } catch (err) {
-        alert('Failed to save model: ' + err.message);
+        alert('Failed to save model: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -9913,7 +9913,7 @@ async function loadHypothesesForLink(uid, btn) {
         }
         btn.style.display = 'none';
     } catch (err) {
-        showToast('Failed to load hypotheses: ' + err.message);
+        showToast('Failed to load hypotheses: ' + safeStr(err, 'Unknown error'));
         btn.disabled = false;
         btn.textContent = 'Link to hypothesis';
     }
@@ -9939,7 +9939,7 @@ async function submitHypothesisLink(uid) {
 
     try {
         const { response, data } = await apiPost(`/api/synara/${currentWorkbench.id}/evidence/add/`, payload);
-        if (data.error) throw new Error(data.error);
+        if (data.error) throw new Error(safeStr(data.error, 'Error'));
         prompt.innerHTML = `
             <span style="color:var(--success);font-size:0.85rem;">&#10003; Evidence linked to hypothesis</span>
             <a href="#" onclick="document.querySelector('[data-tab=\\'synara\\']')?.click(); return false;"
@@ -9947,7 +9947,7 @@ async function submitHypothesisLink(uid) {
         `;
         showToast('Evidence linked to hypothesis');
     } catch (err) {
-        showToast('Failed to link: ' + err.message);
+        showToast('Failed to link: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -9984,7 +9984,7 @@ async function createNewHypothesisFromFinding(uid, observation, picker) {
             showToast('New hypothesis created and evidence linked');
             if (typeof synaraRefresh === 'function') synaraRefresh();
         } else {
-            showToast(data.error || 'Could not create hypothesis');
+            showToast(safeStr(data.error, 'Could not create hypothesis'));
             if (createBtn) { createBtn.disabled = false; createBtn.textContent = '+ New'; }
         }
     } catch (e) {
@@ -10054,7 +10054,7 @@ function appendUpdateFMEAPrompt(blockId, oocCount, totalPoints) {
                     if (data.success) {
                         div.innerHTML = `<span style="color:var(--success);font-size:0.82rem;">\u2713 FMEA Occurrence updated: ${data.old_occurrence} \u2192 ${data.new_occurrence} (RPN: ${data.old_rpn} \u2192 ${data.new_rpn})</span>`;
                     } else {
-                        showToast(data.error || 'Update failed');
+                        showToast(safeStr(data.error, 'Update failed'));
                         this.disabled = false;
                         this.textContent = 'Confirm';
                     }
@@ -10301,11 +10301,11 @@ async function synaraAddHypothesis() {
             description: desc,
             prior: prior,
         });
-        if (data.error) throw new Error(data.error);
+        if (data.error) throw new Error(safeStr(data.error, 'Error'));
         showToast('Hypothesis added');
         synaraRefresh();
     } catch (err) {
-        showToast('Failed: ' + err.message);
+        showToast('Failed: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -10319,7 +10319,7 @@ async function synaraDeleteHypothesis(hId) {
         });
         synaraRefresh();
     } catch (err) {
-        showToast('Failed to delete: ' + err.message);
+        showToast('Failed to delete: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -10333,7 +10333,7 @@ async function synaraDeleteEvidence(eId) {
         });
         synaraRefresh();
     } catch (err) {
-        showToast('Failed to delete: ' + err.message);
+        showToast('Failed to delete: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -10346,11 +10346,11 @@ async function synaraResolveSignal(signalId, resolution) {
             payload.new_hypothesis = { description: desc, prior: 0.5 };
         }
         const { response, data } = await apiPost(`/api/synara/${currentWorkbench.id}/expansions/${signalId}/resolve/`, payload);
-        if (data.error) throw new Error(data.error);
+        if (data.error) throw new Error(safeStr(data.error, 'Error'));
         showToast(resolution === 'dismissed' ? 'Signal dismissed' : 'Hypothesis added from signal');
         synaraRefresh();
     } catch (err) {
-        showToast('Failed: ' + err.message);
+        showToast('Failed: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -10373,10 +10373,10 @@ function openSaveModelDialog() {
                 model_key: lastModelKey, name, description
             });
             showLoading(false);
-            if (data.error) throw new Error(data.error);
+            if (data.error) throw new Error(safeStr(data.error, 'Error'));
             showToast('Model "' + (data.name || name) + '" saved');
             lastModelKey = null;
-        } catch (err) { showLoading(false); alert('Failed to save: ' + err.message); }
+        } catch (err) { showLoading(false); alert('Failed to save: ' + safeStr(err, 'Unknown error')); }
     });
 }
 
@@ -10436,7 +10436,7 @@ async function openLoadModelDialog() {
             // trigger for initial selection
             document.getElementById('dlg-load-model-id')?.dispatchEvent(new Event('change'));
         }, 50);
-    } catch (err) { showLoading(false); alert('Failed to load models: ' + err.message); }
+    } catch (err) { showLoading(false); alert('Failed to load models: ' + safeStr(err, 'Unknown error')); }
 }
 
 // =============================================================================
@@ -10527,10 +10527,10 @@ function openAutopilotDialog(mode) {
             };
             const { response: r, data: result } = await apiPost(endpoints[mode], formData, true);
             showLoading(false);
-            if (result.error) { alert(result.error); return; }
+            if (result.error) { alert(safeStr(result.error, 'Error')); return; }
             renderAutopilotOutput(result, mode);
             svendTrack('feature_use', {category: 'dsw', action: 'autopilot_' + mode});
-        } catch (err) { showLoading(false); alert('Error: ' + err.message); }
+        } catch (err) { showLoading(false); alert('Error: ' + safeStr(err, 'Unknown error')); }
     });
 
     // Wire up CSV header parsing for target column selector
@@ -10863,10 +10863,10 @@ async function saveWorkbench() {
                 datasets: datasetInfo,
                 layout: sessionState,
             });
-            if (result.error) { alert(result.error === 'auth' ? 'Please log in to save' : 'Save failed: ' + result.error); return; }
+            if (result.error) { alert(safeStr(result.error) === 'auth' ? 'Please log in to save' : 'Save failed: ' + safeStr(result.error, 'Unknown error')); return; }
         } else {
             const data = await apiCall('create/', 'POST', { title, description: '' });
-            if (data.error) { alert(data.error === 'auth' ? 'Please log in to save' : 'Save failed: ' + data.error); return; }
+            if (data.error) { alert(safeStr(data.error) === 'auth' ? 'Please log in to save' : 'Save failed: ' + safeStr(data.error, 'Unknown error')); return; }
             if (data.workbench) {
                 currentWorkbench = { id: data.workbench.id };
                 history.replaceState({}, '', `/app/dsw/?id=${currentWorkbench.id}`);
@@ -10881,7 +10881,7 @@ async function saveWorkbench() {
             }
         }
         showToast('Session saved');
-    } catch (err) { alert('Save failed: ' + err.message); }
+    } catch (err) { alert('Save failed: ' + safeStr(err, 'Unknown error')); }
 }
 
 function showWorkbenchList() {
@@ -10894,7 +10894,7 @@ async function loadWorkbenchList() {
     try {
         const data = await apiCall('');
         const list = document.getElementById('workbench-list');
-        if (data.error === 'auth') {
+        if (safeStr(data.error) === 'auth') {
             list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-dim);"><a href="/login/?next=/app/dsw/" style="color:var(--accent);">Log in</a> to save and load workbenches.</div>';
             return;
         }

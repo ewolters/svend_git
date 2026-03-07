@@ -647,12 +647,12 @@
 
             if (!response.ok) {
                 const data = await response.json();
-                throw new Error(data.error || 'Failed to update profile');
+                throw new Error(safeStr(data.error, 'Failed to update profile'));
             }
 
             showToast('Profile updated');
         } catch (err) {
-            showToast(err.message, 'error');
+            showToast(safeStr(err, 'Unknown error'), 'error');
         }
     });
 
@@ -677,12 +677,12 @@
 
             if (!response.ok) {
                 const data = await response.json();
-                throw new Error(data.error || 'Failed to update profile');
+                throw new Error(safeStr(data.error, 'Failed to update profile'));
             }
 
             showToast('Profile updated');
         } catch (err) {
-            showToast(err.message, 'error');
+            showToast(safeStr(err, 'Unknown error'), 'error');
         }
     });
 
@@ -713,12 +713,12 @@
             });
 
             const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Failed to change password');
+            if (!response.ok) throw new Error(safeStr(data.error, 'Failed to change password'));
 
             showToast('Password changed successfully');
             document.getElementById('password-form').reset();
         } catch (err) {
-            showToast(err.message, 'error');
+            showToast(safeStr(err, 'Unknown error'), 'error');
         }
     });
 
@@ -746,12 +746,12 @@
 
             if (!response.ok) {
                 const data = await response.json();
-                throw new Error(data.error || 'Failed to update preferences');
+                throw new Error(safeStr(data.error, 'Failed to update preferences'));
             }
 
             showToast('Preferences saved');
         } catch (err) {
-            showToast(err.message, 'error');
+            showToast(safeStr(err, 'Unknown error'), 'error');
         }
     });
 
@@ -907,11 +907,11 @@
                 body: JSON.stringify({ role: newRole }),
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error);
+            if (!res.ok) throw new Error(safeStr(data.error, 'Request failed'));
             showToast('Role updated');
             loadOrgMembers();
         } catch (err) {
-            showToast(err.message, 'error');
+            showToast(safeStr(err, 'Unknown error'), 'error');
         }
     }
 
@@ -925,11 +925,11 @@
                 credentials: 'include',
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error);
+            if (!res.ok) throw new Error(safeStr(data.error, 'Request failed'));
             showToast('Member removed');
             loadOrgMembers();
         } catch (err) {
-            showToast(err.message, 'error');
+            showToast(safeStr(err, 'Unknown error'), 'error');
         }
     }
 
@@ -951,7 +951,7 @@
                 if (res.status === 402) {
                     throw new Error(data.message || 'Payment failed — check payment method');
                 }
-                throw new Error(data.error || data.message);
+                throw new Error(safeStr(data.error, '') || safeStr(data.message, 'Request failed'));
             }
 
             const msg = data.seat_added
@@ -962,7 +962,7 @@
             loadOrgInvitations();
             loadOrgMembers(); // Refresh seat count
         } catch (err) {
-            showToast(err.message, 'error');
+            showToast(safeStr(err, 'Unknown error'), 'error');
         }
     });
 
@@ -1013,12 +1013,12 @@
                 credentials: 'include',
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error);
+            if (!res.ok) throw new Error(safeStr(data.error, 'Request failed'));
             showToast('Invitation cancelled');
             loadOrgInvitations();
             loadOrgMembers();
         } catch (err) {
-            showToast(err.message, 'error');
+            showToast(safeStr(err, 'Unknown error'), 'error');
         }
     }
 
@@ -1053,14 +1053,14 @@
                 body: JSON.stringify({ name, slug }),
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Failed to create organization');
+            if (!res.ok) throw new Error(safeStr(data.error, 'Failed to create organization'));
 
             showToast('Organization created');
             document.getElementById('org-create-section').style.display = 'none';
             orgLoaded = false;
             loadOrgData();
         } catch (err) {
-            showToast(err.message, 'error');
+            showToast(safeStr(err, 'Unknown error'), 'error');
         }
     });
 

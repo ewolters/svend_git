@@ -2470,10 +2470,10 @@ async function createProject(e) {
             closeModal();
             viewProject(result.id || editId);
         } else {
-            alert(result.error || (editId ? 'Failed to update study' : 'Failed to create study'));
+            alert(safeStr(result.error, editId ? 'Failed to update study' : 'Failed to create study'));
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -2490,7 +2490,7 @@ async function viewProject(id) {
         currentProject._changelog = hubData.changelog || [];
         renderProjectDetail();
     } catch (err) {
-        alert('Failed to load study: ' + err.message);
+        alert('Failed to load study: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -2666,7 +2666,7 @@ async function advancePhase() {
             alert(err.error || 'Failed to advance phase');
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -2989,10 +2989,10 @@ async function addHypothesis(e) {
             closeHypothesisModal();
             await loadHypotheses();
         } else {
-            alert(result.error || 'Failed to add hypothesis');
+            alert(safeStr(result.error, 'Failed to add hypothesis'));
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -3002,7 +3002,7 @@ async function viewHypothesis(id) {
         currentHypothesis = await response.json();
         renderHypothesisDetail();
     } catch (err) {
-        alert('Failed to load hypothesis: ' + err.message);
+        alert('Failed to load hypothesis: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -3261,10 +3261,10 @@ async function saveHypothesisEdit(e) {
             await viewHypothesis(editId);
         } else {
             const result = await response.json();
-            alert(result.error || 'Failed to update hypothesis');
+            alert(safeStr(result.error, 'Failed to update hypothesis'));
         }
     } catch (err) {
-        alert('Failed to save: ' + err.message);
+        alert('Failed to save: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -3330,10 +3330,10 @@ async function addEvidence(e) {
             closeEvidenceModal();
             await viewHypothesis(currentHypothesis.id);
         } else {
-            alert(result.error || 'Failed to add evidence');
+            alert(safeStr(result.error, 'Failed to add evidence'));
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -3504,10 +3504,10 @@ async function archiveProject() {
             backToList();
         } else {
             const result = await response.json();
-            alert(result.error || 'Failed to archive study');
+            alert(safeStr(result.error, 'Failed to archive study'));
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -3583,10 +3583,10 @@ async function uploadDataset(e) {
             // Reload project to get updated datasets
             await viewProject(currentProject.id);
         } else {
-            alert(result.error || 'Failed to upload dataset');
+            alert(safeStr(result.error, 'Failed to upload dataset'));
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     } finally {
         uploadBtn.textContent = 'Upload Dataset';
         uploadBtn.disabled = false;
@@ -3647,7 +3647,7 @@ async function viewDataset(id) {
         content.innerHTML = tableHtml;
         document.getElementById('dataset-detail-modal').style.display = 'flex';
     } catch (err) {
-        alert('Failed to load dataset: ' + err.message);
+        alert('Failed to load dataset: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -3672,10 +3672,10 @@ async function deleteDataset(id) {
             await viewProject(currentProject.id);
         } else {
             const result = await response.json();
-            alert(result.error || 'Failed to delete dataset');
+            alert(safeStr(result.error, 'Failed to delete dataset'));
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -3781,10 +3781,10 @@ async function reviewDesignExecution(designId) {
             // Show review results (backend returns { success, review, design })
             showExecutionReviewModal(result.review);
         } else {
-            alert(result.error || 'Failed to review design execution');
+            alert(safeStr(result.error, 'Failed to review design execution'));
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -4197,10 +4197,10 @@ async function studyAction(actionType) {
             // Reload hub to show updated actions trail
             await loadProject(currentProject.id);
         } else {
-            alert(result.error || 'Action failed');
+            alert(safeStr(result.error, 'Action failed'));
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -4258,10 +4258,10 @@ async function submitTrainingGap(modal) {
             modal.remove();
             await loadProject(currentProject.id);
         } else {
-            alert(result.error || 'Failed to create training requirement');
+            alert(safeStr(result.error, 'Failed to create training requirement'));
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -4325,10 +4325,10 @@ async function submitFMEAFlag(modal) {
             modal.remove();
             await loadProject(currentProject.id);
         } else {
-            alert(result.error || 'Failed to flag FMEA');
+            alert(safeStr(result.error, 'Failed to flag FMEA'));
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 

@@ -2952,10 +2952,10 @@ async function saveRateLimit(tier) {
             setTimeout(() => { input.style.borderColor = 'var(--border)'; }, 1500);
             loadAnthropic();
         } else {
-            alert(data.error || 'Failed to save');
+            alert(safeStr(data.error, 'Failed to save'));
         }
     } catch (e) {
-        alert('Error: ' + e.message);
+        alert('Error: ' + safeStr(e, 'Unknown error'));
     }
 }
 
@@ -3215,7 +3215,7 @@ async function sendInsight() {
             output.innerHTML = formatMarkdown(d.insights);
         }
     } catch (e) {
-        output.innerHTML = `<span style="color:var(--error)">Request failed: ${e.message}</span>`;
+        output.innerHTML = `<span style="color:var(--error)">Request failed: ${escapeHtml(safeStr(e, 'Unknown error'))}</span>`;
     }
     btn.disabled = false;
 }
@@ -4804,7 +4804,7 @@ async function loadInfra() {
                 <td style="padding:6px 8px;white-space:nowrap;">${e.timestamp && e.timestamp !== 'None' ? new Date(e.timestamp).toLocaleString() : '—'}</td>
                 <td style="padding:6px 8px;color:${levelColor};font-weight:600;">${e.level}</td>
                 <td style="padding:6px 8px;font-family:monospace;font-size:0.75rem;">${e.logger || '—'}</td>
-                <td style="padding:6px 8px;max-width:500px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(e.message || '').replace(/"/g, '&quot;')}">${e.message || '—'}</td>
+                <td style="padding:6px 8px;max-width:500px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(safeStr(e.message, '—')).replace(/"/g, '&quot;')}">${safeStr(e.message, '—')}</td>
             `;
             etbody.appendChild(tr);
         });
@@ -4908,16 +4908,16 @@ async function runCalibrationAction(action) {
             statusEl.textContent = `Done in ${secs}s`;
             statusEl.style.color = 'var(--accent-primary,#4a9f6e)';
             if (data.output) {
-                outputEl.textContent = data.output;
+                outputEl.textContent = safeStr(data.output);
                 outputEl.style.display = 'block';
             }
             await loadCalibration();
         } else {
-            statusEl.textContent = data.error || 'Failed';
+            statusEl.textContent = safeStr(data.error, 'Failed');
             statusEl.style.color = 'var(--danger,#ef4444)';
         }
     } catch (e) {
-        statusEl.textContent = 'Error: ' + e.message;
+        statusEl.textContent = 'Error: ' + safeStr(e, 'Unknown error');
         statusEl.style.color = 'var(--danger,#ef4444)';
     }
     btn.textContent = origText;
@@ -5318,7 +5318,7 @@ async function sendEmail(testMode) {
             loadEmailCampaigns();
         } else {
             statusEl.style.color = 'var(--error)';
-            statusEl.textContent = data.error || 'Send failed.';
+            statusEl.textContent = safeStr(data.error, 'Send failed.');
         }
     } catch (e) {
         statusEl.style.color = 'var(--error)';
@@ -6633,7 +6633,7 @@ async function saveLead() {
             loadCRMPipeline();
             loadCRMLeads();
         } else {
-            showToast(result.error || 'Failed to save lead', 'error');
+            showToast(safeStr(result.error, 'Failed to save lead'), 'error');
         }
     } catch (e) {
         showToast('Failed to save lead', 'error');
@@ -6704,7 +6704,7 @@ async function enrollLead() {
             document.getElementById('crm-enroll-modal').style.display = 'none';
             loadCRMLeads();
         } else {
-            showToast(data.error || 'Enrollment failed', 'error');
+            showToast(safeStr(data.error, 'Enrollment failed'), 'error');
         }
     } catch (e) {
         showToast('Enrollment failed', 'error');
@@ -6721,7 +6721,7 @@ async function processOutreachQueue() {
         });
         const pdata = await preview.json();
         if (!preview.ok) {
-            showToast(pdata.error || 'Failed to preview queue', 'error');
+            showToast(safeStr(pdata.error, 'Failed to preview queue'), 'error');
             return;
         }
         if (pdata.due_count === 0) {
@@ -6733,7 +6733,7 @@ async function processOutreachQueue() {
             return;
         }
     } catch (e) {
-        showToast('Failed to preview queue: ' + e.message, 'error');
+        showToast('Failed to preview queue: ' + safeStr(e, 'Unknown error'), 'error');
         return;
     }
 
@@ -6747,7 +6747,7 @@ async function processOutreachQueue() {
         const data = await r.json();
         if (r.ok) {
             if (data.failed > 0 && data.errors) {
-                showToast(`${data.sent} sent, ${data.failed} FAILED:\n${data.errors[0]}`, 'error', 8000);
+                showToast(`${data.sent} sent, ${data.failed} FAILED:\n${safeStr(data.errors?.[0], 'Unknown error')}`, 'error', 8000);
             } else if (data.sent > 0) {
                 showToast(`${data.sent} email(s) sent successfully.`, 'success');
             } else {
@@ -6756,10 +6756,10 @@ async function processOutreachQueue() {
             loadCRMPipeline();
             loadCRMLeads();
         } else {
-            showToast(data.error || 'Queue processing failed', 'error');
+            showToast(safeStr(data.error, 'Queue processing failed'), 'error');
         }
     } catch (e) {
-        showToast('Queue processing failed: ' + e.message, 'error');
+        showToast('Queue processing failed: ' + safeStr(e, 'Unknown error'), 'error');
     }
 }
 
@@ -6832,7 +6832,7 @@ async function generateBulkCampaign() {
             document.getElementById('crm-campaign-preview').style.display = 'block';
             showToast('A/B variants generated — review and edit before sending', 'success');
         } else {
-            showToast(data.error || 'Generation failed', 'error');
+            showToast(safeStr(data.error, 'Generation failed'), 'error');
         }
     } catch (e) {
         showToast('Generation failed', 'error');
@@ -6878,7 +6878,7 @@ async function previewBulkCampaign() {
             document.getElementById('crm-campaign-send-count').textContent = data.total;
             document.getElementById('crm-campaign-review').style.display = 'block';
         } else {
-            showToast(data.error || 'Preview failed', 'error');
+            showToast(safeStr(data.error, 'Preview failed'), 'error');
         }
     } catch (e) {
         showToast('Preview failed', 'error');
@@ -6917,7 +6917,7 @@ async function sendBulkCampaign() {
             loadCRMPipeline();
             loadCRMLeads();
         } else {
-            showToast(data.error || 'Bulk send failed', 'error');
+            showToast(safeStr(data.error, 'Bulk send failed'), 'error');
         }
     } catch (e) {
         showToast('Bulk send failed', 'error');
@@ -7083,7 +7083,7 @@ async function saveSequence() {
             _seqSteps = [];
             loadCRMSequences();
         } else {
-            showToast(result.error || 'Failed to save sequence', 'error');
+            showToast(safeStr(result.error, 'Failed to save sequence'), 'error');
         }
     } catch (e) {
         showToast('Failed to save sequence', 'error');
@@ -7140,7 +7140,7 @@ async function generateStepEmail(stepIdx) {
             reRenderSteps(steps);
             showToast('Email copy generated', 'success');
         } else {
-            showToast(data.error || 'Generation failed', 'error');
+            showToast(safeStr(data.error, 'Generation failed'), 'error');
         }
     } catch (e) {
         showToast('Generation failed', 'error');
@@ -7797,7 +7797,7 @@ async function openStandard(code) {
         // Scroll reader to top
         document.getElementById('std-reader').scrollTop = 0;
     } catch (e) {
-        document.getElementById('std-reader-body').innerHTML = `<div style="color:var(--danger,#ef4444);padding:2rem;">Failed to load: ${esc(e.message)}</div>`;
+        document.getElementById('std-reader-body').innerHTML = `<div style="color:var(--danger,#ef4444);padding:2rem;">Failed to load: ${esc(safeStr(e, 'Unknown error'))}</div>`;
     }
 }
 
@@ -7944,10 +7944,10 @@ async function saveRoadmapItem() {
             _rmSelectedId = result.id;
             loadRoadmap();
         } else {
-            showToast(result.error || 'Save failed', 'error');
+            showToast(safeStr(result.error, 'Save failed'), 'error');
         }
     } catch (e) {
-        showToast('Save failed: ' + e.message, 'error');
+        showToast('Save failed: ' + safeStr(e, 'Unknown error'), 'error');
     }
 }
 
@@ -7967,7 +7967,7 @@ async function deleteRoadmapItem() {
             loadRoadmap();
         }
     } catch (e) {
-        showToast('Delete failed: ' + e.message, 'error');
+        showToast('Delete failed: ' + safeStr(e, 'Unknown error'), 'error');
     }
 }
 
@@ -8238,7 +8238,7 @@ async function showFeatureDetail(featureId) {
         content.innerHTML = html;
 
     } catch(e) {
-        document.getElementById('ft-reader-content').innerHTML = `<div style="color:var(--danger,#ef4444);padding:2rem;">Error loading feature: ${e.message}</div>`;
+        document.getElementById('ft-reader-content').innerHTML = `<div style="color:var(--danger,#ef4444);padding:2rem;">Error loading feature: ${escapeHtml(safeStr(e, 'Unknown error'))}</div>`;
         document.getElementById('ft-reader-content').style.display = 'block';
         document.getElementById('ft-reader-empty').style.display = 'none';
     }
@@ -8258,10 +8258,10 @@ async function updateFeatureStatus(featureId) {
             loadFeatures();
             setTimeout(() => showFeatureDetail(featureId), 300);
         } else {
-            showToast(result.error || 'Update failed', 'error');
+            showToast(safeStr(result.error, 'Update failed'), 'error');
         }
     } catch(e) {
-        showToast('Update failed: ' + e.message, 'error');
+        showToast('Update failed: ' + safeStr(e, 'Unknown error'), 'error');
     }
 }
 
@@ -8278,10 +8278,10 @@ async function saveFeatureFields(featureId) {
         if (result.ok) {
             showToast('Saved', 'success');
         } else {
-            showToast(result.error || 'Save failed', 'error');
+            showToast(safeStr(result.error, 'Save failed'), 'error');
         }
     } catch(e) {
-        showToast('Save failed: ' + e.message, 'error');
+        showToast('Save failed: ' + safeStr(e, 'Unknown error'), 'error');
     }
 }
 
@@ -8301,10 +8301,10 @@ async function addFeatureNote(featureId) {
             showToast('Note added', 'success');
             showFeatureDetail(featureId);
         } else {
-            showToast(result.error || 'Failed', 'error');
+            showToast(safeStr(result.error, 'Failed'), 'error');
         }
     } catch(e) {
-        showToast('Failed: ' + e.message, 'error');
+        showToast('Failed: ' + safeStr(e, 'Unknown error'), 'error');
     }
 }
 

@@ -1112,7 +1112,7 @@ async function doEmbed() {
             // Add the diagram to the section
             renderDiagram(embedTarget.section, data.diagram_id, data.svg, data.board_name);
         } else {
-            alert(data.error || 'Embed failed');
+            alert(safeStr(data.error, 'Embed failed'));
         }
     } catch (e) {
         console.error('Embed failed:', e);
@@ -1246,7 +1246,7 @@ async function executeA3Import(include) {
                 renderAllDiagrams(data.report.embedded_diagrams);
             }
         } else {
-            alert(data.error || 'Import failed');
+            alert(safeStr(data.error, 'Import failed'));
         }
     } catch (e) {
         console.error('Import failed:', e);
@@ -1285,7 +1285,7 @@ async function autoPopulate() {
         const data = await resp.json();
 
         if (data.rate_limited) {
-            alert(data.error);
+            alert(safeStr(data.error, 'Error'));
             return;
         }
 
@@ -1398,7 +1398,7 @@ async function addA3ActionItem(reportId) {
             renderA3ActionItems(currentActionItems);
             toggleActionForm();
         } else {
-            alert(data.error || 'Failed to add action item');
+            alert(safeStr(data.error, 'Failed to add action item'));
         }
     } catch (e) {
         console.error('Add action item failed:', e);
@@ -1424,7 +1424,7 @@ async function updateActionStatus(actionId, newStatus) {
             if (item) item.status = newStatus;
             renderA3ActionItems(currentActionItems);
         } else {
-            alert(data.error || 'Failed to update status');
+            alert(safeStr(data.error, 'Failed to update status'));
         }
     } catch (e) {
         console.error('Update action status failed:', e);

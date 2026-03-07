@@ -566,7 +566,7 @@ async function sendMessage() {
         const data = await response.json();
 
         if (data.error) {
-            addMessage('error', data.error);
+            addMessage('error', safeStr(data.error, 'Code generation failed'));
             return;
         }
 
@@ -578,7 +578,7 @@ async function sendMessage() {
 
     } catch (err) {
         removeTyping(typingId);
-        addMessage('error', 'Failed to generate code: ' + err.message);
+        addMessage('error', 'Failed to generate code: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -642,22 +642,25 @@ async function runCode() {
         const data = await response.json();
 
         if (data.error) {
-            outputEl.textContent = data.error;
+            const errMsg = safeStr(data.error, 'Execution error');
+            outputEl.textContent = errMsg;
             outputEl.className = 'output-content error';
-            lastOutput = { error: true, text: data.error };
-            addMessage('assistant', `Error: ${data.error}\n\nWould you like me to fix this?`);
+            lastOutput = { error: true, text: errMsg };
+            addMessage('assistant', `Error: ${errMsg}\n\nWould you like me to fix this?`);
         } else {
-            outputEl.textContent = data.output || 'Done (no output)';
+            const outText = safeStr(data.output, 'Done (no output)');
+            outputEl.textContent = outText;
             outputEl.className = 'output-content success';
-            lastOutput = { error: false, text: data.output, data: data };
+            lastOutput = { error: false, text: outText, data: data };
         }
 
         updateSaveButton();
 
     } catch (err) {
-        outputEl.textContent = 'Execution failed: ' + err.message;
+        const errText = safeStr(err, 'Unknown error');
+        outputEl.textContent = 'Execution failed: ' + errText;
         outputEl.className = 'output-content error';
-        lastOutput = { error: true, text: err.message };
+        lastOutput = { error: true, text: errText };
     }
 }
 
@@ -714,10 +717,10 @@ async function saveAsEvidence() {
                 }
             }
         } else {
-            addMessage('error', `Failed to save evidence: ${data.error || 'Unknown error'}`);
+            addMessage('error', `Failed to save evidence: ${safeStr(data.error, 'Unknown error')}`);
         }
     } catch (err) {
-        addMessage('error', 'Failed to save evidence: ' + err.message);
+        addMessage('error', 'Failed to save evidence: ' + safeStr(err, 'Unknown error'));
     }
 }
 

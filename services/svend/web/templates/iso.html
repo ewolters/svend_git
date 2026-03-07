@@ -400,7 +400,7 @@ async function loadDashboard() {
 
         el.innerHTML = html;
     } catch (e) {
-        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Unknown error'))}</div>`;
     }
 }
 
@@ -421,7 +421,7 @@ async function loadNCRs() {
         ncrList = await apiFetch(`/ncrs/${params}`);
         renderNCRList(el);
     } catch (e) {
-        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Unknown error'))}</div>`;
     }
 }
 
@@ -527,7 +527,7 @@ async function saveNCR() {
         toast('NCR created');
         document.getElementById('ncr-form-area').innerHTML = '';
         loadNCRs();
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function loadNCRDetail(id) {
@@ -657,7 +657,7 @@ async function loadNCRDetail(id) {
 
         el.innerHTML = html;
     } catch (e) {
-        toast(e.message, true);
+        toast(safeStr(e, 'Unknown error'), true);
     }
 }
 
@@ -667,7 +667,7 @@ async function advanceNCR(id, newStatus) {
         await apiFetch(`/ncrs/${id}/`, { method: 'PUT', body: { status: newStatus, status_note: note } });
         toast(`NCR advanced to ${newStatus}`);
         loadNCRDetail(id);
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function updateNCRFields(id) {
@@ -680,7 +680,7 @@ async function updateNCRFields(id) {
         }});
         toast('NCR updated');
         loadNCRDetail(id);
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function deleteNCR(id) {
@@ -689,7 +689,7 @@ async function deleteNCR(id) {
         await apiFetch(`/ncrs/${id}/`, { method: 'DELETE' });
         toast('NCR deleted');
         loadNCRs();
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function launchRCA(id) {
@@ -697,7 +697,7 @@ async function launchRCA(id) {
         const r = await apiFetch(`/ncrs/${id}/launch-rca/`, { method: 'POST' });
         toast('RCA session created');
         window.location.href = `/app/rca/?session=${r.rca_session_id}`;
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 // =========================================================================
@@ -711,7 +711,7 @@ async function loadAudits() {
         auditList = await apiFetch('/audits/');
         renderAuditList(el);
     } catch (e) {
-        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Unknown error'))}</div>`;
     }
 }
 
@@ -806,7 +806,7 @@ async function saveAudit() {
         toast('Audit created');
         document.getElementById('audit-form-area').innerHTML = '';
         loadAudits();
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function loadAuditDetail(id) {
@@ -899,7 +899,7 @@ async function loadAuditDetail(id) {
 
         html += '</div>';
         el.innerHTML = html;
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function updateAuditStatus(id, status) {
@@ -907,7 +907,7 @@ async function updateAuditStatus(id, status) {
         await apiFetch(`/audits/${id}/`, { method: 'PUT', body: { status } });
         toast(`Audit status updated to ${status}`);
         loadAuditDetail(id);
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function addFinding(auditId) {
@@ -925,7 +925,7 @@ async function addFinding(auditId) {
         if (result.ncr_id) msg += ' — NCR auto-created';
         toast(msg);
         loadAuditDetail(auditId);
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function deleteAudit(id) {
@@ -934,7 +934,7 @@ async function deleteAudit(id) {
         await apiFetch(`/audits/${id}/`, { method: 'DELETE' });
         toast('Audit deleted');
         loadAudits();
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 // =========================================================================
@@ -949,7 +949,7 @@ async function loadTraining() {
         trainingData = await apiFetch('/training/');
         renderTraining(el);
     } catch (e) {
-        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Unknown error'))}</div>`;
     }
 }
 
@@ -1175,7 +1175,7 @@ async function saveTraining() {
         toast('Training requirement created');
         document.getElementById('training-form-area').innerHTML = '';
         loadTraining();
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function deleteTraining(id) {
@@ -1184,7 +1184,7 @@ async function deleteTraining(id) {
         await apiFetch(`/training/${id}/`, { method: 'DELETE' });
         toast('Training requirement deleted');
         loadTraining();
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function addEmployee(reqId) {
@@ -1198,7 +1198,7 @@ async function addEmployee(reqId) {
         }});
         toast('Employee added');
         loadTraining();
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function completeRecord(id) {
@@ -1206,7 +1206,7 @@ async function completeRecord(id) {
         await apiFetch(`/training/records/${id}/`, { method: 'PUT', body: { status: 'complete' } });
         toast('Record marked complete');
         loadTraining();
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function deleteRecord(id) {
@@ -1215,7 +1215,7 @@ async function deleteRecord(id) {
         await apiFetch(`/training/records/${id}/`, { method: 'DELETE' });
         toast('Record removed');
         loadTraining();
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 function editRecord(id) {
@@ -1236,7 +1236,7 @@ async function saveRecordEdit(id) {
         }});
         toast('Record updated');
         loadTraining();
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function recertifyRecord(id) {
@@ -1245,7 +1245,7 @@ async function recertifyRecord(id) {
         await apiFetch(`/training/records/${id}/`, { method: 'PUT', body: { action: 'recertify' } });
         toast('Record recertified');
         loadTraining();
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 // =========================================================================
@@ -1259,7 +1259,7 @@ async function loadReviews() {
         reviewList = await apiFetch('/reviews/');
         renderReviewList(el);
     } catch (e) {
-        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Unknown error'))}</div>`;
     }
 }
 
@@ -1297,7 +1297,7 @@ async function createReview() {
         const r = await apiFetch('/reviews/', { method: 'POST', body: {} });
         toast('Review created with auto-populated QMS data');
         loadReviewDetail(r.id);
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function loadReviewDetail(id) {
@@ -1387,7 +1387,7 @@ async function loadReviewDetail(id) {
         html += `<button class="iso-btn primary" onclick="saveReviewDetail('${r.id}')">Save Changes</button>`;
         html += '</div>';
         el.innerHTML = html;
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function saveReviewDetail(id) {
@@ -1413,7 +1413,7 @@ async function saveReviewDetail(id) {
         }});
         toast('Review saved');
         loadReviewDetail(id);
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function updateReviewStatus(id, status) {
@@ -1421,7 +1421,7 @@ async function updateReviewStatus(id, status) {
         await apiFetch(`/reviews/${id}/`, { method: 'PUT', body: { status } });
         toast(`Review status updated to ${status}`);
         loadReviewDetail(id);
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function deleteReview(id) {
@@ -1430,7 +1430,7 @@ async function deleteReview(id) {
         await apiFetch(`/reviews/${id}/`, { method: 'DELETE' });
         toast('Review deleted');
         loadReviews();
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 // =========================================================================
@@ -1452,7 +1452,7 @@ async function loadDocuments() {
         docList = await apiFetch(`/documents/${params}`);
         renderDocList(el);
     } catch (e) {
-        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Unknown error'))}</div>`;
     }
 }
 
@@ -1562,7 +1562,7 @@ async function saveDoc() {
         toast('Document created');
         document.getElementById('doc-form-area').innerHTML = '';
         loadDocuments();
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function loadDocDetail(id) {
@@ -1718,7 +1718,7 @@ async function loadDocDetail(id) {
 
         el.innerHTML = html;
     } catch (e) {
-        toast(e.message, true);
+        toast(safeStr(e, 'Unknown error'), true);
     }
 }
 
@@ -1734,7 +1734,7 @@ async function advanceDocStatus(id, newStatus) {
         await apiFetch(`/documents/${id}/`, { method: 'PUT', body });
         toast(`Document status updated to ${newStatus}`);
         loadDocDetail(id);
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function updateDocFields(id) {
@@ -1750,7 +1750,7 @@ async function updateDocFields(id) {
         }});
         toast('Document updated');
         loadDocDetail(id);
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function deleteDoc(id) {
@@ -1759,7 +1759,7 @@ async function deleteDoc(id) {
         await apiFetch(`/documents/${id}/`, { method: 'DELETE' });
         toast('Document deleted');
         loadDocuments();
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 // =========================================================================
@@ -1786,7 +1786,7 @@ async function loadSuppliers() {
         supplierList = await apiFetch(`/suppliers/${params}`);
         renderSupplierList(el);
     } catch (e) {
-        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Unknown error'))}</div>`;
     }
 }
 
@@ -1900,7 +1900,7 @@ async function saveSupplier() {
         toast('Supplier created');
         document.getElementById('supplier-form-area').innerHTML = '';
         loadSuppliers();
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function loadSupplierDetail(id) {
@@ -2078,7 +2078,7 @@ async function loadSupplierDetail(id) {
 
         el.innerHTML = html;
     } catch (e) {
-        toast(e.message, true);
+        toast(safeStr(e, 'Unknown error'), true);
     }
 }
 
@@ -2093,7 +2093,7 @@ async function advanceSupplierStatus(id, newStatus) {
         await apiFetch(`/suppliers/${id}/`, { method: 'PUT', body });
         toast(`Supplier status updated to ${newStatus}`);
         loadSupplierDetail(id);
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function saveEvaluation(id) {
@@ -2111,7 +2111,7 @@ async function saveEvaluation(id) {
         }});
         toast('Evaluation saved');
         loadSupplierDetail(id);
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function addCertification(id) {
@@ -2126,7 +2126,7 @@ async function addCertification(id) {
         await apiFetch(`/suppliers/${id}/`, { method: 'PUT', body: { metadata: meta } });
         toast('Certification added');
         loadSupplierDetail(id);
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function removeCertification(id, idx) {
@@ -2139,7 +2139,7 @@ async function removeCertification(id, idx) {
         await apiFetch(`/suppliers/${id}/`, { method: 'PUT', body: { metadata: meta } });
         toast('Certification removed');
         loadSupplierDetail(id);
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function updateSupplierFields(id) {
@@ -2156,7 +2156,7 @@ async function updateSupplierFields(id) {
         }});
         toast('Supplier updated');
         loadSupplierDetail(id);
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 async function deleteSupplier(id) {
@@ -2165,7 +2165,7 @@ async function deleteSupplier(id) {
         await apiFetch(`/suppliers/${id}/`, { method: 'DELETE' });
         toast('Supplier deleted');
         loadSuppliers();
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
 </script>

@@ -2203,7 +2203,7 @@ async function generateProposals() {
 
     if (data.error) {
         document.getElementById('vsm-proposals').innerHTML =
-            `<div style="color:var(--error);padding:12px;">${data.error}</div>`;
+            `<div style="color:var(--error);padding:12px;">${safeStr(data.error, 'Error loading data')}</div>`;
         return;
     }
 
@@ -3034,7 +3034,7 @@ async function testFormulaInline() {
         el.innerHTML = `<div class="formula-result positive" style="text-align:left;">Result: <strong>$${result.result.toLocaleString()}</strong>
             <span style="color:var(--text-dim);font-size:11px;margin-left:8px;">(${varsDesc})</span></div>`;
     } else {
-        el.innerHTML = `<div class="formula-result negative" style="text-align:left;">Error: ${result.error}</div>`;
+        el.innerHTML = `<div class="formula-result negative" style="text-align:left;">Error: ${safeStr(result.error, 'Error')}</div>`;
     }
 }
 
@@ -3169,7 +3169,7 @@ async function testFormula() {
     if (result.success) {
         el.innerHTML = `<span class="positive" style="font-size:18px;">$${result.result.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:4})}</span>`;
     } else {
-        el.innerHTML = `<span class="negative">${result.error}</span>`;
+        el.innerHTML = `<span class="negative">${safeStr(result.error, 'Error')}</span>`;
     }
 }
 
@@ -4138,7 +4138,7 @@ async function executeRollover() {
 
         const data = await resp.json();
         if (!resp.ok) {
-            alert(data.error || 'Rollover failed');
+            alert(safeStr(data.error, 'Rollover failed'));
             return;
         }
 
@@ -4152,7 +4152,7 @@ async function executeRollover() {
         renderXMatrix();
     } catch (e) {
         console.error('Rollover error:', e);
-        alert('Rollover failed: ' + e.message);
+        alert('Rollover failed: ' + safeStr(e, 'Unknown error'));
     } finally {
         btn.disabled = false;
         btn.textContent = 'Roll Forward';

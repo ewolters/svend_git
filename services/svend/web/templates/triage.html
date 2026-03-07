@@ -487,7 +487,7 @@ async function previewIssues() {
         hideLoading();
 
         if (data.error) {
-            alert('Error: ' + data.error);
+            alert('Error: ' + safeStr(data.error, 'Unknown error'));
             return;
         }
 
@@ -497,7 +497,7 @@ async function previewIssues() {
 
     } catch (err) {
         hideLoading();
-        alert('Failed to preview: ' + err.message);
+        alert('Failed to preview: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -583,7 +583,7 @@ async function runCleaning() {
         hideLoading();
 
         if (data.error) {
-            alert('Error: ' + data.error);
+            alert('Error: ' + safeStr(data.error, 'Unknown error'));
             return;
         }
 
@@ -593,7 +593,7 @@ async function runCleaning() {
 
     } catch (err) {
         hideLoading();
-        alert('Failed to clean: ' + err.message);
+        alert('Failed to clean: ' + safeStr(err, 'Unknown error'));
     }
 }
 

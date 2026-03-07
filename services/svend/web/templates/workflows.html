@@ -681,10 +681,10 @@ document.getElementById('workflow-form').addEventListener('submit', async (e) =>
             closeModal();
             loadWorkflows();
         } else {
-            alert('Error saving workflow: ' + (data.error || 'Unknown error'));
+            alert('Error saving workflow: ' + safeStr(data.error, 'Unknown error'));
         }
     } catch (err) {
-        alert('Failed to save workflow: ' + err.message);
+        alert('Failed to save workflow: ' + safeStr(err, 'Unknown error'));
     }
 });
 
@@ -713,7 +713,7 @@ async function deleteWorkflow(id) {
         await fetch(`/api/workflows/${id}/`, { method: 'DELETE', credentials: 'include' });
         loadWorkflows();
     } catch (err) {
-        alert('Failed to delete workflow: ' + err.message);
+        alert('Failed to delete workflow: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -739,14 +739,14 @@ async function runWorkflow(id) {
         document.getElementById('results-title').textContent = wf ? wf.name : 'Workflow Results';
 
         if (data.error) {
-            resultsContainer.innerHTML = `<div class="alert alert-error">${data.error}</div>`;
+            resultsContainer.innerHTML = `<div class="alert alert-error">${safeStr(data.error, 'Error')}</div>`;
         } else {
             resultsContainer.innerHTML = renderWorkflowPanels(data.result);
             // Post-process for LaTeX, SMILES, and charts
             setTimeout(postRenderContent, 100);
         }
     } catch (err) {
-        resultsContainer.innerHTML = `<div class="alert alert-error">Failed to run workflow: ${err.message}</div>`;
+        resultsContainer.innerHTML = `<div class="alert alert-error">Failed to run workflow: ${safeStr(err, 'Unknown error')}</div>`;
     }
 }
 

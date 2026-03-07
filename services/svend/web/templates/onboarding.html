@@ -583,7 +583,7 @@
                     pathLabels[data.learning_path] || 'Personalized Track';
                 showStep(3);
             } else {
-                showError(data.error || 'Something went wrong. Please try again.');
+                showError(safeStr(data.error, 'Something went wrong. Please try again.'));
             }
         } catch (e) {
             showError('Connection error. Please try again.');

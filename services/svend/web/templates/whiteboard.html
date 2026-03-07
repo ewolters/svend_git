@@ -4389,7 +4389,7 @@ async function exportCausalAsHypotheses() {
         const data = await response.json();
 
         if (!response.ok) {
-            alert(`Error: ${data.error || 'Failed to export hypotheses'}`);
+            alert(`Error: ${safeStr(data.error, 'Failed to export hypotheses')}`);
             return;
         }
 
@@ -4448,7 +4448,7 @@ function importBoardJSON(event) {
 
             alert('Board imported successfully!');
         } catch (err) {
-            alert('Error importing file: ' + err.message);
+            alert('Error importing file: ' + safeStr(err, 'Unknown error'));
         }
     };
     reader.readAsText(file);
@@ -5045,7 +5045,7 @@ async function submitGuestName() {
             document.getElementById('guest-name-overlay').style.display = 'none';
         } else {
             const data = await response.json();
-            alert(data.error || 'Failed to set name');
+            alert(safeStr(data.error, 'Failed to set name'));
         }
     } catch (err) {
         alert('Connection error. Please try again.');
@@ -5125,7 +5125,7 @@ async function createGuestInvite() {
             await refreshGuestList();
         } else {
             const data = await response.json();
-            alert(data.error || 'Failed to create invite');
+            alert(safeStr(data.error, 'Failed to create invite'));
         }
     } catch (err) {
         alert('Connection error');

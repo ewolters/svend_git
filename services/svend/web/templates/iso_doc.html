@@ -1154,7 +1154,7 @@ async function embedWhiteboard() {
         await loadDoc(currentDoc.id);
         toast('Whiteboard embedded');
     } catch (e) {
-        toast(e.message || 'Embed failed', true);
+        toast(safeStr(e, 'Embed failed'), true);
     }
 }
 
@@ -1192,7 +1192,7 @@ async function publishDoc() {
         currentDoc.controlled_document_id = data.controlled_document.id;
         toast('Published to Document Control');
     } catch (e) {
-        toast(e.message || 'Publish failed', true);
+        toast(safeStr(e, 'Publish failed'), true);
     }
 }
 

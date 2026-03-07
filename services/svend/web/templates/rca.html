@@ -1457,14 +1457,14 @@ async function getCritique(stepIndex) {
         const data = await response.json();
 
         if (data.error) {
-            alert('Error: ' + data.error);
+            alert('Error: ' + safeStr(data.error, 'Unknown error'));
             chain.pop();
         } else {
             step.critique = data.critique;
         }
     } catch (err) {
         console.error('RCA fetch error:', err);
-        alert('Failed to get critique: ' + err.message);
+        alert('Failed to get critique: ' + safeStr(err, 'Unknown error'));
         chain.pop();
     }
 
@@ -1574,7 +1574,7 @@ async function critiqueCountermeasure() {
         const data = await response.json();
 
         if (data.error) {
-            container.innerHTML = `<div class="rca-critique"><div class="rca-critique-text">Error: ${escapeHtml(data.error)}</div></div>`;
+            container.innerHTML = `<div class="rca-critique"><div class="rca-critique-text">Error: ${escapeHtml(safeStr(data.error, 'Error'))}</div></div>`;
         } else {
             container.innerHTML = `
                 <div class="rca-critique">
@@ -1590,7 +1590,7 @@ async function critiqueCountermeasure() {
         }
     } catch (err) {
         console.error('Countermeasure critique fetch error:', err);
-        container.innerHTML = `<div class="rca-critique"><div class="rca-critique-text">Failed: ${escapeHtml(err.message)}</div></div>`;
+        container.innerHTML = `<div class="rca-critique"><div class="rca-critique-text">Failed: ${escapeHtml(safeStr(err, 'Unknown error'))}</div></div>`;
     }
 
     btn.disabled = false;
@@ -1633,7 +1633,7 @@ async function evaluateChain() {
         const data = await response.json();
 
         if (data.error) {
-            evalContainer.innerHTML = `<div class="rca-critique"><div class="rca-critique-text">Error: ${escapeHtml(data.error)}</div></div>`;
+            evalContainer.innerHTML = `<div class="rca-critique"><div class="rca-critique-text">Error: ${escapeHtml(safeStr(data.error, 'Error'))}</div></div>`;
         } else {
             svendTrack('feature_use', {category: 'rca', action: 'evaluate'});
             evalContainer.innerHTML = `
@@ -1650,7 +1650,7 @@ async function evaluateChain() {
             `;
         }
     } catch (err) {
-        evalContainer.innerHTML = `<div class="rca-critique"><div class="rca-critique-text">Failed to evaluate: ${escapeHtml(err.message)}</div></div>`;
+        evalContainer.innerHTML = `<div class="rca-critique"><div class="rca-critique-text">Failed to evaluate: ${escapeHtml(safeStr(err, 'Unknown error'))}</div></div>`;
     }
 
     evaluateBtn.disabled = false;
@@ -1696,7 +1696,7 @@ async function saveSession() {
 
         const data = await response.json();
         if (data.error) {
-            alert('Error saving: ' + data.error);
+            alert('Error saving: ' + safeStr(data.error, 'Unknown error'));
         } else {
             currentSessionId = data.session.id;
             // Keep URL in sync so reload preserves the session
@@ -1711,7 +1711,7 @@ async function saveSession() {
             }, 2000);
         }
     } catch (err) {
-        alert('Failed to save: ' + err.message);
+        alert('Failed to save: ' + safeStr(err, 'Unknown error'));
     }
 
     saveBtn.disabled = false;
@@ -1747,7 +1747,7 @@ async function showSessionsModal() {
         });
 
     } catch (err) {
-        list.innerHTML = `<div class="rca-empty" style="padding:40px;"><p>Failed to load: ${err.message}</p></div>`;
+        list.innerHTML = `<div class="rca-empty" style="padding:40px;"><p>Failed to load: ${safeStr(err, 'Unknown error')}</p></div>`;
     }
 }
 
@@ -1763,7 +1763,7 @@ async function loadSession(sessionId) {
         const data = await response.json();
 
         if (data.error) {
-            alert('Error loading: ' + data.error);
+            alert('Error loading: ' + safeStr(data.error, 'Unknown error'));
             return;
         }
 
@@ -1790,7 +1790,7 @@ async function loadSession(sessionId) {
         renderRcaActionItems(data.action_items || []);
 
     } catch (err) {
-        alert('Failed to load: ' + err.message);
+        alert('Failed to load: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -1833,7 +1833,7 @@ async function showLinkA3Modal() {
             data.reports.map(r => `<option value="${r.id}">${escapeHtml(r.title)} (${r.status})</option>`).join('');
 
     } catch (err) {
-        select.innerHTML = `<option value="">Error: ${err.message}</option>`;
+        select.innerHTML = `<option value="">Error: ${safeStr(err, 'Unknown error')}</option>`;
     }
 }
 
@@ -1862,7 +1862,7 @@ async function linkToA3() {
 
         const data = await response.json();
         if (data.error) {
-            alert('Error: ' + data.error);
+            alert('Error: ' + safeStr(data.error, 'Unknown error'));
         } else {
             closeLinkA3Modal();
             const msg = data.a3_updated
@@ -1871,7 +1871,7 @@ async function linkToA3() {
             alert(msg);
         }
     } catch (err) {
-        alert('Failed to link: ' + err.message);
+        alert('Failed to link: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -1970,7 +1970,7 @@ async function addRcaActionItem(sessionId) {
 
         const data = await response.json();
         if (data.error) {
-            alert('Error: ' + data.error);
+            alert('Error: ' + safeStr(data.error, 'Unknown error'));
             return;
         }
 
@@ -1984,7 +1984,7 @@ async function addRcaActionItem(sessionId) {
         document.getElementById('action-due-input').value = '';
         toggleActionForm();
     } catch (err) {
-        alert('Failed to create action item: ' + err.message);
+        alert('Failed to create action item: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -2001,7 +2001,7 @@ async function updateActionStatus(actionId, newStatus) {
 
         const data = await response.json();
         if (data.error) {
-            alert('Error: ' + data.error);
+            alert('Error: ' + safeStr(data.error, 'Unknown error'));
             return;
         }
 
@@ -2012,7 +2012,7 @@ async function updateActionStatus(actionId, newStatus) {
         }
         renderRcaActionItems(rcaActionItems);
     } catch (err) {
-        alert('Failed to update action: ' + err.message);
+        alert('Failed to update action: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -2032,10 +2032,10 @@ async function deleteActionItem(actionId) {
             rcaActionItems = rcaActionItems.filter(i => i.id !== actionId);
             renderRcaActionItems(rcaActionItems);
         } else {
-            alert('Error: ' + (data.error || 'Unknown error'));
+            alert('Error: ' + safeStr(data.error, 'Unknown error'));
         }
     } catch (err) {
-        alert('Failed to delete action item: ' + err.message);
+        alert('Failed to delete action item: ' + safeStr(err, 'Unknown error'));
     }
 }
 

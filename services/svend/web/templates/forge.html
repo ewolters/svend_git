@@ -516,7 +516,7 @@ async function generateData() {
             schema = JSON.parse(document.getElementById('schema-def').value);
         } catch (e) {
             hideLoading();
-            alert('Invalid schema JSON: ' + e.message);
+            alert('Invalid schema JSON: ' + safeStr(e, 'Unknown error'));
             return;
         }
 
@@ -553,7 +553,7 @@ async function generateData() {
         hideLoading();
 
         if (data.error) {
-            alert('Error: ' + data.error);
+            alert('Error: ' + safeStr(data.error, 'Unknown error'));
             return;
         }
 
@@ -562,7 +562,7 @@ async function generateData() {
 
     } catch (err) {
         hideLoading();
-        alert('Failed to generate: ' + err.message);
+        alert('Failed to generate: ' + safeStr(err, 'Unknown error'));
     }
 }
 

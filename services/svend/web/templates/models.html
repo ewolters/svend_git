@@ -787,7 +787,7 @@ async function runTraining() {
 
         if (!res.ok || data.error) {
             document.getElementById('result-metrics').innerHTML =
-                `<p style="color:var(--error,#e05252);">${data.error || 'Training failed'}</p>`;
+                `<p style="color:var(--error,#e05252);">${safeStr(data.error, 'Training failed')}</p>`;
             return;
         }
 
@@ -795,7 +795,7 @@ async function runTraining() {
         loadModels(); // Refresh saved models list
     } catch (err) {
         document.getElementById('result-metrics').innerHTML =
-            `<p style="color:var(--error,#e05252);">Error: ${err.message}</p>`;
+            `<p style="color:var(--error,#e05252);">Error: ${safeStr(err, 'Unknown error')}</p>`;
     } finally {
         btn.disabled = false;
         document.getElementById('train-btn-text').textContent = 'Train Model';
@@ -1185,7 +1185,7 @@ async function loadReport(modelId) {
         const res = await fetch(`/api/dsw/models/${modelId}/report/`, { credentials: 'include' });
         const data = await res.json();
         if (!res.ok || data.error) {
-            container.innerHTML = `<p style="color:var(--text-dim);">${data.error || 'No report available'}</p>`;
+            container.innerHTML = `<p style="color:var(--text-dim);">${safeStr(data.error, 'No report available')}</p>`;
             return;
         }
         renderReport(data, container);
@@ -1468,7 +1468,7 @@ async function deleteModel() {
         });
         if (res.ok) { closeDetailModal(); loadModels(); }
         else alert('Failed to delete');
-    } catch (err) { alert('Error: ' + err.message); }
+    } catch (err) { alert('Error: ' + safeStr(err, 'Unknown error')); }
 }
 
 function retrainModel() {
@@ -1511,10 +1511,10 @@ async function executeRetrain() {
             statusEl.innerHTML = `<p style="color:var(--accent-primary);">Retrained to v${data.version || '?'}</p>${compHtml}`;
             setTimeout(() => { document.getElementById('retrain-modal').style.display = 'none'; loadModels(); }, 2000);
         } else {
-            statusEl.innerHTML = `<p style="color:var(--error,#e05252);">${data.error || 'Failed'}</p>`;
+            statusEl.innerHTML = `<p style="color:var(--error,#e05252);">${safeStr(data.error, 'Failed')}</p>`;
         }
     } catch (err) {
-        statusEl.innerHTML = `<p style="color:var(--error,#e05252);">Error: ${err.message}</p>`;
+        statusEl.innerHTML = `<p style="color:var(--error,#e05252);">Error: ${safeStr(err, 'Unknown error')}</p>`;
     }
 }
 
@@ -1537,9 +1537,9 @@ async function runInference() {
             document.getElementById('predictions-output').textContent = JSON.stringify(data.predictions, null, 2);
             document.getElementById('inference-results').style.display = 'block';
         } else {
-            alert(data.error || 'Inference failed');
+            alert(safeStr(data.error, 'Inference failed'));
         }
-    } catch (err) { alert('Error: ' + err.message); }
+    } catch (err) { alert('Error: ' + safeStr(err, 'Unknown error')); }
 }
 
 function downloadPredictions() {
@@ -2529,14 +2529,14 @@ async function runOptimize() {
             return;
         } else {
             console.warn('Optimize returned error:', data.error || data);
-            alert('Optimization failed: ' + (data.error || 'Unknown error'));
+            alert('Optimization failed: ' + safeStr(data.error, 'Unknown error'));
         }
     } catch (err) {
         if (err.name === 'AbortError') {
             alert('Optimization timed out (30s). Try a simpler model or fewer features.');
         } else {
             console.warn('Optimize fetch error:', err);
-            alert('Optimization error: ' + err.message);
+            alert('Optimization error: ' + safeStr(err, 'Unknown error'));
         }
     } finally {
         btn.disabled = false;

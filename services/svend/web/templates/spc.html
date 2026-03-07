@@ -671,10 +671,10 @@ async function createChart() {
             displayChartResults(result.chart);
             svendTrack('feature_use', {category: 'spc', action: chartType});
         } else {
-            alert(result.error || 'Failed to create chart');
+            alert(safeStr(result.error, 'Failed to create chart'));
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -850,10 +850,10 @@ async function runCapabilityStudy() {
         if (response.ok) {
             displayCapabilityResults(result.capability, result.plots);
         } else {
-            alert(result.error || 'Failed to run capability study');
+            alert(safeStr(result.error, 'Failed to run capability study'));
         }
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -1068,11 +1068,11 @@ async function runGageRR() {
             svendTrack('feature_use', {category: 'spc', action: 'gage_rr'});
         } else {
             document.getElementById('grr-results').innerHTML =
-                `<p class="empty-text" style="color:var(--error);">${result.error || 'Analysis failed'}</p>`;
+                `<p class="empty-text" style="color:var(--error);">${safeStr(result.error, 'Analysis failed')}</p>`;
         }
     } catch (err) {
         document.getElementById('grr-results').innerHTML =
-            `<p class="empty-text" style="color:var(--error);">Error: ${err.message}</p>`;
+            `<p class="empty-text" style="color:var(--error);">Error: ${safeStr(err, 'Unknown error')}</p>`;
     }
 }
 

@@ -747,14 +747,14 @@ async function autoPopulate() {
             currentReport = data.report;
             renderEditor();
         } else {
-            alert(data.error || 'Auto-populate failed');
+            alert(safeStr(data.error, 'Auto-populate failed'));
             if (data.partial_results) {
                 currentReport.sections = { ...currentReport.sections, ...data.partial_results };
                 renderEditor();
             }
         }
     } catch (e) {
-        alert('Error: ' + e.message);
+        alert('Error: ' + safeStr(e, 'Unknown error'));
     } finally {
         btn.textContent = 'Auto-Fill Empty';
         btn.disabled = false;
@@ -907,10 +907,10 @@ async function executeImport(sourceType, sourceId, include) {
             renderEditor();
             hideImportModal();
         } else {
-            alert(data.error || 'Import failed');
+            alert(safeStr(data.error, 'Import failed'));
         }
     } catch (e) {
-        alert('Error: ' + e.message);
+        alert('Error: ' + safeStr(e, 'Unknown error'));
     }
 }
 
@@ -941,10 +941,10 @@ async function embedDiagram(sectionKey, roomCode) {
             // Reload to show embedded diagram
             await loadReport(currentReport.id);
         } else {
-            alert(data.error || 'Embed failed');
+            alert(safeStr(data.error, 'Embed failed'));
         }
     } catch (e) {
-        alert('Error: ' + e.message);
+        alert('Error: ' + safeStr(e, 'Unknown error'));
     }
 }
 
@@ -958,7 +958,7 @@ async function removeDiagram(diagramId) {
         });
         await loadReport(currentReport.id);
     } catch (e) {
-        alert('Error: ' + e.message);
+        alert('Error: ' + safeStr(e, 'Unknown error'));
     }
 }
 
@@ -1000,10 +1000,10 @@ async function createReport() {
             hideCreateModal();
             openReport(data.id);
         } else {
-            alert(data.error || 'Failed to create report');
+            alert(safeStr(data.error, 'Failed to create report'));
         }
     } catch (e) {
-        alert('Error: ' + e.message);
+        alert('Error: ' + safeStr(e, 'Unknown error'));
     }
 }
 

@@ -1028,7 +1028,7 @@ async function runAgent() {
         const result = await response.json();
 
         if (result.error) {
-            showError(result.error);
+            showError(safeStr(result.error, 'Error'));
         } else {
             currentResult = result;
             showResult(currentAgent, result);
@@ -1036,7 +1036,7 @@ async function runAgent() {
         }
 
     } catch (err) {
-        showError(err.message);
+        showError(safeStr(err, 'Unknown error'));
     } finally {
         btn.disabled = false;
         btnText.style.display = 'inline';
