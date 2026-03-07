@@ -1352,26 +1352,35 @@ def check_standards_compliance():
 
 
 def run_standards_tests_for(standard_name):
-    """Run linked tests for a single standard (~15s). Called per-standard by the dashboard."""
-    from syn.audit.standards import parse_all_standards, verify_assertion
+    """Run linked tests for a single standard via batch execution."""
+    from syn.audit.standards import parse_all_standards, run_tests_batch
 
     assertions = [a for a in parse_all_standards() if a.standard == standard_name]
     if not assertions:
         return {"standard": standard_name, "status": "warning", "message": "No assertions found"}
 
-    results = [verify_assertion(a, run_tests=True) for a in assertions]
+    # Collect unique test refs
+    all_refs = set()
+    for a in assertions:
+        for t in a.tests:
+            all_refs.add(t)
 
-    tests_passed = tests_failed = tests_skipped = 0
-    for r in results:
-        for tc in r.get("test_checks", []):
-            if tc.get("ran"):
-                status = tc.get("status", "")
-                if status == "pass" or tc.get("passed"):
-                    tests_passed += 1
-                elif status == "skip":
-                    tests_skipped += 1
-                else:
-                    tests_failed += 1
+    if not all_refs:
+        return {
+            "standard": standard_name,
+            "status": "pass",
+            "assertions": len(assertions),
+            "tests_passed": 0,
+            "tests_failed": 0,
+            "tests_skipped": 0,
+        }
+
+    # Run all tests in one batch
+    test_results = run_tests_batch(list(all_refs))
+
+    tests_passed = sum(1 for r in test_results.values() if r["status"] == "pass")
+    tests_failed = sum(1 for r in test_results.values() if r["status"] in ("fail", "error"))
+    tests_skipped = sum(1 for r in test_results.values() if r["status"] == "skip")
 
     return {
         "standard": standard_name,

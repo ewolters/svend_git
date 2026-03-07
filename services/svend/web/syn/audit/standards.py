@@ -755,6 +755,132 @@ def _is_testcase_needing_db(cls) -> bool:
     return issubclass(cls, TransactionTestCase)
 
 
+def run_tests_batch(test_refs):
+    """Run multiple tests in a single batch for speed.
+
+    Groups by module, imports once, builds one TestSuite, switches DB once.
+    Returns dict mapping test_ref -> {"status": "pass"|"fail"|"skip"|"error", "message": str}.
+    """
+    global _test_env_setup
+    import importlib
+    import io
+    import unittest
+    from collections import defaultdict
+
+    if not _test_env_setup:
+        from django.test.utils import setup_test_environment
+
+        try:
+            setup_test_environment()
+        except RuntimeError:
+            pass
+        _test_env_setup = True
+
+    # Group by (module, class)
+    by_module_class = defaultdict(list)
+    for ref in test_refs:
+        parts = ref.rsplit(".", 2)
+        if len(parts) == 3:
+            by_module_class[(parts[0], parts[1])].append((parts[2], ref))
+
+    results = {}
+    suite = unittest.TestSuite()
+    ref_map = {}  # test.id() -> test_ref
+    needs_db = False
+
+    for (module_path, cls_name), methods in by_module_class.items():
+        try:
+            mod = importlib.import_module(module_path)
+            cls = getattr(mod, cls_name)
+        except Exception as e:
+            for method, ref in methods:
+                file_path = module_path.replace(".", "/") + ".py"
+                if os.path.isfile(file_path):
+                    ok, _ = _ast_verify_test(file_path, cls_name, method)
+                    if ok:
+                        results[ref] = {"status": "skip", "message": f"Cannot import: {e}"}
+                        continue
+                results[ref] = {"status": "error", "message": str(e)[:120]}
+            continue
+
+        if _is_testcase_needing_db(cls):
+            needs_db = True
+
+        for method, ref in methods:
+            try:
+                test = cls(method)
+                suite.addTest(test)
+                ref_map[test.id()] = ref
+            except Exception as e:
+                results[ref] = {"status": "error", "message": str(e)[:120]}
+
+    if suite.countTestCases() == 0:
+        return results
+
+    # Switch DB once for the entire batch
+    switched_db = False
+    original_db_name = None
+    if needs_db:
+        try:
+            from django.db import connections
+
+            conn = connections["default"]
+            original_db_name = conn.settings_dict["NAME"]
+            test_db_name = conn.creation._get_test_db_name()
+            conn.close()
+            conn.settings_dict["NAME"] = test_db_name
+            switched_db = True
+        except Exception:
+            pass  # Tests needing DB will error and get caught below
+
+    try:
+        stream = io.StringIO()
+        runner = unittest.TextTestRunner(stream=stream, verbosity=0)
+        run_result = runner.run(suite)
+    finally:
+        if switched_db:
+            _restore_db(original_db_name)
+
+    # Map failures/errors/skips (test can be None for class-level errors)
+    handled = set()
+    for test, tb in run_result.failures:
+        if test is None:
+            continue
+        tid = test.id()
+        handled.add(tid)
+        ref = ref_map.get(tid)
+        if ref:
+            results[ref] = {"status": "fail", "message": tb.strip().split("\n")[-1][:120]}
+
+    for test, tb in run_result.errors:
+        if test is None:
+            continue
+        tid = test.id()
+        handled.add(tid)
+        ref = ref_map.get(tid)
+        if ref:
+            if _is_db_error(tb):
+                results[ref] = {"status": "skip", "message": "Requires test database"}
+            else:
+                results[ref] = {"status": "error", "message": tb.strip().split("\n")[-1][:120]}
+
+    for test, reason in run_result.skipped:
+        if test is None:
+            continue
+        tid = test.id()
+        handled.add(tid)
+        ref = ref_map.get(tid)
+        if ref:
+            results[ref] = {"status": "skip", "message": str(reason)[:120]}
+
+    # Remaining = passed (can't iterate suite after run — unittest clears refs)
+    for tid, ref in ref_map.items():
+        if tid not in handled and ref not in results:
+            results[ref] = {"status": "pass", "message": "PASS"}
+
+    return results
+
+
 # ---------------------------------------------------------------------------
 # Assertion runner
 # ---------------------------------------------------------------------------
