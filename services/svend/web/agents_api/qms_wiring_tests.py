@@ -656,3 +656,55 @@ class TemplateBlockConsistencyTest(TestCase):
             f"Templates using undefined block names (valid: {self.VALID_BLOCKS}):\n"
             + "\n".join(f"  - {v}" for v in violations),
         )
+
+
+# =========================================================================
+# No Native Browser Dialogs
+# =========================================================================
+
+
+class TemplateNoBrowserDialogsTest(TestCase):
+    """Templates must use Svend-branded modals, not native browser dialogs.
+
+    confirm() and prompt() break theming and look unprofessional.
+    Use svendConfirm() / svendPrompt() from base_app.html instead.
+
+    Note: alert() is already overridden by svToast in base_app.html,
+    so it's excluded from this check.
+    """
+
+    # Patterns that indicate native browser dialog usage in JS.
+    # Matches: confirm(, prompt( — but not svendConfirm(, svendPrompt(,
+    # or comments.
+    FORBIDDEN = [
+        (r"(?<!svend)(?<!\/\/)(?<!\w)confirm\s*\(", "confirm()"),
+        (r"(?<!svend)(?<!\/\/)(?<!\w)prompt\s*\(", "prompt()"),
+    ]
+
+    def test_no_browser_dialogs_in_templates(self):
+        """No template uses confirm(), alert(), or prompt()."""
+        import re
+        from pathlib import Path
+
+        templates_dir = Path(__file__).resolve().parent.parent / "templates"
+        violations = []
+
+        for html_file in sorted(templates_dir.rglob("*.html")):
+            text = html_file.read_text()
+            rel = html_file.relative_to(templates_dir)
+            for pattern, name in self.FORBIDDEN:
+                for match in re.finditer(pattern, text):
+                    # Find line number
+                    line_no = text[: match.start()].count("\n") + 1
+                    # Skip if inside an HTML comment or JS comment line
+                    line = text.split("\n")[line_no - 1].strip()
+                    if line.startswith("//") or line.startswith("<!--"):
+                        continue
+                    violations.append(f"{rel}:{line_no} — {name}")
+
+        self.assertEqual(
+            violations,
+            [],
+            "Templates using native browser dialogs (use svendConfirm/svendAlert instead):\n"
+            + "\n".join(f"  - {v}" for v in violations),
+        )

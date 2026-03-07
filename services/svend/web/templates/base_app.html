@@ -2171,6 +2171,50 @@
         window.alert=function(msg){window.svToast(String(msg))};
     })();
     </script>
+
+    <!-- Svend Branded Modals (confirm + prompt replacements) -->
+    <div id="sv-modal-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100000;align-items:center;justify-content:center;">
+        <div id="sv-modal-box" style="background:var(--bg,#1a1a1a);border:1px solid var(--border,#333);border-radius:10px;padding:24px;width:400px;max-width:90vw;box-shadow:0 12px 40px rgba(0,0,0,0.4);font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;">
+            <div id="sv-modal-msg" style="font-size:14px;line-height:1.6;color:var(--text,#e0e0e0);margin-bottom:16px;white-space:pre-line;"></div>
+            <input id="sv-modal-input" type="text" style="display:none;width:100%;padding:8px 12px;border:1px solid var(--border,#333);border-radius:6px;background:var(--bg-secondary,#222);color:var(--text,#e0e0e0);font-size:14px;margin-bottom:16px;box-sizing:border-box;outline:none;">
+            <div style="display:flex;justify-content:flex-end;gap:8px;">
+                <button id="sv-modal-cancel" style="padding:7px 16px;border:1px solid var(--border,#333);border-radius:6px;background:transparent;color:var(--text,#e0e0e0);cursor:pointer;font-size:13px;">Cancel</button>
+                <button id="sv-modal-ok" style="padding:7px 16px;border:none;border-radius:6px;background:var(--accent,#4a9f6e);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">OK</button>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function(){
+        var backdrop=document.getElementById('sv-modal-backdrop');
+        var msgEl=document.getElementById('sv-modal-msg');
+        var inputEl=document.getElementById('sv-modal-input');
+        var okBtn=document.getElementById('sv-modal-ok');
+        var cancelBtn=document.getElementById('sv-modal-cancel');
+        var resolver=null;
+        function show(msg,opts){
+            msgEl.textContent=msg;
+            inputEl.style.display=opts.input?'block':'none';
+            inputEl.value=opts.defaultValue||'';
+            cancelBtn.style.display=opts.showCancel!==false?'inline-block':'none';
+            okBtn.textContent=opts.okLabel||'OK';
+            backdrop.style.display='flex';
+            if(opts.input)inputEl.focus();else okBtn.focus();
+        }
+        function hide(val){backdrop.style.display='none';if(resolver){resolver(val);resolver=null;}}
+        okBtn.onclick=function(){var v=inputEl.style.display!=='none'?inputEl.value:true;hide(v);};
+        cancelBtn.onclick=function(){hide(null);};
+        backdrop.onclick=function(e){if(e.target===backdrop)hide(null);};
+        document.addEventListener('keydown',function(e){
+            if(backdrop.style.display!=='flex')return;
+            if(e.key==='Escape')hide(null);
+            if(e.key==='Enter'&&(!inputEl.style.display||inputEl.style.display==='none'))okBtn.click();
+            if(e.key==='Enter'&&inputEl.style.display==='block')okBtn.click();
+        });
+        window.svendConfirm=function(msg,okLabel){return new Promise(function(res){resolver=res;show(msg,{showCancel:true,okLabel:okLabel||'Confirm'});});};
+        window.svendPrompt=function(msg,defaultValue){return new Promise(function(res){resolver=res;show(msg,{input:true,showCancel:true,defaultValue:defaultValue||''});});};
+        window.svendAlert=function(msg){return new Promise(function(res){resolver=res;show(msg,{showCancel:false,okLabel:'OK'});});};
+    })();
+    </script>
     {% block scripts %}{% endblock %}
     <!-- Time-on-page tracking -->
     <script>

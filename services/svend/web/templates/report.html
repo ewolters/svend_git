@@ -918,8 +918,8 @@ async function executeImport(sourceType, sourceId, include) {
 // Embed diagram
 // =========================================================================
 
-function showEmbedModal(sectionKey) {
-    const code = prompt('Enter whiteboard room code:');
+async function showEmbedModal(sectionKey) {
+    const code = await svendPrompt('Enter whiteboard room code:');
     if (!code) return;
 
     embedDiagram(sectionKey, code.trim());

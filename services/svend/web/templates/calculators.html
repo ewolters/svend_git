@@ -16501,9 +16501,9 @@ function updateDDSOrder(idx, field, value) {
     ddsOrders[idx][field] = value;
 }
 
-function ddsReschedule(idx) {
+async function ddsReschedule(idx) {
     const order = ddsOrders[idx];
-    const newDue = prompt(`Reschedule ${order.name}\nCurrent due: ${order.dueDate} min\nSuggested: ${Math.round(order.dueDate * 1.3)} min\n\nEnter new due date (minutes):`, Math.round(order.dueDate * 1.3));
+    const newDue = await svendPrompt(`Reschedule ${order.name}\nCurrent due: ${order.dueDate} min\nSuggested: ${Math.round(order.dueDate * 1.3)} min\n\nEnter new due date (minutes):`, Math.round(order.dueDate * 1.3));
     if (newDue !== null) {
         ddsOrders[idx].dueDate = parseFloat(newDue) || order.dueDate;
         renderDDSOrders();
@@ -17717,8 +17717,8 @@ function saveScenario() {
 }
 
 // Save as new scenario with name
-function saveScenarioAs() {
-    const name = prompt('Scenario name:', `Scenario ${new Date().toLocaleDateString()}`);
+async function saveScenarioAs() {
+    const name = await svendPrompt('Scenario name:', `Scenario ${new Date().toLocaleDateString()}`);
     if (!name) return;
 
     const state = collectState();
@@ -17750,7 +17750,7 @@ function loadScenario(id) {
 }
 
 // Rename current scenario
-function renameScenario() {
+async function renameScenario() {
     if (!currentScenarioId) {
         alert('No scenario selected. Save first.');
         return;
@@ -17760,7 +17760,7 @@ function renameScenario() {
     const current = scenarios[currentScenarioId];
     if (!current) return;
 
-    const name = prompt('New name:', current.name);
+    const name = await svendPrompt('New name:', current.name);
     if (!name) return;
 
     current.name = name;

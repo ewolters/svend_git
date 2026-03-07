@@ -1277,8 +1277,8 @@ function setSessionType(type) {
     // Filter would go here
 }
 
-function showResolveModal() {
-    const summary = prompt('What was the probable cause? (Resolution summary)');
+async function showResolveModal() {
+    const summary = await svendPrompt('What was the probable cause? (Resolution summary)');
     if (summary) {
         resolveProblem(summary);
     }

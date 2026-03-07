@@ -1810,8 +1810,8 @@ function closeTab(index, event) {
     }
 }
 
-function renameTab(index) {
-    const newName = prompt('Enter new name:', dataTabs[index].name);
+async function renameTab(index) {
+    const newName = await svendPrompt('Enter new name:', dataTabs[index].name);
     if (newName && newName.trim()) {
         dataTabs[index].name = newName.trim();
         renderDataTabs();

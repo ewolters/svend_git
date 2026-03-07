@@ -3463,7 +3463,7 @@ document.addEventListener('fullscreenchange', () => {
 // Save/Load
 // ============================================================================
 
-function saveBoard() {
+async function saveBoard() {
     const boardData = {
         elements,
         connections,
@@ -3473,7 +3473,7 @@ function saveBoard() {
         timestamp: new Date().toISOString()
     };
 
-    const name = prompt('Board name:', 'Untitled Board');
+    const name = await svendPrompt('Board name:', 'Untitled Board');
     if (!name) return;
 
     // Save to localStorage for now
@@ -4697,7 +4697,7 @@ async function shareBoard() {
         return;
     }
 
-    const name = prompt('Board name:', 'Untitled Board');
+    const name = await svendPrompt('Board name:', 'Untitled Board');
     if (!name) return;
 
     try {

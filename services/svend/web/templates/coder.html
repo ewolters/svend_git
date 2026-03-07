@@ -672,7 +672,7 @@ async function saveAsEvidence() {
     }
 
     // Prompt for summary
-    const summary = prompt('Describe what this result shows:', 'Simulation result');
+    const summary = await svendPrompt('Describe what this result shows:', 'Simulation result');
     if (!summary) return;
 
     // Get selected hypotheses
@@ -681,7 +681,7 @@ async function saveAsEvidence() {
     const hypId = document.getElementById('hypothesis-select').value;
 
     if (hypId) {
-        const lr = prompt(`Likelihood ratio for this hypothesis (>1 supports, <1 opposes, 1 neutral):`, '1.0');
+        const lr = await svendPrompt(`Likelihood ratio for this hypothesis (>1 supports, <1 opposes, 1 neutral):`, '1.0');
         if (lr) {
             hypothesisIds.push(hypId);
             likelihoodRatios[hypId] = parseFloat(lr) || 1.0;

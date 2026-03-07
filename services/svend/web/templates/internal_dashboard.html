@@ -6138,7 +6138,7 @@ async function evaluateExperiment(id) {
 }
 
 async function concludeExperiment(id) {
-    const winner = prompt('Enter winning variant name:');
+    const winner = await svendPrompt('Enter winning variant name:');
     if (!winner) return;
     await fetch(`/api/internal/experiments/${id}/conclude/`, {
         method: 'POST', credentials: 'include',
@@ -6444,7 +6444,7 @@ function replyToFeedback(email, category) {
 }
 
 async function addFeedbackNote(id) {
-    const note = prompt('Add internal note:');
+    const note = await svendPrompt('Add internal note:');
     if (note === null) return;
     try {
         await fetch('/api/internal/feedback/', {

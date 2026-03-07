@@ -10290,10 +10290,10 @@ async function synaraAddHypothesis() {
         showToast('Load or create a study before adding hypotheses');
         return;
     }
-    const desc = prompt('Hypothesis description (If X, then Y because Z):');
+    const desc = await svendPrompt('Hypothesis description (If X, then Y because Z):');
     if (!desc) return;
 
-    const priorStr = prompt('Prior probability (0-100%, default 50):', '50');
+    const priorStr = await svendPrompt('Prior probability (0-100%, default 50):', '50');
     const prior = Math.max(0.01, Math.min(0.99, parseFloat(priorStr || '50') / 100));
 
     try {
@@ -10341,7 +10341,7 @@ async function synaraResolveSignal(signalId, resolution) {
     try {
         const payload = { resolution };
         if (resolution === 'new_hypothesis') {
-            const desc = prompt('Describe the new hypothesis:');
+            const desc = await svendPrompt('Describe the new hypothesis:');
             if (!desc) return;
             payload.new_hypothesis = { description: desc, prior: 0.5 };
         }

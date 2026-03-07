@@ -337,16 +337,16 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     }
 
     // --- Add output / input ---
-    window.addOutput = function() {
-        const name = prompt('Output name (Y):');
+    window.addOutput = async function() {
+        const name = await svendPrompt('Output name (Y):');
         if (!name) return;
         currentMatrix.outputs.push({ name: name.trim(), weight: 5 });
         renderMatrix();
         scheduleSave();
     };
 
-    window.addInput = function() {
-        const name = prompt('Input name (X):');
+    window.addInput = async function() {
+        const name = await svendPrompt('Input name (X):');
         if (!name) return;
         currentMatrix.inputs.push({ name: name.trim() });
         renderMatrix();
