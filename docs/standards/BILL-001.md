@@ -154,7 +154,11 @@ Users with `is_founder_locked=True` keep $19/mo pricing regardless of plan chang
 ### **5.1 Decorator Reference**
 
 <!-- assert: All API endpoints use appropriate permission decorators | check=bill-decorators -->
-<!-- impl: accounts/permissions.py -->
+<!-- impl: accounts/permissions.py:require_auth -->
+<!-- impl: accounts/permissions.py:rate_limited -->
+<!-- impl: accounts/permissions.py:require_paid -->
+<!-- impl: accounts/permissions.py:require_enterprise -->
+<!-- impl: accounts/permissions.py:gated_paid -->
 <!-- test: api.tests.PermissionDecoratorTest.test_rate_limited_blocks_unauthenticated -->
 <!-- test: api.tests.PermissionDecoratorTest.test_rate_limited_allows_free_user -->
 <!-- test: api.tests.PermissionDecoratorTest.test_gated_paid_blocks_free_user -->

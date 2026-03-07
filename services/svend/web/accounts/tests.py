@@ -14,6 +14,7 @@ Per TST-001 section 10.5: scenario tests that mimic real user behavior.
 
 import re
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
@@ -636,3 +637,414 @@ class TierGatingScenarioTest(TestCase):
                     expected_val,
                     f"has_feature({tier}, {feature_name}) mismatch",
                 )
+
+
+# =========================================================================
+# 8. Billing Views (Stripe Integration)
+# =========================================================================
+
+
+BILLING_SETTINGS = override_settings(
+    SECURE_SSL_REDIRECT=False,
+    RATELIMIT_ENABLE=False,
+    STRIPE_SECRET_KEY="sk_test_fake_key_for_testing",
+    STRIPE_WEBHOOK_SECRET="whsec_test_fake_secret",
+    STRIPE_PRICE_ID_PRO="price_1T0Y13DQfJOZ4D24GjaVOd09",
+)
+
+
+@BILLING_SETTINGS
+class BillingViewTest(TestCase):
+    """Behavioral tests for accounts/billing.py — Stripe integration.
+
+    All Stripe API calls are mocked. No real Stripe traffic is generated.
+    """
+
+    def setUp(self):
+        self.user = _make_user("billing@example.com", Tier.FREE, username="billinguser")
+
+    # -----------------------------------------------------------------
+    # 1. Checkout requires auth
+    # -----------------------------------------------------------------
+
+    def test_checkout_unauthenticated_redirects_to_login(self):
+        """POST /billing/checkout/ without auth should redirect to login."""
+        resp = self.client.get("/billing/checkout/")
+        # @login_required redirects to LOGIN_URL
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("login", resp.url.lower())
+
+    # -----------------------------------------------------------------
+    # 2. Checkout requires valid plan
+    # -----------------------------------------------------------------
+
+    def test_checkout_invalid_plan_redirects_with_error(self):
+        """GET /billing/checkout/?plan=nonexistent should redirect with invalid_plan error."""
+        self.client.force_login(self.user)
+        resp = self.client.get("/billing/checkout/?plan=nonexistent")
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("invalid_plan", resp.url)
+
+    # -----------------------------------------------------------------
+    # 3. Checkout creates Stripe session with correct params
+    # -----------------------------------------------------------------
+
+    @patch("accounts.billing.stripe.checkout.Session.create")
+    @patch("accounts.billing.get_or_create_stripe_customer")
+    def test_checkout_creates_session_for_valid_plan(self, mock_get_customer, mock_session_create):
+        """GET /billing/checkout/?plan=pro creates a Stripe session and redirects to it."""
+        mock_get_customer.return_value = "cus_test_123"
+        mock_session_create.return_value = type("Session", (), {"url": "https://checkout.stripe.com/test_session"})()
+
+        self.client.force_login(self.user)
+        resp = self.client.get("/billing/checkout/?plan=pro")
+
+        # Should redirect to the Stripe checkout URL
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, "https://checkout.stripe.com/test_session")
+
+        # Verify Session.create was called with correct price_id
+        mock_session_create.assert_called_once()
+        call_kwargs = mock_session_create.call_args[1]
+        self.assertEqual(call_kwargs["customer"], "cus_test_123")
+        self.assertEqual(call_kwargs["mode"], "subscription")
+        # Pro plan should use the USD pro price
+        line_items = call_kwargs["line_items"]
+        self.assertEqual(len(line_items), 1)
+        self.assertEqual(line_items[0]["price"], "price_1T0Y13DQfJOZ4D24GjaVOd09")
+
+    @patch("accounts.billing.stripe.checkout.Session.create")
+    @patch("accounts.billing.get_or_create_stripe_customer")
+    def test_checkout_team_plan_includes_trial(self, mock_get_customer, mock_session_create):
+        """GET /billing/checkout/?plan=team should include 14-day trial."""
+        mock_get_customer.return_value = "cus_test_456"
+        mock_session_create.return_value = type("Session", (), {"url": "https://checkout.stripe.com/test"})()
+
+        self.client.force_login(self.user)
+        resp = self.client.get("/billing/checkout/?plan=team")
+
+        self.assertEqual(resp.status_code, 302)
+        call_kwargs = mock_session_create.call_args[1]
+        self.assertIn("subscription_data", call_kwargs)
+        self.assertEqual(call_kwargs["subscription_data"]["trial_period_days"], 14)
+
+    @patch("accounts.billing.stripe.checkout.Session.create")
+    @patch("accounts.billing.get_or_create_stripe_customer")
+    def test_checkout_pro_plan_no_trial(self, mock_get_customer, mock_session_create):
+        """GET /billing/checkout/?plan=pro should NOT include trial period."""
+        mock_get_customer.return_value = "cus_test_789"
+        mock_session_create.return_value = type("Session", (), {"url": "https://checkout.stripe.com/test"})()
+
+        self.client.force_login(self.user)
+        self.client.get("/billing/checkout/?plan=pro")
+
+        call_kwargs = mock_session_create.call_args[1]
+        self.assertNotIn("subscription_data", call_kwargs)
+
+    # -----------------------------------------------------------------
+    # 4. Portal requires auth
+    # -----------------------------------------------------------------
+
+    def test_portal_unauthenticated_redirects_to_login(self):
+        """GET /billing/portal/ without auth should redirect to login."""
+        resp = self.client.get("/billing/portal/")
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("login", resp.url.lower())
+
+    # -----------------------------------------------------------------
+    # 5. Portal requires existing customer
+    # -----------------------------------------------------------------
+
+    def test_portal_no_stripe_customer_redirects_with_error(self):
+        """Authenticated user with no stripe_customer_id gets redirected with error."""
+        self.client.force_login(self.user)
+        resp = self.client.get("/billing/portal/")
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("no_billing_account", resp.url)
+
+    @patch("accounts.billing.stripe.billing_portal.Session.create")
+    def test_portal_with_customer_redirects_to_stripe(self, mock_portal_create):
+        """Authenticated user with stripe_customer_id gets redirected to Stripe portal."""
+        self.user.stripe_customer_id = "cus_existing_123"
+        self.user.save(update_fields=["stripe_customer_id"])
+
+        mock_portal_create.return_value = type("Session", (), {"url": "https://billing.stripe.com/portal_test"})()
+
+        self.client.force_login(self.user)
+        resp = self.client.get("/billing/portal/")
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, "https://billing.stripe.com/portal_test")
+        mock_portal_create.assert_called_once_with(
+            customer="cus_existing_123",
+            return_url="http://testserver/app/settings/",
+        )
+
+    # -----------------------------------------------------------------
+    # 6. Webhook signature verification
+    # -----------------------------------------------------------------
+
+    def test_webhook_invalid_signature_returns_400(self):
+        """POST /billing/webhook/ with invalid signature should return 400."""
+        resp = self.client.post(
+            "/billing/webhook/",
+            data=b'{"type": "test"}',
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE="invalid_sig",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_webhook_missing_signature_returns_400(self):
+        """POST /billing/webhook/ with no signature header should return 400."""
+        resp = self.client.post(
+            "/billing/webhook/",
+            data=b'{"type": "test"}',
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    # -----------------------------------------------------------------
+    # 7. Webhook valid event — checkout.session.completed
+    # -----------------------------------------------------------------
+
+    @patch("accounts.billing.sync_subscription_from_stripe")
+    @patch("accounts.billing.stripe.Webhook.construct_event")
+    def test_webhook_checkout_completed_syncs_subscription(self, mock_construct, mock_sync):
+        """Valid checkout.session.completed webhook triggers subscription sync."""
+        mock_construct.return_value = {
+            "type": "checkout.session.completed",
+            "data": {
+                "object": {
+                    "subscription": "sub_test_webhook_123",
+                    "customer": "cus_test_wh",
+                },
+            },
+        }
+
+        resp = self.client.post(
+            "/billing/webhook/",
+            data=b"raw_payload",
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE="valid_sig",
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        mock_sync.assert_called_once_with("sub_test_webhook_123")
+
+    @patch("accounts.billing.stripe.Webhook.construct_event")
+    def test_webhook_subscription_deleted_downgrades_user(self, mock_construct):
+        """customer.subscription.deleted webhook downgrades user to FREE."""
+        # Create a subscription for the user
+        sub = Subscription.objects.create(
+            user=self.user,
+            stripe_subscription_id="sub_delete_test",
+            status=Subscription.Status.ACTIVE,
+        )
+        self.user.tier = Tier.PRO
+        self.user.is_subscription_active = True
+        self.user.save(update_fields=["tier", "is_subscription_active"])
+
+        mock_construct.return_value = {
+            "type": "customer.subscription.deleted",
+            "data": {
+                "object": {
+                    "id": "sub_delete_test",
+                },
+            },
+        }
+
+        resp = self.client.post(
+            "/billing/webhook/",
+            data=b"raw_payload",
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE="valid_sig",
+        )
+
+        self.assertEqual(resp.status_code, 200)
+
+        # User should be downgraded
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.tier, Tier.FREE)
+        self.assertFalse(self.user.is_subscription_active)
+
+        # Subscription should be canceled
+        sub.refresh_from_db()
+        self.assertEqual(sub.status, Subscription.Status.CANCELED)
+
+    @patch("accounts.billing.stripe.Webhook.construct_event")
+    def test_webhook_invoice_payment_failed_downgrades_user(self, mock_construct):
+        """invoice.payment_failed webhook downgrades user to FREE and marks past_due."""
+        sub = Subscription.objects.create(
+            user=self.user,
+            stripe_subscription_id="sub_fail_test",
+            status=Subscription.Status.ACTIVE,
+        )
+        self.user.tier = Tier.PRO
+        self.user.is_subscription_active = True
+        self.user.save(update_fields=["tier", "is_subscription_active"])
+
+        mock_construct.return_value = {
+            "type": "invoice.payment_failed",
+            "data": {
+                "object": {
+                    "subscription": "sub_fail_test",
+                },
+            },
+        }
+
+        resp = self.client.post(
+            "/billing/webhook/",
+            data=b"raw_payload",
+            content_type="application/json",
+            HTTP_STRIPE_SIGNATURE="valid_sig",
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.tier, Tier.FREE)
+        self.assertFalse(self.user.is_subscription_active)
+
+        sub.refresh_from_db()
+        self.assertEqual(sub.status, Subscription.Status.PAST_DUE)
+
+    # -----------------------------------------------------------------
+    # 8. Subscription status endpoint
+    # -----------------------------------------------------------------
+
+    def test_subscription_status_unauthenticated_redirects(self):
+        """GET /billing/status/ without auth redirects to login."""
+        resp = self.client.get("/billing/status/")
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("login", resp.url.lower())
+
+    def test_subscription_status_returns_tier_info(self):
+        """GET /billing/status/ returns tier, limits, and queries remaining."""
+        self.client.force_login(self.user)
+        resp = self.client.get("/billing/status/")
+        self.assertEqual(resp.status_code, 200)
+
+        data = resp.json()
+        self.assertEqual(data["tier"], Tier.FREE)
+        self.assertIn("daily_limit", data)
+        self.assertIn("queries_today", data)
+        self.assertIn("queries_remaining", data)
+
+    def test_subscription_status_with_active_subscription(self):
+        """GET /billing/status/ includes subscription details when one exists."""
+        Subscription.objects.create(
+            user=self.user,
+            stripe_subscription_id="sub_status_test",
+            status=Subscription.Status.ACTIVE,
+        )
+
+        self.client.force_login(self.user)
+        resp = self.client.get("/billing/status/")
+        self.assertEqual(resp.status_code, 200)
+
+        data = resp.json()
+        self.assertIn("subscription", data)
+        self.assertEqual(data["subscription"]["status"], "active")
+        self.assertTrue(data["subscription"]["is_active"])
+
+    # -----------------------------------------------------------------
+    # 9. Founder availability
+    # -----------------------------------------------------------------
+
+    @patch("accounts.constants.get_founder_availability")
+    def test_founder_availability_returns_slot_info(self, mock_avail):
+        """GET /billing/founder-availability/ returns founder slot data (public, no auth)."""
+        mock_avail.return_value = {
+            "total": 100,
+            "used": 42,
+            "remaining": 58,
+            "available": True,
+        }
+
+        resp = self.client.get("/billing/founder-availability/")
+        self.assertEqual(resp.status_code, 200)
+
+        data = resp.json()
+        self.assertEqual(data["total"], 100)
+        self.assertEqual(data["remaining"], 58)
+        self.assertTrue(data["available"])
+
+    @patch("accounts.constants.get_founder_availability")
+    def test_founder_availability_sold_out(self, mock_avail):
+        """Founder availability returns available=False when sold out."""
+        mock_avail.return_value = {
+            "total": 100,
+            "used": 100,
+            "remaining": 0,
+            "available": False,
+        }
+
+        resp = self.client.get("/billing/founder-availability/")
+        self.assertEqual(resp.status_code, 200)
+
+        data = resp.json()
+        self.assertFalse(data["available"])
+        self.assertEqual(data["remaining"], 0)
+
+    def test_founder_availability_rejects_post(self):
+        """POST /billing/founder-availability/ should be rejected (GET only)."""
+        resp = self.client.post("/billing/founder-availability/")
+        self.assertEqual(resp.status_code, 405)
+
+    # -----------------------------------------------------------------
+    # 10. Checkout with already-active subscription redirects
+    # -----------------------------------------------------------------
+
+    @patch("accounts.billing.get_or_create_stripe_customer")
+    def test_checkout_already_subscribed_redirects(self, mock_get_customer):
+        """User with active subscription gets redirected instead of creating checkout."""
+        Subscription.objects.create(
+            user=self.user,
+            stripe_subscription_id="sub_already_active",
+            status=Subscription.Status.ACTIVE,
+        )
+
+        self.client.force_login(self.user)
+        resp = self.client.get("/billing/checkout/?plan=pro")
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("already_subscribed", resp.url)
+        mock_get_customer.assert_not_called()
+
+    # -----------------------------------------------------------------
+    # 11. Founder checkout — sold out
+    # -----------------------------------------------------------------
+
+    @patch("accounts.billing.get_founder_availability")
+    @patch("accounts.billing.get_or_create_stripe_customer")
+    def test_checkout_founder_sold_out_redirects(self, mock_get_customer, mock_avail):
+        """Founder plan checkout when sold out redirects with error."""
+        mock_avail.return_value = {"available": False, "remaining": 0}
+        mock_get_customer.return_value = "cus_test"
+
+        self.client.force_login(self.user)
+        resp = self.client.get("/billing/checkout/?plan=founder")
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("founder_sold_out", resp.url)
+
+    # -----------------------------------------------------------------
+    # 12. Regional pricing
+    # -----------------------------------------------------------------
+
+    @patch("accounts.billing.stripe.checkout.Session.create")
+    @patch("accounts.billing.get_or_create_stripe_customer")
+    def test_checkout_with_region_uses_regional_price(self, mock_get_customer, mock_session_create):
+        """GET /billing/checkout/?plan=pro&region=in uses Indian pricing."""
+        mock_get_customer.return_value = "cus_regional"
+        mock_session_create.return_value = type("Session", (), {"url": "https://checkout.stripe.com/regional"})()
+
+        self.client.force_login(self.user)
+        resp = self.client.get("/billing/checkout/?plan=pro&region=in")
+
+        self.assertEqual(resp.status_code, 302)
+        call_kwargs = mock_session_create.call_args[1]
+        # India PRO price
+        self.assertEqual(
+            call_kwargs["line_items"][0]["price"],
+            "price_1T17YfDQfJOZ4D24dmfpjXIx",
+        )
