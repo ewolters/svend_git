@@ -4847,7 +4847,7 @@ function showProperties(el, type) {
             </div>
             <div style="font-size:0.5rem;color:var(--text-dim);margin:-2px 0 4px 76px;">FIFO=first in &nbsp; SPT=shortest &nbsp; EDD=due date &nbsp; CR=critical ratio</div>
             <div class="prop-row"><span class="prop-label">Operators</span><input type="number" class="prop-input" value="${el.operators || 1}" onchange="updateProp('operators', +this.value)" min="1"></div>
-            <div class="prop-row"><span class="prop-label">Batch Size</span><input type="number" class="prop-input" value="${el.batch_size || 1}" onchange="updateProp('batch_size', +this.value)" min="1"></div>
+            <div class="prop-row"><span class="prop-label">Transfer Batch</span><input type="number" class="prop-input" value="${el.batch_size || 1}" onchange="updateProp('batch_size', +this.value)" min="1" title="Min parts in queue before machine starts processing"></div>
             <div class="prop-row"><span class="prop-label">Scrap %</span><input type="number" class="prop-input" value="${((el.scrap_rate || 0) * 100).toFixed(0)}" onchange="updateProp('scrap_rate', +this.value/100)" step="1" min="0" max="100"><span class="prop-unit">%</span></div>
             <div class="prop-row"><span class="prop-label">Rework %</span><input type="number" class="prop-input" value="${((el.rework_rate || 0) * 100).toFixed(0)}" onchange="updateProp('rework_rate', +this.value/100)" step="1" min="0" max="100"><span class="prop-unit">%</span></div>
             <div class="prop-row"><span class="prop-label">Rework →</span>
@@ -4882,16 +4882,16 @@ function showProperties(el, type) {
             </div>
             <div style="margin-top:6px; border-top:1px solid var(--border); padding-top:6px;">
                 <div class="prop-row">
-                    <span class="prop-label">Batch Proc.</span>
-                    <select class="prop-input" onchange="updateProp('batch_process_mode', this.value === 'true'); showProperties(selectedElement, 'machine');">
+                    <span class="prop-label">Accumulation</span>
+                    <select class="prop-input" onchange="updateProp('batch_process_mode', this.value === 'true'); showProperties(selectedElement, 'machine');" title="Oven/furnace mode: accumulate parts, process all at once">
                         <option value="false" ${!el.batch_process_mode ? 'selected' : ''}>Off</option>
                         <option value="true" ${el.batch_process_mode ? 'selected' : ''}>On</option>
                     </select>
                 </div>
                 ${el.batch_process_mode ? `
-                <div class="prop-row"><span class="prop-label">Batch Size</span><input type="number" class="prop-input" value="${el.batch_process_size || 10}" onchange="updateProp('batch_process_size', +this.value)" min="2" title="Parts to accumulate before processing"><span class="prop-unit">pcs</span></div>
-                <div class="prop-row"><span class="prop-label">Batch Time</span><input type="number" class="prop-input" value="${el.batch_process_time || 300}" onchange="updateProp('batch_process_time', +this.value)" min="1" title="Fixed processing time for the whole batch"><span class="prop-unit">s</span></div>
-                <div style="font-size:0.5rem;color:var(--text-dim);line-height:1.3;margin-top:2px;">Oven/furnace mode. Waits for N parts, processes all at once. Creates WIP bulges before and starvation after.</div>
+                <div class="prop-row"><span class="prop-label">Accumulate</span><input type="number" class="prop-input" value="${el.batch_process_size || 10}" onchange="updateProp('batch_process_size', +this.value)" min="2" title="Parts to collect before firing"><span class="prop-unit">pcs</span></div>
+                <div class="prop-row"><span class="prop-label">Cycle (batch)</span><input type="number" class="prop-input" value="${el.batch_process_time || 300}" onchange="updateProp('batch_process_time', +this.value)" min="1" title="Fixed processing time for the whole batch"><span class="prop-unit">s</span></div>
+                <div style="font-size:0.5rem;color:var(--text-dim);line-height:1.3;margin-top:2px;">Accumulation mode (oven/furnace). Waits for N parts, processes all at once. Creates WIP bulges before and starvation after.</div>
                 ` : ''}
                 <div class="prop-row">
                     <span class="prop-label">Assembly</span>

@@ -324,6 +324,98 @@ class SimulatorArchitectureTest(SimpleTestCase):
             "Simulator must track simulation state",
         )
 
+    def test_transfer_batch_label(self):
+        """CR-1: Transfer Batch label replaces ambiguous Batch Size."""
+        self.assertIn(
+            "Transfer Batch",
+            self.content,
+            "Machine properties must use 'Transfer Batch' label (not 'Batch Size')",
+        )
+
+    def test_accumulation_mode_label(self):
+        """CR-1: Accumulation mode label replaces Batch Proc."""
+        self.assertIn(
+            "Accumulation",
+            self.content,
+            "Batch processing toggle must use 'Accumulation' label",
+        )
+
+    def test_dedicated_product_property(self):
+        """CR-2: Dedicated product dropdown exists in machine properties."""
+        self.assertIn(
+            "dedicated_product",
+            self.content,
+            "Machine properties must include dedicated_product for single-product machines",
+        )
+
+    def test_quality_by_product_section(self):
+        """CR-3: Per-product quality overrides exist."""
+        self.assertIn(
+            "quality_by_product",
+            self.content,
+            "Machine properties must support per-product quality rates",
+        )
+
+    def test_defect_rate_separate_from_scrap(self):
+        """CR-3: Defect rate is a separate field from scrap rate."""
+        self.assertIn(
+            "defect_rate",
+            self.content,
+            "Machine must have separate defect_rate field",
+        )
+
+    def test_routing_rules_section(self):
+        """CR-4: Product routing rules on connections."""
+        self.assertIn(
+            "routing_rules",
+            self.content,
+            "Connection properties must support routing_rules for divergent flows",
+        )
+
+    def test_no_browser_prompt_dialogs(self):
+        """CR-5: No browser prompt() dialogs for operator assignment."""
+        # prompt( should not appear outside of comments
+
+        # Find all prompt( calls that aren't in comments
+        lines = self.content.split("\n")
+        violations = []
+        for i, line in enumerate(lines, 1):
+            stripped = line.lstrip()
+            if stripped.startswith("//") or stripped.startswith("*"):
+                continue
+            if "prompt(" in line and "showToast" not in line:
+                violations.append(f"Line {i}: {stripped[:80]}")
+        self.assertEqual(
+            violations,
+            [],
+            "Browser prompt() dialogs must be replaced with config panels:\n" + "\n".join(violations),
+        )
+
+    def test_resource_role_config(self):
+        """CR-5: Resource role dropdown exists (operator/maintenance/agv/inspector)."""
+        for role in ["operator", "maintenance", "agv_driver", "inspector"]:
+            self.assertIn(
+                role,
+                self.content,
+                f"Resource role '{role}' must be configurable in employee panel",
+            )
+
+    def test_rto_display(self):
+        """CR-5: RTO (Required to Operate) display exists."""
+        self.assertIn(
+            "RTO",
+            self.content,
+            "Workforce section must display RTO (Required to Operate) budget",
+        )
+
+    def test_shift_assignment(self):
+        """CR-5: Shift assignment dropdown exists for resources."""
+        self.assertIn(
+            "Shift 1",
+            self.content,
+            "Resource config must include shift assignment (Shift 1/2/3)",
+        )
+
 
 # ---------------------------------------------------------------------------
 # DOM Pattern Tests (JS-001 §8)
