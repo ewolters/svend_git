@@ -3656,7 +3656,7 @@ async function promoteVSM(vsmId) {
         });
         if (!resp.ok) {
             const err = await resp.json();
-            alert(err.error || 'Promotion failed');
+            alert(safeStr(err.error, 'Promotion failed'));
             return;
         }
         alert('VSM promoted to current state. Old current archived.');

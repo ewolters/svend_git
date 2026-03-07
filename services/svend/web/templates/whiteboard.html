@@ -4888,7 +4888,7 @@ async function voteOnElement(elementId) {
                 updateVotingUI();
             } else {
                 const err = await response.json();
-                alert(err.error || 'Failed to vote');
+                alert(safeStr(err.error, 'Failed to vote'));
             }
         } catch (err) {
             console.error('Error voting:', err);

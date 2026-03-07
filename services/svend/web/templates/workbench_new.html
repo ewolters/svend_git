@@ -3272,7 +3272,7 @@ async function handleFileUpload(file) {
             showToast(`Loaded ${file.name} — ${uploadedData.row_count || dswData?.rows || ''} rows`);
             if (dswDataId) autoTriageScan(dswDataId);
         } else {
-            alert(spcData?.error || dswData?.error || 'Upload failed');
+            alert(safeStr(spcData?.error, '') || safeStr(dswData?.error, 'Upload failed'));
         }
     } catch (err) {
         showLoading(false);
@@ -10099,7 +10099,7 @@ function appendBuildA3Prompt(blockId) {
                 window.open(`/app/a3/${a3.id}/`, '_blank');
                 this.textContent = '\u2713 A3 opened';
             } else {
-                showToast(a3.error || 'Could not create A3');
+                showToast(safeStr(a3.error, 'Could not create A3'));
                 this.disabled = false;
                 this.textContent = 'Build A3 Report';
             }

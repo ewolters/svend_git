@@ -1352,7 +1352,7 @@ async function createFmea() {
 
     if (!resp.ok) {
         const err = await resp.json();
-        alert(err.error || 'Failed to create FMEA');
+        alert(safeStr(err.error, 'Failed to create FMEA'));
         return;
     }
 
@@ -1411,7 +1411,7 @@ async function linkHypothesis(hypothesisId) {
 
     if (!resp.ok) {
         const err = await resp.json();
-        alert(err.error || 'Failed to link');
+        alert(safeStr(err.error, 'Failed to link'));
         return;
     }
 
@@ -1528,7 +1528,7 @@ async function promoteFmeaAction(fmeaId, rowId) {
 
     if (!resp.ok) {
         const err = await resp.json();
-        alert(err.error || 'Failed to promote action');
+        alert(safeStr(err.error, 'Failed to promote action'));
         return;
     }
 
@@ -1582,7 +1582,7 @@ async function updateActionStatus(actionId, newStatus) {
 
     if (!resp.ok) {
         const err = await resp.json();
-        alert(err.error || 'Failed to update action');
+        alert(safeStr(err.error, 'Failed to update action'));
         return;
     }
 

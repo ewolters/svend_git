@@ -2663,7 +2663,7 @@ async function advancePhase() {
             await viewProject(currentProject.id);
         } else {
             const err = await response.json();
-            alert(err.error || 'Failed to advance phase');
+            alert(safeStr(err.error, 'Failed to advance phase'));
         }
     } catch (err) {
         alert('Error: ' + safeStr(err, 'Unknown error'));

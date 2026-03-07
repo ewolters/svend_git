@@ -1148,7 +1148,7 @@ async function embedWhiteboard() {
         });
         if (!resp.ok) {
             const err = await resp.json();
-            throw new Error(err.error || 'Failed');
+            throw new Error(safeStr(err.error, 'Failed'));
         }
         closeWbModal();
         await loadDoc(currentDoc.id);
@@ -1186,7 +1186,7 @@ async function publishDoc() {
         });
         if (!resp.ok) {
             const err = await resp.json();
-            throw new Error(err.error || 'Failed');
+            throw new Error(safeStr(err.error, 'Failed'));
         }
         const data = await resp.json();
         currentDoc.controlled_document_id = data.controlled_document.id;

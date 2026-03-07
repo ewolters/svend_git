@@ -662,6 +662,60 @@ class GlobalAntiPatternSweepTest(SimpleTestCase):
             "Sync XHR violations:\n" + "\n".join(violations),
         )
 
+    def test_no_unguarded_error_object_coercion(self):
+        """§15.8: No .error property used in string context without safeStr().
+
+        ErrorEnvelopeMiddleware returns .error as an object {code, message, ...}.
+        Using .error directly in alert(), textContent, innerHTML, or template
+        literals produces [object Object]. All must use safeStr().
+
+        Patterns caught:
+        - alert(X.error)  or  alert(X.error || 'fallback')
+        - .textContent = X.error
+        - ${X.error} in template literals (without safeStr wrapper)
+        - throw new Error(X.error)  or  throw new Error(X.error || 'fallback')
+        - + X.error  (string concatenation)
+
+        Allowed:
+        - if (X.error)  (condition check only)
+        - console.log/warn/error(X.error)  (debugging)
+        - safeStr(X.error, ...)  (already guarded)
+        """
+        violations = []
+        # Patterns where .error is used in string-coercion context
+        # without safeStr() wrapping
+        coercion_patterns = [
+            # alert(data.error) or alert(data.error || 'x')
+            (r"alert\([^)]*(?<!safeStr\()(\w+\.error)\b(?!s|_)\s*(\|\||[,)])", "alert({var}.error)"),
+            # .textContent = X.error (word boundary: .error not .errors_today)
+            (r"\.textContent\s*=\s*(?!.*safeStr).*(\w+\.error)\b(?!s|_)", "textContent = {var}.error"),
+            # throw new Error(X.error) or throw new Error(X.error || 'x')
+            (r"throw\s+new\s+Error\((?!safeStr)(\w+\.error)\b(?!s|_)", "throw new Error({var}.error)"),
+            # showToast(X.error || 'x') without safeStr
+            (r"showToast\((?!safeStr)(\w+\.error)\b(?!s|_)\s*\|\|", "showToast({var}.error ||)"),
+            # toast(X.error without safeStr
+            (r"(?<!\w)toast\((?!safeStr)(\w+\.error)\b(?!s|_)", "toast({var}.error)"),
+        ]
+        for name, content in self.templates.items():
+            js = _extract_js(content)
+            for pattern, desc in coercion_patterns:
+                for m in re.finditer(pattern, js):
+                    # Skip if the line contains safeStr already
+                    line_start = js.rfind("\n", 0, m.start()) + 1
+                    line_end = js.find("\n", m.end())
+                    line = js[line_start : line_end if line_end > 0 else len(js)]
+                    if "safeStr" in line:
+                        continue
+                    # Skip console.log/warn/error
+                    if re.search(r"console\.\w+\(", line):
+                        continue
+                    violations.append(f"{name}: {desc} — {line.strip()[:100]}")
+        self.assertEqual(
+            violations,
+            [],
+            "Unguarded .error object coercion (JS-001 §15.8):\n" + "\n".join(violations),
+        )
+
     def test_no_function_constructor_all_templates(self):
         """§15.3: No new Function() constructor in any template."""
         violations = []

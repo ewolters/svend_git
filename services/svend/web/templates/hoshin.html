@@ -3877,7 +3877,7 @@ async function saveXMObjective() {
         });
         if (!resp.ok) {
             const err = await resp.json();
-            alert(err.error || 'Save failed');
+            alert(safeStr(err.error, 'Save failed'));
             return;
         }
         closeXMModal('xm-obj-modal');
@@ -4043,7 +4043,7 @@ async function saveXMKPI() {
         });
         if (!resp.ok) {
             const err = await resp.json();
-            alert(err.error || 'Save failed');
+            alert(safeStr(err.error, 'Save failed'));
             return;
         }
         closeXMModal('xm-kpi-modal');

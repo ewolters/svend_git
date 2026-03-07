@@ -3501,7 +3501,7 @@ async function loadCompliance() {
                     const bg = r.passed ? '' : 'background:rgba(239,68,68,0.08);';
                     const icon = r.passed ? '<span style="color:var(--accent-primary);">&#10003;</span>' : '<span style="color:var(--danger,#ef4444);">&#10007;</span>';
                     const dur = r.duration_ms ? r.duration_ms.toFixed(0) + 'ms' : '—';
-                    const desc = r.description || r.error || '';
+                    const desc = r.description || safeStr(r.error, '');
                     return `<tr style="${bg}border-bottom:1px solid var(--border);">
                         <td style="padding:4px 8px;font-family:monospace;white-space:nowrap;">${r.case_id}</td>
                         <td style="padding:4px 8px;">${r.category}</td>
@@ -7404,7 +7404,7 @@ async function loadSite() {
             html += '<div style="margin-top:10px;font-size:0.75rem;color:var(--text-dim);">';
             html += '<strong>Recent errors:</strong>';
             rf.recent_errors.forEach(function(e) {
-                html += '<div style="margin-top:2px;">' + countryFlag(e.country) + ' ' + (e.error || '—') + ' <span style="color:var(--text-dim);">(' + e.at.slice(0,16) + ')</span></div>';
+                html += '<div style="margin-top:2px;">' + countryFlag(e.country) + ' ' + safeStr(e.error, '—') + ' <span style="color:var(--text-dim);">(' + e.at.slice(0,16) + ')</span></div>';
             });
             html += '</div>';
         }
@@ -7728,7 +7728,7 @@ async function openStandard(code) {
     try {
         const resp = await fetch(`/api/internal/standards/?code=${encodeURIComponent(code)}`);
         const s = await resp.json();
-        if (s.error) throw new Error(s.error);
+        if (s.error) throw new Error(safeStr(s.error, 'Error'));
 
         // Header
         document.getElementById('std-reader-code').textContent = s.code;

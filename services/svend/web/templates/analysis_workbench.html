@@ -2404,7 +2404,7 @@ async function applySynaraWeights(target) {
 
         if (!response.ok) {
             const err = await response.json();
-            throw new Error(err.error || 'Failed to save evidence');
+            throw new Error(safeStr(err.error, 'Failed to save evidence'));
         }
 
         // Remove the integration UI
@@ -2584,7 +2584,7 @@ async function applyStatisticsEvidence() {
 
         if (!response.ok) {
             const err = await response.json();
-            throw new Error(err.error || 'Failed to save evidence');
+            throw new Error(safeStr(err.error, 'Failed to save evidence'));
         }
 
         container?.remove();
@@ -2906,7 +2906,7 @@ async function cleanAndLoad() {
 
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
-            throw new Error(errData.error || 'Cleaning failed');
+            throw new Error(safeStr(errData.error, 'Cleaning failed'));
         }
 
         const result = await response.json();

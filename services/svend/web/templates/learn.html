@@ -1751,7 +1751,7 @@ async function runInDSW(dswType) {
             resultDiv.innerHTML = `
                 <div style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; padding:1.25rem;">
                     <p style="color:var(--text-secondary);">DSW returned an error.</p>
-                    <p style="color:var(--text-secondary); font-size:0.85rem;">${err.error || 'Try running this in the Workbench with your own data.'}</p>
+                    <p style="color:var(--text-secondary); font-size:0.85rem;">${safeStr(err.error, 'Try running this in the Workbench with your own data.')}</p>
                     <a href="/app/workbench/" class="btn btn-secondary" style="text-decoration:none; margin-top:0.5rem; display:inline-block;">Open Workbench</a>
                 </div>
             `;
@@ -4650,7 +4650,7 @@ async function startLearnSession() {
             selectSection(currentModule.id, currentSection.id);
         } else {
             const err = await resp.json();
-            alert(err.error || 'Failed to start session');
+            alert(safeStr(err.error, 'Failed to start session'));
         }
     } catch (e) {
         console.error('Failed to start session:', e);
@@ -4915,7 +4915,7 @@ async function startAssessment() {
             showView('assessment');
         } else {
             const error = await response.json();
-            alert(error.error || 'Failed to generate assessment');
+            alert(safeStr(error.error, 'Failed to generate assessment'));
         }
     } catch (err) {
         console.error('Failed to start assessment:', err);
