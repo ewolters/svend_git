@@ -1449,6 +1449,7 @@ class PlantDES {
                 mttr: stn.mttr || null,
                 operators: stn.operators || 1,
                 batchSize: stn.batch_size || 1,
+                dedicatedProduct: stn.dedicated_product || null,
                 workCenterId: stn.work_center_id || null,
                 scrapRate: stn.scrap_rate || 0,
                 reworkRate: stn.rework_rate || 0,
@@ -1990,7 +1991,7 @@ class PlantDES {
         // Route to downstream (with transport time)
         const downstream = this._getDownstream(src.id);
         if (downstream.length > 0) {
-            const target = this._pickTarget(downstream);
+            const target = this._pickTarget(downstream, job);
             const transportTime = this._getTransportTime(src.id, target.toId);
             if (transportTime > 0) {
                 this._requestTransport(job, target.toId, transportTime);
@@ -2009,17 +2010,25 @@ class PlantDES {
         this.eventQueue.push({ time: nextTime, type: 'arrival', stationId: src.id });
     }
 
-    _pickTarget(downstream) {
-        if (downstream.length === 1) return downstream[0];
-        // Pick station with shortest queue (work center routing)
-        let best = downstream[0];
+    _pickTarget(downstream, job = null) {
+        if (downstream.length === 1) {
+            // Single downstream: check dedicated product filter
+            const stn = this.stations.get(downstream[0].toId);
+            if (stn && stn.dedicatedProduct && job && job.productType !== stn.dedicatedProduct) return null;
+            return downstream[0];
+        }
+        // Pick eligible station with shortest queue
+        let best = null;
         let bestLen = Infinity;
         for (const d of downstream) {
             const stn = this.stations.get(d.toId);
-            const len = stn ? stn.queue.length : Infinity;
+            if (!stn) continue;
+            // Dedicated machine filter: skip if product doesn't match
+            if (stn.dedicatedProduct && job && job.productType !== stn.dedicatedProduct) continue;
+            const len = stn.queue.length;
             if (len < bestLen) { bestLen = len; best = d; }
         }
-        return best;
+        return best || downstream[0]; // fallback if no match
     }
 
     _deliverJob(job, toId) {
@@ -2526,6 +2535,21 @@ class PlantDES {
             return;
         }
 
+        // Dedicated machine: only process matching product type
+        if (stn.dedicatedProduct) {
+            const matchIdx = stn.queue.findIndex(j => j.productType === stn.dedicatedProduct);
+            if (matchIdx === -1) {
+                // No matching jobs in queue — starve
+                if (stn.state !== 'starved') this._updateStationTime(stn, 'starved');
+                return;
+            }
+            // Move matching job to front of queue
+            if (matchIdx > 0) {
+                const [matching] = stn.queue.splice(matchIdx, 1);
+                stn.queue.unshift(matching);
+            }
+        }
+
         // Check if blocked (downstream full)
         const downstream = this._getDownstream(stn.id);
         if (downstream.length > 0 && stn.blockedJob) {
@@ -2707,7 +2731,7 @@ class PlantDES {
             for (const bj of batchJobs) {
                 bj._batchJobs = null; // clean up
                 if (downstream.length > 0) {
-                    const target = this._pickTarget(downstream);
+                    const target = this._pickTarget(downstream, bj);
                     const targetStn = this.stations.get(target.toId);
                     const transportTime = this._getTransportTime(stn.id, target.toId);
                     if (targetStn && targetStn.type === 'sink') {
@@ -2916,7 +2940,7 @@ class PlantDES {
                 // Route the current job downstream still (it passed)
                 const ds = this._getDownstream(stn.id);
                 if (ds.length > 0) {
-                    const t = this._pickTarget(ds);
+                    const t = this._pickTarget(ds, job);
                     this._deliverJob(job, t.toId);
                 } else {
                     job.completedAt = this.clock;
@@ -2946,7 +2970,7 @@ class PlantDES {
         }
 
         // Try to move job downstream
-        const target = this._pickTarget(downstream);
+        const target = this._pickTarget(downstream, job);
         const targetStn = this.stations.get(target.toId);
         const transportTime = this._getTransportTime(stn.id, target.toId);
 
@@ -3308,7 +3332,7 @@ class PlantDES {
         if (stn) {
             const downstream = this._getDownstream(stn.id);
             if (downstream.length > 0) {
-                const target = this._pickTarget(downstream);
+                const target = this._pickTarget(downstream, job);
                 const targetStn = this.stations.get(target.toId);
                 const transportTime = this._getTransportTime(stn.id, target.toId);
                 if (targetStn && targetStn.type === 'sink') {
@@ -4846,6 +4870,14 @@ function showProperties(el, type) {
                 </select>
             </div>
             <div style="font-size:0.5rem;color:var(--text-dim);margin:-2px 0 4px 76px;">FIFO=first in &nbsp; SPT=shortest &nbsp; EDD=due date &nbsp; CR=critical ratio</div>
+            <div class="prop-row"><span class="prop-label">Dedicated</span>
+                <select class="prop-input" onchange="updateProp('dedicated_product', this.value || null)" title="Restrict this machine to one product type. 'Any' = processes all types.">
+                    <option value="" ${!el.dedicated_product ? 'selected' : ''}>Any product</option>
+                    ${getAllProductTypes().map(pt =>
+                        \`<option value="\${pt}" \${el.dedicated_product === pt ? 'selected' : ''}>\${pt}</option>\`
+                    ).join('')}
+                </select>
+            </div>
             <div class="prop-row"><span class="prop-label">Operators</span><input type="number" class="prop-input" value="${el.operators || 1}" onchange="updateProp('operators', +this.value)" min="1"></div>
             <div class="prop-row"><span class="prop-label">Transfer Batch</span><input type="number" class="prop-input" value="${el.batch_size || 1}" onchange="updateProp('batch_size', +this.value)" min="1" title="Min parts in queue before machine starts processing"></div>
             <div class="prop-row"><span class="prop-label">Scrap %</span><input type="number" class="prop-input" value="${((el.scrap_rate || 0) * 100).toFixed(0)}" onchange="updateProp('scrap_rate', +this.value/100)" step="1" min="0" max="100"><span class="prop-unit">%</span></div>
