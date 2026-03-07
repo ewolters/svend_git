@@ -485,9 +485,14 @@ function renderNCRList(el) {
     el.innerHTML = html;
 }
 
-function showNCRForm() {
+async function showNCRForm() {
     const area = document.getElementById('ncr-form-area');
     if (area.innerHTML) { area.innerHTML = ''; return; }
+    let memberOpts = '<option value="">— Unassigned —</option>';
+    try {
+        const data = await apiFetch('/team-members/');
+        data.members.forEach(m => { memberOpts += `<option value="${m.id}">${escHtml(m.name)}</option>`; });
+    } catch (e) { /* fallback: just unassigned */ }
     area.innerHTML = `<div class="iso-form">
         <div class="iso-form-grid cols-3">
             <div><label class="iso-label">Title *</label><input class="iso-input" id="ncr-title"></div>
@@ -499,9 +504,10 @@ function showNCRForm() {
                 <option value="process">Process</option><option value="external_audit">External Audit</option>
                 <option value="management_review">Management Review</option></select></div>
         </div>
-        <div class="iso-form-grid">
+        <div class="iso-form-grid cols-3">
             <div><label class="iso-label">ISO Clause</label><input class="iso-input" id="ncr-clause" placeholder="e.g. 8.7, 10.2"></div>
             <div><label class="iso-label">CAPA Due Date</label><input class="iso-input" type="date" id="ncr-due"></div>
+            <div><label class="iso-label">Assign To</label><select class="iso-input" id="ncr-assigned-to">${memberOpts}</select></div>
         </div>
         <div style="margin-bottom:12px"><label class="iso-label">Description</label><textarea class="iso-textarea" id="ncr-desc" rows="2"></textarea></div>
         <div style="margin-bottom:12px"><label class="iso-label">Containment Action</label><textarea class="iso-textarea" id="ncr-contain" rows="2"></textarea></div>
@@ -516,14 +522,17 @@ async function saveNCR() {
     const title = document.getElementById('ncr-title').value.trim();
     if (!title) return toast('Title is required', true);
     try {
-        await apiFetch('/ncrs/', { method: 'POST', body: {
+        const body = {
             title, description: document.getElementById('ncr-desc').value,
             severity: document.getElementById('ncr-severity').value,
             source: document.getElementById('ncr-source').value,
             iso_clause: document.getElementById('ncr-clause').value,
             containment_action: document.getElementById('ncr-contain').value,
             capa_due_date: document.getElementById('ncr-due').value || null,
-        }});
+        };
+        const assignee = document.getElementById('ncr-assigned-to')?.value;
+        if (assignee) body.assigned_to = assignee;
+        await apiFetch('/ncrs/', { method: 'POST', body });
         toast('NCR created');
         document.getElementById('ncr-form-area').innerHTML = '';
         loadNCRs();
@@ -533,7 +542,7 @@ async function saveNCR() {
 async function loadNCRDetail(id) {
     const el = document.getElementById('panel-ncrs');
     try {
-        const n = await apiFetch(`/ncrs/${id}/`);
+        const [n, teamData] = await Promise.all([apiFetch(`/ncrs/${id}/`), apiFetch('/team-members/').catch(() => ({members: []}))]);
         const statuses = ['open', 'investigation', 'capa', 'verification', 'closed'];
         const statusIdx = statuses.indexOf(n.status);
 
@@ -564,7 +573,12 @@ async function loadNCRDetail(id) {
         html += '</div>';
         html += '<div class="iso-field-row">';
         html += `<div><label class="iso-label">Raised By</label><span style="font-size:13px">${n.raised_by ? escHtml(n.raised_by.name) : '—'}</span></div>`;
-        html += `<div><label class="iso-label">Assigned To</label><span style="font-size:13px">${n.assigned_to ? escHtml(n.assigned_to.name) : '—'}</span></div>`;
+        let assignOpts = `<option value="">— Unassigned —</option>`;
+        (teamData.members || []).forEach(m => {
+            const sel = (n.assigned_to && n.assigned_to.id === m.id) ? ' selected' : '';
+            assignOpts += `<option value="${m.id}"${sel}>${escHtml(m.name)}</option>`;
+        });
+        html += `<div><label class="iso-label">Assigned To</label><select class="iso-input" style="font-size:13px;padding:4px 8px" onchange="assignNCR('${n.id}', this.value)">${assignOpts}</select></div>`;
         html += `<div><label class="iso-label">Approved By</label><span style="font-size:13px">${n.approved_by ? escHtml(n.approved_by.name) : '—'}</span></div>`;
         html += '</div>';
         html += '<div class="iso-field-row">';
@@ -605,6 +619,9 @@ async function loadNCRDetail(id) {
             const nextStatus = next[n.status];
             if (nextStatus) {
                 html += `<div><label class="iso-label">Next Status</label><input class="iso-input" value="${nextStatus}" disabled style="width:140px"></div>`;
+                if (nextStatus === 'investigation' && !n.assigned_to) {
+                    html += `<div><label class="iso-label">Assign To *</label><select class="iso-input" id="ncr-transition-assignee" style="width:160px">${assignOpts}</select></div>`;
+                }
                 html += `<div><label class="iso-label">Note</label><input class="iso-input" id="ncr-transition-note" placeholder="Optional note" style="width:200px"></div>`;
                 html += `<button class="iso-btn primary" onclick="advanceNCR('${n.id}','${nextStatus}')">Advance to ${nextStatus.replace(/_/g,' ')}</button>`;
             }
@@ -664,9 +681,19 @@ async function loadNCRDetail(id) {
 async function advanceNCR(id, newStatus) {
     try {
         const note = document.getElementById('ncr-transition-note')?.value || '';
-        await apiFetch(`/ncrs/${id}/`, { method: 'PUT', body: { status: newStatus, status_note: note } });
+        const body = { status: newStatus, status_note: note };
+        const assignee = document.getElementById('ncr-transition-assignee')?.value;
+        if (assignee) body.assigned_to = assignee;
+        await apiFetch(`/ncrs/${id}/`, { method: 'PUT', body });
         toast(`NCR advanced to ${newStatus}`);
         loadNCRDetail(id);
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
+}
+
+async function assignNCR(id, userId) {
+    try {
+        await apiFetch(`/ncrs/${id}/`, { method: 'PUT', body: { assigned_to: userId || null } });
+        toast(userId ? 'NCR assigned' : 'NCR unassigned');
     } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
@@ -1266,8 +1293,10 @@ async function loadReviews() {
 function renderReviewList(el) {
     let html = '<div class="iso-toolbar">';
     html += '<div class="spacer"></div>';
-    html += '<button class="iso-btn primary" onclick="createReview()">+ New Review</button>';
+    html += '<button class="iso-btn" onclick="manageTemplates()">Templates</button>';
+    html += '<button class="iso-btn primary" onclick="showCreateReviewForm()">+ New Review</button>';
     html += '</div>';
+    html += '<div id="review-create-area"></div>';
 
     if (!reviewList.length) {
         html += '<div style="text-align:center;padding:40px;color:var(--text-dim)">No management reviews. Create one to auto-populate QMS data.</div>';
@@ -1276,13 +1305,14 @@ function renderReviewList(el) {
     }
 
     html += '<table class="iso-table"><thead><tr>';
-    html += '<th>Title</th><th>Status</th><th>Meeting Date</th><th>Attendees</th><th></th>';
+    html += '<th>Title</th><th>Status</th><th>Template</th><th>Meeting Date</th><th>Attendees</th><th></th>';
     html += '</tr></thead><tbody>';
     reviewList.forEach(r => {
         const attendees = Array.isArray(r.attendees) ? r.attendees : [];
         html += `<tr onclick="loadReviewDetail('${r.id}')" style="cursor:pointer">`;
         html += `<td>${escHtml(r.title)}</td>`;
         html += `<td>${badge(r.status)}</td>`;
+        html += `<td style="font-size:12px">${r.template_title ? escHtml(r.template_title) : '—'}</td>`;
         html += `<td>${fmtDate(r.meeting_date)}</td>`;
         html += `<td style="font-size:12px">${attendees.length ? escHtml(attendees.join(', ')) : '—'}</td>`;
         html += `<td style="text-align:right"><button class="iso-btn small danger" onclick="event.stopPropagation();deleteReview('${r.id}')">Delete</button></td>`;
@@ -1292,10 +1322,49 @@ function renderReviewList(el) {
     el.innerHTML = html;
 }
 
+async function showCreateReviewForm() {
+    const area = document.getElementById('review-create-area');
+    if (area.innerHTML) { area.innerHTML = ''; return; }
+    let templateOpts = '<option value="">No template (blank review)</option>';
+    try {
+        const templates = await apiFetch('/review-templates/');
+        templates.forEach(t => {
+            templateOpts += `<option value="${t.id}"${t.is_default ? ' selected' : ''}>${escHtml(t.title)} (${t.sections.length} sections)</option>`;
+        });
+        if (!templates.length) {
+            templateOpts += '<option value="__create_default__">Create ISO 9001 default template</option>';
+        }
+    } catch (e) { /* fallback */ }
+    area.innerHTML = `<div class="iso-form" style="margin-bottom:16px">
+        <div class="iso-form-grid cols-3">
+            <div><label class="iso-label">Title</label><input class="iso-input" id="rev-new-title" placeholder="e.g. Q1 2026 Management Review"></div>
+            <div><label class="iso-label">Meeting Date</label><input class="iso-input" type="date" id="rev-new-date" value="${new Date().toISOString().split('T')[0]}"></div>
+            <div><label class="iso-label">Template</label><select class="iso-input" id="rev-new-template">${templateOpts}</select></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="iso-btn primary" onclick="createReview()">Create Review</button>
+            <button class="iso-btn" onclick="document.getElementById('review-create-area').innerHTML=''">Cancel</button>
+        </div>
+    </div>`;
+}
+
 async function createReview() {
     try {
-        const r = await apiFetch('/reviews/', { method: 'POST', body: {} });
+        const templateVal = document.getElementById('rev-new-template')?.value || '';
+        if (templateVal === '__create_default__') {
+            await apiFetch('/review-templates/default/', { method: 'POST' });
+            toast('Default template created');
+            showCreateReviewForm();
+            return;
+        }
+        const body = {
+            title: document.getElementById('rev-new-title')?.value || '',
+            meeting_date: document.getElementById('rev-new-date')?.value || null,
+        };
+        if (templateVal) body.template_id = templateVal;
+        const r = await apiFetch('/reviews/', { method: 'POST', body });
         toast('Review created with auto-populated QMS data');
+        document.getElementById('review-create-area').innerHTML = '';
         loadReviewDetail(r.id);
     } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
@@ -1305,6 +1374,7 @@ async function loadReviewDetail(id) {
     try {
         const r = await apiFetch(`/reviews/${id}/`);
         const snap = r.data_snapshot || {};
+        window._currentReviewInputs = r.inputs || {};
         let html = '<button class="iso-btn ghost" onclick="loadReviews()" style="margin-bottom:12px">&larr; Back to list</button>';
         html += '<div class="iso-detail">';
         html += `<div style="display:flex;justify-content:space-between;align-items:start">
@@ -1344,22 +1414,39 @@ async function loadReviewDetail(id) {
         html += '</div>';
 
         // Structured form per ISO 9001:2015 clause 9.3
-        // Inputs (9.3.2)
+        // Inputs (9.3.2) — template-driven when template is present
         html += '<div class="review-section">';
         html += '<h4>Review Inputs <span class="clause-ref">ISO 9001:2015 clause 9.3.2</span></h4>';
         const inputs = r.inputs || {};
-        html += `<div class="iso-form-grid">
-            <div><label class="iso-label">Actions from Previous Reviews</label><textarea class="iso-textarea" id="rev-inp-actions" rows="2">${escHtml(inputs.prior_actions || '')}</textarea></div>
-            <div><label class="iso-label">Changes in External/Internal Issues</label><textarea class="iso-textarea" id="rev-inp-changes" rows="2">${escHtml(inputs.changes || '')}</textarea></div>
-        </div>
-        <div class="iso-form-grid">
-            <div><label class="iso-label">Customer Feedback</label><textarea class="iso-textarea" id="rev-inp-feedback" rows="2">${escHtml(inputs.customer_feedback || '')}</textarea></div>
-            <div><label class="iso-label">Process Performance / Conformity</label><textarea class="iso-textarea" id="rev-inp-process" rows="2">${escHtml(inputs.process_performance || '')}</textarea></div>
-        </div>
-        <div class="iso-form-grid">
-            <div><label class="iso-label">Nonconformity / Corrective Action</label><textarea class="iso-textarea" id="rev-inp-ncr" rows="2">${escHtml(inputs.ncr_corrective || '')}</textarea></div>
-            <div><label class="iso-label">Risks & Opportunities</label><textarea class="iso-textarea" id="rev-inp-risks" rows="2">${escHtml(inputs.risks_opportunities || '')}</textarea></div>
-        </div>`;
+        if (r.template_id && typeof Object.values(inputs)[0] === 'object') {
+            // Template-based sections
+            const keys = Object.keys(inputs);
+            for (let i = 0; i < keys.length; i += 2) {
+                html += '<div class="iso-form-grid">';
+                for (let j = i; j < Math.min(i + 2, keys.length); j++) {
+                    const key = keys[j];
+                    const section = inputs[key];
+                    const autoHint = section.auto_data ? `<div style="font-size:11px;color:var(--text-dim);margin-top:4px;background:var(--bg-secondary);padding:6px;border-radius:4px"><strong>Auto:</strong> ${escHtml(JSON.stringify(section.auto_data))}</div>` : '';
+                    html += `<div><label class="iso-label">${escHtml(section.title)}</label>
+                        <textarea class="iso-textarea" id="rev-inp-${key}" rows="2">${escHtml(section.content || '')}</textarea>${autoHint}</div>`;
+                }
+                html += '</div>';
+            }
+        } else {
+            // Legacy flat inputs
+            html += `<div class="iso-form-grid">
+                <div><label class="iso-label">Actions from Previous Reviews</label><textarea class="iso-textarea" id="rev-inp-prior_actions" rows="2">${escHtml(inputs.prior_actions || '')}</textarea></div>
+                <div><label class="iso-label">Changes in External/Internal Issues</label><textarea class="iso-textarea" id="rev-inp-external_internal_issues" rows="2">${escHtml(inputs.changes || '')}</textarea></div>
+            </div>
+            <div class="iso-form-grid">
+                <div><label class="iso-label">Customer Feedback</label><textarea class="iso-textarea" id="rev-inp-customer_feedback" rows="2">${escHtml(inputs.customer_feedback || '')}</textarea></div>
+                <div><label class="iso-label">Process Performance / Conformity</label><textarea class="iso-textarea" id="rev-inp-process_performance" rows="2">${escHtml(inputs.process_performance || '')}</textarea></div>
+            </div>
+            <div class="iso-form-grid">
+                <div><label class="iso-label">Nonconformity / Corrective Action</label><textarea class="iso-textarea" id="rev-inp-ncr_corrective" rows="2">${escHtml(inputs.ncr_corrective || '')}</textarea></div>
+                <div><label class="iso-label">Risks & Opportunities</label><textarea class="iso-textarea" id="rev-inp-risk_opportunities" rows="2">${escHtml(inputs.risks_opportunities || '')}</textarea></div>
+            </div>`;
+        }
         html += '</div>';
 
         // Outputs (9.3.3)
@@ -1392,14 +1479,18 @@ async function loadReviewDetail(id) {
 
 async function saveReviewDetail(id) {
     try {
-        const inputs = {
-            prior_actions: document.getElementById('rev-inp-actions').value,
-            changes: document.getElementById('rev-inp-changes').value,
-            customer_feedback: document.getElementById('rev-inp-feedback').value,
-            process_performance: document.getElementById('rev-inp-process').value,
-            ncr_corrective: document.getElementById('rev-inp-ncr').value,
-            risks_opportunities: document.getElementById('rev-inp-risks').value,
-        };
+        // Collect inputs from all rev-inp-* textareas
+        const inputs = {};
+        document.querySelectorAll('[id^="rev-inp-"]').forEach(el => {
+            const key = el.id.replace('rev-inp-', '');
+            // Check if this is a template-based section (has title in existing data)
+            const existingSection = window._currentReviewInputs?.[key];
+            if (existingSection && typeof existingSection === 'object' && existingSection.title) {
+                inputs[key] = { ...existingSection, content: el.value };
+            } else {
+                inputs[key] = el.value;
+            }
+        });
         const outputs = {
             improvement_opportunities: document.getElementById('rev-out-improve').value,
             resource_needs: document.getElementById('rev-out-resources').value,
@@ -1430,6 +1521,52 @@ async function deleteReview(id) {
         await apiFetch(`/reviews/${id}/`, { method: 'DELETE' });
         toast('Review deleted');
         loadReviews();
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
+}
+
+async function manageTemplates() {
+    const el = document.getElementById('panel-reviews');
+    try {
+        const templates = await apiFetch('/review-templates/');
+        let html = '<button class="iso-btn ghost" onclick="loadReviews()" style="margin-bottom:12px">&larr; Back to reviews</button>';
+        html += '<h3 style="margin:0 0 16px">Review Templates</h3>';
+        html += '<div style="display:flex;gap:8px;margin-bottom:16px">';
+        html += '<button class="iso-btn primary" onclick="createDefaultTemplate()">Create ISO 9001 Default</button>';
+        html += '</div>';
+
+        if (templates.length) {
+            html += '<table class="iso-table"><thead><tr><th>Title</th><th>Sections</th><th>Default</th><th>Created</th><th></th></tr></thead><tbody>';
+            templates.forEach(t => {
+                html += `<tr>`;
+                html += `<td>${escHtml(t.title)}</td>`;
+                html += `<td>${t.sections.length} sections</td>`;
+                html += `<td>${t.is_default ? badge('complete', 'Default') : '—'}</td>`;
+                html += `<td>${fmtDate(t.created_at)}</td>`;
+                html += `<td style="text-align:right"><button class="iso-btn small danger" onclick="deleteTemplate('${t.id}')">Delete</button></td>`;
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+        } else {
+            html += '<div style="text-align:center;padding:40px;color:var(--text-dim)">No templates yet. Create the ISO 9001 default to get started.</div>';
+        }
+        el.innerHTML = html;
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
+}
+
+async function createDefaultTemplate() {
+    try {
+        await apiFetch('/review-templates/default/', { method: 'POST' });
+        toast('ISO 9001 default template created');
+        manageTemplates();
+    } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
+}
+
+async function deleteTemplate(id) {
+    if (!confirm('Delete this template?')) return;
+    try {
+        await apiFetch(`/review-templates/${id}/`, { method: 'DELETE' });
+        toast('Template deleted');
+        manageTemplates();
     } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 

@@ -35,6 +35,7 @@ from .models import (
     ElectronicSignature,
     InternalAudit,
     ManagementReview,
+    ManagementReviewTemplate,
     NCRStatusChange,
     NonconformanceRecord,
     QMSFieldChange,
@@ -291,6 +292,39 @@ def iso_dashboard(request):
             },
         }
     )
+
+
+# =========================================================================
+# Team Members (for QMS assignment dropdowns)
+# =========================================================================
+
+
+@require_team
+@require_http_methods(["GET"])
+def team_members(request):
+    """Return users available for QMS assignment."""
+    from core.models.tenant import Membership
+
+    user = request.user
+    members = [{"id": str(user.id), "name": user.get_full_name() or user.email}]
+    seen = {user.id}
+    # Add team members if user belongs to any tenant
+    try:
+        tenant_memberships = (
+            Membership.objects.filter(
+                tenant__membership__user=user,
+                is_active=True,
+            )
+            .select_related("user")
+            .exclude(user=user)
+        )
+        for m in tenant_memberships:
+            if m.user_id not in seen:
+                seen.add(m.user_id)
+                members.append({"id": str(m.user.id), "name": m.user.get_full_name() or m.user.email})
+    except Exception:
+        pass  # Individual users without tenants
+    return JsonResponse({"members": members})
 
 
 # =========================================================================
@@ -1100,10 +1134,40 @@ def review_list_create(request):
     }
 
     data = json.loads(request.body) if request.body else {}
+
+    # Resolve template
+    template = None
+    template_id = data.get("template_id")
+    if template_id:
+        try:
+            template = ManagementReviewTemplate.objects.get(id=template_id)
+        except ManagementReviewTemplate.DoesNotExist:
+            return JsonResponse({"error": "Template not found"}, status=404)
+
+    # Build section-based inputs from template
+    inputs = {}
+    if template:
+        auto_data_map = {
+            "prior_actions": prior_actions,
+            "ncr_summary": ncr_summary,
+            "audit_summary": audit_summary,
+            "training_summary": training_summary,
+        }
+        for section in template.sections:
+            key = section["key"]
+            auto_data = auto_data_map.get(section.get("auto_query")) if section.get("data_source") == "auto" else None
+            inputs[key] = {
+                "title": section["title"],
+                "content": "",
+                "auto_data": auto_data,
+            }
+
     review = ManagementReview.objects.create(
         owner=user,
+        template=template,
         title=data.get("title", f"Management Review — {date.today().strftime('%B %Y')}"),
         meeting_date=data.get("meeting_date", date.today()),
+        inputs=inputs or data.get("inputs", {}),
         data_snapshot=snapshot,
     )
     return JsonResponse(review.to_dict(), status=201)
@@ -1133,6 +1197,78 @@ def review_detail(request, review_id):
         review.meeting_date = data["meeting_date"]
     review.save()
     return JsonResponse(review.to_dict())
+
+
+# =========================================================================
+# Management Review Templates
+# =========================================================================
+
+
+@require_team
+@require_http_methods(["GET", "POST"])
+def review_template_list_create(request):
+    """List review templates or create a new one."""
+    user = request.user
+
+    if request.method == "GET":
+        templates = ManagementReviewTemplate.objects.filter(owner=user)
+        return JsonResponse([t.to_dict() for t in templates[:50]], safe=False)
+
+    data = json.loads(request.body)
+    title = data.get("title", "").strip()
+    if not title:
+        return JsonResponse({"error": "Title is required"}, status=400)
+
+    sections = data.get("sections", ManagementReviewTemplate.DEFAULT_SECTIONS)
+    template = ManagementReviewTemplate.objects.create(
+        owner=user,
+        title=title,
+        description=data.get("description", ""),
+        sections=sections,
+        is_default=data.get("is_default", False),
+    )
+    return JsonResponse(template.to_dict(), status=201)
+
+
+@require_team
+@require_http_methods(["GET", "PUT", "DELETE"])
+def review_template_detail(request, template_id):
+    """Get, update, or delete a review template."""
+    try:
+        template = ManagementReviewTemplate.objects.get(id=template_id, owner=request.user)
+    except ManagementReviewTemplate.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    if request.method == "GET":
+        return JsonResponse(template.to_dict())
+
+    if request.method == "DELETE":
+        template.delete()
+        return JsonResponse({"ok": True})
+
+    data = json.loads(request.body)
+    for field in ["title", "description", "sections", "is_default"]:
+        if field in data:
+            setattr(template, field, data[field])
+    template.save()
+    return JsonResponse(template.to_dict())
+
+
+@require_team
+@require_http_methods(["POST"])
+def review_template_default(request):
+    """Create (or reset) the ISO 9001 default template for this user."""
+    user = request.user
+    # Delete existing defaults
+    ManagementReviewTemplate.objects.filter(owner=user, is_default=True).delete()
+    template = ManagementReviewTemplate.objects.create(
+        owner=user,
+        title="ISO 9001 §9.3.2 Default",
+        description="Standard management review template covering all ISO 9001:2015 §9.3.2 required inputs.",
+        sections=ManagementReviewTemplate.DEFAULT_SECTIONS,
+        is_default=True,
+    )
+    return JsonResponse(template.to_dict(), status=201)
 
 
 # =========================================================================

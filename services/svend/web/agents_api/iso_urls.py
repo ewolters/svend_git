@@ -7,6 +7,8 @@ from . import iso_views
 urlpatterns = [
     # Dashboard
     path("dashboard/", iso_views.iso_dashboard, name="iso_dashboard"),
+    # Team members (for assignment dropdowns)
+    path("team-members/", iso_views.team_members, name="iso_team_members"),
     # NCR Tracker (clause 10.2)
     path("ncrs/", iso_views.ncr_list_create, name="iso_ncr_list"),
     path("ncrs/stats/", iso_views.ncr_stats, name="iso_ncr_stats"),
@@ -29,6 +31,10 @@ urlpatterns = [
     # Management Reviews (clause 9.3)
     path("reviews/", iso_views.review_list_create, name="iso_review_list"),
     path("reviews/<uuid:review_id>/", iso_views.review_detail, name="iso_review_detail"),
+    # Management Review Templates
+    path("review-templates/", iso_views.review_template_list_create, name="iso_review_template_list"),
+    path("review-templates/default/", iso_views.review_template_default, name="iso_review_template_default"),
+    path("review-templates/<uuid:template_id>/", iso_views.review_template_detail, name="iso_review_template_detail"),
     # Document Control (clause 7.5) — skeleton
     path("documents/", iso_views.document_list_create, name="iso_document_list"),
     path("documents/<uuid:doc_id>/", iso_views.document_detail, name="iso_document_detail"),

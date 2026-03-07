@@ -4206,6 +4206,121 @@ class TrainingRecordChange(models.Model):
         }
 
 
+class ManagementReviewTemplate(models.Model):
+    """Customizable management review template per ISO 9001 §9.3.
+
+    Defines which sections appear in a review, their order, and whether
+    they auto-populate from QMS data or require manual input.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="review_templates",
+    )
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    sections = models.JSONField(
+        default=list,
+        help_text='[{"key": str, "title": str, "data_source": "auto"|"manual", "auto_query": str|null, "required": bool}]',
+    )
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "iso_review_templates"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.title
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "title": self.title,
+            "description": self.description,
+            "sections": self.sections,
+            "is_default": self.is_default,
+            "created_at": self.created_at.isoformat(),
+        }
+
+    # ISO 9001 §9.3.2 default sections
+    DEFAULT_SECTIONS = [
+        {
+            "key": "prior_actions",
+            "title": "Status of Prior Actions",
+            "data_source": "auto",
+            "auto_query": "prior_actions",
+            "required": True,
+        },
+        {
+            "key": "external_internal_issues",
+            "title": "Changes in External/Internal Issues",
+            "data_source": "manual",
+            "auto_query": None,
+            "required": True,
+        },
+        {
+            "key": "customer_feedback",
+            "title": "Customer Satisfaction & Feedback",
+            "data_source": "manual",
+            "auto_query": None,
+            "required": True,
+        },
+        {
+            "key": "process_performance",
+            "title": "Process Performance & Conformity",
+            "data_source": "manual",
+            "auto_query": None,
+            "required": True,
+        },
+        {
+            "key": "ncr_corrective",
+            "title": "Nonconformities & Corrective Actions",
+            "data_source": "auto",
+            "auto_query": "ncr_summary",
+            "required": True,
+        },
+        {
+            "key": "monitoring_results",
+            "title": "Monitoring & Measurement Results",
+            "data_source": "manual",
+            "auto_query": None,
+            "required": False,
+        },
+        {
+            "key": "audit_results",
+            "title": "Audit Results",
+            "data_source": "auto",
+            "auto_query": "audit_summary",
+            "required": True,
+        },
+        {
+            "key": "supplier_performance",
+            "title": "Supplier Performance",
+            "data_source": "manual",
+            "auto_query": None,
+            "required": False,
+        },
+        {
+            "key": "resource_adequacy",
+            "title": "Resource Adequacy",
+            "data_source": "manual",
+            "auto_query": None,
+            "required": False,
+        },
+        {
+            "key": "risk_opportunities",
+            "title": "Risk & Opportunities Effectiveness",
+            "data_source": "manual",
+            "auto_query": None,
+            "required": True,
+        },
+    ]
+
+
 class ManagementReview(models.Model):
     """Management review per ISO 9001 clause 9.3."""
 
@@ -4219,6 +4334,13 @@ class ManagementReview(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="management_reviews",
+    )
+    template = models.ForeignKey(
+        ManagementReviewTemplate,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviews",
     )
     title = models.CharField(max_length=300)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.SCHEDULED)
@@ -4257,6 +4379,8 @@ class ManagementReview(models.Model):
             "outputs": self.outputs,
             "minutes": self.minutes,
             "data_snapshot": self.data_snapshot,
+            "template_id": str(self.template_id) if self.template_id else None,
+            "template_title": self.template.title if self.template else None,
             "created_at": self.created_at.isoformat(),
         }
 

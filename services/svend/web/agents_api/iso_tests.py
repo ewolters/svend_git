@@ -1506,6 +1506,207 @@ class ManagementReviewTest(TestCase):
 
 
 # =============================================================================
+# Team Members + NCR Assignment
+# =============================================================================
+
+
+@SECURE_OFF
+class NCRAssignmentTest(TestCase):
+    """NCR assignment via API — team_members endpoint and assignment workflow."""
+
+    def setUp(self):
+        self.user = _make_team_user("assign@test.com")
+        self.client.force_login(self.user)
+
+    def test_team_members_endpoint(self):
+        """Team members endpoint returns at least the current user."""
+        resp = self.client.get("/api/iso/team-members/")
+        self.assertEqual(resp.status_code, 200)
+        members = resp.json()["members"]
+        self.assertGreaterEqual(len(members), 1)
+        # User ID is integer PK, endpoint returns as string
+        self.assertEqual(int(members[0]["id"]), self.user.id)
+
+    def test_assign_ncr_on_create(self):
+        """NCR creation with assigned_to sets the assignee."""
+        resp = _post(
+            self.client,
+            "/api/iso/ncrs/",
+            {
+                "title": "NCR with assignment",
+                "assigned_to": str(self.user.id),
+            },
+        )
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+        self.assertIsNotNone(data.get("assigned_to"))
+        self.assertEqual(int(data["assigned_to"]["id"]), self.user.id)
+
+    def test_assign_ncr_via_put(self):
+        """NCR assignment via PUT update."""
+        ncr = _post(self.client, "/api/iso/ncrs/", {"title": "Unassigned NCR"}).json()
+        self.assertIsNone(ncr.get("assigned_to"))
+        resp = _put(
+            self.client,
+            f"/api/iso/ncrs/{ncr['id']}/",
+            {
+                "assigned_to": str(self.user.id),
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(int(resp.json()["assigned_to"]["id"]), self.user.id)
+
+    def test_advance_to_investigation_with_assignment(self):
+        """NCR can advance to investigation when assigned_to is provided."""
+        ncr = _post(self.client, "/api/iso/ncrs/", {"title": "Advance NCR"}).json()
+        resp = _put(
+            self.client,
+            f"/api/iso/ncrs/{ncr['id']}/",
+            {
+                "status": "investigation",
+                "assigned_to": str(self.user.id),
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "investigation")
+
+    def test_advance_to_investigation_without_assignment_fails(self):
+        """NCR cannot advance to investigation without assigned_to."""
+        ncr = _post(self.client, "/api/iso/ncrs/", {"title": "No assignee NCR"}).json()
+        resp = _put(
+            self.client,
+            f"/api/iso/ncrs/{ncr['id']}/",
+            {
+                "status": "investigation",
+            },
+        )
+        self.assertIn(resp.status_code, [400, 409])
+
+
+# =============================================================================
+# Management Review Templates
+# =============================================================================
+
+
+@SECURE_OFF
+class ManagementReviewTemplateTest(TestCase):
+    """Management review template CRUD and template-based review creation."""
+
+    def setUp(self):
+        self.user = _make_team_user("template@test.com")
+        self.client.force_login(self.user)
+
+    def test_create_template(self):
+        """Create a custom review template."""
+        resp = _post(
+            self.client,
+            "/api/iso/review-templates/",
+            {
+                "title": "Custom Template",
+                "sections": [
+                    {
+                        "key": "safety",
+                        "title": "Safety Review",
+                        "data_source": "manual",
+                        "auto_query": None,
+                        "required": True,
+                    },
+                ],
+            },
+        )
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(resp.json()["title"], "Custom Template")
+        self.assertEqual(len(resp.json()["sections"]), 1)
+
+    def test_create_default_template(self):
+        """Default ISO 9001 template has 10 sections."""
+        resp = _post(self.client, "/api/iso/review-templates/default/", {})
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+        self.assertTrue(data["is_default"])
+        self.assertEqual(len(data["sections"]), 10)
+        keys = [s["key"] for s in data["sections"]]
+        self.assertIn("prior_actions", keys)
+        self.assertIn("ncr_corrective", keys)
+        self.assertIn("audit_results", keys)
+
+    def test_list_templates(self):
+        """List returns user's templates."""
+        _post(self.client, "/api/iso/review-templates/", {"title": "T1"})
+        _post(self.client, "/api/iso/review-templates/", {"title": "T2"})
+        resp = self.client.get("/api/iso/review-templates/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.json()), 2)
+
+    def test_delete_template(self):
+        """Delete a template."""
+        t = _post(self.client, "/api/iso/review-templates/", {"title": "Del"}).json()
+        resp = self.client.delete(f"/api/iso/review-templates/{t['id']}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(self.client.get("/api/iso/review-templates/").json(), [])
+
+    def test_create_review_from_template(self):
+        """Review created from template has section-based inputs with auto_data."""
+        tpl = _post(self.client, "/api/iso/review-templates/default/", {}).json()
+        # Seed NCR data for auto-population
+        _post(self.client, "/api/iso/ncrs/", {"title": "NCR for template"})
+        review = _post(
+            self.client,
+            "/api/iso/reviews/",
+            {
+                "title": "Templated Review",
+                "template_id": tpl["id"],
+            },
+        ).json()
+        self.assertEqual(review["template_id"], tpl["id"])
+        inputs = review["inputs"]
+        self.assertIn("ncr_corrective", inputs)
+        self.assertIsNotNone(inputs["ncr_corrective"]["auto_data"])
+        self.assertEqual(inputs["ncr_corrective"]["auto_data"]["open"], 1)
+
+    def test_create_review_from_template_auto_prior_actions(self):
+        """Template auto-populates prior_actions from last completed review."""
+        tpl = _post(self.client, "/api/iso/review-templates/default/", {}).json()
+        # Create and complete a review with outputs
+        rev1 = _post(self.client, "/api/iso/reviews/", {}).json()
+        _put(
+            self.client,
+            f"/api/iso/reviews/{rev1['id']}/",
+            {
+                "status": "complete",
+                "outputs": {"improvement": "Hire 2 auditors"},
+            },
+        )
+        # Create templated review
+        rev2 = _post(
+            self.client,
+            "/api/iso/reviews/",
+            {
+                "template_id": tpl["id"],
+            },
+        ).json()
+        self.assertIsNotNone(rev2["inputs"]["prior_actions"]["auto_data"])
+
+    def test_update_template_sections(self):
+        """Update template sections via PUT."""
+        t = _post(
+            self.client,
+            "/api/iso/review-templates/",
+            {
+                "title": "Updatable",
+                "sections": [{"key": "a", "title": "A", "data_source": "manual", "auto_query": None, "required": True}],
+            },
+        ).json()
+        new_sections = [
+            {"key": "a", "title": "A", "data_source": "manual", "auto_query": None, "required": True},
+            {"key": "b", "title": "B", "data_source": "manual", "auto_query": None, "required": False},
+        ]
+        resp = _put(self.client, f"/api/iso/review-templates/{t['id']}/", {"sections": new_sections})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.json()["sections"]), 2)
+
+
+# =============================================================================
 # Document Control
 # =============================================================================
 
