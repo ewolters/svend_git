@@ -11,13 +11,13 @@ body > main { padding: 0 !important; }
 body > main > .container { max-width: none !important; padding: 0 !important; }
 
 .wb-container {
-    --wb-bg: #1a1a1a;
-    --wb-grid: #252525;
-    --wb-accent: #4a9f6e;
-    --wb-text: #e8efe8;
-    --wb-text-dim: #9aaa9a;
-    --wb-border: rgba(74, 159, 110, 0.3);
-    --wb-panel: #121a12;
+    --wb-bg: var(--bg-primary);
+    --wb-grid: var(--bg-hover);
+    --wb-accent: var(--accent-primary);
+    --wb-text: var(--text-primary);
+    --wb-text-dim: var(--text-dim);
+    --wb-border: var(--border);
+    --wb-panel: var(--bg-tertiary);
 
     display: flex;
     flex-direction: column;
@@ -1702,7 +1702,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                 <svg class="wb-connections" id="connections-svg">
                     <defs>
                         <marker id="arrowhead" markerWidth="12" markerHeight="8" refX="11" refY="4" orient="auto">
-                            <polygon points="0 0, 12 4, 0 8" fill="#4a9f6e"/>
+                            <polygon points="0 0, 12 4, 0 8" fill="var(--wb-accent)"/>
                         </marker>
                         <marker id="arrowhead-causal" markerWidth="14" markerHeight="10" refX="13" refY="5" orient="auto">
                             <polygon points="0 0, 14 5, 0 10" fill="#e89547"/>

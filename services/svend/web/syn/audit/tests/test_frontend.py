@@ -346,9 +346,7 @@ class ColorComplianceTest(SimpleTestCase):
     def test_error_pages_use_brand_colors(self):
         """Error pages (400/403/404/500) use brand palette, not Tailwind."""
         templates_dir = os.path.join(
-            os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            ),
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
             "templates",
         )
         tailwind_colors = {"#0f1117", "#e2e8f0", "#f59e0b", "#60a5fa"}
@@ -369,9 +367,7 @@ class ColorComplianceTest(SimpleTestCase):
     def test_doe_js_no_hardcoded_tailwind(self):
         """DOE JS files use SvendTheme/CSS vars, not hardcoded Tailwind colors."""
         static_dir = os.path.join(
-            os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            ),
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
             "static",
             "js",
         )
@@ -386,8 +382,7 @@ class ColorComplianceTest(SimpleTestCase):
             violations = found & tailwind_colors
             self.assertFalse(
                 violations,
-                f"{fname} contains non-brand colors: {violations}. "
-                f"Use SvendTheme.chartColors or CSS var() instead.",
+                f"{fname} contains non-brand colors: {violations}. Use SvendTheme.chartColors or CSS var() instead.",
             )
 
 
@@ -477,9 +472,7 @@ class EmojiComplianceTest(SimpleTestCase):
     def test_no_emoji_in_dashboard(self):
         """internal_dashboard.html contains no emoji or Unicode pictographs."""
         templates_dir = os.path.join(
-            os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            ),
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
             "templates",
         )
         path = os.path.join(templates_dir, "internal_dashboard.html")
@@ -495,9 +488,7 @@ class EmojiComplianceTest(SimpleTestCase):
     def test_no_emoji_in_app_templates(self):
         """Core app templates (base_app, base_guest) contain no emoji."""
         templates_dir = os.path.join(
-            os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            ),
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
             "templates",
         )
         for tpl in ["base_app.html", "base_guest.html"]:
@@ -509,4 +500,46 @@ class EmojiComplianceTest(SimpleTestCase):
                 f"Emoji found in {tpl} at lines: "
                 f"{', '.join(str(h[0]) for h in hits)}. "
                 f"Use inline SVG instead (FE-001 §9.2).",
+            )
+
+
+class CanvasConsistencyTest(SimpleTestCase):
+    """FE-001 §5.6: Canvas backgrounds use global theme variables."""
+
+    CANVAS_TEMPLATES = ["whiteboard.html", "simulator.html", "vsm.html"]
+
+    def _template_path(self, name):
+        # syn/audit/tests/ → syn/audit/ → syn/ → web/
+        web_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        return os.path.join(web_dir, "templates", name)
+
+    def _read_template(self, name):
+        path = self._template_path(name)
+        with open(path, "r") as f:
+            return f.read()
+
+    def test_canvas_backgrounds_use_theme_var(self):
+        """All canvas containers reference var(--bg-primary) for background."""
+        for tpl_name in self.CANVAS_TEMPLATES:
+            content = self._read_template(tpl_name)
+            has_direct = "var(--bg-primary)" in content
+            has_alias = bool(re.search(r"--\w+-bg:\s*var\(--bg-primary\)", content))
+            self.assertTrue(
+                has_direct or has_alias,
+                f"{tpl_name} does not reference var(--bg-primary) for canvas "
+                f"background — use it directly or alias a local variable to it "
+                f"(FE-001 §5.6).",
+            )
+
+    def test_canvas_no_hardcoded_bg_colors(self):
+        """No canvas template defines a --*-bg variable with a hardcoded hex color."""
+        hardcoded_bg = re.compile(r"--\w+-bg:\s*#[0-9a-fA-F]{3,8}\b")
+        for tpl_name in self.CANVAS_TEMPLATES:
+            content = self._read_template(tpl_name)
+            matches = hardcoded_bg.findall(content)
+            self.assertEqual(
+                len(matches),
+                0,
+                f"{tpl_name} has hardcoded background color(s): {matches}. "
+                f"Use var(--bg-primary) instead (FE-001 §5.6).",
             )
