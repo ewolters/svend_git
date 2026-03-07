@@ -500,8 +500,88 @@ Use decorators. They handle auth, rate limiting, and query counting atomically.
 
 ---
 
+## **16. BILLING API COVERAGE**
+
+### **16.1 Tier Constants & Feature Gating**
+
+<!-- assert: Tier constants correctly gate features by subscription level | check=bill-tier-constants -->
+<!-- impl: accounts/constants.py:Tier -->
+<!-- impl: accounts/constants.py:get_daily_limit -->
+<!-- impl: accounts/constants.py:has_feature -->
+<!-- impl: accounts/constants.py:is_paid_tier -->
+<!-- impl: accounts/constants.py:can_use_anthropic -->
+<!-- impl: accounts/constants.py:can_use_ml -->
+<!-- impl: accounts/constants.py:can_use_tools -->
+<!-- impl: accounts/constants.py:get_founder_availability -->
+<!-- impl: accounts/constants.py:Industry -->
+<!-- impl: accounts/constants.py:Role -->
+<!-- impl: accounts/constants.py:ExperienceLevel -->
+<!-- impl: accounts/constants.py:OrganizationSize -->
+<!-- test: accounts.tests_coverage.TierConstantsTest.test_get_daily_limit_returns_correct_values_per_tier -->
+<!-- test: accounts.tests_coverage.TierConstantsTest.test_has_feature_enterprise_has_ai_assistant -->
+<!-- test: accounts.tests_coverage.TierConstantsTest.test_has_feature_collaboration_for_team_and_enterprise -->
+<!-- test: accounts.tests_coverage.TierConstantsTest.test_is_paid_tier_classifies_correctly -->
+<!-- test: accounts.tests_coverage.TierConstantsTest.test_can_use_anthropic_matches_paid_tiers -->
+<!-- test: accounts.tests_coverage.TierConstantsTest.test_can_use_ml_requires_basic_ml_feature -->
+<!-- test: accounts.tests_coverage.TierConstantsTest.test_can_use_tools_requires_full_tools_feature -->
+<!-- test: accounts.tests_coverage.TierConstantsTest.test_get_founder_availability_counts_founder_users -->
+
+### **16.2 Billing Views**
+
+<!-- assert: Billing endpoints handle checkout flow, subscription status, and founder availability | check=bill-views -->
+<!-- impl: accounts/billing.py:subscription_status -->
+<!-- impl: accounts/billing.py:founder_availability -->
+<!-- impl: accounts/billing.py:checkout_success -->
+<!-- impl: accounts/billing.py:checkout_cancel -->
+<!-- impl: accounts/billing.py:create_checkout_session -->
+<!-- impl: accounts/billing.py:create_portal_session -->
+<!-- impl: accounts/billing.py:get_price_for_region -->
+<!-- impl: accounts/billing.py:get_or_create_stripe_customer -->
+<!-- impl: accounts/billing.py:add_org_seat -->
+<!-- impl: accounts/billing.py:remove_org_seat -->
+<!-- impl: accounts/billing.py:sync_subscription_from_stripe -->
+<!-- impl: accounts/billing.py:stripe_webhook -->
+<!-- test: accounts.tests_coverage.BillingViewsTest.test_subscription_status_returns_tier_and_limits -->
+<!-- test: accounts.tests_coverage.BillingViewsTest.test_subscription_status_includes_subscription_detail -->
+<!-- test: accounts.tests_coverage.BillingViewsTest.test_founder_availability_public_endpoint -->
+<!-- test: accounts.tests_coverage.BillingViewsTest.test_checkout_success_syncs_subscription -->
+<!-- test: accounts.tests_coverage.BillingViewsTest.test_checkout_success_rejects_customer_mismatch -->
+<!-- test: accounts.tests_coverage.BillingViewsTest.test_checkout_cancel_redirects_to_settings -->
+
+### **16.3 Subscription & Invite Code Models**
+
+<!-- assert: Subscription model tracks active/inactive state; InviteCode gates registration | check=bill-models -->
+<!-- impl: accounts/models.py:Subscription -->
+<!-- impl: accounts/models.py:InviteCode -->
+<!-- impl: accounts/models.py:LoginAttempt -->
+<!-- test: accounts.tests_coverage.AccountModelsTest.test_subscription_is_active_for_active_status -->
+<!-- test: accounts.tests_coverage.AccountModelsTest.test_subscription_is_not_active_for_canceled -->
+<!-- test: accounts.tests_coverage.AccountModelsTest.test_invite_code_is_valid_when_unused -->
+<!-- test: accounts.tests_coverage.AccountModelsTest.test_invite_code_use_increments_count_and_links_user -->
+<!-- test: accounts.tests_coverage.AccountModelsTest.test_invite_code_exhausted_returns_false -->
+<!-- test: accounts.tests_coverage.AccountModelsTest.test_invite_code_generate_creates_codes -->
+<!-- test: accounts.tests_coverage.AccountModelsTest.test_login_attempt_lockout_after_max_failures -->
+<!-- test: accounts.tests_coverage.AccountModelsTest.test_login_attempt_clear_on_success -->
+
+### **16.4 Middleware**
+
+<!-- assert: Subscription middleware enforces tier on every request; QueryLimit middleware rate-limits chat | check=bill-middleware -->
+<!-- impl: accounts/middleware.py:SubscriptionMiddleware -->
+<!-- impl: accounts/middleware.py:QueryLimitMiddleware -->
+<!-- impl: accounts/middleware.py:NoCacheDynamicMiddleware -->
+<!-- impl: accounts/middleware.py:SiteVisitMiddleware -->
+<!-- test: accounts.tests_coverage.MiddlewareTest.test_subscription_middleware_sets_flags_for_paid_user -->
+<!-- test: accounts.tests_coverage.MiddlewareTest.test_subscription_middleware_updates_last_active -->
+<!-- test: accounts.tests_coverage.MiddlewareTest.test_query_limit_middleware_blocks_exhausted_user -->
+<!-- test: accounts.tests_coverage.MiddlewareTest.test_query_limit_middleware_allows_under_limit -->
+<!-- test: accounts.tests_coverage.MiddlewareTest.test_site_visit_middleware_skips_staff -->
+<!-- test: accounts.tests_coverage.MiddlewareTest.test_site_visit_middleware_skips_api_paths -->
+
+---
+
 ## **REVISION HISTORY**
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2026-03-03 | Eric + Claude | Initial release — documents billing, tiers, Stripe, and feature gating |
+| 1.1 | 2026-03-07 | Claude | Add §16 symbol-level impl/test hooks for billing API coverage |

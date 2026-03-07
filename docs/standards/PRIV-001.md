@@ -118,7 +118,14 @@ Users can access their data through:
 2. **Data export:** `POST /api/privacy/exports/` — generates machine-readable JSON of all user data
 
 <!-- assert: Self-service data export endpoint exists | check=priv-data-export -->
-<!-- impl: accounts/privacy_views.py -->
+<!-- impl: accounts/privacy_views.py:exports_collection -->
+<!-- impl: accounts/privacy_views.py:export_resource -->
+<!-- test: accounts.tests_coverage.PrivacyViewsTest.test_list_exports_empty -->
+<!-- test: accounts.tests_coverage.PrivacyViewsTest.test_create_export_returns_201 -->
+<!-- test: accounts.tests_coverage.PrivacyViewsTest.test_export_detail_returns_status -->
+<!-- test: accounts.tests_coverage.PrivacyViewsTest.test_cancel_pending_export -->
+<!-- test: accounts.tests_coverage.PrivacyViewsTest.test_download_completed_export_returns_file -->
+<!-- test: accounts.tests_coverage.PrivacyViewsTest.test_export_isolation_between_users -->
 <!-- test: accounts.tests_privacy.DataExportViewTests.test_create_export -->
 
 ### **4.2 Right of Correction (SOC 2 P1.8)**
@@ -204,6 +211,7 @@ One export request per user per 24-hour window. Cancelled exports do not count t
 
 <!-- assert: Export rate limited to 1 per 24h per user | check=priv-rate-limit -->
 <!-- impl: accounts/privacy_views.py -->
+<!-- test: accounts.tests_coverage.PrivacyViewsTest.test_create_export_rate_limited_to_one_per_24h -->
 <!-- test: accounts.tests_privacy.DataExportViewTests.test_rate_limit_24h -->
 
 ### **5.6 Async Generation**
