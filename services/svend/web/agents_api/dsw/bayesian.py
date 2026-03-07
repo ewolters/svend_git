@@ -124,15 +124,42 @@ def run_bayesian_analysis(df, analysis_id, config):
 
     elif analysis_id == "bayes_ttest":
         # Bayesian t-test comparing two groups
-        var1 = config.get("var1")
-        var2 = config.get("var2")
+        # Supports two modes:
+        #   1. Two-column: var1 + var2 (each column is a sample)
+        #   2. Factor-split: response + factor (one measurement column split by a grouping column)
         prior_scale = config.get("prior_scale", "medium")
-
         scale_map = {"small": 0.2, "medium": 0.5, "large": 0.8, "ultrawide": 1.0}
         scale = scale_map.get(prior_scale, 0.5)
 
-        x1 = df[var1].dropna().values
-        x2 = df[var2].dropna().values
+        mode = config.get("mode", "two_columns")
+        factor_col = config.get("factor")
+        response_col = config.get("response")
+
+        if mode == "factor" and factor_col and response_col:
+            # Factor-split mode: one numeric column grouped by a categorical column
+            groups = df.groupby(factor_col)[response_col].apply(lambda s: s.dropna().values)
+            group_names = list(groups.index)
+            if len(group_names) < 2:
+                result["summary"] = "Factor column must have at least 2 groups."
+                result["guide_observation"] = "Bayesian t-test: insufficient groups in factor column."
+                return result
+            if len(group_names) > 2:
+                result["summary"] = (
+                    f"Factor column '{factor_col}' has {len(group_names)} groups "
+                    f"({', '.join(str(g) for g in group_names)}). "
+                    "Bayesian t-test compares exactly 2 groups — using the first two. "
+                    "For 3+ groups, use Bayesian ANOVA."
+                )
+            x1 = groups.iloc[0]
+            x2 = groups.iloc[1]
+            var1 = f"{response_col} [{group_names[0]}]"
+            var2 = f"{response_col} [{group_names[1]}]"
+        else:
+            # Two-column mode (original behavior)
+            var1 = config.get("var1")
+            var2 = config.get("var2")
+            x1 = df[var1].dropna().values
+            x2 = df[var2].dropna().values
 
         # Effect size (Cohen's d)
         pooled_std = np.sqrt(

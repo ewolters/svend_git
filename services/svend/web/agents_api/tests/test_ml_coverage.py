@@ -143,6 +143,42 @@ class MLSupervised(TestCase):
         _check_schema(self, r)
 
 
+class MLGoldenFileCoverageTest(TestCase):
+    """Tests for ML analysis IDs covered by golden files — ensures they run."""
+
+    def test_classification(self):
+        r = _run(
+            "classification",
+            {"target": "y", "features": ["x1", "x2"]},
+            {"y": Y_CLS, "x1": X1, "x2": X2},
+        )
+        _check_schema(self, r)
+
+    def test_regression_ml(self):
+        r = _run(
+            "regression_ml",
+            {"target": "y", "features": ["x1", "x2"]},
+            {"y": Y_REG, "x1": X1, "x2": X2},
+        )
+        _check_schema(self, r)
+
+    def test_clustering(self):
+        r = _run(
+            "clustering",
+            {"features": ["x1", "x2"]},
+            {"x1": X1, "x2": X2},
+        )
+        _check_schema(self, r)
+
+    def test_pca(self):
+        r = _run(
+            "pca",
+            {"features": ["x1", "x2", "x3"]},
+            {"x1": X1, "x2": X2, "x3": X3},
+        )
+        _check_schema(self, r)
+
+
 class MLUnsupervised(TestCase):
     """Unsupervised ML analyses."""
 

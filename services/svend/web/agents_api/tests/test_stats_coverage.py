@@ -123,6 +123,146 @@ class ParametricCoverageTest(TestCase):
 # ===========================================================================
 
 
+class ParametricGoldenFileCoverageTest(TestCase):
+    """Parametric analyses that may be covered by golden files but need coverage tests."""
+
+    def test_ttest(self):
+        r = _run("ttest", {"var1": "x", "mu": 100}, {"x": NORMAL_50})
+        _check_schema(self, r)
+
+    def test_ttest2(self):
+        r = _run(
+            "ttest2",
+            {"var1": "x", "var2": "y"},
+            {"x": NORMAL_50, "y": NORMAL_50B},
+        )
+        _check_schema(self, r)
+
+    def test_paired_t(self):
+        r = _run(
+            "paired_t",
+            {"var1": "x", "var2": "y"},
+            {"x": NORMAL_50, "y": NORMAL_50B},
+        )
+        _check_schema(self, r)
+
+    def test_anova(self):
+        r = _run(
+            "anova",
+            {"response": "y", "factor": "g"},
+            {"y": NORMAL_50, "g": GROUPS_50},
+        )
+        _check_schema(self, r)
+
+    def test_correlation(self):
+        r = _run(
+            "correlation",
+            {"variables": ["x", "y"]},
+            {"x": NORMAL_50, "y": NORMAL_50B},
+        )
+        _check_schema(self, r)
+
+
+class NonparametricGoldenFileCoverageTest(TestCase):
+    """Nonparametric analyses that need coverage tests."""
+
+    def test_mann_whitney(self):
+        r = _run(
+            "mann_whitney",
+            {"var": "x", "group_var": "g"},
+            {"x": NORMAL_50, "g": GROUPS_50},
+        )
+        _check_schema(self, r)
+
+    def test_kruskal(self):
+        r = _run(
+            "kruskal",
+            {"var": "x", "group_var": "g"},
+            {"x": NORMAL_50, "g": GROUPS_ABC},
+        )
+        _check_schema(self, r)
+
+    def test_wilcoxon(self):
+        r = _run(
+            "wilcoxon",
+            {"var1": "x", "var2": "y"},
+            {"x": NORMAL_50, "y": NORMAL_50B},
+        )
+        _check_schema(self, r)
+
+    def test_friedman(self):
+        # Multiple measurement columns for repeated measures
+        m1 = list(np.random.RandomState(42).normal(50, 5, 30))
+        m2 = list(np.random.RandomState(43).normal(52, 5, 30))
+        m3 = list(np.random.RandomState(44).normal(48, 5, 30))
+        r = _run(
+            "friedman",
+            {"variables": ["m1", "m2", "m3"]},
+            {"m1": m1, "m2": m2, "m3": m3},
+        )
+        _check_schema(self, r)
+
+    def test_spearman(self):
+        r = _run(
+            "spearman",
+            {"var1": "x", "var2": "y"},
+            {"x": NORMAL_50, "y": NORMAL_50B},
+        )
+        _check_schema(self, r)
+
+    def test_mood_median(self):
+        r = _run(
+            "mood_median",
+            {"var": "x", "group_var": "g"},
+            {"x": NORMAL_50, "g": GROUPS_ABC},
+        )
+        _check_schema(self, r)
+
+
+class RegressionGoldenFileCoverageTest(TestCase):
+    """Regression analyses that need coverage tests."""
+
+    def test_regression(self):
+        x1 = list(np.random.RandomState(1).normal(0, 1, 50))
+        r = _run(
+            "regression",
+            {"response": "y", "predictors": ["x1"]},
+            {"y": NORMAL_50, "x1": x1},
+        )
+        _check_schema(self, r)
+
+    def test_logistic(self):
+        r = _run(
+            "logistic",
+            {"response": "y", "predictors": ["x"]},
+            {"y": BINARY_50, "x": NORMAL_50},
+        )
+        _check_schema(self, r)
+
+    def test_stepwise(self):
+        x1 = list(np.random.RandomState(1).normal(0, 1, 50))
+        x2 = list(np.random.RandomState(2).normal(0, 1, 50))
+        x3 = list(np.random.RandomState(3).normal(0, 1, 50))
+        r = _run(
+            "stepwise",
+            {"response": "y", "predictors": ["x1", "x2", "x3"]},
+            {"y": NORMAL_50, "x1": x1, "x2": x2, "x3": x3},
+        )
+        _check_schema(self, r)
+
+
+class PosthocGoldenFileCoverageTest(TestCase):
+    """Post-hoc analyses that need coverage tests."""
+
+    def test_tukey_hsd(self):
+        r = _run(
+            "tukey_hsd",
+            {"response": "y", "factor": "g"},
+            {"y": NORMAL_50, "g": GROUPS_ABC},
+        )
+        _check_schema(self, r)
+
+
 class NonparametricCoverageTest(TestCase):
     """Nonparametric analyses missing from golden files."""
 

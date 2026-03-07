@@ -171,6 +171,66 @@ class SPCChartCoverageTest(TestCase):
         _check_schema(self, r)
 
 
+class SPCGoldenFileCoverageTest(TestCase):
+    """Tests for analysis IDs covered by golden files — ensures they run without error."""
+
+    def test_capability(self):
+        r = _run(
+            "capability",
+            {"measurement": "y", "lsl": 30, "usl": 70},
+            {"y": NORMAL_100},
+        )
+        _check_schema(self, r)
+
+    def test_cusum(self):
+        r = _run(
+            "cusum",
+            {"measurement": "y", "target": 50},
+            {"y": NORMAL_100},
+        )
+        _check_schema(self, r)
+
+    def test_ewma(self):
+        r = _run(
+            "ewma",
+            {"measurement": "y", "lambda": 0.2, "L": 3},
+            {"y": NORMAL_100},
+        )
+        _check_schema(self, r)
+
+    def test_imr(self):
+        r = _run(
+            "imr",
+            {"measurement": "y"},
+            {"y": NORMAL_100},
+        )
+        _check_schema(self, r)
+
+    def test_p_chart(self):
+        r = _run(
+            "p_chart",
+            {"defectives": "d", "sample_size": "n"},
+            {"d": list(np.random.RandomState(42).binomial(50, 0.05, 25)), "n": [50] * 25},
+        )
+        _check_schema(self, r)
+
+    def test_xbar_r(self):
+        r = _run(
+            "xbar_r",
+            {"measurement": "y", "subgroup": "sg", "subgroup_size": 5},
+            {"y": NORMAL_100, "sg": SUBGROUP_IDS},
+        )
+        _check_schema(self, r)
+
+    def test_xbar_s(self):
+        r = _run(
+            "xbar_s",
+            {"measurement": "y", "subgroup": "sg", "subgroup_size": 5},
+            {"y": NORMAL_100, "sg": SUBGROUP_IDS},
+        )
+        _check_schema(self, r)
+
+
 class NelsonRulesTest(TestCase):
     """Test _spc_nelson_rules directly."""
 

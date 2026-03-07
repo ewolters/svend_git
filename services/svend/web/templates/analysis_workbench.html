@@ -2272,15 +2272,18 @@ function showSynaraIntegration(coefficients, features, target) {
 
     const mappingRows = features.map((feat, i) => {
         const coef = coefficients[i];
-        const significant = coef.ci_low > 0 || coef.ci_high < 0;
+        const ciLow = typeof coef.ci_low === 'number' ? coef.ci_low : 0;
+        const ciHigh = typeof coef.ci_high === 'number' ? coef.ci_high : 0;
+        const coefMean = typeof coef.mean === 'number' ? coef.mean : 0;
+        const significant = ciLow > 0 || ciHigh < 0;
         const sigClass = significant ? 'color:var(--aw-accent);font-weight:600;' : 'color:var(--aw-text-muted);';
 
         return `
             <tr style="border-bottom:1px solid rgba(74,159,110,0.2);">
                 <td style="padding:8px;${sigClass}">${feat}</td>
                 <td style="padding:8px;text-align:right;font-family:monospace;${sigClass}">
-                    ${coef.mean.toFixed(4)}
-                    <span style="font-size:10px;opacity:0.7;">[${coef.ci_low.toFixed(3)}, ${coef.ci_high.toFixed(3)}]</span>
+                    ${coefMean.toFixed(4)}
+                    <span style="font-size:10px;opacity:0.7;">[${ciLow.toFixed(3)}, ${ciHigh.toFixed(3)}]</span>
                 </td>
                 <td style="padding:8px;">
                     <select class="synara-map" data-feature="${feat}" data-coef="${coef.mean}" style="width:100%;padding:4px;font-size:11px;background:var(--aw-bg-tertiary);border:1px solid var(--aw-border);color:var(--aw-text);border-radius:4px;">
@@ -2443,7 +2446,7 @@ function showStatisticsEvidence(statistics) {
                 <span style="color:var(--aw-text-muted);font-size:10px;margin-left:4px;">${stat.variable || ''}</span>
             </td>
             <td style="padding:8px;font-family:monospace;color:#47a5e8;font-weight:600;">
-                ${typeof stat.value === 'number' ? stat.value.toFixed(4) : stat.value}
+                ${typeof stat.value === 'number' ? stat.value.toFixed(4) : (typeof stat.value === 'object' ? JSON.stringify(stat.value) : stat.value)}
             </td>
             <td style="padding:8px;">
                 <select class="stat-hypothesis" data-stat-idx="${i}" style="width:100%;padding:4px;font-size:10px;background:var(--aw-bg-tertiary);border:1px solid var(--aw-border);color:var(--aw-text);border-radius:4px;">
@@ -2538,7 +2541,7 @@ async function applyStatisticsEvidence() {
         for (const item of evidenceItems) {
             const valueStr = typeof item.stat.value === 'number'
                 ? item.stat.value.toFixed(4)
-                : item.stat.value;
+                : (typeof item.stat.value === 'object' ? JSON.stringify(item.stat.value) : item.stat.value);
             const statDesc = `${item.stat.name}${item.stat.variable ? '(' + item.stat.variable + ')' : ''}=${valueStr}`;
             summaryParts.push(statDesc);
 
@@ -5371,14 +5374,34 @@ function generateConfigForm(type, id) {
             `;
         }
         if (id === 'bayes_ttest') {
+            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
             return `
                 <div class="aw-form-group">
-                    <label>Sample 1:</label>
-                    <select id="cfg-var1">${numCols}</select>
+                    <label>Data layout:</label>
+                    <select id="cfg-mode" onchange="document.getElementById('bt-twocol').style.display = this.value === 'two_columns' ? '' : 'none'; document.getElementById('bt-factor').style.display = this.value === 'factor' ? '' : 'none';">
+                        <option value="two_columns">Two separate columns</option>
+                        <option value="factor">Split by factor column</option>
+                    </select>
                 </div>
-                <div class="aw-form-group">
-                    <label>Sample 2:</label>
-                    <select id="cfg-var2">${numCols}</select>
+                <div id="bt-twocol">
+                    <div class="aw-form-group">
+                        <label>Sample 1:</label>
+                        <select id="cfg-var1">${numCols}</select>
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Sample 2:</label>
+                        <select id="cfg-var2">${numCols}</select>
+                    </div>
+                </div>
+                <div id="bt-factor" style="display:none;">
+                    <div class="aw-form-group">
+                        <label>Response (measurement):</label>
+                        <select id="cfg-response">${numCols}</select>
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Factor (groups):</label>
+                        <select id="cfg-factor">${catCols || colOptions}</select>
+                    </div>
                 </div>
                 <div class="aw-form-group">
                     <label>Prior effect size (Cohen's d):</label>
@@ -6543,6 +6566,16 @@ async function executeAnalysis() {
                 for (const [name, value] of Object.entries(result.statistics)) {
                     if (typeof value === 'number' && !stats.find(s => s.name === name)) {
                         stats.push({ name, value, variable: '' });
+                    } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                        // Flatten nested dicts (e.g. group_means, group_stds)
+                        for (const [subKey, subVal] of Object.entries(value)) {
+                            if (typeof subVal === 'number') {
+                                const flatName = `${name}.${subKey}`;
+                                if (!stats.find(s => s.name === flatName)) {
+                                    stats.push({ name: flatName, value: subVal, variable: '' });
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -6638,8 +6671,10 @@ function renderDSWBlocks(result) {
             const status = d.status || d.result || 'info';
             const icon = status === 'pass' ? '✓' : status === 'warn' ? '⚠' : status === 'fail' ? '✗' : '•';
             const cls = status === 'pass' ? 'dsw-diag-pass' : status === 'warn' ? 'dsw-diag-warn' : status === 'fail' ? 'dsw-diag-fail' : '';
+            const diagLabel = String(d.test || d.name || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const diagDetail = String(d.detail || d.message || d.value || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             item.innerHTML = '<span class="' + cls + '">' + icon + '</span> ' +
-                '<span>' + (d.test || d.name || '') + ': ' + (d.detail || d.message || d.value || '') + '</span>';
+                '<span>' + diagLabel + ': ' + diagDetail + '</span>';
             body.appendChild(item);
         });
         details.appendChild(body);
@@ -6657,20 +6692,21 @@ function renderDSWBlocks(result) {
         const body = document.createElement('div');
         body.className = 'dsw-panel-body';
         let html = '';
-        if (bs.bayes_factor !== undefined) {
-            html += '<strong>Bayes Factor:</strong> ' + Number(bs.bayes_factor).toFixed(2) + '<br>';
+        const esc = s => typeof s === 'string' ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : String(s ?? '');
+        if (typeof bs.bayes_factor === 'number') {
+            html += '<strong>Bayes Factor:</strong> ' + bs.bayes_factor.toFixed(2) + '<br>';
         }
-        if (bs.interpretation) {
-            html += '<strong>Interpretation:</strong> ' + bs.interpretation + '<br>';
+        if (bs.interpretation && typeof bs.interpretation === 'string') {
+            html += '<strong>Interpretation:</strong> ' + esc(bs.interpretation) + '<br>';
         }
-        if (bs.prior) {
-            html += '<strong>Prior:</strong> ' + bs.prior + '<br>';
+        if (bs.prior && typeof bs.prior === 'string') {
+            html += '<strong>Prior:</strong> ' + esc(bs.prior) + '<br>';
         }
-        if (bs.posterior_summary) {
-            html += '<strong>Posterior:</strong> ' + bs.posterior_summary + '<br>';
+        if (bs.posterior_summary && typeof bs.posterior_summary === 'string') {
+            html += '<strong>Posterior:</strong> ' + esc(bs.posterior_summary) + '<br>';
         }
-        if (bs.recommendation) {
-            html += '<strong>Recommendation:</strong> ' + bs.recommendation;
+        if (bs.recommendation && typeof bs.recommendation === 'string') {
+            html += '<strong>Recommendation:</strong> ' + esc(bs.recommendation);
         }
         body.innerHTML = html;
         details.appendChild(body);
@@ -6705,10 +6741,15 @@ function renderDSWBlocks(result) {
         wi.parameters.forEach(param => {
             const row = document.createElement('div');
             row.className = 'dsw-what-if-row';
-            row.innerHTML = '<label>' + param.label + '</label>' +
-                '<input type="range" min="' + param.min + '" max="' + param.max +
-                '" step="' + param.step + '" value="' + param.value + '" class="dsw-slider">' +
-                '<span class="dsw-slider-val">' + param.value + '</span>';
+            const pLabel = String(param.label || 'Parameter').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const pMin = typeof param.min === 'number' ? param.min : 0;
+            const pMax = typeof param.max === 'number' ? param.max : 100;
+            const pStep = typeof param.step === 'number' ? param.step : 1;
+            const pVal = typeof param.value === 'number' ? param.value : pMin;
+            row.innerHTML = '<label>' + pLabel + '</label>' +
+                '<input type="range" min="' + pMin + '" max="' + pMax +
+                '" step="' + pStep + '" value="' + pVal + '" class="dsw-slider">' +
+                '<span class="dsw-slider-val">' + pVal + '</span>';
             const slider = row.querySelector('input');
             const valSpan = row.querySelector('.dsw-slider-val');
             slider.addEventListener('input', () => { valSpan.textContent = slider.value; });

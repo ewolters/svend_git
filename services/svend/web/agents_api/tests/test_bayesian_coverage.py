@@ -144,16 +144,104 @@ class BayesianInferenceCoverageTest(TestCase):
         _check_schema(self, r)
 
 
+class BayesianGoldenFileCoverageTest(TestCase):
+    """Tests for Bayesian analysis IDs covered by golden files — ensures they run."""
+
+    def test_bayes_ttest(self):
+        r = _run(
+            "bayes_ttest",
+            {"var1": "x", "var2": "y"},
+            {"x": NORMAL_40, "y": NORMAL_40B},
+        )
+        _check_schema(self, r)
+
+    def test_bayes_ttest_factor_mode(self):
+        """Factor-split mode: one measurement column split by a categorical grouping column."""
+        r = _run(
+            "bayes_ttest",
+            {"mode": "factor", "response": "y", "factor": "g"},
+            {"y": NORMAL_40 + NORMAL_40B, "g": ["A"] * 40 + ["B"] * 40},
+        )
+        _check_schema(self, r)
+        self.assertIn("cohens_d", r["statistics"])
+        self.assertIn("bf10", r["statistics"])
+
+    def test_bayes_ab(self):
+        groups = ["A"] * 20 + ["B"] * 20
+        successes = [
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            1,
+            1,
+            1,
+            0,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            1,
+            0,
+        ]
+        r = _run(
+            "bayes_ab",
+            {"group": "g", "success": "s"},
+            {"g": groups, "s": successes},
+        )
+        _check_schema(self, r)
+
+    def test_bayes_regression(self):
+        x1 = list(np.random.RandomState(42).normal(0, 1, 40))
+        y = [2 * xi + np.random.RandomState(43).normal(0, 0.5) for xi in x1]
+        r = _run(
+            "bayes_regression",
+            {"target": "y", "features": ["x1"]},
+            {"y": y, "x1": x1},
+        )
+        _check_schema(self, r)
+
+
 class BayesianReliabilityCoverageTest(TestCase):
     """Bayesian reliability and demo analyses."""
 
     def test_bayes_demo(self):
         r = _run(
             "bayes_demo",
-            {"prior": "normal", "mu": 0, "sigma": 1},
+            {"n_tested": 30, "n_failures": 2, "target_reliability": 0.95},
             {"x": NORMAL_40},
         )
         _check_schema(self, r)
+        # Verify posterior updates with actual config (not defaults)
+        # With 30 tested, 2 failures, prior Beta(1,1): posterior Beta(29, 3)
+        self.assertAlmostEqual(r["statistics"]["posterior_alpha"], 29.0, places=0)
+        self.assertAlmostEqual(r["statistics"]["posterior_beta"], 3.0, places=0)
 
     def test_bayes_spares(self):
         r = _run(
