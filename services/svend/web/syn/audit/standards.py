@@ -786,7 +786,6 @@ def run_tests_batch(test_refs):
     results = {}
     suite = unittest.TestSuite()
     ref_map = {}  # test.id() -> test_ref
-    needs_db = False
 
     for (module_path, cls_name), methods in by_module_class.items():
         try:
@@ -803,10 +802,14 @@ def run_tests_batch(test_refs):
                 results[ref] = {"status": "error", "message": str(e)[:120]}
             continue
 
-        if _is_testcase_needing_db(cls):
-            needs_db = True
+        db_needed = _is_testcase_needing_db(cls)
 
         for method, ref in methods:
+            if db_needed:
+                # Skip DB-needing tests — switching DB connection in a web
+                # request breaks other threads (session lookups → 403).
+                results[ref] = {"status": "skip", "message": "Requires test database (Django TestCase)"}
+                continue
             try:
                 test = cls(method)
                 suite.addTest(test)
@@ -817,29 +820,9 @@ def run_tests_batch(test_refs):
     if suite.countTestCases() == 0:
         return results
 
-    # Switch DB once for the entire batch
-    switched_db = False
-    original_db_name = None
-    if needs_db:
-        try:
-            from django.db import connections
-
-            conn = connections["default"]
-            original_db_name = conn.settings_dict["NAME"]
-            test_db_name = conn.creation._get_test_db_name()
-            conn.close()
-            conn.settings_dict["NAME"] = test_db_name
-            switched_db = True
-        except Exception:
-            pass  # Tests needing DB will error and get caught below
-
-    try:
-        stream = io.StringIO()
-        runner = unittest.TextTestRunner(stream=stream, verbosity=0)
-        run_result = runner.run(suite)
-    finally:
-        if switched_db:
-            _restore_db(original_db_name)
+    stream = io.StringIO()
+    runner = unittest.TextTestRunner(stream=stream, verbosity=0)
+    run_result = runner.run(suite)
 
     # Map failures/errors/skips (test can be None for class-level errors)
     handled = set()
