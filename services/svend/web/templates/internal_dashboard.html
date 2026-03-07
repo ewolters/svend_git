@@ -3401,9 +3401,8 @@ async function runStandardsTests() {
         }
     } catch (e) { /* timeout or network error */ }
 
-    const ran = totalTestsPassed + totalTestsFailed;
     btn.textContent = ok ? `Done: ${totalTestsPassed}p / ${totalTestsFailed}f / ${totalTestsSkipped}s (${stdCount} standards)` : 'Error — check logs';
-    btn.style.color = (stdFailed + errors) === 0 ? 'var(--accent-primary)' : 'var(--warning,#f59e0b)';
+    btn.style.color = ok ? 'var(--accent-primary)' : 'var(--danger,#ef4444)';
     btn.disabled = false;
     btn.style.opacity = '1';
     await loadCompliance();
