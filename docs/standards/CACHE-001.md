@@ -138,7 +138,7 @@ Caddy serves `/static/*` directly via `file_server`. Content-hashed files SHOULD
 ### 5.3 Session Cache (Database-Backed)
 
 <!-- assert: SessionCache uses JSON-only serialization, no pickle | check=cache-session-json -->
-<!-- impl: agents_api/cache.py -->
+<!-- impl: agents_api/cache.py:SessionCache -->
 <!-- test: syn.audit.tests.test_caching.SessionCacheTest.test_session_cache_json_only -->
 <!-- test: syn.audit.tests.test_caching.SessionCacheTest.test_session_cache_has_namespaces -->
 

@@ -467,6 +467,43 @@ class IdempotencyKeyTest(SimpleTestCase):
         self.assertIsNone(re.match(IDEMPOTENCY_KEY_PATTERN, ""))
 
 
+class ListPaginationSortTest(SimpleTestCase):
+    """API-001 §9.4: SynaraListPagination sort parameter parsing."""
+
+    def _make_request(self, path="/api/test/"):
+        from rest_framework.request import Request
+
+        factory = RequestFactory()
+        return Request(factory.get(path))
+
+    def test_get_ordering_default(self):
+        """No sort param → returns default ordering."""
+        from syn.api.pagination import SynaraListPagination
+
+        pag = SynaraListPagination()
+        request = self._make_request()
+        result = pag.get_ordering(request, None, None)
+        self.assertEqual(result, pag.ordering)
+
+    def test_get_ordering_asc_desc(self):
+        """sort=name:asc,created:desc parses correctly."""
+        from syn.api.pagination import SynaraListPagination
+
+        pag = SynaraListPagination()
+        request = self._make_request("/api/test/?sort=name:asc,created:desc")
+        result = pag.get_ordering(request, None, None)
+        self.assertEqual(result, ["name", "-created"])
+
+    def test_get_ordering_field_only(self):
+        """sort=name (no direction) defaults to ascending."""
+        from syn.api.pagination import SynaraListPagination
+
+        pag = SynaraListPagination()
+        request = self._make_request("/api/test/?sort=name")
+        result = pag.get_ordering(request, None, None)
+        self.assertEqual(result, ["name"])
+
+
 class IdempotencyDirectTest(TestCase):
     """API-001 §9: IdempotencyMiddleware cache behavior via direct invocation.
 

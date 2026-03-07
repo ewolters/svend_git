@@ -25,6 +25,9 @@ FILE-001 defines the file storage, sharing, and quota management patterns for Sv
 <!-- impl: files/models.py:UserFile -->
 <!-- impl: files/models.py:UserQuota -->
 <!-- impl: files/models.py:user_file_path -->
+<!-- test: files.tests_views.FileUploadDownloadTest.test_upload_list_download_scenario -->
+<!-- test: files.tests_views.StorageQuotaTest.test_quota_initial_state -->
+<!-- test: files.tests_views.StorageQuotaTest.test_upload_increases_quota -->
 
 UserFile tracks uploaded files with metadata (name, size, MIME type, folder, encryption status). UserQuota enforces per-tier storage limits.
 

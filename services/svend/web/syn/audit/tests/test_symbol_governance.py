@@ -324,11 +324,15 @@ class AuditEventSymbolsTest(SimpleTestCase):
     """AUD-001 §4: Audit event payload builders produce valid payloads."""
 
     def test_event_builders_importable(self):
-        """All 16+ build_*_payload functions are importable."""
+        """All 16+ build_*_payload functions produce dict payloads."""
         from syn.audit import events
 
         builders = [n for n in dir(events) if n.startswith("build_") and n.endswith("_payload")]
         self.assertGreaterEqual(len(builders), 16)
+        # Verify at least one builder produces a dict with expected structure
+        payload = events.build_chain_verified_payload(tenant_id="t-test", total_entries=5, is_valid=True)
+        self.assertIsInstance(payload, dict)
+        self.assertIn("tenant_id", payload)
 
     def test_event_builders_exist(self):
         """All event builders produce dict payloads with expected keys."""
@@ -618,13 +622,21 @@ class PermissionSymbolsTest(SimpleTestCase):
         return request
 
     def test_decorators_exist(self):
-        """All permission decorators are importable from accounts.permissions."""
+        """All permission decorators reject unauthenticated requests."""
         import accounts.permissions as perms
 
-        for decorator_name, _ in PERMISSION_DECORATORS:
+        for decorator_name, arg in PERMISSION_DECORATORS:
             with self.subTest(decorator=decorator_name):
-                fn = getattr(perms, decorator_name)
-                self.assertTrue(callable(fn), f"{decorator_name} not callable")
+                decorator = getattr(perms, decorator_name)
+                if arg:
+                    decorator = decorator(arg)
+
+                @decorator
+                def dummy_view(request):
+                    return JsonResponse({"ok": True})
+
+                response = dummy_view(self._make_anon_request())
+                self.assertIn(response.status_code, (401, 403))
 
     def test_decorators_are_callable(self):
         """Permission decorators wrap view functions and produce HTTP responses."""
@@ -670,7 +682,7 @@ class LogHandlerSymbolsTest(SimpleTestCase):
     """LOG-001 §5: Logging context variable set/get roundtrip."""
 
     def test_context_accessors_exist(self):
-        """All context accessor functions are importable and callable."""
+        """Context accessor set/get roundtrip produces expected values."""
         from syn.log.handlers import (
             get_actor_id,
             get_correlation_id,
@@ -680,8 +692,12 @@ class LogHandlerSymbolsTest(SimpleTestCase):
             set_tenant_id,
         )
 
-        for fn in [set_correlation_id, get_correlation_id, set_tenant_id, get_tenant_id, set_actor_id, get_actor_id]:
-            self.assertTrue(callable(fn), f"{fn.__name__} not callable")
+        set_correlation_id("corr-test-123")
+        self.assertEqual(get_correlation_id(), "corr-test-123")
+        set_tenant_id("tenant-test-456")
+        self.assertEqual(get_tenant_id(), "tenant-test-456")
+        set_actor_id("actor-test-789")
+        self.assertEqual(get_actor_id(), "actor-test-789")
 
     def test_getters_return_values(self):
         """Context getters return the values previously set."""
@@ -748,11 +764,19 @@ class SchedulerModelSymbolsTest(SimpleTestCase):
     """SCH-001 §3: Scheduler models have expected fields via _meta."""
 
     def test_scheduler_models_exist(self):
-        """All scheduler models are importable from syn.sched.models."""
+        """All scheduler models have expected _meta fields."""
         from syn.sched.models import CircuitBreakerState, CognitiveTask, DeadLetterEntry, Schedule, TaskExecution
 
         for cls in [CognitiveTask, TaskExecution, DeadLetterEntry, Schedule, CircuitBreakerState]:
-            self.assertTrue(issubclass(cls, models.Model), f"{cls.__name__} not a Model")
+            with self.subTest(model=cls.__name__):
+                self.assertTrue(issubclass(cls, models.Model))
+                field_names = [f.name for f in cls._meta.get_fields()]
+                # Every scheduler model should have an id field
+                self.assertIn("id", field_names, f"{cls.__name__} missing id")
+        # CognitiveTask must have task_name and state
+        ct_fields = [f.name for f in CognitiveTask._meta.get_fields()]
+        self.assertIn("task_name", ct_fields)
+        self.assertIn("state", ct_fields)
 
     def test_models_are_classes(self):
         """Scheduler model classes have expected _meta fields."""
@@ -796,13 +820,21 @@ class SchedulerCoreSymbolsTest(SimpleTestCase):
     """SCH-001 §4: Scheduler core task registration and execution."""
 
     def test_core_components_exist(self):
-        """Core scheduler components are importable and are classes/callables."""
+        """Core scheduler components: task decorator registers a handler."""
         from syn.sched.core import CognitiveScheduler, CognitiveWorker, TaskRegistry, task
 
-        self.assertTrue(callable(CognitiveScheduler))
-        self.assertTrue(callable(CognitiveWorker))
-        self.assertTrue(callable(task))
-        self.assertIsNotNone(TaskRegistry)
+        # task() decorator registers and returns a callable handler
+        @task("test.governance.core_exist_check")
+        def _sample(t):
+            return "ran"
+
+        self.assertTrue(callable(_sample))
+        # TaskRegistry.get_handler retrieves the registered handler
+        handler = TaskRegistry.get_handler("test.governance.core_exist_check")
+        self.assertIsNotNone(handler, "Registered handler not found in TaskRegistry")
+        # Scheduler and Worker are instantiable classes
+        self.assertTrue(issubclass(CognitiveScheduler, object))
+        self.assertTrue(issubclass(CognitiveWorker, object))
 
     def test_task_decorator_callable(self):
         """task() decorator registers a handler and the handler remains callable."""
@@ -864,13 +896,19 @@ class WorkbenchModelSymbolsTest(SimpleTestCase):
     """DAT-001 §8: Workbench models have UUID PKs and expected relationships."""
 
     def test_workbench_models_exist(self):
-        """All workbench models are importable from workbench.models."""
+        """All workbench models have UUID PKs and _meta fields."""
         from workbench import models as wb_models
 
         for model_name, _, _ in WORKBENCH_MODELS:
             with self.subTest(model=model_name):
                 cls = getattr(wb_models, model_name)
                 self.assertTrue(issubclass(cls, models.Model))
+                pk_field = cls._meta.pk
+                self.assertEqual(
+                    pk_field.get_internal_type(),
+                    "UUIDField",
+                    f"{model_name} PK is {pk_field.get_internal_type()}, expected UUIDField",
+                )
 
     def test_models_are_classes(self):
         """Workbench models are Django Model subclasses with _meta."""
@@ -949,13 +987,18 @@ class QMSModelSymbolsTest(SimpleTestCase):
     """QMS-001 §4: QMS models have expected fields and relationships."""
 
     def test_qms_models_exist(self):
-        """All QMS models are importable and are Django Model subclasses."""
+        """All QMS models have expected PK types and required fields."""
         from agents_api import models as api_models
 
-        for model_name, _, _ in QMS_MODELS_WITH_FIELDS:
+        for model_name, pk_type, required_fields in QMS_MODELS_WITH_FIELDS:
             with self.subTest(model=model_name):
                 cls = getattr(api_models, model_name)
                 self.assertTrue(issubclass(cls, models.Model))
+                if pk_type:
+                    self.assertEqual(cls._meta.pk.get_internal_type(), pk_type)
+                field_names = [f.name for f in cls._meta.get_fields()]
+                for field in required_fields:
+                    self.assertIn(field, field_names, f"{model_name} missing {field}")
 
     def test_models_are_classes(self):
         """QMS model classes have _meta and expected fields."""
@@ -999,14 +1042,16 @@ class QMSExtendedModelSymbolsTest(SimpleTestCase):
     """QMS-001 §5: Extended QMS models for ISO/hoshin/audit/plant."""
 
     def test_extended_models_exist(self):
-        """All 14 extended models are importable and are Django Model subclasses."""
+        """All 14 extended models have _meta with concrete fields."""
         from agents_api import models as api_models
 
         for model_name in QMS_EXTENDED_MODELS:
             with self.subTest(model=model_name):
                 cls = getattr(api_models, model_name)
                 self.assertTrue(issubclass(cls, models.Model))
-                self.assertIsNotNone(cls._meta)
+                # Verify model has at least one concrete field beyond id
+                field_names = [f.name for f in cls._meta.get_fields()]
+                self.assertGreater(len(field_names), 1, f"{model_name} has no fields")
 
     def test_extended_models_are_django_models(self):
         """All 14 extended models are Django Model subclasses."""

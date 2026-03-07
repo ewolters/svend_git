@@ -86,8 +86,8 @@ BILL-001 defines the subscription tier system, Stripe integration patterns, regi
 ### **4.1 Tier Matrix**
 
 <!-- assert: Five subscription tiers with defined feature access and daily limits | check=bill-tiers -->
-<!-- impl: accounts/constants.py -->
-<!-- impl: accounts/models.py -->
+<!-- impl: accounts/constants.py:TIER_LIMITS -->
+<!-- impl: accounts/models.py:User -->
 <!-- test: api.tests.TierFeatureTest.test_tier_limits_correct -->
 <!-- test: api.tests.RegistrationTest.test_register_new_user_is_free_tier -->
 <!-- test: accounts.tests.TierConstantsTest.test_all_five_tiers_defined -->
@@ -108,7 +108,7 @@ BILL-001 defines the subscription tier system, Stripe integration patterns, regi
 ### **4.2 Feature Gating Matrix**
 
 <!-- assert: Feature access controlled by TIER_FEATURES constant | check=bill-features -->
-<!-- impl: accounts/constants.py -->
+<!-- impl: accounts/constants.py:TIER_FEATURES -->
 <!-- test: api.tests.TierFeatureTest.test_free_has_no_collaboration -->
 <!-- test: api.tests.TierFeatureTest.test_free_has_no_full_tools -->
 <!-- test: api.tests.TierFeatureTest.test_pro_has_full_tools -->
