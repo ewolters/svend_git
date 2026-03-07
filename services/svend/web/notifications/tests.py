@@ -701,5 +701,25 @@ class TaskHandlerTests(TestCase):
         self.assertEqual(result["deleted"], 0)
         self.assertEqual(NotificationToken.objects.count(), 1)
 
+    @patch("notifications.tasks._send_digest")
+    def test_send_daily_digest_calls_send_digest(self, mock_digest):
+        from .tasks import send_daily_digest
+
+        mock_digest.return_value = {"sent": 0, "skipped": 0}
+        send_daily_digest({})
+        mock_digest.assert_called_once()
+        args = mock_digest.call_args[0]
+        self.assertEqual(args[0], "daily")
+
+    @patch("notifications.tasks._send_digest")
+    def test_send_weekly_digest_calls_send_digest(self, mock_digest):
+        from .tasks import send_weekly_digest
+
+        mock_digest.return_value = {"sent": 0, "skipped": 0}
+        send_weekly_digest({})
+        mock_digest.assert_called_once()
+        args = mock_digest.call_args[0]
+        self.assertEqual(args[0], "weekly")
+
     # Alias for compliance hook name
     test_send_email_task_sends_mail = test_send_email_task_sends_and_updates
