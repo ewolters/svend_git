@@ -604,3 +604,55 @@ class ActionItemSourcesTest(TestCase):
         self.assertIn(resp.status_code, [200, 201])
         action = resp.json()["action_item"]
         self.assertEqual(action["source_type"], "rca")
+
+
+# =========================================================================
+# Template Block Consistency
+# =========================================================================
+
+
+class TemplateBlockConsistencyTest(TestCase):
+    """Every template extending base_app.html must use only valid block names.
+
+    base_app.html defines: title, extra_head, content, scripts.
+    Using any other name (e.g. extra_js) silently drops the content.
+    """
+
+    VALID_BLOCKS = {"title", "extra_head", "content", "scripts"}
+
+    def _get_base_app_children(self):
+        """Return paths of all templates that extend base_app.html."""
+        import re
+        from pathlib import Path
+
+        templates_dir = Path(__file__).resolve().parent.parent / "templates"
+        children = []
+        extends_re = re.compile(r'\{%\s*extends\s+["\']base_app\.html["\']\s*%\}')
+        for html_file in templates_dir.glob("*.html"):
+            text = html_file.read_text()
+            if extends_re.search(text):
+                children.append(html_file)
+        return children
+
+    def test_all_child_templates_use_valid_blocks(self):
+        """No child template uses an undefined block name."""
+        import re
+
+        block_re = re.compile(r"\{%\s*block\s+(\w+)")
+        children = self._get_base_app_children()
+        self.assertGreater(len(children), 0, "Should find child templates")
+
+        violations = []
+        for path in children:
+            text = path.read_text()
+            for match in block_re.finditer(text):
+                block_name = match.group(1)
+                if block_name not in self.VALID_BLOCKS:
+                    violations.append(f"{path.name}: {{% block {block_name} %}}")
+
+        self.assertEqual(
+            violations,
+            [],
+            f"Templates using undefined block names (valid: {self.VALID_BLOCKS}):\n"
+            + "\n".join(f"  - {v}" for v in violations),
+        )

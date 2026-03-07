@@ -36,6 +36,10 @@ class Project(models.Model):
         RESOLVED = "resolved", "Resolved"
         ABANDONED = "abandoned", "Abandoned"
 
+    class ProjectClass(models.TextChoices):
+        INVESTIGATION = "investigation", "Investigation / Study"
+        STRATEGIC = "strategic", "Strategic / Hoshin"
+
     class Methodology(models.TextChoices):
         NONE = "none", "General Investigation"
         DMAIC = "dmaic", "Six Sigma DMAIC"
@@ -79,6 +83,12 @@ class Project(models.Model):
     # HEADER
     # =========================================================================
     title = models.CharField(max_length=255)
+    project_class = models.CharField(
+        max_length=20,
+        choices=ProjectClass.choices,
+        default=ProjectClass.INVESTIGATION,
+        help_text="Investigation/study (tactical) or strategic (Hoshin)",
+    )
     status = models.CharField(
         max_length=20,
         choices=Status.choices,

@@ -1754,6 +1754,218 @@ class RCASession(models.Model):
 
 
 # =============================================================================
+# Ishikawa (Fishbone) Diagram — Common Cause Analysis
+# =============================================================================
+
+DEFAULT_6M_BRANCHES = [
+    {"category": "Man", "causes": []},
+    {"category": "Machine", "causes": []},
+    {"category": "Method", "causes": []},
+    {"category": "Material", "causes": []},
+    {"category": "Measurement", "causes": []},
+    {"category": "Mother Nature", "causes": []},
+]
+
+
+class IshikawaDiagram(models.Model):
+    """Ishikawa (Fishbone) diagram for common cause analysis.
+
+    For COMMON CAUSE problems — systemic issues mapped across 6M categories.
+    Unlike RCA (special cause, causal chain), Ishikawa maps all contributing
+    factors to a process-level effect and feeds Kaizen improvement.
+
+    Branch structure (recursive):
+    [
+        {
+            "category": "Man",
+            "causes": [
+                {
+                    "text": "Operator Training",
+                    "children": [
+                        {"text": "Only available on one desktop", "children": []},
+                        {"text": "No refresher schedule", "children": []}
+                    ]
+                }
+            ]
+        },
+        ...
+    ]
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        ANALYZING = "analyzing", "Analyzing"
+        COMPLETE = "complete", "Complete"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Ownership
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="ishikawa_diagrams",
+    )
+
+    # Optional project link
+    project = models.ForeignKey(
+        "core.Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ishikawa_diagrams",
+    )
+
+    title = models.CharField(max_length=255, blank=True)
+    effect = models.TextField(
+        blank=True,
+        help_text="The process-level effect being analyzed (the fish head)",
+    )
+
+    # 6M category branches with recursive causes — default=list (callable)
+    branches = models.JSONField(
+        default=list,
+        help_text="6M category branches with recursive causes",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "ishikawa_diagrams"
+        ordering = ["-updated_at"]
+        verbose_name = "Ishikawa Diagram"
+        verbose_name_plural = "Ishikawa Diagrams"
+
+    def __str__(self):
+        return f"Ishikawa: {self.title or self.effect[:50]} ({self.status})"
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "project_id": str(self.project_id) if self.project_id else None,
+            "title": self.title,
+            "effect": self.effect,
+            "branches": self.branches,
+            "status": self.status,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+# =============================================================================
+# Cause & Effect (C&E) Matrix
+# =============================================================================
+
+
+class CEMatrix(models.Model):
+    """Cause & Effect Matrix — scoring grid for prioritizing causes.
+
+    Separate tool from Ishikawa. Inputs (X's) scored against outputs (Y's)
+    with standard 0/1/3/9 scoring and output importance weights (1-10).
+
+    Structure:
+    - outputs: [{"name": "Defect Rate", "weight": 9}, ...]
+    - inputs: [{"name": "Temperature"}, {"name": "Pressure"}, ...]
+    - scores: {"0": {"0": 9, "1": 3}, "1": {"0": 1, "1": 9}, ...}
+              keyed as str(input_idx) → str(output_idx) → score
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        SCORING = "scoring", "Scoring"
+        COMPLETE = "complete", "Complete"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Ownership
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="ce_matrices",
+    )
+
+    # Optional project link
+    project = models.ForeignKey(
+        "core.Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ce_matrices",
+    )
+
+    title = models.CharField(max_length=255, blank=True)
+
+    # All defaults are callables (list/dict), not mutable literals
+    outputs = models.JSONField(
+        default=list,
+        help_text='Process outputs (Y\'s): [{"name": "...", "weight": 1-10}]',
+    )
+    inputs = models.JSONField(
+        default=list,
+        help_text='Process inputs (X\'s): [{"name": "..."}]',
+    )
+    scores = models.JSONField(
+        default=dict,
+        help_text="Scoring grid: str(input_idx) → str(output_idx) → 0|1|3|9",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "ce_matrices"
+        ordering = ["-updated_at"]
+        verbose_name = "C&E Matrix"
+        verbose_name_plural = "C&E Matrices"
+
+    def __str__(self):
+        return f"C&E Matrix: {self.title or 'Untitled'} ({self.status})"
+
+    def compute_totals(self):
+        """Compute weighted total for each input.
+
+        Returns list of {"input_name": str, "total": float} sorted descending.
+        """
+        totals = []
+        for i, inp in enumerate(self.inputs):
+            total = 0.0
+            input_scores = self.scores.get(str(i), {})
+            for j, out in enumerate(self.outputs):
+                score = input_scores.get(str(j), 0)
+                weight = out.get("weight", 1)
+                total += score * weight
+            totals.append({"input_name": inp.get("name", ""), "input_index": i, "total": total})
+        totals.sort(key=lambda x: x["total"], reverse=True)
+        return totals
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "project_id": str(self.project_id) if self.project_id else None,
+            "title": self.title,
+            "outputs": self.outputs,
+            "inputs": self.inputs,
+            "scores": self.scores,
+            "totals": self.compute_totals(),
+            "status": self.status,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+# =============================================================================
 # Value Stream Map (VSM)
 # =============================================================================
 

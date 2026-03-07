@@ -1138,26 +1138,28 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     </section>
     </div><!-- end special-cause-content -->
 
-    <!-- Common Cause Content (Fishbone/C&E) -->
+    <!-- Common Cause Content (Ishikawa/C&E) -->
     <div id="common-cause-content" style="display: none;">
         <section class="rca-common-placeholder">
             <div class="common-cause-message">
                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <line x1="12" y1="2" x2="12" y2="6"/>
-                    <line x1="12" y1="18" x2="12" y2="22"/>
-                    <line x1="2" y1="12" x2="6" y2="12"/>
-                    <line x1="18" y1="12" x2="22" y2="12"/>
-                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/>
-                    <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
-                    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/>
-                    <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
+                    <line x1="2" y1="12" x2="22" y2="12"/>
+                    <line x1="7" y1="5" x2="12" y2="12"/>
+                    <line x1="7" y1="19" x2="12" y2="12"/>
+                    <line x1="14" y1="5" x2="18" y2="12"/>
+                    <line x1="14" y1="19" x2="18" y2="12"/>
                 </svg>
                 <h2>Common Cause Analysis</h2>
-                <p>For systemic issues that occur repeatedly, use <strong>Fishbone Diagrams</strong> and <strong>Cause & Effect Matrices</strong>.</p>
-                <p class="subtext">Common cause problems aren't investigated - they're engineered out through process improvement (Kaizen).</p>
-                <a href="/app/whiteboard/" class="rca-btn rca-btn-primary" style="margin-top: 24px;">
-                    Open Whiteboard for Fishbone Diagram
-                </a>
+                <p>For systemic issues that occur repeatedly, use <strong>Ishikawa (Fishbone) Diagrams</strong> and <strong>Cause & Effect Matrices</strong>.</p>
+                <p class="subtext">Common cause problems aren't investigated &mdash; they're engineered out through process improvement (Kaizen).</p>
+                <div style="display: flex; gap: 12px; margin-top: 24px; justify-content: center;">
+                    <a href="/app/ishikawa/" class="rca-btn rca-btn-primary">
+                        Open Ishikawa Diagram
+                    </a>
+                    <a href="/app/ce-matrix/" class="rca-btn rca-btn-secondary" style="border: 1px solid var(--border);">
+                        Open C&E Matrix
+                    </a>
+                </div>
             </div>
         </section>
     </div>

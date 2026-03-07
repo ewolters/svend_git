@@ -1,0 +1,674 @@
+{% extends "base_app.html" %}
+{% block title %}Ishikawa Diagram - SVEND{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ============================================================================
+   ISHIKAWA (FISHBONE) DIAGRAM - Common Cause Analysis
+   ============================================================================ */
+
+body > main { padding: 0 !important; }
+body > main > .container { max-width: none !important; padding: 0 !important; }
+
+.ishi-layout {
+    display: flex;
+    height: calc(100vh - 56px);
+}
+
+/* --- Sidebar --- */
+.ishi-sidebar {
+    width: 260px;
+    border-right: 1px solid var(--border);
+    background: var(--bg-secondary);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.ishi-sidebar-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ishi-sidebar-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.ishi-sidebar-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.ishi-sidebar-item {
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    font-size: 13px;
+    transition: background 0.15s;
+}
+
+.ishi-sidebar-item:hover { background: var(--bg-hover); }
+.ishi-sidebar-item.active { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+
+.ishi-sidebar-item .ishi-item-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ishi-sidebar-item .ishi-item-meta {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+/* --- Main Content --- */
+.ishi-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.ishi-toolbar {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.ishi-toolbar input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+}
+
+.ishi-toolbar select {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+}
+
+/* --- SVG Canvas --- */
+.ishi-canvas-wrap {
+    flex: 1;
+    overflow: auto;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ishi-canvas-wrap svg {
+    min-width: 900px;
+    min-height: 500px;
+}
+
+/* SVG styling */
+.ishi-spine { stroke: var(--text); stroke-width: 3; }
+.ishi-branch { stroke: var(--text-secondary); stroke-width: 2; }
+.ishi-sub-branch { stroke: var(--text-secondary); stroke-width: 1.5; opacity: 0.7; }
+.ishi-deep-branch { stroke: var(--text-secondary); stroke-width: 1; opacity: 0.5; }
+
+.ishi-category-label {
+    font-size: 14px;
+    font-weight: 700;
+    fill: var(--accent);
+    cursor: pointer;
+}
+
+.ishi-cause-label {
+    font-size: 12px;
+    fill: var(--text);
+    cursor: pointer;
+}
+
+.ishi-cause-label:hover { fill: var(--accent); }
+
+.ishi-effect-label {
+    font-size: 16px;
+    font-weight: 700;
+    fill: var(--text);
+}
+
+.ishi-head {
+    fill: var(--accent-bg);
+    stroke: var(--accent);
+    stroke-width: 2;
+}
+
+.ishi-expand-badge {
+    font-size: 10px;
+    fill: var(--accent);
+    cursor: pointer;
+    font-weight: 700;
+}
+
+/* --- Empty State --- */
+.ishi-empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px;
+}
+
+.ishi-empty h2 { font-size: 20px; margin: 0 0 8px; }
+.ishi-empty p { color: var(--text-secondary); font-size: 14px; margin: 0 0 20px; }
+
+/* --- Button --- */
+.ishi-btn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    background: var(--accent);
+    color: white;
+    transition: opacity 0.15s;
+}
+.ishi-btn:hover { opacity: 0.85; }
+.ishi-btn-sm { padding: 4px 10px; font-size: 12px; }
+.ishi-btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+
+/* --- Cause Input Modal --- */
+.ishi-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 1000;
+    display: none;
+}
+.ishi-modal-backdrop.active { display: flex; align-items: center; justify-content: center; }
+
+.ishi-modal {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 24px;
+    width: 400px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+.ishi-modal h3 { margin: 0 0 16px; font-size: 16px; }
+
+.ishi-modal input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    margin-bottom: 16px;
+    box-sizing: border-box;
+}
+
+.ishi-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+/* Save indicator */
+.ishi-save-indicator {
+    font-size: 11px;
+    color: var(--text-secondary);
+    transition: opacity 0.3s;
+}
+.ishi-save-indicator.saved { color: var(--success, #22c55e); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ishi-layout">
+    <!-- Sidebar -->
+    <div class="ishi-sidebar">
+        <div class="ishi-sidebar-header">
+            <h3>Diagrams</h3>
+            <button class="ishi-btn ishi-btn-sm" onclick="showNewDiagramModal()">+ New</button>
+        </div>
+        <div class="ishi-sidebar-list" id="diagram-list"></div>
+    </div>
+
+    <!-- Main -->
+    <div class="ishi-main">
+        <!-- Toolbar (hidden until diagram loaded) -->
+        <div class="ishi-toolbar" id="ishi-toolbar" style="display:none;">
+            <input type="text" id="ishi-title" placeholder="Diagram title..." oninput="scheduleSave()">
+            <label style="font-size:13px;color:var(--text-secondary);">Effect:</label>
+            <input type="text" id="ishi-effect" placeholder="Process-level effect (the fish head)..." style="flex:2;" oninput="scheduleSave()">
+            <select id="ishi-status" onchange="scheduleSave()">
+                <option value="draft">Draft</option>
+                <option value="analyzing">Analyzing</option>
+                <option value="complete">Complete</option>
+            </select>
+            <span class="ishi-save-indicator" id="save-indicator"></span>
+            <button class="ishi-btn ishi-btn-sm ishi-btn-ghost" onclick="deleteDiagram()" title="Delete">&#x1f5d1;</button>
+        </div>
+
+        <!-- Canvas -->
+        <div class="ishi-canvas-wrap" id="ishi-canvas-wrap">
+            <div class="ishi-empty" id="ishi-empty">
+                <div>
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-secondary);margin-bottom:16px;">
+                        <line x1="2" y1="12" x2="22" y2="12"/>
+                        <line x1="7" y1="5" x2="12" y2="12"/>
+                        <line x1="7" y1="19" x2="12" y2="12"/>
+                        <line x1="14" y1="5" x2="18" y2="12"/>
+                        <line x1="14" y1="19" x2="18" y2="12"/>
+                    </svg>
+                    <h2>Ishikawa (Fishbone) Diagram</h2>
+                    <p>Map systemic contributors to a process-level effect using 6M categories.<br>
+                    For <strong>common cause</strong> problems — not unique events.</p>
+                    <button class="ishi-btn" onclick="showNewDiagramModal()">Create Diagram</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Diagram Modal -->
+<div class="ishi-modal-backdrop" id="new-modal">
+    <div class="ishi-modal">
+        <h3>New Ishikawa Diagram</h3>
+        <input type="text" id="new-effect" placeholder="What is the effect? (e.g., High defect rate on Line 3)" autofocus>
+        <input type="text" id="new-title" placeholder="Title (optional)">
+        <div class="ishi-modal-actions">
+            <button class="ishi-btn ishi-btn-ghost" onclick="hideNewDiagramModal()">Cancel</button>
+            <button class="ishi-btn" onclick="createDiagram()">Create</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Cause Modal -->
+<div class="ishi-modal-backdrop" id="cause-modal">
+    <div class="ishi-modal">
+        <h3 id="cause-modal-title">Add Cause</h3>
+        <input type="text" id="cause-text" placeholder="Describe the cause..." autofocus>
+        <div class="ishi-modal-actions">
+            <button class="ishi-btn ishi-btn-ghost" onclick="hideCauseModal()">Cancel</button>
+            <button class="ishi-btn" onclick="submitCause()">Add</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    'use strict';
+
+    const API = '/api/ishikawa/sessions/';
+    const CSRF = document.querySelector('[name=csrfmiddlewaretoken]')?.value
+        || document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+
+    let currentDiagramId = null;
+    let currentDiagram = null;
+    let saveTimer = null;
+
+    // Track which cause modal targets
+    let causeTarget = null; // {branchIdx, path: []} where path is array of child indices
+
+    // Max visible depth before collapsing (depth 1=category, 2=cause, 3=sub-cause)
+    const MAX_VISIBLE_DEPTH = 3;
+    // Track expanded nodes (keyed by "branchIdx-path")
+    const expandedNodes = new Set();
+
+    // --- API helpers ---
+    function apiFetch(url, opts = {}) {
+        return fetch(url, {
+            ...opts,
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF, ...opts.headers },
+        }).then(r => r.json());
+    }
+
+    // --- Sidebar ---
+    function loadDiagramList() {
+        apiFetch(API).then(data => {
+            const list = document.getElementById('diagram-list');
+            if (!data.diagrams || data.diagrams.length === 0) {
+                list.innerHTML = '<div style="padding:12px;color:var(--text-secondary);font-size:13px;">No diagrams yet</div>';
+                return;
+            }
+            list.innerHTML = data.diagrams.map(d => `
+                <div class="ishi-sidebar-item ${d.id === currentDiagramId ? 'active' : ''}"
+                     onclick="loadDiagram('${d.id}')">
+                    <div class="ishi-item-title">${esc(d.title || d.effect || 'Untitled')}</div>
+                    <div class="ishi-item-meta">${d.status} &middot; ${timeAgo(d.updated_at)}</div>
+                </div>
+            `).join('');
+        });
+    }
+
+    // --- Load diagram ---
+    window.loadDiagram = function(id) {
+        apiFetch(API + id + '/').then(data => {
+            currentDiagramId = id;
+            currentDiagram = data.diagram;
+            expandedNodes.clear();
+            document.getElementById('ishi-toolbar').style.display = 'flex';
+            document.getElementById('ishi-empty').style.display = 'none';
+            document.getElementById('ishi-title').value = currentDiagram.title || '';
+            document.getElementById('ishi-effect').value = currentDiagram.effect || '';
+            document.getElementById('ishi-status').value = currentDiagram.status;
+            renderFishbone();
+            loadDiagramList();
+        });
+    };
+
+    // --- Create diagram ---
+    window.showNewDiagramModal = function() {
+        document.getElementById('new-modal').classList.add('active');
+        // Auto-populate effect from URL params (SPC/NCR integration)
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('effect')) {
+            document.getElementById('new-effect').value = decodeURIComponent(params.get('effect'));
+        }
+        document.getElementById('new-effect').focus();
+    };
+    window.hideNewDiagramModal = function() {
+        document.getElementById('new-modal').classList.remove('active');
+    };
+    window.createDiagram = function() {
+        const effect = document.getElementById('new-effect').value.trim();
+        if (!effect) return;
+        apiFetch(API + 'create/', {
+            method: 'POST',
+            body: JSON.stringify({
+                effect: effect,
+                title: document.getElementById('new-title').value.trim(),
+            }),
+        }).then(data => {
+            hideNewDiagramModal();
+            document.getElementById('new-effect').value = '';
+            document.getElementById('new-title').value = '';
+            loadDiagram(data.diagram.id);
+        });
+    };
+
+    // --- Delete diagram ---
+    window.deleteDiagram = function() {
+        if (!currentDiagramId || !confirm('Delete this diagram?')) return;
+        apiFetch(API + currentDiagramId + '/delete/', { method: 'DELETE' }).then(() => {
+            currentDiagramId = null;
+            currentDiagram = null;
+            document.getElementById('ishi-toolbar').style.display = 'none';
+            document.getElementById('ishi-empty').style.display = 'flex';
+            document.getElementById('ishi-canvas-wrap').querySelectorAll('svg').forEach(s => s.remove());
+            loadDiagramList();
+        });
+    };
+
+    // --- Save (debounced) ---
+    window.scheduleSave = function() {
+        if (saveTimer) clearTimeout(saveTimer);
+        document.getElementById('save-indicator').textContent = 'Saving...';
+        document.getElementById('save-indicator').classList.remove('saved');
+        saveTimer = setTimeout(saveDiagram, 800);
+    };
+
+    function saveDiagram() {
+        if (!currentDiagramId || !currentDiagram) return;
+        currentDiagram.title = document.getElementById('ishi-title').value.trim();
+        currentDiagram.effect = document.getElementById('ishi-effect').value.trim();
+        currentDiagram.status = document.getElementById('ishi-status').value;
+        apiFetch(API + currentDiagramId + '/update/', {
+            method: 'PUT',
+            body: JSON.stringify({
+                title: currentDiagram.title,
+                effect: currentDiagram.effect,
+                branches: currentDiagram.branches,
+                status: currentDiagram.status,
+            }),
+        }).then(() => {
+            const ind = document.getElementById('save-indicator');
+            ind.textContent = 'Saved';
+            ind.classList.add('saved');
+            setTimeout(() => { ind.textContent = ''; }, 2000);
+            loadDiagramList();
+        });
+    }
+
+    // --- Cause modal ---
+    window.showCauseModal = function(branchIdx, path, parentText) {
+        causeTarget = { branchIdx, path };
+        document.getElementById('cause-modal-title').textContent =
+            path.length === 0
+                ? `Add cause to ${currentDiagram.branches[branchIdx].category}`
+                : `Add sub-cause to "${parentText}"`;
+        document.getElementById('cause-text').value = '';
+        document.getElementById('cause-modal').classList.add('active');
+        document.getElementById('cause-text').focus();
+    };
+    window.hideCauseModal = function() {
+        document.getElementById('cause-modal').classList.remove('active');
+        causeTarget = null;
+    };
+    window.submitCause = function() {
+        const text = document.getElementById('cause-text').value.trim();
+        if (!text || !causeTarget) return;
+
+        // Navigate to parent
+        let node = currentDiagram.branches[causeTarget.branchIdx].causes;
+        for (const idx of causeTarget.path) {
+            node = node[idx].children;
+        }
+        node.push({ text, children: [] });
+        hideCauseModal();
+        renderFishbone();
+        scheduleSave();
+    };
+
+    // --- Delete cause ---
+    window.removeCause = function(branchIdx, path) {
+        if (!confirm('Remove this cause and all sub-causes?')) return;
+        let node = currentDiagram.branches[branchIdx].causes;
+        const lastIdx = path[path.length - 1];
+        for (let i = 0; i < path.length - 1; i++) {
+            node = node[path[i]].children;
+        }
+        node.splice(lastIdx, 1);
+        renderFishbone();
+        scheduleSave();
+    };
+
+    // --- Toggle expand ---
+    window.toggleExpand = function(key) {
+        if (expandedNodes.has(key)) expandedNodes.delete(key);
+        else expandedNodes.add(key);
+        renderFishbone();
+    };
+
+    // --- SVG Fishbone Renderer ---
+    function renderFishbone() {
+        if (!currentDiagram) return;
+
+        // Remove existing SVG
+        document.getElementById('ishi-canvas-wrap').querySelectorAll('svg').forEach(s => s.remove());
+        document.getElementById('ishi-empty').style.display = 'none';
+
+        const branches = currentDiagram.branches || [];
+        const W = 1100, H = 600;
+        const spineY = H / 2;
+        const spineX1 = 60, spineX2 = W - 160;
+        const headX = spineX2 + 10;
+
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('style', 'max-width: 1100px;');
+
+        // Spine
+        addLine(svg, spineX1, spineY, spineX2, spineY, 'ishi-spine');
+
+        // Fish head (arrow/triangle)
+        const headPath = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        headPath.setAttribute('points', `${headX},${spineY - 30} ${headX + 80},${spineY} ${headX},${spineY + 30}`);
+        headPath.setAttribute('class', 'ishi-head');
+        svg.appendChild(headPath);
+
+        // Effect label
+        const effectText = currentDiagram.effect || 'Effect';
+        const effectLabel = addText(svg, headX + 90, spineY + 5, effectText.length > 30 ? effectText.substring(0, 30) + '...' : effectText, 'ishi-effect-label');
+
+        // 6M branches: 3 above, 3 below
+        const numBranches = branches.length;
+        const spacing = (spineX2 - spineX1 - 60) / Math.ceil(numBranches / 2);
+        const branchLength = 120;
+
+        branches.forEach((branch, idx) => {
+            const isAbove = idx % 2 === 0;
+            const col = Math.floor(idx / 2);
+            const attachX = spineX1 + 40 + col * spacing;
+            const endY = isAbove ? spineY - branchLength : spineY + branchLength;
+
+            // Main branch line
+            addLine(svg, attachX, spineY, attachX, endY, 'ishi-branch');
+
+            // Category label (clickable to add cause)
+            const labelY = isAbove ? endY - 12 : endY + 18;
+            const catLabel = addText(svg, attachX, labelY, branch.category, 'ishi-category-label');
+            catLabel.style.textAnchor = 'middle';
+            catLabel.onclick = () => showCauseModal(idx, [], branch.category);
+
+            // Render causes
+            const causes = branch.causes || [];
+            causes.forEach((cause, cIdx) => {
+                const causeY = isAbove
+                    ? endY + 20 + cIdx * 28
+                    : endY - 20 - cIdx * 28;
+                const causeDir = isAbove ? 1 : -1;
+                const causeX = attachX + 20;
+
+                // Horizontal tick from branch
+                addLine(svg, attachX, causeY, causeX, causeY, 'ishi-sub-branch');
+
+                // Cause label
+                const cLabel = addText(svg, causeX + 4, causeY + 4, cause.text.length > 25 ? cause.text.substring(0, 25) + '...' : cause.text, 'ishi-cause-label');
+                cLabel.onclick = () => showCauseModal(idx, [cIdx], cause.text);
+
+                // Right-click to delete
+                cLabel.oncontextmenu = (e) => { e.preventDefault(); removeCause(idx, [cIdx]); };
+
+                // Sub-causes (depth 3)
+                renderSubCauses(svg, cause.children || [], idx, [cIdx], causeX + 100, causeY, 2, isAbove);
+            });
+
+            // "+" button at end of branch
+            const plusY = isAbove
+                ? endY + 20 + causes.length * 28
+                : endY - 20 - causes.length * 28;
+            const plusLabel = addText(svg, attachX + 4, plusY + 4, '+ add', 'ishi-cause-label');
+            plusLabel.style.opacity = '0.5';
+            plusLabel.style.fontSize = '11px';
+            plusLabel.onclick = () => showCauseModal(idx, [], branch.category);
+        });
+
+        document.getElementById('ishi-canvas-wrap').appendChild(svg);
+    }
+
+    function renderSubCauses(svg, children, branchIdx, parentPath, startX, startY, depth, isAbove) {
+        if (!children || children.length === 0) return;
+
+        const nodeKey = branchIdx + '-' + parentPath.join('-');
+        const isExpanded = expandedNodes.has(nodeKey);
+
+        // Depth >= MAX_VISIBLE_DEPTH: show collapse indicator
+        if (depth >= MAX_VISIBLE_DEPTH && !isExpanded) {
+            if (children.length > 0) {
+                const badge = addText(svg, startX + 4, startY + 4, `[+${children.length}]`, 'ishi-expand-badge');
+                badge.onclick = () => toggleExpand(nodeKey);
+            }
+            return;
+        }
+
+        children.forEach((child, cIdx) => {
+            const childPath = [...parentPath, cIdx];
+            const offsetY = isAbove ? 16 : -16;
+            const childY = startY + (cIdx + 1) * offsetY;
+            const childX = startX + 15;
+
+            addLine(svg, startX - 5, childY, childX, childY, 'ishi-deep-branch');
+
+            const label = addText(svg, childX + 3, childY + 4, child.text.length > 20 ? child.text.substring(0, 20) + '...' : child.text, 'ishi-cause-label');
+            label.style.fontSize = '11px';
+            label.onclick = () => showCauseModal(branchIdx, childPath, child.text);
+            label.oncontextmenu = (e) => { e.preventDefault(); removeCause(branchIdx, childPath); };
+
+            // Recurse deeper
+            renderSubCauses(svg, child.children || [], branchIdx, childPath, childX + 80, childY, depth + 1, isAbove);
+        });
+
+        // Collapse button when expanded past max depth
+        if (depth >= MAX_VISIBLE_DEPTH && isExpanded) {
+            const collapseLabel = addText(svg, startX + 4, startY - 8, '[-]', 'ishi-expand-badge');
+            collapseLabel.onclick = () => toggleExpand(nodeKey);
+        }
+    }
+
+    // SVG helpers
+    function addLine(svg, x1, y1, x2, y2, cls) {
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+        line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+        line.setAttribute('class', cls);
+        svg.appendChild(line);
+        return line;
+    }
+
+    function addText(svg, x, y, text, cls) {
+        const el = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        el.setAttribute('x', x); el.setAttribute('y', y);
+        el.setAttribute('class', cls);
+        el.textContent = text;
+        svg.appendChild(el);
+        return el;
+    }
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    function timeAgo(iso) {
+        const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+        if (diff < 60) return 'just now';
+        if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+        if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+        return Math.floor(diff / 86400) + 'd ago';
+    }
+
+    // --- Init ---
+    loadDiagramList();
+
+    // Handle Enter key in modals
+    document.getElementById('new-effect').addEventListener('keydown', e => { if (e.key === 'Enter') createDiagram(); });
+    document.getElementById('cause-text').addEventListener('keydown', e => { if (e.key === 'Enter') submitCause(); });
+
+    // Auto-load from URL
+    const pathMatch = window.location.pathname.match(/\/app\/ishikawa\/([0-9a-f-]+)\//);
+    if (pathMatch) {
+        loadDiagram(pathMatch[1]);
+    }
+})();
+</script>
+{% endblock %}

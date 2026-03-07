@@ -1,0 +1,521 @@
+{% extends "base_app.html" %}
+{% block title %}C&E Matrix - SVEND{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ============================================================================
+   CAUSE & EFFECT (C&E) MATRIX - Weighted scoring grid
+   ============================================================================ */
+
+body > main { padding: 0 !important; }
+body > main > .container { max-width: none !important; padding: 0 !important; }
+
+.ce-layout {
+    display: flex;
+    height: calc(100vh - 56px);
+}
+
+/* --- Sidebar --- */
+.ce-sidebar {
+    width: 260px;
+    border-right: 1px solid var(--border);
+    background: var(--bg-secondary);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.ce-sidebar-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ce-sidebar-header h3 { margin: 0; font-size: 14px; font-weight: 600; }
+
+.ce-sidebar-list { flex: 1; overflow-y: auto; padding: 8px; }
+
+.ce-sidebar-item {
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    font-size: 13px;
+    transition: background 0.15s;
+}
+.ce-sidebar-item:hover { background: var(--bg-hover); }
+.ce-sidebar-item.active { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+.ce-sidebar-item .ce-item-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ce-sidebar-item .ce-item-meta { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+/* --- Main --- */
+.ce-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+.ce-toolbar {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.ce-toolbar input, .ce-toolbar select {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+}
+
+.ce-toolbar input { flex: 1; }
+
+/* --- Matrix Table --- */
+.ce-table-wrap { flex: 1; overflow: auto; padding: 20px; }
+
+.ce-matrix-table {
+    border-collapse: collapse;
+    font-size: 13px;
+    width: auto;
+}
+
+.ce-matrix-table th, .ce-matrix-table td {
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    text-align: center;
+    min-width: 80px;
+}
+
+.ce-matrix-table thead th {
+    background: var(--bg-secondary);
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.ce-matrix-table .ce-input-header {
+    text-align: left;
+    font-weight: 600;
+    background: var(--bg-secondary);
+    position: sticky;
+    left: 0;
+    z-index: 1;
+}
+
+.ce-matrix-table .ce-total-col {
+    font-weight: 700;
+    background: var(--bg-secondary);
+}
+
+.ce-matrix-table .ce-weight-row input {
+    width: 50px;
+    text-align: center;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 2px 4px;
+    background: var(--bg);
+    color: var(--text);
+}
+
+.ce-matrix-table select.ce-score {
+    width: 55px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 2px;
+    background: var(--bg);
+    color: var(--text);
+    text-align: center;
+}
+
+.ce-matrix-table .ce-editable {
+    cursor: text;
+    min-width: 100px;
+}
+
+.ce-matrix-table .ce-editable:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+/* Heat map colors */
+.ce-heat-low { background: rgba(34, 197, 94, 0.1); }
+.ce-heat-med { background: rgba(234, 179, 8, 0.15); }
+.ce-heat-high { background: rgba(239, 68, 68, 0.15); }
+
+/* --- Empty State --- */
+.ce-empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px;
+}
+.ce-empty h2 { font-size: 20px; margin: 0 0 8px; }
+.ce-empty p { color: var(--text-secondary); font-size: 14px; margin: 0 0 20px; }
+
+/* --- Buttons --- */
+.ce-btn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    background: var(--accent);
+    color: white;
+}
+.ce-btn:hover { opacity: 0.85; }
+.ce-btn-sm { padding: 4px 10px; font-size: 12px; }
+.ce-btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+
+.ce-add-btns { margin-top: 12px; display: flex; gap: 8px; }
+
+.ce-save-indicator { font-size: 11px; color: var(--text-secondary); }
+.ce-save-indicator.saved { color: var(--success, #22c55e); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ce-layout">
+    <!-- Sidebar -->
+    <div class="ce-sidebar">
+        <div class="ce-sidebar-header">
+            <h3>Matrices</h3>
+            <button class="ce-btn ce-btn-sm" onclick="createMatrix()">+ New</button>
+        </div>
+        <div class="ce-sidebar-list" id="matrix-list"></div>
+    </div>
+
+    <!-- Main -->
+    <div class="ce-main">
+        <div class="ce-toolbar" id="ce-toolbar" style="display:none;">
+            <input type="text" id="ce-title" placeholder="Matrix title..." oninput="scheduleSave()">
+            <select id="ce-status" onchange="scheduleSave()">
+                <option value="draft">Draft</option>
+                <option value="scoring">Scoring</option>
+                <option value="complete">Complete</option>
+            </select>
+            <span class="ce-save-indicator" id="save-indicator"></span>
+            <button class="ce-btn ce-btn-sm ce-btn-ghost" onclick="deleteMatrix()" title="Delete">&#x1f5d1;</button>
+        </div>
+
+        <div class="ce-table-wrap" id="ce-table-wrap">
+            <div class="ce-empty" id="ce-empty">
+                <div>
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-secondary);margin-bottom:16px;">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <line x1="3" y1="9" x2="21" y2="9"/>
+                        <line x1="3" y1="15" x2="21" y2="15"/>
+                        <line x1="9" y1="3" x2="9" y2="21"/>
+                        <line x1="15" y1="3" x2="15" y2="21"/>
+                    </svg>
+                    <h2>Cause & Effect Matrix</h2>
+                    <p>Score process inputs (X's) against outputs (Y's) to prioritize causes.<br>
+                    Uses 0/1/3/9 scoring with weighted output importance.</p>
+                    <button class="ce-btn" onclick="createMatrix()">Create Matrix</button>
+                </div>
+            </div>
+            <div id="matrix-container" style="display:none;"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    'use strict';
+
+    const API = '/api/ce/sessions/';
+    const CSRF = document.querySelector('[name=csrfmiddlewaretoken]')?.value
+        || document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+
+    let currentMatrixId = null;
+    let currentMatrix = null;
+    let saveTimer = null;
+
+    function apiFetch(url, opts = {}) {
+        return fetch(url, {
+            ...opts,
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF, ...opts.headers },
+        }).then(r => r.json());
+    }
+
+    // --- Sidebar ---
+    function loadMatrixList() {
+        apiFetch(API).then(data => {
+            const list = document.getElementById('matrix-list');
+            if (!data.matrices || data.matrices.length === 0) {
+                list.innerHTML = '<div style="padding:12px;color:var(--text-secondary);font-size:13px;">No matrices yet</div>';
+                return;
+            }
+            list.innerHTML = data.matrices.map(m => `
+                <div class="ce-sidebar-item ${m.id === currentMatrixId ? 'active' : ''}"
+                     onclick="loadMatrix('${m.id}')">
+                    <div class="ce-item-title">${esc(m.title || 'Untitled')}</div>
+                    <div class="ce-item-meta">${m.status} &middot; ${timeAgo(m.updated_at)}</div>
+                </div>
+            `).join('');
+        });
+    }
+
+    // --- Load matrix ---
+    window.loadMatrix = function(id) {
+        apiFetch(API + id + '/').then(data => {
+            currentMatrixId = id;
+            currentMatrix = data.matrix;
+            document.getElementById('ce-toolbar').style.display = 'flex';
+            document.getElementById('ce-empty').style.display = 'none';
+            document.getElementById('matrix-container').style.display = 'block';
+            document.getElementById('ce-title').value = currentMatrix.title || '';
+            document.getElementById('ce-status').value = currentMatrix.status;
+            renderMatrix();
+            loadMatrixList();
+        });
+    };
+
+    // --- Create ---
+    window.createMatrix = function() {
+        apiFetch(API + 'create/', {
+            method: 'POST',
+            body: JSON.stringify({ title: 'New C&E Matrix' }),
+        }).then(data => {
+            loadMatrix(data.matrix.id);
+        });
+    };
+
+    // --- Delete ---
+    window.deleteMatrix = function() {
+        if (!currentMatrixId || !confirm('Delete this matrix?')) return;
+        apiFetch(API + currentMatrixId + '/delete/', { method: 'DELETE' }).then(() => {
+            currentMatrixId = null;
+            currentMatrix = null;
+            document.getElementById('ce-toolbar').style.display = 'none';
+            document.getElementById('ce-empty').style.display = 'flex';
+            document.getElementById('matrix-container').style.display = 'none';
+            loadMatrixList();
+        });
+    };
+
+    // --- Save ---
+    window.scheduleSave = function() {
+        if (saveTimer) clearTimeout(saveTimer);
+        document.getElementById('save-indicator').textContent = 'Saving...';
+        document.getElementById('save-indicator').classList.remove('saved');
+        saveTimer = setTimeout(saveMatrix, 800);
+    };
+
+    function saveMatrix() {
+        if (!currentMatrixId || !currentMatrix) return;
+        currentMatrix.title = document.getElementById('ce-title').value.trim();
+        currentMatrix.status = document.getElementById('ce-status').value;
+        apiFetch(API + currentMatrixId + '/update/', {
+            method: 'PUT',
+            body: JSON.stringify({
+                title: currentMatrix.title,
+                outputs: currentMatrix.outputs,
+                inputs: currentMatrix.inputs,
+                scores: currentMatrix.scores,
+                status: currentMatrix.status,
+            }),
+        }).then(data => {
+            // Update totals from server
+            if (data.matrix && data.matrix.totals) {
+                currentMatrix.totals = data.matrix.totals;
+            }
+            const ind = document.getElementById('save-indicator');
+            ind.textContent = 'Saved';
+            ind.classList.add('saved');
+            setTimeout(() => { ind.textContent = ''; }, 2000);
+            renderMatrix(); // Re-render with updated totals
+            loadMatrixList();
+        });
+    }
+
+    // --- Add output / input ---
+    window.addOutput = function() {
+        const name = prompt('Output name (Y):');
+        if (!name) return;
+        currentMatrix.outputs.push({ name: name.trim(), weight: 5 });
+        renderMatrix();
+        scheduleSave();
+    };
+
+    window.addInput = function() {
+        const name = prompt('Input name (X):');
+        if (!name) return;
+        currentMatrix.inputs.push({ name: name.trim() });
+        renderMatrix();
+        scheduleSave();
+    };
+
+    window.removeOutput = function(idx) {
+        if (!confirm('Remove this output column?')) return;
+        currentMatrix.outputs.splice(idx, 1);
+        // Clean up scores
+        const newScores = {};
+        for (const [iKey, iScores] of Object.entries(currentMatrix.scores)) {
+            const ns = {};
+            for (const [oKey, val] of Object.entries(iScores)) {
+                const oIdx = parseInt(oKey);
+                if (oIdx < idx) ns[oKey] = val;
+                else if (oIdx > idx) ns[String(oIdx - 1)] = val;
+            }
+            newScores[iKey] = ns;
+        }
+        currentMatrix.scores = newScores;
+        renderMatrix();
+        scheduleSave();
+    };
+
+    window.removeInput = function(idx) {
+        if (!confirm('Remove this input row?')) return;
+        currentMatrix.inputs.splice(idx, 1);
+        const newScores = {};
+        for (const [iKey, iScores] of Object.entries(currentMatrix.scores)) {
+            const iIdx = parseInt(iKey);
+            if (iIdx < idx) newScores[iKey] = iScores;
+            else if (iIdx > idx) newScores[String(iIdx - 1)] = iScores;
+        }
+        currentMatrix.scores = newScores;
+        renderMatrix();
+        scheduleSave();
+    };
+
+    window.updateWeight = function(idx, val) {
+        const w = parseInt(val) || 1;
+        currentMatrix.outputs[idx].weight = Math.max(1, Math.min(10, w));
+        scheduleSave();
+    };
+
+    window.updateScore = function(inputIdx, outputIdx, val) {
+        if (!currentMatrix.scores[String(inputIdx)]) currentMatrix.scores[String(inputIdx)] = {};
+        currentMatrix.scores[String(inputIdx)][String(outputIdx)] = parseInt(val) || 0;
+        scheduleSave();
+    };
+
+    window.updateOutputName = function(idx, el) {
+        currentMatrix.outputs[idx].name = el.textContent.trim();
+        scheduleSave();
+    };
+
+    window.updateInputName = function(idx, el) {
+        currentMatrix.inputs[idx].name = el.textContent.trim();
+        scheduleSave();
+    };
+
+    window.sortByTotal = function() {
+        if (!currentMatrix.totals || currentMatrix.totals.length === 0) return;
+        // Re-order inputs and scores by descending total
+        const order = currentMatrix.totals.map(t => t.input_index);
+        const newInputs = order.map(i => currentMatrix.inputs[i]);
+        const newScores = {};
+        order.forEach((oldIdx, newIdx) => {
+            if (currentMatrix.scores[String(oldIdx)]) {
+                newScores[String(newIdx)] = currentMatrix.scores[String(oldIdx)];
+            }
+        });
+        currentMatrix.inputs = newInputs;
+        currentMatrix.scores = newScores;
+        renderMatrix();
+        scheduleSave();
+    };
+
+    // --- Render matrix ---
+    function renderMatrix() {
+        if (!currentMatrix) return;
+        const container = document.getElementById('matrix-container');
+        const outputs = currentMatrix.outputs || [];
+        const inputs = currentMatrix.inputs || [];
+        const scores = currentMatrix.scores || {};
+        const totals = currentMatrix.totals || [];
+        const totalMap = {};
+        totals.forEach(t => { totalMap[t.input_index] = t.total; });
+
+        // Find max total for heat map
+        const maxTotal = Math.max(...Object.values(totalMap), 1);
+
+        let html = '<table class="ce-matrix-table">';
+
+        // Header row: empty | outputs... | Total
+        html += '<thead><tr>';
+        html += '<th class="ce-input-header">Input (X) \\ Output (Y)</th>';
+        outputs.forEach((o, idx) => {
+            html += `<th>
+                <div contenteditable class="ce-editable" onblur="updateOutputName(${idx}, this)">${esc(o.name)}</div>
+                <button class="ce-btn-sm ce-btn-ghost" onclick="removeOutput(${idx})" style="font-size:10px;padding:1px 4px;margin-top:2px;">&times;</button>
+            </th>`;
+        });
+        html += '<th class="ce-total-col">Weighted Total</th>';
+        html += '</tr>';
+
+        // Weight row
+        html += '<tr><td class="ce-input-header" style="font-size:11px;color:var(--text-secondary);">Importance (1-10)</td>';
+        outputs.forEach((o, idx) => {
+            html += `<td class="ce-weight-row"><input type="number" min="1" max="10" value="${o.weight || 1}" onchange="updateWeight(${idx}, this.value)"></td>`;
+        });
+        html += '<td class="ce-total-col"></td>';
+        html += '</tr></thead>';
+
+        // Input rows
+        html += '<tbody>';
+        inputs.forEach((inp, iIdx) => {
+            const total = totalMap[iIdx] || 0;
+            const heatClass = total === 0 ? '' : total / maxTotal > 0.66 ? 'ce-heat-high' : total / maxTotal > 0.33 ? 'ce-heat-med' : 'ce-heat-low';
+
+            html += '<tr>';
+            html += `<td class="ce-input-header">
+                <div contenteditable class="ce-editable" onblur="updateInputName(${iIdx}, this)">${esc(inp.name)}</div>
+                <button class="ce-btn-sm ce-btn-ghost" onclick="removeInput(${iIdx})" style="font-size:10px;padding:1px 4px;">&times;</button>
+            </td>`;
+
+            outputs.forEach((_, oIdx) => {
+                const val = (scores[String(iIdx)] || {})[String(oIdx)] || 0;
+                html += `<td>
+                    <select class="ce-score" onchange="updateScore(${iIdx}, ${oIdx}, this.value)">
+                        <option value="0" ${val === 0 ? 'selected' : ''}>0</option>
+                        <option value="1" ${val === 1 ? 'selected' : ''}>1</option>
+                        <option value="3" ${val === 3 ? 'selected' : ''}>3</option>
+                        <option value="9" ${val === 9 ? 'selected' : ''}>9</option>
+                    </select>
+                </td>`;
+            });
+
+            html += `<td class="ce-total-col ${heatClass}">${total.toFixed(0)}</td>`;
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+
+        // Action buttons
+        html += '<div class="ce-add-btns">';
+        html += '<button class="ce-btn ce-btn-sm ce-btn-ghost" onclick="addInput()">+ Add Input (X)</button>';
+        html += '<button class="ce-btn ce-btn-sm ce-btn-ghost" onclick="addOutput()">+ Add Output (Y)</button>';
+        if (inputs.length > 1) {
+            html += '<button class="ce-btn ce-btn-sm ce-btn-ghost" onclick="sortByTotal()">Sort by Total</button>';
+        }
+        html += '</div>';
+
+        container.innerHTML = html;
+    }
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function timeAgo(iso) {
+        const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+        if (diff < 60) return 'just now';
+        if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+        if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+        return Math.floor(diff / 86400) + 'd ago';
+    }
+
+    // --- Init ---
+    loadMatrixList();
+
+    const pathMatch = window.location.pathname.match(/\/app\/ce-matrix\/([0-9a-f-]+)\//);
+    if (pathMatch) loadMatrix(pathMatch[1]);
+})();
+</script>
+{% endblock %}

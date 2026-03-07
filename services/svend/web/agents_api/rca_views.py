@@ -71,6 +71,7 @@ def _ensure_rca_project(session, user):
     project = Project.objects.create(
         user=user,
         title=session.title or "RCA Investigation",
+        project_class="investigation",
         methodology="none",
         tags=["auto-created", "rca"],
     )

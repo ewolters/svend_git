@@ -165,6 +165,12 @@ urlpatterns = [
     path("app/report/<uuid:report_id>/", TemplateView.as_view(template_name="report.html"), name="report_edit"),
     path("app/calculators/", TemplateView.as_view(template_name="calculators.html"), name="calculators"),
     path("app/rca/", TemplateView.as_view(template_name="rca.html"), name="rca"),
+    path("app/ishikawa/", TemplateView.as_view(template_name="ishikawa.html"), name="ishikawa"),
+    path("app/ishikawa/<uuid:diagram_id>/", TemplateView.as_view(template_name="ishikawa.html"), name="ishikawa_edit"),
+    path("app/ce-matrix/", TemplateView.as_view(template_name="ce_matrix.html"), name="ce_matrix"),
+    path(
+        "app/ce-matrix/<uuid:matrix_id>/", TemplateView.as_view(template_name="ce_matrix.html"), name="ce_matrix_edit"
+    ),
     path("app/learn/", TemplateView.as_view(template_name="learn.html"), name="learn"),
     path("app/fmea/", TemplateView.as_view(template_name="fmea.html"), name="fmea"),
     path("app/fmea/<uuid:fmea_id>/", TemplateView.as_view(template_name="fmea.html"), name="fmea_edit"),
@@ -291,6 +297,8 @@ urlpatterns = [
     path("api/plantsim/", include("agents_api.plantsim_urls")),  # Plant Simulator (DES)
     path("api/learn/", include("agents_api.learn_urls")),  # Learning module & certification
     path("api/rca/", include("agents_api.rca_urls")),  # Root cause analysis critique
+    path("api/ishikawa/", include("agents_api.ishikawa_urls")),  # Ishikawa (fishbone) diagrams
+    path("api/ce/", include("agents_api.ce_urls")),  # Cause & Effect matrices
     path("api/fmea/", include("agents_api.fmea_urls")),  # FMEA with Bayesian evidence linking
     path("api/hoshin/", include("agents_api.hoshin_urls")),  # Hoshin Kanri CI (Enterprise)
     path("api/qms/", include("agents_api.qms_urls")),  # QMS cross-module dashboard (Phase 3)
