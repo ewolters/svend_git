@@ -265,10 +265,17 @@ def update_report(request, report_id):
     if "status" in data:
         report.status = data["status"]
 
-    # Update individual sections
+    # Update individual sections — validate keys against report type schema (BUG-12)
     if "sections" in data and isinstance(data["sections"], dict):
+        type_def = REPORT_TYPES.get(report.report_type, {})
+        valid_keys = {s["key"] for s in type_def.get("sections", [])}
         sections = report.sections or {}
         for key, content in data["sections"].items():
+            if valid_keys and key not in valid_keys:
+                return JsonResponse(
+                    {"error": f"Invalid section key '{key}' for report type '{report.report_type}'"},
+                    status=400,
+                )
             sections[key] = content
         report.sections = sections
 

@@ -1777,6 +1777,13 @@ def org_accept_invitation(request):
             return Response({"error": "Invitation has expired"}, status=400)
         return Response({"error": f"Invitation is {invitation.status}"}, status=400)
 
+    # Require verified email before accepting org invitations (BUG-06, SEC-001)
+    if not request.user.is_email_verified:
+        return Response(
+            {"error": "You must verify your email address before accepting invitations"},
+            status=403,
+        )
+
     # Check email matches
     if request.user.email.lower() != invitation.email.lower():
         return Response(
@@ -1792,16 +1799,20 @@ def org_accept_invitation(request):
         invitation.save()
         return Response({"error": "You are already a member of this organization"}, status=400)
 
+    from django.db import IntegrityError
     from django.utils import timezone as tz
 
-    # Create membership
-    Membership.objects.create(
-        tenant=invitation.tenant,
-        user=request.user,
-        role=invitation.role,
-        invited_by=invitation.invited_by,
-        joined_at=tz.now(),
-    )
+    # Create membership atomically to prevent race condition (BUG-11)
+    try:
+        Membership.objects.create(
+            tenant=invitation.tenant,
+            user=request.user,
+            role=invitation.role,
+            invited_by=invitation.invited_by,
+            joined_at=tz.now(),
+        )
+    except IntegrityError:
+        return Response({"error": "You are already a member of this organization"}, status=400)
 
     invitation.status = OrgInvitation.Status.ACCEPTED
     invitation.save()

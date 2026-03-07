@@ -4042,7 +4042,11 @@ class CAPAReport(models.Model):
         if new_status not in allowed:
             return False, f"Cannot transition from '{self.status}' to '{new_status}'"
         for field in self.TRANSITION_REQUIRES.get(new_status, []):
-            if not getattr(self, field, "").strip():
+            # Handle both text fields and FK fields safely (BUG-05)
+            val = getattr(self, field, None)
+            if val is None:
+                return False, f"'{field}' is required to transition to '{new_status}'"
+            if isinstance(val, str) and not val.strip():
                 return False, f"'{field}' is required to transition to '{new_status}'"
         return True, ""
 

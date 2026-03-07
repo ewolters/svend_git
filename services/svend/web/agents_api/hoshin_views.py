@@ -432,7 +432,10 @@ def update_hoshin_project(request, hoshin_id):
         if data["site_id"]:
             hoshin.site = get_object_or_404(Site, id=data["site_id"], tenant=tenant)
         else:
-            hoshin.site = None
+            # Prevent orphaning project from tenant scope (BUG-09)
+            return JsonResponse(
+                {"error": "Cannot remove site — project would be orphaned from tenant scope"}, status=400
+            )
 
     hoshin.save()
 

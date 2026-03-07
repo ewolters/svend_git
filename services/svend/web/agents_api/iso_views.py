@@ -437,13 +437,13 @@ def ncr_detail(request, ncr_id):
     # Handle status transitions with workflow enforcement
     new_status = data.get("status")
     if new_status and new_status != ncr.status:
-        # Set assigned_to / approved_by before transition check
+        # Resolve FK references first, fail loudly on bad IDs (BUG-03)
         if "assigned_to" in data:
             if data["assigned_to"]:
                 try:
                     ncr.assigned_to = User.objects.get(id=data["assigned_to"])
                 except User.DoesNotExist:
-                    pass
+                    return JsonResponse({"error": "Assigned user not found"}, status=400)
             else:
                 ncr.assigned_to = None
         if "approved_by" in data:
@@ -451,12 +451,14 @@ def ncr_detail(request, ncr_id):
                 try:
                     ncr.approved_by = User.objects.get(id=data["approved_by"])
                 except User.DoesNotExist:
-                    pass
+                    return JsonResponse({"error": "Approver not found"}, status=400)
             else:
                 ncr.approved_by = None
 
+        # Validate transition AFTER FK resolution (BUG-04)
         ok, msg = ncr.can_transition(new_status)
         if not ok:
+            ncr.refresh_from_db()
             return JsonResponse({"error": msg}, status=400)
 
         old_status = ncr.status

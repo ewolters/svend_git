@@ -113,12 +113,21 @@ class InviteCode(models.Model):
         return self.is_active and self.times_used < self.max_uses
 
     def use(self, user: "User") -> bool:
-        """Mark code as used by a user. Returns True if successful."""
-        if not self.is_valid:
+        """Mark code as used by a user. Returns True if successful.
+        Uses atomic F() update to prevent TOCTOU race condition (BUG-07).
+        """
+        from django.db.models import F
+
+        # Atomic: only increment if still under max_uses
+        updated = InviteCode.objects.filter(
+            pk=self.pk,
+            is_active=True,
+            times_used__lt=self.max_uses,
+        ).update(times_used=F("times_used") + 1)
+        if not updated:
             return False
-        self.times_used += 1
+        self.refresh_from_db()
         self.used_by.add(user)
-        self.save(update_fields=["times_used"])
         return True
 
     @classmethod

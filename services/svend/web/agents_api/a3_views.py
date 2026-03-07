@@ -811,7 +811,7 @@ def remove_diagram(request, report_id, diagram_id):
 @require_http_methods(["GET"])
 def list_a3_actions(request, report_id):
     """List action items linked to an A3 report."""
-    report = get_object_or_404(A3Report, id=report_id, user=request.user)
+    report = get_object_or_404(A3Report, id=report_id, owner=request.user)
     items = ActionItem.objects.filter(source_type="a3", source_id=report.id)
     return JsonResponse({"action_items": [i.to_dict() for i in items]})
 
@@ -820,7 +820,7 @@ def list_a3_actions(request, report_id):
 @require_http_methods(["POST"])
 def create_a3_action(request, report_id):
     """Create a tracked action item from an A3 report."""
-    report = get_object_or_404(A3Report, id=report_id, user=request.user)
+    report = get_object_or_404(A3Report, id=report_id, owner=request.user)
     data = json.loads(request.body)
 
     title = data.get("title", "").strip()

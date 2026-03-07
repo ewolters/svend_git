@@ -48,9 +48,12 @@ def list_files(request):
     if search:
         queryset = queryset.filter(original_name__icontains=search)
 
-    # Pagination
-    limit = min(int(request.query_params.get("limit", 50)), 100)
-    offset = int(request.query_params.get("offset", 0))
+    # Pagination (BUG-10: validate numeric params)
+    try:
+        limit = min(int(request.query_params.get("limit", 50)), 100)
+        offset = max(int(request.query_params.get("offset", 0)), 0)
+    except (ValueError, TypeError):
+        return Response({"error": "limit and offset must be integers"}, status=status.HTTP_400_BAD_REQUEST)
 
     total = queryset.count()
     files = queryset[offset : offset + limit]

@@ -163,7 +163,8 @@ def get_board(request, room_code):
             }
         )
 
-    # Normal user path
+    # Normal user path — room code acts as access token (like a meeting link).
+    # GET auto-joins as participant; update_board separately requires participation.
     participant, created = BoardParticipant.objects.update_or_create(
         board=board,
         user=request.user,

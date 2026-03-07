@@ -35,7 +35,7 @@ def list_fmeas(request):
     - status: filter by status
     - fmea_type: filter by type (process/design/system)
     """
-    fmeas = FMEA.objects.filter(owner=request.user).select_related("project")
+    fmeas = FMEA.objects.filter(owner=request.user).select_related("project").prefetch_related("rows")
 
     project_id = request.GET.get("project_id")
     if project_id:
