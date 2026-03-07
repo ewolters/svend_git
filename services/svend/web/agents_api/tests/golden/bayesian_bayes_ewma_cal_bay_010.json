@@ -1,0 +1,26 @@
+{
+  "case_id": "CAL-BAY-010",
+  "analysis_type": "bayesian",
+  "analysis_id": "bayes_ewma",
+  "description": "Bayesian EWMA: stable N(50,3) \u2192 no shift detected",
+  "config": {
+    "measurement": "x",
+    "lambda_param": 0.2,
+    "L": 3
+  },
+  "expected": {
+    "statistics.n_ooc": {
+      "value": 0,
+      "tolerance": 1
+    },
+    "statistics.n": {
+      "value": 60,
+      "tolerance": 0
+    },
+    "statistics.lambda_param": {
+      "value": 0.2,
+      "tolerance": 0
+    }
+  },
+  "reference": "Generated from calibration pool case CAL-BAY-010, verified 2026-03-07"
+}

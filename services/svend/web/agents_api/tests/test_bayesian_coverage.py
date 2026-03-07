@@ -224,3 +224,11 @@ class BayesianReliabilityCoverageTest(TestCase):
             {"t": times, "c": causes},
         )
         _check_schema(self, r)
+
+    def test_bayes_ewma(self):
+        r = _run(
+            "bayes_ewma",
+            {"measurement": "x", "lambda_param": 0.2, "L": 3},
+            {"x": NORMAL_40},
+        )
+        _check_schema(self, r)

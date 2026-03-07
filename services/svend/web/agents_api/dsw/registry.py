@@ -293,6 +293,7 @@ ANALYSIS_REGISTRY = {
     ("bayesian", "bayes_rul"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
     ("bayesian", "bayes_alt"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
     ("bayesian", "bayes_comprisk"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
+    ("bayesian", "bayes_ewma"): _entry("bayesian", CAT_BAYESIAN, False, has_education=True),
     # ── reliability.py ─────────────────────────────────────────────────
     ("reliability", "weibull"): _entry("reliability", CAT_RELIABILITY, True),
     ("reliability", "lognormal"): _entry("reliability", CAT_RELIABILITY, True),

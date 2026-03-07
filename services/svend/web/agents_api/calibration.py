@@ -1730,6 +1730,23 @@ def _build_reference_pool():
         )
     )
 
+    # CAL-BAY-010: Bayesian EWMA, stable process → no shift
+    ewma_stable = rng2.normal(50, 3, 60).tolist()
+    pool.append(
+        CalibrationCase(
+            case_id="CAL-BAY-010",
+            category="bayesian",
+            analysis_type="bayesian",
+            analysis_id="bayes_ewma",
+            config={"measurement": "x", "lambda_param": 0.2, "L": 3},
+            data={"x": ewma_stable},
+            expectations=[
+                Expectation("statistics.n_ooc", 0, 1, "within"),
+            ],
+            description="Bayesian EWMA: stable N(50,3) → no shift detected",
+        )
+    )
+
     # CAL-SPC-018: Between-within capability
     bw_data = []
     for _ in range(20):  # 20 subgroups

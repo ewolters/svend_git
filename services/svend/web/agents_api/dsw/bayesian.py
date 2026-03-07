@@ -4453,4 +4453,376 @@ def run_bayesian_analysis(df, analysis_id, config):
             ),
         }
 
+    elif analysis_id == "bayes_ewma":
+        # Bayesian EWMA — EWMA smoothing with posterior inference for shift detection
+        measurement = config.get("measurement")
+        target = config.get("target")
+        lambda_param = float(config.get("lambda_param", 0.2))
+        L = float(config.get("L", 3))
+        prior_scale_name = config.get("prior_scale", "medium")
+
+        data = df[measurement].dropna().values
+        n = len(data)
+
+        if target is None or target == 0:
+            target = float(np.mean(data))
+        else:
+            target = float(target)
+
+        sigma = float(np.std(data, ddof=1))
+        if sigma < 1e-15:
+            sigma = 1.0
+
+        # Prior precision scaling
+        scale_map = {"tight": 5.0, "medium": 1.0, "wide": 0.2}
+        kappa_0 = scale_map.get(prior_scale_name, 1.0)
+
+        # ── EWMA smoothing (same as spc.py) ──
+        ewma = np.zeros(n)
+        ewma[0] = lambda_param * data[0] + (1 - lambda_param) * target
+        for i in range(1, n):
+            ewma[i] = lambda_param * data[i] + (1 - lambda_param) * ewma[i - 1]
+
+        # Classical variable control limits
+        factor = lambda_param / (2 - lambda_param)
+        indices = np.arange(1, n + 1)
+        cl_sigma = sigma * np.sqrt(factor * (1 - (1 - lambda_param) ** (2 * indices)))
+        ucl = target + L * cl_sigma
+        lcl = target - L * cl_sigma
+        ucl_ss = target + L * sigma * np.sqrt(factor)
+        lcl_ss = target - L * sigma * np.sqrt(factor)
+
+        # OOC detection
+        ooc_indices = [i for i in range(n) if ewma[i] > ucl[i] or ewma[i] < lcl[i]]
+
+        # ── Bayesian posterior inference ──
+        # Conjugate Normal posterior: prior N(target, σ²/κ₀)
+        # At each step, update with EWMA observation as a pseudo-observation
+        # with effective sample size proportional to smoothing weight
+        ewma_var = sigma**2 * factor  # steady-state EWMA variance
+        posterior_means = np.zeros(n)
+        posterior_vars = np.zeros(n)
+        shift_probs = np.zeros(n)
+
+        prior_var = sigma**2 / kappa_0
+        prior_mean = target
+
+        for i in range(n):
+            # Effective observation precision from EWMA
+            obs_var = sigma**2 * factor * (1 - (1 - lambda_param) ** (2 * (i + 1)))
+            if obs_var < 1e-15:
+                obs_var = ewma_var
+
+            obs_precision = 1.0 / obs_var
+            prior_precision = 1.0 / prior_var
+
+            # Posterior update
+            post_precision = prior_precision + obs_precision
+            post_var = 1.0 / post_precision
+            post_mean = post_var * (prior_precision * prior_mean + obs_precision * ewma[i])
+
+            posterior_means[i] = post_mean
+            posterior_vars[i] = post_var
+
+            # P(|μ - target| > 1σ) — probability of meaningful shift
+            delta = sigma  # 1-sigma shift threshold
+            post_std = np.sqrt(post_var)
+            if post_std > 0:
+                p_above = 1 - stats.norm.cdf(target + delta, post_mean, post_std)
+                p_below = stats.norm.cdf(target - delta, post_mean, post_std)
+                shift_probs[i] = p_above + p_below
+            else:
+                shift_probs[i] = 1.0 if abs(post_mean - target) > delta else 0.0
+
+            # Sequential update: current posterior becomes next prior
+            prior_mean = post_mean
+            prior_var = post_var + ewma_var * 0.1  # add process noise
+
+        # ── Overall Bayes Factor ──
+        # Compare H₁: mean ≠ target vs H₀: mean = target
+        # Using final posterior: BF₁₀ ≈ P(data|H₁)/P(data|H₀)
+        # Savage-Dickey density ratio at μ = target
+        final_mean = posterior_means[-1]
+        final_std = np.sqrt(posterior_vars[-1])
+        prior_std_0 = sigma / np.sqrt(kappa_0)
+
+        # Density of posterior at target / density of prior at target
+        post_density_at_target = stats.norm.pdf(target, final_mean, final_std)
+        prior_density_at_target = stats.norm.pdf(target, target, prior_std_0)
+
+        if post_density_at_target > 0:
+            bf10 = prior_density_at_target / post_density_at_target
+        else:
+            bf10 = 100.0  # very strong evidence for shift
+
+        bf10 = max(bf10, 0.01)  # floor
+
+        # BF label
+        if bf10 > 100:
+            bf_label = "extreme"
+        elif bf10 > 30:
+            bf_label = "very strong"
+        elif bf10 > 10:
+            bf_label = "strong"
+        elif bf10 > 3:
+            bf_label = "moderate"
+        elif bf10 > 1:
+            bf_label = "anecdotal"
+        else:
+            bf_label = "supports null"
+
+        # Credible intervals
+        ci_mult = z  # z from ci_level at top of function
+        ci_upper = posterior_means + ci_mult * np.sqrt(posterior_vars)
+        ci_lower = posterior_means - ci_mult * np.sqrt(posterior_vars)
+
+        max_shift_prob = float(np.max(shift_probs))
+
+        # ── Statistics ──
+        result["statistics"] = {
+            "n": n,
+            "lambda_param": lambda_param,
+            "L": L,
+            "target": float(target),
+            "sigma": sigma,
+            "n_ooc": len(ooc_indices),
+            "ucl_steady": float(ucl_ss),
+            "lcl_steady": float(lcl_ss),
+            "max_shift_prob": max_shift_prob,
+            "bf10": float(bf10),
+            "bf_label": bf_label,
+        }
+
+        # ── Summary ──
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary += "<<COLOR:title>>BAYESIAN EWMA ANALYSIS<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {measurement}\n"
+        summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n}\n"
+        summary += f"<<COLOR:highlight>>Target:<</COLOR>> {target:.4f}\n"
+        summary += f"<<COLOR:dim>>λ = {lambda_param}, L = {L}, prior = {prior_scale_name}<</COLOR>>\n\n"
+        summary += "<<COLOR:accent>>── Control Limits (steady-state) ──<</COLOR>>\n"
+        summary += f"  UCL: {ucl_ss:.4f}\n"
+        summary += f"  LCL: {lcl_ss:.4f}\n\n"
+        summary += "<<COLOR:accent>>── Bayesian Inference ──<</COLOR>>\n"
+        summary += f"  BF₁₀ = {bf10:.2f} ({bf_label} evidence)\n"
+        summary += f"  Max P(shift) = {max_shift_prob:.4f}\n"
+        summary += f"  Out-of-control points: {len(ooc_indices)}\n\n"
+
+        if len(ooc_indices) == 0 and bf10 < 3:
+            summary += "<<COLOR:success>>Process appears stable — no Bayesian evidence of shift<</COLOR>>\n"
+        elif bf10 >= 10:
+            summary += "<<COLOR:error>>Strong Bayesian evidence of process shift<</COLOR>>\n"
+        elif bf10 >= 3:
+            summary += "<<COLOR:warning>>Moderate Bayesian evidence of process shift<</COLOR>>\n"
+        else:
+            summary += f"<<COLOR:text>>OOC points detected but Bayesian evidence is {bf_label}<</COLOR>>\n"
+
+        result["summary"] = summary
+
+        # ── Guide observation ──
+        if len(ooc_indices) == 0 and bf10 < 3:
+            result["guide_observation"] = f"Bayesian EWMA: process stable. BF₁₀={bf10:.2f} ({bf_label}), 0 OOC points."
+        else:
+            result["guide_observation"] = (
+                f"Bayesian EWMA: {len(ooc_indices)} OOC point{'s' if len(ooc_indices) != 1 else ''}. "
+                f"BF₁₀={bf10:.2f} ({bf_label}), max P(shift)={max_shift_prob:.4f}."
+            )
+
+        # ── Narrative ──
+        if len(ooc_indices) == 0 and bf10 < 3:
+            result["narrative"] = _narrative(
+                "Process is in statistical control",
+                f"No EWMA points exceed control limits (λ={lambda_param}, L={L}). "
+                f"Bayesian analysis confirms stability: BF₁₀ = {bf10:.2f} ({bf_label}), "
+                f"maximum posterior shift probability = {max_shift_prob:.4f}.",
+                next_steps="Process is stable — EWMA is sensitive to small sustained shifts; "
+                "the Bayesian posterior provides additional confidence in this conclusion.",
+                chart_guidance="The EWMA line smooths out noise. The shaded band shows the 95% credible interval "
+                "for the true process mean. The shift probability plot shows where the posterior "
+                "concentrates away from target.",
+            )
+        else:
+            result["narrative"] = _narrative(
+                f"Bayesian EWMA — {'strong' if bf10 >= 10 else 'moderate' if bf10 >= 3 else 'weak'} evidence of shift",
+                f"The smoothed mean has {'exceeded control limits' if ooc_indices else 'shifted'} "
+                f"with BF₁₀ = {bf10:.2f} ({bf_label}). "
+                f"Maximum posterior probability of a 1σ shift = {max_shift_prob:.4f}.",
+                next_steps="Identify when the drift began (peak in shift probability plot) and "
+                "correlate with process changes. The Bayesian credible intervals show "
+                "where uncertainty about the true mean is highest.",
+                chart_guidance="Red diamonds mark classical OOC points. The purple shift probability "
+                "curve shows Bayesian confidence in a process shift at each observation. "
+                "Values near 1.0 indicate near-certainty of drift.",
+            )
+
+        # ── Plots ──
+        x_list = list(range(n))
+
+        # Plot 1: EWMA Control Chart
+        ewma_chart_data = [
+            {
+                "type": "scatter",
+                "x": x_list,
+                "y": ewma.tolist(),
+                "mode": "lines+markers",
+                "name": "EWMA",
+                "marker": {"color": _rgba(COLOR_GOOD, 0.4), "size": 5, "line": {"color": COLOR_GOOD, "width": 1.5}},
+                "line": {"color": COLOR_GOOD},
+            },
+            {
+                "type": "scatter",
+                "x": x_list,
+                "y": [target] * n,
+                "mode": "lines",
+                "name": "Target",
+                "line": {"color": COLOR_REFERENCE, "width": 1, "dash": "dot"},
+            },
+            {
+                "type": "scatter",
+                "x": x_list,
+                "y": ucl.tolist(),
+                "mode": "lines",
+                "name": "UCL",
+                "line": {"color": COLOR_BAD, "width": 1.5, "dash": "dash"},
+            },
+            {
+                "type": "scatter",
+                "x": x_list,
+                "y": lcl.tolist(),
+                "mode": "lines",
+                "name": "LCL",
+                "line": {"color": COLOR_BAD, "width": 1.5, "dash": "dash"},
+            },
+        ]
+
+        # Add OOC markers
+        if ooc_indices:
+            ewma_chart_data.append(
+                {
+                    "type": "scatter",
+                    "x": ooc_indices,
+                    "y": [ewma[i] for i in ooc_indices],
+                    "mode": "markers",
+                    "name": "OOC",
+                    "marker": {"color": COLOR_BAD, "size": 10, "symbol": "diamond"},
+                }
+            )
+
+        result["plots"].append(
+            {
+                "title": "Bayesian EWMA Control Chart",
+                "data": ewma_chart_data,
+                "layout": {
+                    "xaxis": {"title": "Observation"},
+                    "yaxis": {"title": measurement},
+                },
+            }
+        )
+
+        # Plot 2: Posterior Shift Probability
+        result["plots"].append(
+            {
+                "title": "Posterior Probability of Shift",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": x_list,
+                        "y": shift_probs.tolist(),
+                        "mode": "lines",
+                        "name": "P(shift > 1σ)",
+                        "line": {"color": SVEND_COLORS[4], "width": 2},
+                    },
+                    {
+                        "type": "scatter",
+                        "x": x_list,
+                        "y": [0.95] * n,
+                        "mode": "lines",
+                        "name": "95% threshold",
+                        "line": {"color": COLOR_WARNING, "width": 1, "dash": "dash"},
+                    },
+                ],
+                "layout": {
+                    "xaxis": {"title": "Observation"},
+                    "yaxis": {"title": "P(shift)", "range": [0, 1.05]},
+                },
+            }
+        )
+
+        # Plot 3: Credible Interval Band
+        result["plots"].append(
+            {
+                "title": f"{int(ci_level * 100)}% Credible Interval for Process Mean",
+                "data": [
+                    {
+                        "type": "scatter",
+                        "x": x_list,
+                        "y": ci_upper.tolist(),
+                        "mode": "lines",
+                        "name": f"Upper {int(ci_level * 100)}% CI",
+                        "line": {"color": _rgba(SVEND_COLORS[1], 0.3), "width": 0},
+                    },
+                    {
+                        "type": "scatter",
+                        "x": x_list,
+                        "y": ci_lower.tolist(),
+                        "mode": "lines",
+                        "name": f"Lower {int(ci_level * 100)}% CI",
+                        "line": {"color": _rgba(SVEND_COLORS[1], 0.3), "width": 0},
+                        "fill": "tonexty",
+                        "fillcolor": _rgba(SVEND_COLORS[1], 0.15),
+                    },
+                    {
+                        "type": "scatter",
+                        "x": x_list,
+                        "y": posterior_means.tolist(),
+                        "mode": "lines",
+                        "name": "Posterior Mean",
+                        "line": {"color": SVEND_COLORS[1], "width": 2},
+                    },
+                    {
+                        "type": "scatter",
+                        "x": x_list,
+                        "y": [target] * n,
+                        "mode": "lines",
+                        "name": "Target",
+                        "line": {"color": COLOR_REFERENCE, "width": 1, "dash": "dot"},
+                    },
+                ],
+                "layout": {
+                    "xaxis": {"title": "Observation"},
+                    "yaxis": {"title": "Process Mean"},
+                },
+            }
+        )
+
+        # ── Education ──
+        result["education"] = {
+            "title": "Understanding Bayesian EWMA",
+            "content": (
+                "<dl>"
+                "<dt>What is Bayesian EWMA?</dt>"
+                "<dd>It combines the classical EWMA (Exponentially Weighted Moving Average) chart "
+                "with Bayesian posterior inference. Instead of just flagging points outside ±Lσ limits, "
+                "it estimates the <em>posterior probability</em> that the process mean has shifted at "
+                "each observation — giving you a continuous measure of confidence in process stability.</dd>"
+                "<dt>How is it different from classical EWMA?</dt>"
+                "<dd>Classical EWMA gives binary signals (in-control/out-of-control). Bayesian EWMA "
+                "gives <em>probabilities</em>: 'there is a 92% posterior probability the process mean "
+                "has shifted by more than 1σ from target.' It also provides credible intervals around "
+                "the estimated process mean — the Bayesian analogue of confidence intervals.</dd>"
+                "<dt>What is the Bayes Factor here?</dt>"
+                "<dd>BF₁₀ compares two hypotheses: H₁ (the process has shifted from target) vs "
+                "H₀ (the process is still at target). BF₁₀ &gt; 10 is strong evidence of shift; "
+                "BF₁₀ &lt; 1/3 is evidence of stability. It uses the Savage-Dickey density ratio "
+                "from the posterior distribution.</dd>"
+                "<dt>When to use Bayesian EWMA over classical?</dt>"
+                "<dd>When you need to <em>quantify</em> shift evidence rather than just detect it. "
+                "Particularly useful for small sample sizes where classical control limits may be "
+                "unreliable, or when you need to communicate shift risk probabilistically to "
+                "decision-makers (e.g., 'P(shifted) = 0.87' vs 'one OOC point').</dd>"
+                "</dl>"
+            ),
+        }
+
     return result

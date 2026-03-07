@@ -332,6 +332,14 @@ class ColorPaletteTest(TestCase):
         )
         _validate_all_plots(self, r, "bayes_ttest")
 
+    def test_bayesian_ewma(self):
+        r = _run_bayesian(
+            "bayes_ewma",
+            {"measurement": "x"},
+            {"x": NORMAL_50},
+        )
+        _validate_all_plots(self, r, "bayes_ewma")
+
     def test_ml_clustering(self):
         r = _run_ml(
             "clustering",
