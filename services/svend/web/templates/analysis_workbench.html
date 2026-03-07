@@ -1929,7 +1929,7 @@ Try: "describe" or ask the Analyst about correlations.`);
 
     } catch (err) {
         console.error('Failed to load sample data:', err);
-        appendSession('error', 'Failed to load sample data: ' + err.message);
+        appendSession('error', 'Failed to load sample data: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -1975,7 +1975,7 @@ async function loadTriageData(datasetId) {
 
     } catch (err) {
         console.error('Load error:', err);
-        appendSession('error', `Error: ${err.message}`);
+        appendSession('error', `Error: ${safeStr(err, 'Unknown error')}`);
     }
 }
 
@@ -2114,7 +2114,7 @@ async function runSavedModel(modelId) {
 
         const result = await response.json();
 
-        if (!response.ok) throw new Error(result.error || 'Failed to run model');
+        if (!response.ok) throw new Error(safeStr(result.error, 'Failed to run model'));
 
         if (result.summary) {
             appendSession('result', result.summary);
@@ -2124,7 +2124,7 @@ async function runSavedModel(modelId) {
         }
 
     } catch (err) {
-        appendSession('error', `Error: ${err.message}`);
+        appendSession('error', `Error: ${safeStr(err, 'Unknown error')}`);
     }
 }
 
@@ -2148,7 +2148,7 @@ async function deleteModel(modelId) {
         appendSession('info', 'Model deleted');
 
     } catch (err) {
-        appendSession('error', `Error: ${err.message}`);
+        appendSession('error', `Error: ${safeStr(err, 'Unknown error')}`);
     }
 }
 
@@ -2413,7 +2413,7 @@ async function applySynaraWeights(target) {
         appendSession('result', `✓ Applied ${mappings.length} weight(s) as evidence to project`);
 
     } catch (err) {
-        appendSession('error', `Failed to apply weights: ${err.message}`);
+        appendSession('error', `Failed to apply weights: ${safeStr(err, 'Unknown error')}`);
     }
 }
 
@@ -2591,7 +2591,7 @@ async function applyStatisticsEvidence() {
         appendSession('result', `✓ Added statistics as evidence to project`);
 
     } catch (err) {
-        appendSession('error', `Failed to add evidence: ${err.message}`);
+        appendSession('error', `Failed to add evidence: ${safeStr(err, 'Unknown error')}`);
     }
 }
 
@@ -2712,7 +2712,7 @@ async function handleFileUpload(event) {
         dialogBody.innerHTML = `
             <div style="text-align:center;padding:20px;">
                 <div style="color:#e85747;font-size:24px;margin-bottom:12px;">✕</div>
-                <div style="color:#e85747;margin-bottom:12px;">${err.message}</div>
+                <div style="color:#e85747;margin-bottom:12px;">${safeStr(err, 'Unknown error')}</div>
                 <button class="aw-btn" onclick="resetDataDialog()">Try Again</button>
             </div>
         `;
@@ -2944,7 +2944,7 @@ async function cleanAndLoad() {
             }
             appendSession('result', summary);
         } else {
-            throw new Error(result.error || 'Cleaning failed');
+            throw new Error(safeStr(result.error, 'Cleaning failed'));
         }
 
         window.pendingUploadData = null;
@@ -2957,7 +2957,7 @@ async function cleanAndLoad() {
             <div style="padding:16px;">
                 <div style="background:rgba(232,87,71,0.15);border:1px solid rgba(232,87,71,0.4);border-radius:4px;padding:12px;margin-bottom:16px;">
                     <div style="color:#e85747;font-weight:500;margin-bottom:4px;">Cleaning Failed</div>
-                    <div style="color:var(--aw-text-muted);font-size:11px;">${err.message}</div>
+                    <div style="color:var(--aw-text-muted);font-size:11px;">${safeStr(err, 'Unknown error')}</div>
                 </div>
                 <div style="display:flex;gap:8px;justify-content:flex-end;">
                     <button class="aw-btn" onclick="showTriageInDialog(window.pendingIssues, window.pendingUploadData)">Try Again</button>
@@ -3057,7 +3057,7 @@ async function downloadCurrentData() {
 
         appendSession('result', `Downloaded "${currentData.filename}"`);
     } catch (err) {
-        appendSession('error', `Download failed: ${err.message}`);
+        appendSession('error', `Download failed: ${safeStr(err, 'Unknown error')}`);
     }
 }
 
@@ -3144,7 +3144,7 @@ async function openTriageScan() {
     } catch (err) {
         dialogBody.innerHTML = `
             <div style="text-align:center;padding:20px;">
-                <div style="color:#e85747;margin-bottom:12px;">${err.message}</div>
+                <div style="color:#e85747;margin-bottom:12px;">${safeStr(err, 'Unknown error')}</div>
                 <button class="aw-btn" onclick="closeDialog('data-dialog')">Close</button>
             </div>
         `;
@@ -5310,7 +5310,7 @@ function generateConfigForm(type, id) {
                         </span>
                     </label>
                     <div class="aw-checkbox-list" style="max-height:100px;overflow-y:auto;">
-                        ${numericCols.map(c => `<label><input type="checkbox" name="predictors" value="${c}"> ${c}</label>`).join('')}
+                        ${numericCols.map(c => `<label><input type="checkbox" name="predictors" value="${c.name}"> ${c.name}</label>`).join('')}
                     </div>
                 </div>
                 <div class="aw-form-group">
@@ -6499,7 +6499,7 @@ async function executeAnalysis() {
         const result = await response.json();
 
         if (!response.ok) {
-            throw new Error(result.error || 'Analysis failed');
+            throw new Error(safeStr(result.error, 'Analysis failed'));
         }
 
         if (result.summary) {
@@ -6590,7 +6590,7 @@ async function executeAnalysis() {
         showNextSteps(currentAnalysis.id, currentAnalysis.type);
 
     } catch (err) {
-        appendSession('error', `Error: ${err.message}`);
+        appendSession('error', `Error: ${safeStr(err, 'Unknown error')}`);
     }
 }
 
@@ -6895,7 +6895,7 @@ async function saveModel(modelKey) {
         const result = await response.json();
 
         if (!response.ok) {
-            throw new Error(result.error || 'Failed to save model');
+            throw new Error(safeStr(result.error, 'Failed to save model'));
         }
 
         // Replace save prompt with success message
@@ -6913,7 +6913,7 @@ async function saveModel(modelKey) {
         }
 
     } catch (err) {
-        appendSession('error', `Failed to save model: ${err.message}`);
+        appendSession('error', `Failed to save model: ${safeStr(err, 'Unknown error')}`);
     }
 }
 
@@ -6936,7 +6936,7 @@ async function executeDataTool(toolId, config, toolName) {
         const result = await response.json();
 
         if (!response.ok) {
-            throw new Error(result.error || 'Transform failed');
+            throw new Error(safeStr(result.error, 'Transform failed'));
         }
 
         // If new_tab, add as new tab
@@ -6974,7 +6974,7 @@ async function executeDataTool(toolId, config, toolName) {
         }
 
     } catch (err) {
-        appendSession('error', `Error: ${err.message}`);
+        appendSession('error', `Error: ${safeStr(err, 'Unknown error')}`);
     }
 }
 
@@ -7449,7 +7449,7 @@ ID: ${currentData.id}`);
             if (!columns.length) {
                 appendSession('error', 'No data loaded.');
             } else {
-                const colList = columns.map((c, i) => `  ${i + 1}. ${c.name} (${c.type || 'unknown'})`).join('\n');
+                const colList = columns.map((c, i) => `  ${i + 1}. ${c.name} (${c.dtype || 'unknown'})`).join('\n');
                 appendSession('result', `Columns (${columns.length}):\n${colList}`);
             }
             break;
@@ -7471,7 +7471,7 @@ ID: ${currentData.id}`);
             if (!currentData?.preview) {
                 appendSession('error', 'No data loaded.');
             } else {
-                const numericCols = columns.filter(c => c.type === 'numeric' || c.type === 'number');
+                const numericCols = columns.filter(c => c.dtype === 'numeric');
                 if (!numericCols.length) {
                     appendSession('result', 'No numeric columns found.');
                 } else {
@@ -7522,7 +7522,7 @@ ID: ${currentData.id}`);
             if (!currentData?.preview) {
                 appendSession('error', 'No data loaded.');
             } else {
-                const numCols = columns.filter(c => c.type === 'numeric' || c.type === 'number');
+                const numCols = columns.filter(c => c.dtype === 'numeric');
                 if (numCols.length < 2) {
                     appendSession('error', 'Need at least 2 numeric columns for correlation.');
                 } else if (args.length >= 2) {
@@ -7600,8 +7600,11 @@ ID: ${currentData.id}`);
                     appendSession('error', `Column "${args[0]}" not found.`);
                 } else {
                     const vals = currentData.preview.map(r => parseFloat(r[colName])).filter(v => !isNaN(v));
-                    Plotly.newPlot('graph-output', [{x: vals, type: 'histogram', marker: {color: '#4a9f6e'}}],
-                        {title: `Histogram: ${colName}`, paper_bgcolor: '#0a0f0a', plot_bgcolor: '#0d120d', font: {color: '#9aaa9a'}},
+                    const plotDiv = document.createElement('div');
+                    plotDiv.style.cssText = 'width:100%;height:300px;margin:8px 0;';
+                    document.getElementById('session-output').appendChild(plotDiv);
+                    Plotly.newPlot(plotDiv, [{x: vals, type: 'histogram', marker: {color: '#4a9f6e'}}],
+                        {title: `Histogram: ${colName}`, paper_bgcolor: '#0a0f0a', plot_bgcolor: '#0d120d', font: {color: '#9aaa9a'}, margin: {t:40,b:40,l:50,r:20}},
                         {responsive: true});
                     appendSession('result', `Histogram for "${colName}" displayed.`);
                 }
@@ -7622,8 +7625,11 @@ ID: ${currentData.id}`);
                 } else {
                     const x = currentData.preview.map(r => parseFloat(r[xCol]));
                     const y = currentData.preview.map(r => parseFloat(r[yCol]));
-                    Plotly.newPlot('graph-output', [{x, y, mode: 'markers', type: 'scatter', marker: {color: '#4a9f6e'}}],
-                        {title: `${xCol} vs ${yCol}`, xaxis: {title: xCol}, yaxis: {title: yCol}, paper_bgcolor: '#0a0f0a', plot_bgcolor: '#0d120d', font: {color: '#9aaa9a'}},
+                    const plotDiv = document.createElement('div');
+                    plotDiv.style.cssText = 'width:100%;height:300px;margin:8px 0;';
+                    document.getElementById('session-output').appendChild(plotDiv);
+                    Plotly.newPlot(plotDiv, [{x, y, mode: 'markers', type: 'scatter', marker: {color: '#4a9f6e'}}],
+                        {title: `${xCol} vs ${yCol}`, xaxis: {title: xCol}, yaxis: {title: yCol}, paper_bgcolor: '#0a0f0a', plot_bgcolor: '#0d120d', font: {color: '#9aaa9a'}, margin: {t:40,b:40,l:50,r:20}},
                         {responsive: true});
                     appendSession('result', `Scatter plot displayed.`);
                 }
@@ -7766,7 +7772,7 @@ async function askAssistant() {
 
         container.innerHTML += `
             <div style="padding:8px;background:rgba(208,96,96,0.15);border-left:2px solid var(--aw-danger);margin-bottom:8px;font-size:11px;border-radius:3px;">
-                <strong>Error:</strong> ${err.message}
+                <strong>Error:</strong> ${safeStr(err, 'Unknown error')}
             </div>
         `;
     }
@@ -7875,8 +7881,12 @@ worksheetPane.addEventListener('dragleave', () => {
 worksheetPane.addEventListener('drop', async (e) => {
     e.preventDefault();
     worksheetPane.style.background = '';
-    const file = e.dataTransfer.files[0];
-    if (file) await loadFile(file);
+    const files = e.dataTransfer.files;
+    if (files.length) {
+        const fileInput = document.getElementById('file-upload-input');
+        fileInput.files = files;
+        handleFileUpload({ target: fileInput });
+    }
 });
 </script>
 {% endblock %}

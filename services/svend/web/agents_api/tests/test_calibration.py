@@ -155,3 +155,73 @@ class ExtractNestedTest(TestCase):
 
         data = {"a": {"b": {"c": 42}}}
         self.assertEqual(_extract_nested(data, "a.b.c"), 42)
+
+
+class CalibrationGoldenTest(TestCase):
+    """Verify golden file invariants — CAL-001 §6.1.
+
+    Every golden file must have non-empty expected assertions.
+    Empty expected blocks mean the golden file asserts nothing,
+    which violates the purpose of calibration.
+    """
+
+    def test_no_empty_expectations(self):
+        """Every golden JSON file must have a non-empty 'expected' dict."""
+        import json
+        import pathlib
+
+        golden_dir = pathlib.Path(__file__).parent / "golden"
+        self.assertTrue(golden_dir.is_dir(), "Golden file directory does not exist")
+
+        golden_files = sorted(golden_dir.glob("*.json"))
+        self.assertGreater(len(golden_files), 0, "No golden files found")
+
+        empty = []
+        for gf in golden_files:
+            data = json.loads(gf.read_text())
+            expected = data.get("expected", {})
+            if not expected:
+                empty.append(gf.name)
+
+        self.assertEqual(
+            empty,
+            [],
+            f"{len(empty)} golden file(s) have empty expected blocks: {', '.join(empty)}",
+        )
+
+    def test_golden_files_have_valid_structure(self):
+        """Every golden file must have case_id, analysis_type, analysis_id, expected."""
+        import json
+        import pathlib
+
+        golden_dir = pathlib.Path(__file__).parent / "golden"
+        golden_files = sorted(golden_dir.glob("*.json"))
+
+        required_keys = {"case_id", "analysis_type", "analysis_id", "expected"}
+        missing = []
+        for gf in golden_files:
+            data = json.loads(gf.read_text())
+            absent = required_keys - set(data.keys())
+            if absent:
+                missing.append(f"{gf.name}: missing {absent}")
+
+        self.assertEqual(missing, [], "Golden files with missing keys:\n" + "\n".join(missing))
+
+    def test_golden_expectations_have_tolerances(self):
+        """Numeric expectations must specify value and tolerance."""
+        import json
+        import pathlib
+
+        golden_dir = pathlib.Path(__file__).parent / "golden"
+        golden_files = sorted(golden_dir.glob("*.json"))
+
+        bad = []
+        for gf in golden_files:
+            data = json.loads(gf.read_text())
+            expected = data.get("expected", {})
+            for key, spec in expected.items():
+                if isinstance(spec, dict) and "value" in spec:
+                    if "tolerance" not in spec:
+                        bad.append(f"{gf.name}: {key} has value but no tolerance")
+
+        self.assertEqual(bad, [], "Expectations missing tolerance:\n" + "\n".join(bad))
