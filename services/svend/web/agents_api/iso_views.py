@@ -99,36 +99,6 @@ def _ensure_ncr_project(ncr, user):
     return project
 
 
-def _ncr_evidence_hooks(ncr, data, user):
-    """Create evidence for NCR field updates. Called after ncr.save().
-
-    Evidence fields: root_cause, corrective_action, verification_result.
-    All evidence created with confidence=0.5 (Synara elevates).
-    """
-    project = ncr.project
-    if not project:
-        return
-
-    evidence_fields = {
-        "root_cause": ("analysis", "NCR root cause: {}"),
-        "corrective_action": ("analysis", "NCR corrective action: {}"),
-        "verification_result": ("experiment", "NCR verification result: {}"),
-    }
-
-    for field, (source_type, summary_fmt) in evidence_fields.items():
-        if field in data and data[field]:
-            create_tool_evidence(
-                project=project,
-                user=user,
-                summary=summary_fmt.format(data[field][:200]),
-                source_tool="ncr",
-                source_id=str(ncr.id),
-                source_field=field,
-                details=data[field],
-                source_type=source_type,
-            )
-
-
 def _ncr_connect_investigation(request, investigation_id, ncr, data):
     """CANON-002 §12 — connect NCR findings to investigation graph."""
     from core.models import MeasurementSystem
@@ -590,11 +560,9 @@ def ncr_detail(request, ncr_id):
         ncr.files.set(files)
     ncr.save()
 
-    # Ensure project exists, then create evidence for field updates
     _ensure_ncr_project(ncr, request.user)
-    _ncr_evidence_hooks(ncr, data, request.user)
 
-    # CANON-002 §12 — investigation bridge (dual-write)
+    # CANON-002 §12 — investigation bridge
     investigation_id = data.get("investigation_id")
     if investigation_id and (data.get("root_cause") or data.get("corrective_action")):
         _ncr_connect_investigation(request, investigation_id, ncr, data)

@@ -60,67 +60,6 @@ def _rca_llm_call(request, system_prompt, messages, max_tokens=500):
         )
 
 
-def _ensure_rca_project(session, user):
-    """Silently create a Study for a standalone RCA session.
-
-    Same pattern as NCR — invisible, tagged, no notification.
-    """
-    if session.project_id:
-        return session.project
-
-    project = Project.objects.create(
-        user=user,
-        title=session.title or "RCA Investigation",
-        project_class="investigation",
-        methodology="none",
-        tags=["auto-created", "rca"],
-    )
-    session.project = project
-    session.save(update_fields=["project"])
-    logger.info("Auto-created project %s for RCA session %s", project.id, session.id)
-    return project
-
-
-def _rca_evidence_hooks(session, data, user):
-    """Create evidence for RCA updates. Called after session.save().
-
-    - Accepted chain steps → analysis evidence
-    - Root cause set → analysis evidence
-    All confidence=0.5. Idempotent.
-    """
-    project = session.project
-    if not project:
-        return
-
-    # Evidence from chain steps that have been accepted
-    if "chain" in data and isinstance(data["chain"], list):
-        for idx, step in enumerate(data["chain"]):
-            if step.get("accepted") and step.get("claim"):
-                create_tool_evidence(
-                    project=project,
-                    user=user,
-                    summary=f"RCA chain step {idx + 1}: {step['claim'][:200]}",
-                    source_tool="rca",
-                    source_id=str(session.id),
-                    source_field=f"chain_step_{idx}",
-                    details=step["claim"],
-                    source_type="analysis",
-                )
-
-    # Evidence from root cause
-    if "root_cause" in data and data["root_cause"]:
-        create_tool_evidence(
-            project=project,
-            user=user,
-            summary=f"RCA root cause: {data['root_cause'][:200]}",
-            source_tool="rca",
-            source_id=str(session.id),
-            source_field="root_cause",
-            details=data["root_cause"],
-            source_type="analysis",
-        )
-
-
 def _rca_connect_investigation(request, investigation_id, session, data):
     """CANON-002 §12 — connect RCA root cause to investigation graph."""
     from core.models import MeasurementSystem
@@ -752,9 +691,6 @@ def create_session(request):
         except Project.DoesNotExist:
             pass
 
-    # Auto-create project for standalone sessions (invisible)
-    _ensure_rca_project(session, request.user)
-
     # Link to A3 if provided
     a3_id = data.get("a3_report_id")
     if a3_id:
@@ -845,11 +781,7 @@ def update_session(request, session_id):
 
     session.save()
 
-    # Evidence hooks — after save
-    _ensure_rca_project(session, request.user)
-    _rca_evidence_hooks(session, data, request.user)
-
-    # CANON-002 §12 — investigation bridge (dual-write)
+    # CANON-002 §12 — investigation bridge
     investigation_id = data.get("investigation_id")
     if investigation_id and data.get("root_cause"):
         _rca_connect_investigation(request, investigation_id, session, data)

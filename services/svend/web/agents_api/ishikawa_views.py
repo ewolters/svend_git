@@ -14,59 +14,9 @@ from django.views.decorators.http import require_http_methods
 from accounts.permissions import gated_paid
 from core.models import Project
 
-from .evidence_bridge import create_tool_evidence
 from .models import DEFAULT_6M_BRANCHES, IshikawaDiagram
 
 logger = logging.getLogger(__name__)
-
-
-def _ensure_ishikawa_project(diagram, user):
-    """Auto-create a Study for a standalone Ishikawa diagram.
-
-    Same pattern as _ensure_rca_project() — invisible, tagged, no notification.
-    """
-    if diagram.project_id:
-        return diagram.project
-
-    project = Project.objects.create(
-        user=user,
-        title=diagram.title or "Ishikawa Analysis",
-        project_class="investigation",
-        methodology="none",
-        tags=["auto-created", "ishikawa"],
-    )
-    diagram.project = project
-    diagram.save(update_fields=["project"])
-    logger.info("Auto-created project %s for Ishikawa %s", project.id, diagram.id)
-    return project
-
-
-def _ishikawa_evidence_hooks(diagram, user):
-    """Create evidence when an Ishikawa diagram is completed.
-
-    Pushes top-level causes per category as analysis evidence.
-    Only fires when status is 'complete'. Idempotent via evidence_bridge.
-    """
-    if not diagram.project:
-        return
-    if diagram.status != "complete":
-        return
-
-    for branch in diagram.branches:
-        category = branch.get("category", "")
-        for cause in branch.get("causes", []):
-            text = cause.get("text", "").strip()
-            if not text:
-                continue
-            create_tool_evidence(
-                project=diagram.project,
-                user=user,
-                summary=f"Ishikawa [{category}]: {text[:200]}",
-                source_tool="ishikawa",
-                source_id=str(diagram.id),
-                source_field=f"branch_{category}_{text[:50]}",
-                source_type="analysis",
-            )
 
 
 def _ishikawa_connect_investigation(request, investigation_id, diagram):
@@ -150,8 +100,6 @@ def create_diagram(request):
         except Project.DoesNotExist:
             pass
 
-    _ensure_ishikawa_project(diagram, request.user)
-
     return JsonResponse({"diagram": diagram.to_dict()}, status=201)
 
 
@@ -191,11 +139,7 @@ def update_diagram(request, diagram_id):
 
     diagram.save()
 
-    # Evidence hooks — after save
-    _ensure_ishikawa_project(diagram, request.user)
-    _ishikawa_evidence_hooks(diagram, request.user)
-
-    # CANON-002 §12 — investigation bridge (dual-write)
+    # CANON-002 §12 — investigation bridge
     investigation_id = data.get("investigation_id")
     if investigation_id and diagram.status == "complete":
         _ishikawa_connect_investigation(request, investigation_id, diagram)

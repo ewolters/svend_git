@@ -66,33 +66,6 @@ def _ensure_capa_project(capa, user):
     return project
 
 
-def _capa_evidence_hooks(capa, data, user):
-    """Create evidence for CAPA field updates."""
-    project = capa.project
-    if not project:
-        return
-
-    evidence_fields = {
-        "root_cause": ("analysis", "CAPA root cause: {}"),
-        "corrective_action": ("observation", "CAPA corrective action: {}"),
-        "preventive_action": ("observation", "CAPA preventive action: {}"),
-        "verification_result": ("experiment", "CAPA verification result: {}"),
-    }
-
-    for field, (source_type, summary_fmt) in evidence_fields.items():
-        if field in data and data[field]:
-            create_tool_evidence(
-                project=project,
-                user=user,
-                summary=summary_fmt.format(data[field][:200]),
-                source_tool="capa",
-                source_id=str(capa.id),
-                source_field=field,
-                details=data[field],
-                source_type=source_type,
-            )
-
-
 def _capa_connect_investigation(request, investigation_id, capa, data):
     """CANON-002 §12 — connect CAPA findings to investigation graph."""
     from core.models import MeasurementSystem
@@ -321,11 +294,9 @@ def capa_detail(request, capa_id):
 
     capa.save()
 
-    # Evidence hooks
     _ensure_capa_project(capa, request.user)
-    _capa_evidence_hooks(capa, data, request.user)
 
-    # CANON-002 §12 — investigation bridge (dual-write)
+    # CANON-002 §12 — investigation bridge
     investigation_id = data.get("investigation_id")
     if investigation_id and (data.get("root_cause") or data.get("corrective_action") or data.get("preventive_action")):
         _capa_connect_investigation(request, investigation_id, capa, data)
