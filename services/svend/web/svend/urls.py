@@ -285,7 +285,6 @@ urlpatterns = [
     path("api/dsw/", include("agents_api.dsw_urls")),
     path("api/triage/", include("agents_api.triage_urls")),
     path("api/forecast/", include("agents_api.forecast_urls")),
-    path("api/problems/", include("agents_api.problem_urls")),
     path("api/experimenter/", include("agents_api.experimenter_urls")),
     path("api/spc/", include("agents_api.spc_urls")),
     path("api/synara/", include("agents_api.synara_urls")),

@@ -108,6 +108,13 @@ class ToolSourceRanksTest(TestCase):
         """Every tool in the registry has an explicit mapping (no gaps)."""
         expected_tools = {
             "spc",
+            "spc_control_chart",
+            "spc_capability",
+            "spc_summary",
+            "spc_gage_rr",
+            "spc_recommend",
+            "spc_control_chart_upload",
+            "spc_capability_upload",
             "dsw",
             "doe_design",
             "doe_results",

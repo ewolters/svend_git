@@ -660,15 +660,6 @@ class AgentEndpointsSmokeTest(TestCase):
         res = self.anon.post("/api/dsw/autopilot/clean-train/", {}, format="json")
         self.assertIn(res.status_code, [401, 403])
 
-    # Problems (legacy)
-    def test_problems_list_unauth(self):
-        res = self.anon.get("/api/problems/")
-        self.assertIn(res.status_code, [401, 403])
-
-    def test_problems_list_auth(self):
-        res = self.auth.get("/api/problems/")
-        self.assertNotEqual(res.status_code, 500)
-
     # X-Matrix (under hoshin)
     def test_xmatrix_unauth(self):
         res = self.anon.get("/api/hoshin/x-matrix/")

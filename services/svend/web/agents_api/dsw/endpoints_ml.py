@@ -432,30 +432,6 @@ def dsw_from_data(request):
         if saved_model:
             response_data["model_id"] = str(saved_model.id)
 
-        problem_id = request.POST.get("problem_id", "")
-        if problem_id:
-            try:
-                from ..views import add_finding_to_problem
-
-                summary = (
-                    f"Built {type(model).__name__} on {target}. "
-                    f"{'Accuracy' if task == 'classification' else 'R²'}: "
-                    f"{metrics.get('accuracy' if task == 'classification' else 'r2', 'N/A')}, "
-                    f"Top features: {', '.join(f['feature'] for f in importances[:3])}"
-                )
-                evidence = add_finding_to_problem(
-                    user=request.user,
-                    problem_id=problem_id,
-                    summary=summary,
-                    evidence_type="data_analysis",
-                    source="DSW (from-data)",
-                )
-                if evidence:
-                    response_data["problem_updated"] = True
-                    response_data["evidence_id"] = evidence["id"]
-            except Exception as e_prob:
-                logger.warning(f"Could not link DSW from-data to problem {problem_id}: {e_prob}")
-
         # CANON-002 §12 — investigation bridge (dual-write)
         inv_id = request.POST.get("investigation_id", "")
         if inv_id:

@@ -15,7 +15,6 @@ from django.test import TestCase, override_settings
 
 from accounts.models import Tier, User
 from agents_api import spc, spc_views
-from agents_api.models import Problem
 
 SMOKE_SETTINGS = {"RATELIMIT_ENABLE": False, "SECURE_SSL_REDIRECT": False}
 
@@ -296,28 +295,6 @@ class SPCGageRRCacheTest(TestCase):
             }
         )
         self.assertEqual(res.status_code, 400)
-
-    def test_problem_evidence_saved(self):
-        """Gage R&R with problem_id should save evidence to the Problem."""
-        problem = Problem.objects.create(user=self.user, title="Gage study problem")
-        initial_evidence_count = len(problem.evidence or [])
-
-        res = self._post(
-            {
-                "parts": ["P1", "P1", "P1", "P1", "P2", "P2", "P2", "P2", "P3", "P3", "P3", "P3"],
-                "operators": ["A", "A", "B", "B", "A", "A", "B", "B", "A", "A", "B", "B"],
-                "measurements": [1.0, 1.1, 1.05, 1.08, 2.0, 2.05, 2.02, 2.01, 3.0, 3.1, 3.05, 3.02],
-                "tolerance": 5.0,
-                "problem_id": str(problem.id),
-            }
-        )
-        self.assertEqual(res.status_code, 200)
-
-        problem.refresh_from_db()
-        self.assertGreater(len(problem.evidence or []), initial_evidence_count)
-        # Check that the evidence mentions Gage R&R
-        latest = problem.evidence[-1]
-        self.assertIn("Gage R&R", latest.get("summary", ""))
 
     def test_inline_gage_rr_no_problem(self):
         """Inline gage R&R without problem_id should still succeed."""

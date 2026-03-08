@@ -48,12 +48,12 @@ class SynaraViewsSmokeTest(TestCase):
         self.auth.force_authenticate(self.user)
         self.anon = APIClient()
 
-    def _get_or_create_problem(self):
-        from agents_api.models import Problem
+    def _get_or_create_project(self):
+        from core.models import Project
 
-        p, _ = Problem.objects.get_or_create(
+        p, _ = Project.objects.get_or_create(
             user=self.user,
-            defaults={"title": "Test Problem for Synara"},
+            defaults={"title": "Test Project for Synara"},
         )
         return str(p.id)
 
@@ -62,12 +62,12 @@ class SynaraViewsSmokeTest(TestCase):
         self.assertIn(res.status_code, [401, 403])
 
     def test_hypotheses_list_auth(self):
-        pid = self._get_or_create_problem()
+        pid = self._get_or_create_project()
         res = self.auth.get(f"/api/synara/{pid}/hypotheses/")
         self.assertNotEqual(res.status_code, 500)
 
     def test_add_hypothesis(self):
-        pid = self._get_or_create_problem()
+        pid = self._get_or_create_project()
         res = self.auth.post(
             f"/api/synara/{pid}/hypotheses/add/",
             {"text": "Test hypothesis", "prior": 0.5},
@@ -76,17 +76,17 @@ class SynaraViewsSmokeTest(TestCase):
         self.assertNotEqual(res.status_code, 500)
 
     def test_evidence_list(self):
-        pid = self._get_or_create_problem()
+        pid = self._get_or_create_project()
         res = self.auth.get(f"/api/synara/{pid}/evidence/")
         self.assertNotEqual(res.status_code, 500)
 
     def test_state_endpoint(self):
-        pid = self._get_or_create_problem()
+        pid = self._get_or_create_project()
         res = self.auth.get(f"/api/synara/{pid}/state/")
         self.assertNotEqual(res.status_code, 500)
 
     def test_dsl_parse(self):
-        pid = self._get_or_create_problem()
+        pid = self._get_or_create_project()
         res = self.auth.post(
             f"/api/synara/{pid}/dsl/parse/",
             {"expression": "H1: p > 0.5"},
@@ -95,7 +95,7 @@ class SynaraViewsSmokeTest(TestCase):
         self.assertNotEqual(res.status_code, 500)
 
     def test_export(self):
-        pid = self._get_or_create_problem()
+        pid = self._get_or_create_project()
         res = self.auth.get(f"/api/synara/{pid}/export/")
         self.assertNotEqual(res.status_code, 500)
 

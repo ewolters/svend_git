@@ -22,7 +22,6 @@ from accounts.permissions import gated, require_auth
 from . import spc
 from .dsw.common import sanitize_for_json
 from .dsw.standardize import standardize_output
-from .models import Problem
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +58,6 @@ def control_chart(request):
         "sample_sizes": [50, 50, ...],  // for p-chart
         "usl": 10.0,  // optional
         "lsl": 0.0,   // optional
-        "problem_id": "uuid"  // optional, to save as evidence
     }
     """
     try:
@@ -71,7 +69,6 @@ def control_chart(request):
     data = body.get("data", [])
     usl = body.get("usl")
     lsl = body.get("lsl")
-    problem_id = body.get("problem_id")
     investigation_id = body.get("investigation_id")
 
     if not data:
@@ -120,26 +117,6 @@ def control_chart(request):
 
         else:
             return JsonResponse({"error": f"Unknown chart type: {chart_type}"}, status=400)
-
-        # Optionally save as evidence to a problem
-        if problem_id:
-            try:
-                problem = Problem.objects.get(id=problem_id, user=request.user)
-                evidence_summary = (
-                    f"Control Chart Analysis ({chart_type}): "
-                    f"{'IN CONTROL' if result.in_control else 'OUT OF CONTROL'}. "
-                    f"{len(result.out_of_control)} points outside limits."
-                )
-                from .problem_views import write_context_file
-
-                problem.add_evidence(
-                    summary=evidence_summary,
-                    evidence_type="data_analysis",
-                    source="SPC Control Chart",
-                )
-                write_context_file(problem)
-            except Problem.DoesNotExist:
-                pass  # Ignore if problem not found
 
         # Investigation bridge (CANON-002 §12)
         if investigation_id:
@@ -221,7 +198,6 @@ def recommend_chart(request):
     data_type = body.get("data_type", "continuous")
     subgroup_size = body.get("subgroup_size", 1)
     attribute_type = body.get("attribute_type")
-    problem_id = body.get("problem_id")
     investigation_id = body.get("investigation_id")
 
     recommendation = spc.recommend_chart_type(data_type, subgroup_size, attribute_type)
@@ -241,28 +217,6 @@ def recommend_chart(request):
         "explanation": explanations.get(recommendation, ""),
         "all_options": explanations,
     }
-
-    # Optionally save recommendation as evidence
-    if problem_id:
-        try:
-            problem = Problem.objects.get(id=problem_id, user=request.user)
-            evidence_summary = (
-                f"SPC chart recommendation: {recommendation} — "
-                f"{explanations.get(recommendation, '')} "
-                f"(data_type={data_type}, subgroup_size={subgroup_size})"
-            )
-            from .problem_views import write_context_file
-
-            evidence = problem.add_evidence(
-                summary=evidence_summary,
-                evidence_type="observation",
-                source="SPC Chart Recommender",
-            )
-            write_context_file(problem)
-            response_data["problem_updated"] = True
-            response_data["evidence_id"] = evidence["id"]
-        except Problem.DoesNotExist:
-            pass
 
     # Investigation bridge (CANON-002 §12)
     if investigation_id:
@@ -299,7 +253,6 @@ def capability_study(request):
         "lsl": 0.0,
         "target": 5.0,  // optional
         "subgroup_size": 1,  // optional
-        "problem_id": "uuid"  // optional
     }
     """
     try:
@@ -312,7 +265,6 @@ def capability_study(request):
     lsl = body.get("lsl")
     target = body.get("target")
     subgroup_size = body.get("subgroup_size", 1)
-    problem_id = body.get("problem_id")
     investigation_id = body.get("investigation_id")
 
     if not data:
@@ -328,26 +280,6 @@ def capability_study(request):
             target=target,
             subgroup_size=subgroup_size,
         )
-
-        # Optionally save as evidence to a problem
-        if problem_id:
-            try:
-                problem = Problem.objects.get(id=problem_id, user=request.user)
-                evidence_summary = (
-                    f"Process Capability Study: Cpk={result.cpk:.2f}, Ppk={result.ppk:.2f}, "
-                    f"Sigma Level={result.sigma_level:.1f}, Yield={result.yield_percent:.2f}%. "
-                    f"{result.interpretation}"
-                )
-                from .problem_views import write_context_file
-
-                problem.add_evidence(
-                    summary=evidence_summary,
-                    evidence_type="data_analysis",
-                    source="SPC Capability Study",
-                )
-                write_context_file(problem)
-            except Problem.DoesNotExist:
-                pass
 
         # Investigation bridge (CANON-002 §12)
         if investigation_id:
@@ -764,7 +696,6 @@ def statistical_summary(request):
     Request body:
     {
         "data": [1.2, 1.3, ...],
-        "problem_id": "uuid"  // optional
     }
     """
     try:
@@ -773,7 +704,6 @@ def statistical_summary(request):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     data = body.get("data", [])
-    problem_id = body.get("problem_id")
     investigation_id = body.get("investigation_id")
 
     if not data or len(data) < 2:
@@ -785,30 +715,6 @@ def statistical_summary(request):
             "success": True,
             "summary": result.to_dict(),
         }
-
-        # Optionally save as evidence
-        if problem_id:
-            try:
-                problem = Problem.objects.get(id=problem_id, user=request.user)
-                summary_dict = result.to_dict()
-                evidence_summary = (
-                    f"Statistical Summary (n={summary_dict.get('n', len(data))}): "
-                    f"mean={summary_dict.get('mean', 0):.4f}, "
-                    f"std={summary_dict.get('std', 0):.4f}, "
-                    f"median={summary_dict.get('median', 0):.4f}"
-                )
-                from .problem_views import write_context_file
-
-                evidence = problem.add_evidence(
-                    summary=evidence_summary,
-                    evidence_type="data_analysis",
-                    source="SPC Statistical Summary",
-                )
-                write_context_file(problem)
-                response_data["problem_updated"] = True
-                response_data["evidence_id"] = evidence["id"]
-            except Problem.DoesNotExist:
-                pass
 
         # Investigation bridge (CANON-002 §12)
         if investigation_id:
@@ -922,7 +828,6 @@ def analyze_uploaded(request):
         "chart_type": "I-MR",  // for control_chart
         "usl": 10.0,  // for capability
         "lsl": 0.0,   // for capability
-        "problem_id": "uuid"  // optional, to save as evidence
     }
     """
     try:
@@ -942,7 +847,6 @@ def analyze_uploaded(request):
     analysis_type = body.get("analysis_type", "control_chart")
     value_column = body.get("value_column")
     subgroup_column = body.get("subgroup_column")
-    problem_id = body.get("problem_id")
     investigation_id = body.get("investigation_id")
 
     if not value_column:
@@ -1066,20 +970,6 @@ def analyze_uploaded(request):
         else:
             return JsonResponse({"error": f"Unknown analysis_type: {analysis_type}"}, status=400)
 
-        # Save evidence to problem if requested
-        if problem_id and evidence_summary:
-            try:
-                problem = Problem.objects.get(id=problem_id, user=request.user)
-                problem.add_evidence(
-                    summary=evidence_summary,
-                    evidence_type="analysis",
-                    source=f"SPC {analysis_type.replace('_', ' ').title()} - {parsed.filename}",
-                )
-                problem.save()
-                response_data["evidence_added"] = True
-            except Problem.DoesNotExist:
-                pass
-
         # Investigation bridge (CANON-002 §12)
         if investigation_id and evidence_summary:
             _spc_connect_investigation(
@@ -1111,7 +1001,6 @@ def gage_rr(request):
         "operators": ["Op1", "Op1", "Op2", ...],
         "measurements": [1.23, 1.25, ...],
         "tolerance": 0.5,  // optional (USL - LSL)
-        "problem_id": "uuid"  // optional
     }
 
     Or (from file upload):
@@ -1121,7 +1010,6 @@ def gage_rr(request):
         "operator_column": "Operator",
         "measurement_column": "Measurement",
         "tolerance": 0.5,
-        "problem_id": "uuid"
     }
     """
     try:
@@ -1130,7 +1018,6 @@ def gage_rr(request):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     tolerance = body.get("tolerance")
-    problem_id = body.get("problem_id")
     investigation_id = body.get("investigation_id")
 
     try:
@@ -1180,26 +1067,6 @@ def gage_rr(request):
             measurements=measurements_list,
             tolerance=tolerance,
         )
-
-        # Optionally save as evidence to a problem
-        if problem_id:
-            try:
-                problem = Problem.objects.get(id=problem_id, user=request.user)
-                evidence_summary = (
-                    f"Gage R&R Study: %GRR={result.grr_percent:.1f}% ({result.assessment}). "
-                    f"NDC={result.ndc}. {result.n_parts} parts, {result.n_operators} operators, "
-                    f"{result.n_replicates} replicates."
-                )
-                from .problem_views import write_context_file
-
-                problem.add_evidence(
-                    summary=evidence_summary,
-                    evidence_type="data_analysis",
-                    source="SPC Gage R&R",
-                )
-                write_context_file(problem)
-            except Problem.DoesNotExist:
-                pass
 
         # Investigation bridge (CANON-002 §12)
         if investigation_id:

@@ -228,20 +228,6 @@ class DispatchCoverageTest(TestCase):
         )
         self.assertIn(resp.status_code, [401, 403, 302])
 
-    # ── problem_id branch (line 212-244) — problem doesn't exist but exercises the try block ──
-    def test_problem_id_nonexistent(self):
-        resp = self._post(
-            {
-                "type": "stats",
-                "analysis": "descriptive",
-                "data": {"x": [1.0, 2.0, 3.0, 4.0, 5.0]},
-                "config": {"features": ["x"]},
-                "problem_id": "fake-problem-id-12345",
-            }
-        )
-        # Should still return 200 (problem linking failure is logged but not fatal)
-        self.assertNotEqual(resp.status_code, 401)
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TARGET 2: standardize.py — branch coverage

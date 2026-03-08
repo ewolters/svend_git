@@ -40,30 +40,16 @@ _synara_cache: dict[str, Synara] = {}
 def _resolve_project(workbench_id: str, user=None):
     """Resolve a workbench_id to a core.Project.
 
-    Tries core.Project first, then agents_api.Problem (via its core_project FK).
     Returns the Project or None. Filters by user when provided to prevent IDOR.
     """
     from core.models import Project
 
-    from .models import Problem
-
     # Build user filter
     user_filter = {"user": user} if user else {}
 
-    # Try as core.Project UUID directly
     try:
         return Project.objects.get(id=workbench_id, **user_filter)
     except (Project.DoesNotExist, ValueError):
-        pass
-
-    # Try as agents_api.Problem UUID → follow FK
-    try:
-        problem = Problem.objects.get(id=workbench_id, **user_filter)
-        if problem.core_project:
-            return problem.core_project
-        # Auto-create core.Project if Problem exists but has no link
-        return problem.ensure_core_project()
-    except (Problem.DoesNotExist, ValueError):
         pass
 
     return None

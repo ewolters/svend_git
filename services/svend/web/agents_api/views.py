@@ -13,130 +13,6 @@ from rest_framework.response import Response
 logger = logging.getLogger(__name__)
 
 
-# =============================================================================
-# Problem Integration Helpers
-# =============================================================================
-
-
-def add_finding_to_problem(
-    user,
-    problem_id: str,
-    summary: str,
-    evidence_type: str = "research",
-    source: str = "Agent",
-    supports: list = None,
-    weakens: list = None,
-) -> dict | None:
-    """
-    Add a finding from an agent to a problem as evidence.
-
-    Returns the evidence dict if successful, None otherwise.
-    """
-    if not problem_id:
-        return None
-
-    try:
-        from .models import Problem
-        from .problem_views import write_context_file
-
-        problem = Problem.objects.get(id=problem_id, user=user)
-
-        evidence = problem.add_evidence(
-            summary=summary,
-            evidence_type=evidence_type,
-            source=source,
-            supports=supports or [],
-            weakens=weakens or [],
-        )
-
-        # Update probable causes
-        problem.update_understanding()
-        write_context_file(problem)
-
-        # Dual-write: also create core.Evidence if problem has a core_project
-        try:
-            core_project = getattr(problem, "core_project", None)
-            if core_project:
-                from core.models import Evidence as CoreEvidence
-
-                # Map evidence_type to core source_type
-                source_map = {
-                    "research": "research",
-                    "data_analysis": "analysis",
-                    "experiment": "experiment",
-                    "observation": "observation",
-                    "expert": "expert",
-                }
-                CoreEvidence.objects.create(
-                    project=core_project,
-                    summary=summary,
-                    source_type=source_map.get(evidence_type, "observation"),
-                    source_description=source,
-                    result_type="qualitative",
-                    created_by=user,
-                )
-        except Exception as e:
-            logger.warning(f"Core evidence dual-write failed for problem {problem_id}: {e}")
-
-        logger.info(f"Added evidence to problem {problem_id}: {summary[:50]}...")
-        return evidence
-
-    except Exception as e:
-        logger.warning(f"Could not add finding to problem {problem_id}: {e}")
-        return None
-
-
-def get_problem_context_for_agent(user, problem_id: str) -> str:
-    """
-    Get problem context formatted for an agent prompt.
-
-    Returns empty string if problem not found.
-    """
-    if not problem_id:
-        return ""
-
-    try:
-        from .models import Problem
-
-        problem = Problem.objects.get(id=problem_id, user=user)
-
-        context_parts = [
-            f"## Problem Context: {problem.title}",
-            "",
-            f"**Effect being investigated:** {problem.effect_description}",
-        ]
-
-        if problem.effect_magnitude:
-            context_parts.append(f"**Magnitude:** {problem.effect_magnitude}")
-
-        if problem.domain:
-            context_parts.append(f"**Domain:** {problem.domain}")
-
-        hypotheses = problem.get_hypotheses()
-        if hypotheses:
-            context_parts.append("")
-            context_parts.append("**Current hypotheses:**")
-            for h in hypotheses[:5]:  # Top 5
-                context_parts.append(f"- {h.get('cause', '')} ({h.get('probability', 0.5) * 100:.0f}% likely)")
-
-        if problem.key_uncertainties:
-            context_parts.append("")
-            context_parts.append("**Key uncertainties:**")
-            for u in problem.key_uncertainties[:3]:
-                context_parts.append(f"- {u}")
-
-        context_parts.append("")
-        context_parts.append("---")
-        context_parts.append("Please focus your analysis on this problem context.")
-        context_parts.append("")
-
-        return "\n".join(context_parts)
-
-    except Exception as e:
-        logger.warning(f"Could not get problem context for {problem_id}: {e}")
-        return ""
-
-
 # Agent paths are configured centrally in settings.py:
 # - KJERNE_PATH (root core/) for shared agent libs
 # - KJERNE_PATH/services/svend/agents/agents/ for agent modules
@@ -150,22 +26,13 @@ from .llm_manager import get_coder_llm, get_shared_llm
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def researcher_agent(request):
-    """Run the research agent.
-
-    Optionally accepts problem_id to add findings as evidence.
-    """
+    """Run the research agent."""
     query = request.data.get("query", "")
     focus = request.data.get("focus", "general")
     depth = request.data.get("depth", "standard")
-    problem_id = request.data.get("problem_id")
 
     if not query:
         return Response({"error": "Query is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-    # Add problem context to query if available
-    problem_context = get_problem_context_for_agent(request.user, problem_id)
-    if problem_context:
-        query = f"{problem_context}\n\n**Research Question:** {query}"
 
     try:
         from researcher.agent import ResearchAgent, ResearchQuery
@@ -184,19 +51,6 @@ def researcher_agent(request):
 
         if llm is None:
             response["note"] = "Running without LLM - synthesis may be limited."
-
-        # Add finding to problem if problem_id provided
-        if problem_id and summary:
-            evidence = add_finding_to_problem(
-                user=request.user,
-                problem_id=problem_id,
-                summary=f"Research finding: {summary[:500]}",
-                evidence_type="research",
-                source="Researcher Agent",
-            )
-            if evidence:
-                response["evidence_added"] = True
-                response["evidence_id"] = evidence.get("id")
 
         # Track usage
         request.user.increment_queries()
@@ -505,10 +359,7 @@ def experimenter_agent(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def eda_agent(request):
-    """Run automated EDA on uploaded data.
-
-    Optionally accepts problem_id to add findings as evidence.
-    """
+    """Run automated EDA on uploaded data."""
     import pandas as pd
 
     if "file" not in request.FILES:
@@ -517,7 +368,6 @@ def eda_agent(request):
     file = request.FILES["file"]
     name = request.data.get("name", "dataset")
     generate_charts = request.data.get("charts", "true").lower() == "true"
-    problem_id = request.data.get("problem_id")
 
     try:
         try:
@@ -597,22 +447,6 @@ def eda_agent(request):
 
         if report.charts:
             response["charts"] = report.charts
-
-        # Add EDA findings to problem if problem_id provided
-        if problem_id:
-            summary_parts = [f"EDA on {name}: {report.n_rows} rows, {report.n_cols} columns."]
-            if response["recommendations"]:
-                summary_parts.append("Key findings: " + "; ".join(response["recommendations"][:3]))
-            evidence = add_finding_to_problem(
-                user=request.user,
-                problem_id=problem_id,
-                summary=" ".join(summary_parts),
-                evidence_type="data_analysis",
-                source="EDA Agent",
-            )
-            if evidence:
-                response["evidence_added"] = True
-                response["evidence_id"] = evidence.get("id")
 
         # Track usage
         request.user.increment_queries()

@@ -22,8 +22,6 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid, require_auth
 
-from .models import Problem
-
 logger = logging.getLogger(__name__)
 
 
@@ -223,24 +221,6 @@ def power_analysis(request):
         if include_curve:
             response_data["power_curve"] = _compute_power_curve(test_type, alpha, power, groups)
 
-        # Link to problem as evidence (if problem_id provided)
-        problem_id = data.get("problem_id")
-        if problem_id:
-            try:
-                from .problem_views import write_context_file
-
-                problem = Problem.objects.get(id=problem_id, user=request.user)
-                evidence = problem.add_evidence(
-                    summary=f"Power analysis ({test_type}): {summary_text}",
-                    evidence_type="calculation",
-                    source="Experimenter (Power Analysis)",
-                )
-                write_context_file(problem)
-                response_data["problem_updated"] = True
-                response_data["evidence_id"] = evidence["id"]
-            except Problem.DoesNotExist:
-                pass
-
         # CANON-002 §12 — investigation bridge (dual-write)
         investigation_id = data.get("investigation_id")
         if investigation_id:
@@ -381,24 +361,6 @@ def design_experiment(request):
         if alias_structure:
             response["alias_structure"] = alias_structure
 
-        # Link to problem as evidence (if problem_id provided)
-        problem_id = data.get("problem_id")
-        if problem_id:
-            try:
-                from .problem_views import write_context_file
-
-                problem = Problem.objects.get(id=problem_id, user=request.user)
-                evidence = problem.add_evidence(
-                    summary=f"Generated {design_type} design: {design.num_runs} runs, {len(factors)} factors",
-                    evidence_type="experiment",
-                    source="Experimenter (Design)",
-                )
-                write_context_file(problem)
-                response["problem_updated"] = True
-                response["evidence_id"] = evidence["id"]
-            except Problem.DoesNotExist:
-                pass
-
         # CANON-002 §12 — investigation bridge (dual-write)
         investigation_id = data.get("investigation_id")
         if investigation_id:
@@ -476,7 +438,6 @@ def full_experiment(request):
         "effect_size": 0.5,
         "alpha": 0.05,
         "power": 0.80,
-        "problem_id": "uuid"  // optional, link to problem session
     }
     """
     try:
@@ -509,39 +470,6 @@ def full_experiment(request):
             "markdown": result.to_markdown(),
         }
 
-        # If linked to a problem, add experiment as evidence
-        problem_id = data.get("problem_id")
-        if problem_id:
-            try:
-                problem = Problem.objects.get(id=problem_id, user=request.user)
-
-                # Add experiment design as evidence
-                from .problem_views import write_context_file
-
-                evidence = problem.add_evidence(
-                    summary=f"Designed experiment: {result.design.name if result.design else 'Power Analysis'}",
-                    evidence_type="experiment",
-                    source="Experimenter Agent",
-                )
-
-                # Update recommended next steps
-                if result.design:
-                    problem.recommended_next_steps = [
-                        {
-                            "action": "Run experiment",
-                            "details": f"Execute {result.design.num_runs} runs in randomized order",
-                            "design_id": result.design.name,
-                        }
-                    ]
-                    problem.save(update_fields=["recommended_next_steps"])
-
-                write_context_file(problem)
-                response_data["problem_updated"] = True
-                response_data["evidence_id"] = evidence["id"]
-
-            except Problem.DoesNotExist:
-                pass  # Problem linking is optional
-
         # CANON-002 §12 — investigation bridge (dual-write)
         investigation_id = data.get("investigation_id")
         if investigation_id:
@@ -569,7 +497,6 @@ def analyze_results(request):
         "alpha": 0.05,
         "include_interactions": true,
         "fit_quadratic": false,
-        "problem_id": "uuid"
     }
 
     Returns:
@@ -953,29 +880,6 @@ def analyze_results(request):
             "optimization": _sanitize(optimization),
             "interpretation": interpretation,
         }
-
-        # If linked to a problem, add findings as evidence
-        problem_id = data.get("problem_id")
-        if problem_id and significant_factors:
-            try:
-                problem = Problem.objects.get(id=problem_id, user=request.user)
-                from .problem_views import write_context_file
-
-                for factor_name in significant_factors[:3]:  # Top 3
-                    effect_entry = next((e for e in coefficient_table if e["term"] == factor_name), None)
-                    if effect_entry and effect_entry["p_value"] is not None:
-                        problem.add_evidence(
-                            summary=f"DOE: {factor_name} significantly affects {response_name} "
-                            f"(p={effect_entry['p_value']:.4f})",
-                            evidence_type="experiment",
-                            source="DOE Analysis",
-                        )
-
-                write_context_file(problem)
-                response_data["problem_updated"] = True
-
-            except Problem.DoesNotExist:
-                pass
 
         # CANON-002 §12 — investigation bridge (dual-write)
         investigation_id = data.get("investigation_id")
@@ -1514,24 +1418,6 @@ def contour_plot(request):
             },
         }
 
-        # Link to problem as evidence (if problem_id provided)
-        problem_id = data.get("problem_id")
-        if problem_id:
-            try:
-                from .problem_views import write_context_file
-
-                problem = Problem.objects.get(id=problem_id, user=request.user)
-                evidence = problem.add_evidence(
-                    summary=f"Response surface: optimal at {x_factor}={optimal_x}, {y_factor}={optimal_y} (predicted={optimal_z})",
-                    evidence_type="data_analysis",
-                    source="Experimenter (Contour)",
-                )
-                write_context_file(problem)
-                response_data["problem_updated"] = True
-                response_data["evidence_id"] = evidence["id"]
-            except Problem.DoesNotExist:
-                pass
-
         # CANON-002 §12 — investigation bridge (dual-write)
         investigation_id = data.get("investigation_id")
         if investigation_id:
@@ -1754,25 +1640,6 @@ def optimize_response(request):
             },
             "interpretation": _interpret_optimization(best_settings, best_predictions, best_composite),
         }
-
-        # Link to problem as evidence (if problem_id provided)
-        problem_id = data.get("problem_id")
-        if problem_id:
-            try:
-                from .problem_views import write_context_file
-
-                problem = Problem.objects.get(id=problem_id, user=request.user)
-                settings_str = ", ".join(f"{k}={v}" for k, v in best_settings.items())
-                evidence = problem.add_evidence(
-                    summary=f"DOE optimization: desirability={best_composite:.2f}, settings: {settings_str}",
-                    evidence_type="experiment",
-                    source="Experimenter (Optimization)",
-                )
-                write_context_file(problem)
-                response_data["problem_updated"] = True
-                response_data["evidence_id"] = evidence["id"]
-            except Problem.DoesNotExist:
-                pass
 
         # CANON-002 §12 — investigation bridge (dual-write)
         investigation_id = data.get("investigation_id")

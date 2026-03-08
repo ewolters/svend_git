@@ -2,7 +2,6 @@
 
 import json
 import logging
-import re
 import tempfile
 import time
 import uuid
@@ -76,7 +75,6 @@ def run_analysis(request):
         "analysis": "anova" | "regression" | etc,
         "config": {...},
         "data_id": "...",
-        "problem_id": "..." (optional - links results as evidence to a Problem),
         "project_id": "..." (optional - links result to a Project for A3 import),
         "title": "..." (optional - human-readable title for the result),
         "save_result": true (optional - persist result for later import)
@@ -233,41 +231,6 @@ def run_analysis(request):
         logger.info(
             f"Analysis complete: {analysis_id}, plots: {len(result.get('plots', []))}, summary length: {len(result.get('summary', ''))}"
         )
-
-        # Link results as evidence to a Problem (if problem_id provided)
-        problem_id = body.get("problem_id")
-        if problem_id:
-            try:
-                from ..views import add_finding_to_problem
-
-                # Use guide_observation if set, otherwise build from analysis_id + summary
-                observation = result.get("guide_observation", "")
-                if not observation:
-                    summary_text = result.get("summary", "")
-                    # Strip color tags and truncate for evidence summary
-                    clean = re.sub(r"<<COLOR:\w+>>|<</COLOR>>", "", summary_text)
-                    observation = f"DSW {analysis_id}: {clean[:200]}" if clean else f"DSW analysis: {analysis_id}"
-
-                evidence_type = {
-                    "stats": "data_analysis",
-                    "ml": "data_analysis",
-                    "bayesian": "data_analysis",
-                    "spc": "data_analysis",
-                    "viz": "observation",
-                }.get(analysis_type, "data_analysis")
-
-                evidence = add_finding_to_problem(
-                    user=request.user,
-                    problem_id=problem_id,
-                    summary=observation,
-                    evidence_type=evidence_type,
-                    source=f"DSW ({analysis_id})",
-                )
-                if evidence:
-                    result["problem_updated"] = True
-                    result["evidence_id"] = evidence["id"]
-            except Exception as e:
-                logger.warning(f"Could not link DSW result to problem {problem_id}: {e}")
 
         # Save result to database for A3/method import if requested
         if save_result or project_id:

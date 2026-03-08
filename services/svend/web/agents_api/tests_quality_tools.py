@@ -678,42 +678,10 @@ class ProblemWorkflowTest(TestCase):
         )
         self.assertEqual(resp.status_code, 400)
 
-    def test_full_problem_lifecycle(self):
-        """Create -> list -> detail. (Hypothesis/evidence adding triggers a
-        known app bug where get_hypotheses() references h.mechanism on
-        core.Hypothesis which only has because_clause — tested separately
-        when the dual-write path is fixed.)"""
-        # Create
-        resp = self.client.post(
-            "/api/problems/",
-            {
-                "title": "Yield Drop Line 4",
-                "effect_description": "First pass yield dropped from 97% to 91% over 2 weeks",
-                "domain": "manufacturing",
-                "can_experiment": True,
-            },
-            format="json",
-        )
-        self.assertIn(resp.status_code, [200, 201])
-        problem_id = resp.json()["id"]
-
-        # List
-        resp = self.client.get("/api/problems/")
-        self.assertEqual(resp.status_code, 200)
-        problems = resp.json()["problems"]
-        self.assertGreaterEqual(len(problems), 1)
-
-        # Detail
-        resp = self.client.get(f"/api/problems/{problem_id}/")
-        self.assertEqual(resp.status_code, 200)
-        detail = resp.json()
-        self.assertIn("hypotheses", detail)
-        self.assertIn("evidence", detail)
-
     def test_auth_enforcement(self):
         anon = APIClient()
-        resp = anon.get("/api/problems/")
-        self.assertEqual(resp.status_code, 401)
+        resp = anon.get("/api/core/projects/")
+        self.assertIn(resp.status_code, [401, 403])
 
 
 # =========================================================================
@@ -1155,21 +1123,6 @@ class OwnershipIsolationTest(TestCase):
         session_id = resp.json()["session"]["id"]
 
         resp = self.client_b.get(f"/api/rca/sessions/{session_id}/")
-        self.assertIn(resp.status_code, [404, 500])
-
-    def test_problem_isolation(self):
-        """User B cannot see User A's problem."""
-        resp = self.client_a.post(
-            "/api/problems/",
-            {
-                "title": "Private Problem",
-                "effect_description": "Secret failure mode",
-            },
-            format="json",
-        )
-        problem_id = resp.json()["id"]
-
-        resp = self.client_b.get(f"/api/problems/{problem_id}/")
         self.assertIn(resp.status_code, [404, 500])
 
     def test_whiteboard_deletion_owner_only(self):
