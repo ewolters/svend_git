@@ -9,6 +9,7 @@ This module contains the foundational models:
 
 from .graph import Entity, KnowledgeGraph, Relationship
 from .hypothesis import Evidence, EvidenceLink, Hypothesis
+from .measurement import GageStudy, MeasurementSystem
 from .project import Dataset, ExperimentDesign, Project, StudyAction
 from .tenant import Membership, OrgInvitation, Tenant
 
@@ -30,4 +31,7 @@ __all__ = [
     "Hypothesis",
     "Evidence",
     "EvidenceLink",
+    # Measurement Systems (CANON-002 §4, §12.2)
+    "MeasurementSystem",
+    "GageStudy",
 ]
