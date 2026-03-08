@@ -308,6 +308,7 @@ urlpatterns = [
     path("api/capa/", include("agents_api.capa_urls")),  # CAPA standalone (ISO 10.2, FEAT-004)
     path("api/iso-docs/", include("agents_api.iso_doc_urls")),  # ISO Document Creator
     path("api/actions/", include("agents_api.action_urls")),  # Shared action item update/delete
+    path("api/investigations/", include("agents_api.investigation_urls")),  # Investigation lifecycle (CANON-002)
     path("api/core/", include("core.urls")),  # Projects, hypotheses, evidence, knowledge graph
     path("api/workbench/", include("workbench.urls")),
     path("chat/", include("chat.urls")),
