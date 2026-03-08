@@ -72,6 +72,7 @@ def control_chart(request):
     usl = body.get("usl")
     lsl = body.get("lsl")
     problem_id = body.get("problem_id")
+    investigation_id = body.get("investigation_id")
 
     if not data:
         return JsonResponse({"error": "Data is required"}, status=400)
@@ -140,6 +141,21 @@ def control_chart(request):
             except Problem.DoesNotExist:
                 pass  # Ignore if problem not found
 
+        # Investigation bridge (CANON-002 §12)
+        if investigation_id:
+            evidence_summary = (
+                f"Control Chart Analysis ({chart_type}): "
+                f"{'IN CONTROL' if result.in_control else 'OUT OF CONTROL'}. "
+                f"{len(result.out_of_control)} points outside limits."
+            )
+            _spc_connect_investigation(
+                request,
+                investigation_id,
+                evidence_summary,
+                tool_type="spc_control_chart",
+                sample_size=len(data),
+            )
+
         # Phase 3: SPC → FMEA auto-trigger (QMS-001 §11.4)
         fmea_update = None
         if fmea_row_id and not result.in_control:
@@ -206,6 +222,7 @@ def recommend_chart(request):
     subgroup_size = body.get("subgroup_size", 1)
     attribute_type = body.get("attribute_type")
     problem_id = body.get("problem_id")
+    investigation_id = body.get("investigation_id")
 
     recommendation = spc.recommend_chart_type(data_type, subgroup_size, attribute_type)
 
@@ -247,6 +264,20 @@ def recommend_chart(request):
         except Problem.DoesNotExist:
             pass
 
+    # Investigation bridge (CANON-002 §12)
+    if investigation_id:
+        evidence_summary = (
+            f"SPC chart recommendation: {recommendation} — "
+            f"{explanations.get(recommendation, '')} "
+            f"(data_type={data_type}, subgroup_size={subgroup_size})"
+        )
+        _spc_connect_investigation(
+            request,
+            investigation_id,
+            evidence_summary,
+            tool_type="spc_recommend",
+        )
+
     return JsonResponse(sanitize_for_json(response_data))
 
 
@@ -282,6 +313,7 @@ def capability_study(request):
     target = body.get("target")
     subgroup_size = body.get("subgroup_size", 1)
     problem_id = body.get("problem_id")
+    investigation_id = body.get("investigation_id")
 
     if not data:
         return JsonResponse({"error": "Data is required"}, status=400)
@@ -316,6 +348,21 @@ def capability_study(request):
                 write_context_file(problem)
             except Problem.DoesNotExist:
                 pass
+
+        # Investigation bridge (CANON-002 §12)
+        if investigation_id:
+            evidence_summary = (
+                f"Process Capability Study: Cpk={result.cpk:.2f}, Ppk={result.ppk:.2f}, "
+                f"Sigma Level={result.sigma_level:.1f}, Yield={result.yield_percent:.2f}%. "
+                f"{result.interpretation}"
+            )
+            _spc_connect_investigation(
+                request,
+                investigation_id,
+                evidence_summary,
+                tool_type="spc_capability",
+                sample_size=len(data),
+            )
 
         resp = _build_capability_response(data, result)
         resp["success"] = True
@@ -727,6 +774,7 @@ def statistical_summary(request):
 
     data = body.get("data", [])
     problem_id = body.get("problem_id")
+    investigation_id = body.get("investigation_id")
 
     if not data or len(data) < 2:
         return JsonResponse({"error": "Need at least 2 data points"}, status=400)
@@ -761,6 +809,23 @@ def statistical_summary(request):
                 response_data["evidence_id"] = evidence["id"]
             except Problem.DoesNotExist:
                 pass
+
+        # Investigation bridge (CANON-002 §12)
+        if investigation_id:
+            summary_dict = result.to_dict()
+            evidence_summary = (
+                f"Statistical Summary (n={summary_dict.get('n', len(data))}): "
+                f"mean={summary_dict.get('mean', 0):.4f}, "
+                f"std={summary_dict.get('std', 0):.4f}, "
+                f"median={summary_dict.get('median', 0):.4f}"
+            )
+            _spc_connect_investigation(
+                request,
+                investigation_id,
+                evidence_summary,
+                tool_type="spc_summary",
+                sample_size=len(data),
+            )
 
         return JsonResponse(sanitize_for_json(response_data))
 
@@ -878,6 +943,7 @@ def analyze_uploaded(request):
     value_column = body.get("value_column")
     subgroup_column = body.get("subgroup_column")
     problem_id = body.get("problem_id")
+    investigation_id = body.get("investigation_id")
 
     if not value_column:
         return JsonResponse({"error": "value_column is required"}, status=400)
@@ -1014,6 +1080,16 @@ def analyze_uploaded(request):
             except Problem.DoesNotExist:
                 pass
 
+        # Investigation bridge (CANON-002 §12)
+        if investigation_id and evidence_summary:
+            _spc_connect_investigation(
+                request,
+                investigation_id,
+                evidence_summary,
+                tool_type=f"spc_{analysis_type}",
+                sample_size=parsed.row_count,
+            )
+
         return JsonResponse(sanitize_for_json(response_data))
 
     except ValueError as e:
@@ -1055,6 +1131,7 @@ def gage_rr(request):
 
     tolerance = body.get("tolerance")
     problem_id = body.get("problem_id")
+    investigation_id = body.get("investigation_id")
 
     try:
         # Get data from inline arrays or from cached file upload
@@ -1123,6 +1200,22 @@ def gage_rr(request):
                 write_context_file(problem)
             except Problem.DoesNotExist:
                 pass
+
+        # Investigation bridge (CANON-002 §12)
+        if investigation_id:
+            evidence_summary = (
+                f"Gage R&R Study: %GRR={result.grr_percent:.1f}% ({result.assessment}). "
+                f"NDC={result.ndc}. {result.n_parts} parts, {result.n_operators} operators, "
+                f"{result.n_replicates} replicates."
+            )
+            n_measurements = result.n_parts * result.n_operators * result.n_replicates
+            _spc_connect_investigation(
+                request,
+                investigation_id,
+                evidence_summary,
+                tool_type="spc_gage_rr",
+                sample_size=n_measurements,
+            )
 
         return JsonResponse(
             sanitize_for_json(
@@ -1283,6 +1376,43 @@ def _spc_fmea_hook(user, fmea_row_id, ooc_count, total_points):
         "new_rpn": row.rpn,
         "ooc_rate": round(ooc_rate, 4),
     }
+
+
+def _spc_connect_investigation(
+    request, investigation_id, event_description, tool_type="spc", sample_size=None, measurement_system_id=None
+):
+    """Connect SPC output to an investigation via the bridge (CANON-002 §12).
+
+    Called alongside problem.add_evidence() for dual-write during migration.
+    Returns bridge result dict or None on error.
+    """
+    from core.models import MeasurementSystem
+
+    from .investigation_bridge import InferenceSpec, connect_tool
+
+    try:
+        # Use a generic MeasurementSystem for the tool output link
+        tool_output, _ = MeasurementSystem.objects.get_or_create(
+            name=f"SPC {tool_type}",
+            owner=request.user,
+            defaults={"system_type": "variable"},
+        )
+        spec = InferenceSpec(
+            event_description=event_description,
+            sample_size=sample_size,
+            measurement_system_id=measurement_system_id,
+        )
+        result = connect_tool(
+            investigation_id=investigation_id,
+            tool_output=tool_output,
+            tool_type=tool_type,
+            user=request.user,
+            spec=spec,
+        )
+        return result
+    except Exception:
+        logger.exception("SPC investigation bridge error")
+        return None
 
 
 def _spc_evidence_hook(user, project_id, chart_type, ooc_count, total_points, cl=None, ucl=None, lcl=None):

@@ -34,6 +34,13 @@ class SourceRank(float, Enum):
 TOOL_SOURCE_RANKS: dict[str, SourceRank | None] = {
     # Layer 1
     "spc": SourceRank.CONTROLLED_OBSERVATION,
+    "spc_control_chart": SourceRank.CONTROLLED_OBSERVATION,
+    "spc_capability": SourceRank.CONTROLLED_OBSERVATION,
+    "spc_summary": SourceRank.CONTROLLED_OBSERVATION,
+    "spc_gage_rr": SourceRank.CONTROLLED_OBSERVATION,
+    "spc_recommend": SourceRank.CONTROLLED_OBSERVATION,
+    "spc_control_chart_upload": SourceRank.CONTROLLED_OBSERVATION,
+    "spc_capability_upload": SourceRank.CONTROLLED_OBSERVATION,
     "dsw": SourceRank.STATISTICAL_TEST,
     "doe_design": None,  # Design phase produces no evidence
     "doe_results": SourceRank.DESIGNED_EXPERIMENT,
@@ -61,6 +68,13 @@ TOOL_SOURCE_RANKS: dict[str, SourceRank | None] = {
 # CANON-002 §11.1, CANON-001 §1.3 (three tool functions)
 TOOL_FUNCTIONS: dict[str, str | None] = {
     "spc": "inference",
+    "spc_control_chart": "inference",
+    "spc_capability": "inference",
+    "spc_summary": "inference",
+    "spc_gage_rr": "inference",
+    "spc_recommend": "inference",
+    "spc_control_chart_upload": "inference",
+    "spc_capability_upload": "inference",
     "dsw": "inference",
     "doe_design": "intent",
     "doe_results": "inference",
