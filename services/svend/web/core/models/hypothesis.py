@@ -441,6 +441,16 @@ class Evidence(models.Model):
         related_name="evidence",
     )
 
+    # Supersession chain (CANON-002 §8.3)
+    supersedes = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="superseded_by",
+        help_text="Evidence this record replaces (same source/tool, newer run)",
+    )
+
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
