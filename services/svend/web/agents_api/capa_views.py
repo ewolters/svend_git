@@ -93,6 +93,37 @@ def _capa_evidence_hooks(capa, data, user):
             )
 
 
+def _capa_connect_investigation(request, investigation_id, capa, data):
+    """CANON-002 §12 — connect CAPA findings to investigation graph."""
+    from core.models import MeasurementSystem
+
+    from .investigation_bridge import HypothesisSpec, connect_tool
+
+    try:
+        tool_output, _ = MeasurementSystem.objects.get_or_create(
+            name="CAPA",
+            owner=request.user,
+            defaults={"system_type": "variable"},
+        )
+        specs = []
+        if data.get("root_cause"):
+            specs.append(HypothesisSpec(description=f"CAPA root cause: {data['root_cause'][:300]}", prior=0.6))
+        if data.get("corrective_action"):
+            specs.append(HypothesisSpec(description=f"CAPA corrective: {data['corrective_action'][:300]}", prior=0.5))
+        if data.get("preventive_action"):
+            specs.append(HypothesisSpec(description=f"CAPA preventive: {data['preventive_action'][:300]}", prior=0.5))
+        if specs:
+            connect_tool(
+                investigation_id=investigation_id,
+                tool_output=tool_output,
+                tool_type="capa",
+                user=request.user,
+                spec=specs,
+            )
+    except Exception:
+        logger.exception("CAPA investigation bridge error for %s", capa.id)
+
+
 @require_team
 @require_http_methods(["GET", "POST"])
 def capa_list_create(request):
@@ -293,6 +324,11 @@ def capa_detail(request, capa_id):
     # Evidence hooks
     _ensure_capa_project(capa, request.user)
     _capa_evidence_hooks(capa, data, request.user)
+
+    # CANON-002 §12 — investigation bridge (dual-write)
+    investigation_id = data.get("investigation_id")
+    if investigation_id and (data.get("root_cause") or data.get("corrective_action") or data.get("preventive_action")):
+        _capa_connect_investigation(request, investigation_id, capa, data)
 
     # Evidence on close
     if new_status == "closed" and capa.project:

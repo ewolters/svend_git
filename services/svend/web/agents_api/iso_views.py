@@ -129,6 +129,35 @@ def _ncr_evidence_hooks(ncr, data, user):
             )
 
 
+def _ncr_connect_investigation(request, investigation_id, ncr, data):
+    """CANON-002 §12 — connect NCR findings to investigation graph."""
+    from core.models import MeasurementSystem
+
+    from .investigation_bridge import HypothesisSpec, connect_tool
+
+    try:
+        tool_output, _ = MeasurementSystem.objects.get_or_create(
+            name="NCR",
+            owner=request.user,
+            defaults={"system_type": "variable"},
+        )
+        specs = []
+        if data.get("root_cause"):
+            specs.append(HypothesisSpec(description=f"NCR root cause: {data['root_cause'][:300]}", prior=0.6))
+        if data.get("corrective_action"):
+            specs.append(HypothesisSpec(description=f"NCR corrective: {data['corrective_action'][:300]}", prior=0.5))
+        if specs:
+            connect_tool(
+                investigation_id=investigation_id,
+                tool_output=tool_output,
+                tool_type="ncr",
+                user=request.user,
+                spec=specs,
+            )
+    except Exception:
+        logger.exception("NCR investigation bridge error for %s", ncr.id)
+
+
 # =========================================================================
 # Dashboard overview
 # =========================================================================
@@ -564,6 +593,11 @@ def ncr_detail(request, ncr_id):
     # Ensure project exists, then create evidence for field updates
     _ensure_ncr_project(ncr, request.user)
     _ncr_evidence_hooks(ncr, data, request.user)
+
+    # CANON-002 §12 — investigation bridge (dual-write)
+    investigation_id = data.get("investigation_id")
+    if investigation_id and (data.get("root_cause") or data.get("corrective_action")):
+        _ncr_connect_investigation(request, investigation_id, ncr, data)
 
     # Evidence on status transition to closed
     if new_status == "closed" and ncr.project:

@@ -88,6 +88,9 @@ TOOL_FUNCTIONS: dict[str, str | None] = {
     "a3": "report",
     "vsm": None,  # Feeds Layer 3 directly, not investigations
     "report": "report",
+    # Layer 3 (when generating own evidence)
+    "ncr": "information",
+    "capa": "information",
 }
 
 
