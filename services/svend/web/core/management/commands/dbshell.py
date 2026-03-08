@@ -8,32 +8,25 @@ import sys
 
 from django.core.management.commands.dbshell import Command as BaseDbShell
 
+from ._safety import _db_name, _is_production_db, add_force_flag
+
 
 class Command(BaseDbShell):
     help = "Opens database shell with production safety prompt."
 
     def add_arguments(self, parser):
         super().add_arguments(parser)
-        parser.add_argument(
-            "--i-know-what-i-am-doing",
-            action="store_true",
-            dest="force_allow",
-            help="Skip production safety confirmation.",
-        )
+        add_force_flag(parser)
 
     def handle(self, *args, **options):
         database = options.get("database", "default")
         force = options.get("force_allow", False)
 
-        from django.conf import settings
-
-        db_name = settings.DATABASES.get(database, {}).get("NAME", "")
-        is_test_db = str(db_name).startswith("test_") or "test" in str(db_name).lower()
-
-        if not is_test_db and not force:
+        if _is_production_db(database) and not force:
+            db = _db_name(database)
             self.stderr.write(
                 self.style.WARNING(
-                    f"\n⚠ WARNING: You are about to open a shell on the PRODUCTION database '{db_name}'.\n"
+                    f"\n\u26a0 WARNING: You are about to open a shell on the PRODUCTION database '{db}'.\n"
                     "Any DROP, DELETE, or TRUNCATE commands will be irreversible.\n"
                 )
             )

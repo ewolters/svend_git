@@ -13,42 +13,33 @@ import sys
 
 from django.core.management.commands.flush import Command as BaseFlush
 
+from ._safety import _is_production_db, add_force_flag
+
 
 class Command(BaseFlush):
     help = "BLOCKED: use manage.py test for test isolation. See core/management/commands/flush.py."
 
     def add_arguments(self, parser):
         super().add_arguments(parser)
-        parser.add_argument(
-            "--i-know-what-i-am-doing",
-            action="store_true",
-            dest="force_allow",
-            help="Bypass production safety check (DANGEROUS).",
-        )
+        add_force_flag(parser)
 
     def handle(self, *args, **options):
         database = options.get("database", "default")
         force = options.get("force_allow", False)
 
-        # Allow if running inside Django's test runner (db name starts with 'test_')
-        from django.conf import settings
-
-        db_name = settings.DATABASES.get(database, {}).get("NAME", "")
-        is_test_db = str(db_name).startswith("test_") or "test" in str(db_name).lower()
-
-        if not is_test_db and not force:
+        if _is_production_db(database) and not force:
             self.stderr.write(
                 self.style.ERROR(
                     "\n"
-                    "╔══════════════════════════════════════════════════════════════╗\n"
-                    "║  BLOCKED: flush on production database is prohibited.       ║\n"
-                    "║                                                             ║\n"
-                    "║  • Use `manage.py test` for test isolation (auto-creates    ║\n"
-                    "║    and destroys a test database).                           ║\n"
-                    "║  • If you REALLY need this, pass --i-know-what-i-am-doing   ║\n"
-                    "║                                                             ║\n"
-                    "║  Incident: 2026-03-07 production DB wipe via flush.         ║\n"
-                    "╚══════════════════════════════════════════════════════════════╝\n"
+                    "\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557\n"
+                    "\u2551  BLOCKED: flush on production database is prohibited.       \u2551\n"
+                    "\u2551                                                             \u2551\n"
+                    "\u2551  \u2022 Use `manage.py test` for test isolation (auto-creates    \u2551\n"
+                    "\u2551    and destroys a test database).                           \u2551\n"
+                    "\u2551  \u2022 If you REALLY need this, pass --i-know-what-i-am-doing   \u2551\n"
+                    "\u2551                                                             \u2551\n"
+                    "\u2551  Incident: 2026-03-07 production DB wipe via flush.         \u2551\n"
+                    "\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d\n"
                 )
             )
             sys.exit(1)
