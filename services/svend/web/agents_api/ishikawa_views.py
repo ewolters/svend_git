@@ -69,6 +69,42 @@ def _ishikawa_evidence_hooks(diagram, user):
             )
 
 
+def _ishikawa_connect_investigation(request, investigation_id, diagram):
+    """CANON-002 §12 — connect Ishikawa causes to investigation graph."""
+    from core.models import MeasurementSystem
+
+    from .investigation_bridge import HypothesisSpec, connect_tool
+
+    try:
+        tool_output, _ = MeasurementSystem.objects.get_or_create(
+            name="Ishikawa Diagram",
+            owner=request.user,
+            defaults={"system_type": "variable"},
+        )
+        specs = []
+        for branch in diagram.branches:
+            category = branch.get("category", "")
+            for cause in branch.get("causes", []):
+                text = cause.get("text", "").strip()
+                if text:
+                    specs.append(
+                        HypothesisSpec(
+                            description=f"Ishikawa [{category}]: {text[:300]}",
+                            prior=0.5,
+                        )
+                    )
+        if specs:
+            connect_tool(
+                investigation_id=investigation_id,
+                tool_output=tool_output,
+                tool_type="ishikawa",
+                user=request.user,
+                spec=specs,
+            )
+    except Exception:
+        logger.exception("Ishikawa investigation bridge error for diagram %s", diagram.id)
+
+
 # --- CRUD Endpoints ---
 
 
@@ -158,6 +194,11 @@ def update_diagram(request, diagram_id):
     # Evidence hooks — after save
     _ensure_ishikawa_project(diagram, request.user)
     _ishikawa_evidence_hooks(diagram, request.user)
+
+    # CANON-002 §12 — investigation bridge (dual-write)
+    investigation_id = data.get("investigation_id")
+    if investigation_id and diagram.status == "complete":
+        _ishikawa_connect_investigation(request, investigation_id, diagram)
 
     return JsonResponse({"diagram": diagram.to_dict()})
 

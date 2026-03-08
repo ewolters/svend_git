@@ -68,6 +68,42 @@ def _ce_evidence_hooks(matrix, user):
         )
 
 
+def _ce_connect_investigation(request, investigation_id, matrix):
+    """CANON-002 §12 — connect C&E top inputs to investigation graph."""
+    from core.models import MeasurementSystem
+
+    from .investigation_bridge import HypothesisSpec, connect_tool
+
+    try:
+        tool_output, _ = MeasurementSystem.objects.get_or_create(
+            name="C&E Matrix",
+            owner=request.user,
+            defaults={"system_type": "variable"},
+        )
+        specs = []
+        totals = matrix.compute_totals()
+        for entry in totals[:3]:
+            name = entry.get("input_name", "").strip()
+            total = entry.get("total", 0)
+            if name and total > 0:
+                specs.append(
+                    HypothesisSpec(
+                        description=f"C&E Matrix top input: {name} (score: {total:.0f})",
+                        prior=0.5,
+                    )
+                )
+        if specs:
+            connect_tool(
+                investigation_id=investigation_id,
+                tool_output=tool_output,
+                tool_type="ce_matrix",
+                user=request.user,
+                spec=specs,
+            )
+    except Exception:
+        logger.exception("C&E Matrix investigation bridge error for matrix %s", matrix.id)
+
+
 # --- CRUD Endpoints ---
 
 
@@ -155,6 +191,11 @@ def update_matrix(request, matrix_id):
     # Evidence hooks — after save
     _ensure_ce_project(matrix, request.user)
     _ce_evidence_hooks(matrix, request.user)
+
+    # CANON-002 §12 — investigation bridge (dual-write)
+    investigation_id = data.get("investigation_id")
+    if investigation_id and matrix.status == "complete":
+        _ce_connect_investigation(request, investigation_id, matrix)
 
     return JsonResponse({"matrix": matrix.to_dict()})
 

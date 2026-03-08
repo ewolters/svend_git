@@ -503,6 +503,11 @@ def link_to_hypothesis(request, fmea_id, row_id):
             created_by=request.user,
         )
 
+    # CANON-002 §12 — investigation bridge (dual-write)
+    investigation_id = data.get("investigation_id")
+    if investigation_id:
+        _fmea_connect_investigation(request, investigation_id, fmea, row)
+
     # Compute likelihood ratio from severity × occurrence
     # High S×O means the failure mode is real and frequent → supports hypothesis
     lr = _compute_likelihood_ratio(row.severity, row.occurrence)
@@ -1199,6 +1204,38 @@ def _compute_likelihood_ratio(severity, occurrence):
         # Map 1-20 → 1.1-1.5
         lr = 1.1 + 0.4 * (so - 1) / 19
     return round(lr, 2)
+
+
+def _fmea_connect_investigation(request, investigation_id, fmea, row):
+    """CANON-002 §12 — connect FMEA failure mode to investigation graph."""
+    from core.models import MeasurementSystem
+
+    from .investigation_bridge import HypothesisSpec, connect_tool
+
+    try:
+        tool_output, _ = MeasurementSystem.objects.get_or_create(
+            name="FMEA Analysis",
+            owner=request.user,
+            defaults={"system_type": "variable"},
+        )
+        description = (
+            f"FMEA: {row.failure_mode} — S={row.severity}, O={row.occurrence}, D={row.detection}, RPN={row.rpn}"
+        )
+        if row.cause:
+            description += f" | Cause: {row.cause[:200]}"
+        spec = HypothesisSpec(
+            description=description,
+            prior=0.5,
+        )
+        connect_tool(
+            investigation_id=investigation_id,
+            tool_output=tool_output,
+            tool_type="fmea",
+            user=request.user,
+            spec=spec,
+        )
+    except Exception:
+        logger.exception("FMEA investigation bridge error for row %s", row.id)
 
 
 # ── Action Items ──────────────────────────────────────────────────────

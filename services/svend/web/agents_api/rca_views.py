@@ -121,6 +121,48 @@ def _rca_evidence_hooks(session, data, user):
         )
 
 
+def _rca_connect_investigation(request, investigation_id, session, data):
+    """CANON-002 §12 — connect RCA root cause to investigation graph."""
+    from core.models import MeasurementSystem
+
+    from .investigation_bridge import HypothesisSpec, connect_tool
+
+    try:
+        tool_output, _ = MeasurementSystem.objects.get_or_create(
+            name="RCA Session",
+            owner=request.user,
+            defaults={"system_type": "variable"},
+        )
+        specs = []
+        # Root cause → hypothesis
+        if data.get("root_cause"):
+            specs.append(
+                HypothesisSpec(
+                    description=f"RCA root cause: {data['root_cause'][:300]}",
+                    prior=0.6,
+                )
+            )
+        # Accepted chain steps → supporting hypotheses
+        for step in data.get("chain", []):
+            if step.get("accepted") and step.get("claim"):
+                specs.append(
+                    HypothesisSpec(
+                        description=f"RCA chain: {step['claim'][:300]}",
+                        prior=0.5,
+                    )
+                )
+        if specs:
+            connect_tool(
+                investigation_id=investigation_id,
+                tool_output=tool_output,
+                tool_type="rca",
+                user=request.user,
+                spec=specs,
+            )
+    except Exception:
+        logger.exception("RCA investigation bridge error for session %s", session.id)
+
+
 # The soul of RCA critique - a skeptical, experienced investigator
 RCA_SYSTEM_PROMPT = """You are a seasoned root cause analysis practitioner with 25 years investigating incidents across aerospace, nuclear, healthcare, and manufacturing. You've seen every lazy investigation and every convenient blame game. Your job is to challenge causal claims before they become the official narrative.
 
@@ -806,6 +848,11 @@ def update_session(request, session_id):
     # Evidence hooks — after save
     _ensure_rca_project(session, request.user)
     _rca_evidence_hooks(session, data, request.user)
+
+    # CANON-002 §12 — investigation bridge (dual-write)
+    investigation_id = data.get("investigation_id")
+    if investigation_id and data.get("root_cause"):
+        _rca_connect_investigation(request, investigation_id, session, data)
 
     # FEAT-006: RCA → CAPA backflow — when root_cause is set, update linked CAPA
     if "root_cause" in data and data["root_cause"]:
