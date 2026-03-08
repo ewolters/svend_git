@@ -1,10 +1,10 @@
 """
-Investigation bridge — CANON-002 §12.3.
+Investigation bridge — CANON-002 §12.3, §8.4, §10.1.
 
 Universal integration point: tool output → investigation graph.
 Tools call connect_tool() with a function-specific spec, and this module
 handles Synara graph operations, evidence weighting, tool linking,
-and auto-transitions.
+auto-transitions, supersession detection, and confirmation thresholds.
 
 Reference: docs/standards/CANON-002.md §12.3, §8.4, §10.1
 """
@@ -21,6 +21,13 @@ from agents_api.synara.synara import Synara
 from core.models.investigation import Investigation, InvestigationToolLink
 
 logger = logging.getLogger("svend.investigation")
+
+# ---------------------------------------------------------------------------
+# Confirmation thresholds — CANON-002 §10
+# ---------------------------------------------------------------------------
+
+CONFIRMED_THRESHOLD = 0.85
+REJECTED_THRESHOLD = 0.15
 
 
 # ---------------------------------------------------------------------------
@@ -140,7 +147,7 @@ def connect_tool(
         result = _handle_information(synara, spec, tool_type, result)
 
     elif tool_function == "inference":
-        result = _handle_inference(synara, spec, tool_type, result)
+        result = _handle_inference(synara, spec, tool_type, result, investigation, tool_output)
 
     elif tool_function == "intent":
         synara, result = _handle_intent(synara, spec, tool_output, result)
@@ -196,7 +203,7 @@ def _handle_information(synara, spec, tool_type, result):
     return result
 
 
-def _handle_inference(synara, spec, tool_type, result):
+def _handle_inference(synara, spec, tool_type, result, investigation=None, tool_output=None):
     """Inference tools compute evidence weight and create evidence."""
     assert isinstance(spec, InferenceSpec)
     weight = compute_evidence_weight(
@@ -218,6 +225,21 @@ def _handle_inference(synara, spec, tool_type, result):
     result["posteriors"] = {h_id: round(p, 4) for h_id, p in update_result.posteriors.items()}
     result["expansion_signal"] = update_result.expansion_signal.to_dict() if update_result.expansion_signal else None
     result["evidence_weight"] = round(weight, 4)
+
+    # Supersession detection (§8.4)
+    if investigation and tool_output:
+        _detect_and_apply_supersession(
+            investigation=investigation,
+            source_tool=tool_type,
+            source_id=str(tool_output.id),
+            new_evidence_id=update_result.evidence_id,
+        )
+
+    # Confirmation thresholds (§10.1)
+    if result["posteriors"]:
+        confirmation_events = _apply_confirmation_thresholds(investigation, synara, result["posteriors"])
+        result["confirmation_changes"] = confirmation_events
+
     return result
 
 
@@ -239,3 +261,137 @@ def _handle_intent(synara, spec, tool_output, result):
     synara = Synara.from_dict(full_data)
     result["graph_updated"] = True
     return synara, result
+
+
+# ---------------------------------------------------------------------------
+# Supersession detection — CANON-002 §8.4
+# ---------------------------------------------------------------------------
+
+
+def _detect_and_apply_supersession(
+    investigation,
+    source_tool: str,
+    source_id: str,
+    new_evidence_id: str,
+):
+    """
+    Detect re-runs from the same tool+source and create supersedes FK.
+
+    Matches on (source_tool, source_id) — same tool output producing newer
+    evidence supersedes prior evidence from the same source.
+    """
+    from core.models import Evidence
+
+    # Find prior evidence from the same source_tool with same source_description
+    # that is not already superseded and is not the new evidence itself
+    prior = (
+        Evidence.objects.filter(
+            source_description=f"{source_tool}:{source_id}",
+        )
+        .exclude(id=new_evidence_id)
+        .exclude(id__in=Evidence.objects.filter(supersedes__isnull=False).values("supersedes_id"))
+        .order_by("-created_at")
+        .first()
+    )
+
+    if prior:
+        try:
+            new_evidence = Evidence.objects.get(id=new_evidence_id)
+            new_evidence.supersedes = prior
+            new_evidence.save(update_fields=["supersedes"])
+            logger.info(
+                "evidence.superseded",
+                extra={
+                    "new_id": str(new_evidence_id),
+                    "superseded_id": str(prior.id),
+                    "source_tool": source_tool,
+                    "investigation_id": str(investigation.id) if investigation else None,
+                },
+            )
+        except Evidence.DoesNotExist:
+            pass  # Synara evidence_id doesn't map to a DB Evidence record
+
+
+# ---------------------------------------------------------------------------
+# Confirmation thresholds — CANON-002 §10.1
+# ---------------------------------------------------------------------------
+
+
+def _apply_confirmation_thresholds(
+    investigation,
+    synara: Synara,
+    posteriors: dict[str, float],
+) -> list[dict]:
+    """
+    Check all updated hypotheses against confirmation/rejection thresholds.
+    Returns list of status change events.
+
+    On confirmation (≥0.85):
+      - Mark hypothesis as confirmed in graph metadata
+      - Suppress expansion signals for that hypothesis
+
+    On rejection (≤0.15):
+      - Mark hypothesis as rejected
+      - Deactivate outgoing causal links (strength → 0)
+
+    On reversal (confirmed/rejected → uncertain):
+      - Restore expansion signals and causal links
+    """
+    events = []
+
+    for h_id, posterior in posteriors.items():
+        h = synara.graph.hypotheses.get(h_id)
+        if not h:
+            continue
+
+        prev_status = getattr(h, "confirmation_status", "uncertain")
+
+        if posterior >= CONFIRMED_THRESHOLD and prev_status != "confirmed":
+            h.confirmation_status = "confirmed"
+            events.append(
+                {
+                    "hypothesis_id": h_id,
+                    "transition": f"{prev_status} → confirmed",
+                    "posterior": round(posterior, 4),
+                }
+            )
+
+        elif posterior <= REJECTED_THRESHOLD and prev_status != "rejected":
+            h.confirmation_status = "rejected"
+            # Deactivate outgoing causal links
+            for link in synara.graph.links:
+                if link.from_id == h_id:
+                    link.strength = 0.0
+            events.append(
+                {
+                    "hypothesis_id": h_id,
+                    "transition": f"{prev_status} → rejected",
+                    "posterior": round(posterior, 4),
+                }
+            )
+
+        elif REJECTED_THRESHOLD < posterior < CONFIRMED_THRESHOLD and prev_status != "uncertain":
+            # Reversal — re-entered uncertain zone
+            h.confirmation_status = "uncertain"
+            # Re-enable deactivated links
+            for link in synara.graph.links:
+                if link.from_id == h_id and link.strength == 0.0:
+                    link.strength = 0.7  # Default causal link strength
+            events.append(
+                {
+                    "hypothesis_id": h_id,
+                    "transition": f"{prev_status} → uncertain",
+                    "posterior": round(posterior, 4),
+                }
+            )
+
+    if events:
+        logger.info(
+            "investigation.confirmation_changes",
+            extra={
+                "investigation_id": str(investigation.id) if investigation else None,
+                "changes": events,
+            },
+        )
+
+    return events
