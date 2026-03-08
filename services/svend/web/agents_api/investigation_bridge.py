@@ -11,6 +11,7 @@ Reference: docs/standards/CANON-002.md §12.3, §8.4, §10.1
 
 from __future__ import annotations
 
+import copy
 import logging
 from dataclasses import dataclass, field
 
@@ -84,9 +85,14 @@ def get_investigation(investigation_id: str, user) -> Investigation:
 
 
 def load_synara(investigation: Investigation) -> Synara:
-    """Load Synara engine from investigation state."""
+    """Load Synara engine from investigation state.
+
+    Deep-copies state before deserializing because Synara.from_dict()
+    mutates nested dicts in-place (datetime parsing), which would corrupt
+    the JSONField on the next full save.
+    """
     if investigation.synara_state:
-        return Synara.from_dict(investigation.synara_state)
+        return Synara.from_dict(copy.deepcopy(investigation.synara_state))
     return Synara()
 
 
@@ -264,6 +270,203 @@ def _handle_intent(synara, spec, tool_output, result):
 
 
 # ---------------------------------------------------------------------------
+# Layer 3 export — CANON-002 §9.2
+# ---------------------------------------------------------------------------
+
+
+def export_investigation(
+    investigation_id: str,
+    target_project_id: str,
+    user,
+) -> dict:
+    """
+    Export a concluded investigation to a Layer 3 project container.
+
+    Creates an Evidence record on the target project with the conclusion
+    package frozen as raw_output. Transitions investigation to exported.
+
+    Raises ValueError if investigation is not in 'concluded' state.
+    """
+    investigation = get_investigation(investigation_id, user)
+    if investigation.status != Investigation.Status.CONCLUDED:
+        raise ValueError(f"Cannot export investigation in '{investigation.status}' state — must be 'concluded'")
+
+    from core.models import Evidence, Project
+
+    target = Project.objects.get(id=target_project_id, user=user)
+    synara = load_synara(investigation)
+
+    package = _build_conclusion_package(investigation, synara, user)
+    top_h = package["top_hypothesis"]
+
+    Evidence.objects.create(
+        project=target,
+        source_type="analysis",
+        result_type="qualitative",
+        summary=f"{top_h['description']} (posterior: {top_h['posterior']:.2f})",
+        confidence=top_h["posterior"],
+        details=_build_export_details(package),
+        raw_output=package,
+        source_description=f"investigation:{investigation.id}",
+    )
+
+    investigation.export_package = package
+    investigation.exported_to_project = target
+    investigation.save(update_fields=["export_package", "exported_to_project", "updated_at"])
+
+    investigation.transition_to(Investigation.Status.EXPORTED, user)
+
+    logger.info(
+        "investigation.exported",
+        extra={
+            "investigation_id": str(investigation.id),
+            "target_project_id": str(target.id),
+            "top_posterior": top_h["posterior"],
+            "evidence_count": package["investigation_metadata"]["evidence_count"],
+        },
+    )
+
+    return package
+
+
+def _build_conclusion_package(investigation, synara, user) -> dict:
+    """Build the §9.1 conclusion package from current Synara state."""
+    hypotheses = synara.graph.hypotheses
+    evidence_list = synara.graph.evidence
+    links = synara.graph.links
+
+    sorted_h = sorted(hypotheses.values(), key=lambda h: h.posterior, reverse=True)
+    top = sorted_h[0] if sorted_h else None
+
+    causal_chain = []
+    if top:
+        causal_chain = _trace_causal_chain(top.id, hypotheses, links)
+
+    def h_status(posterior: float) -> str:
+        if posterior >= CONFIRMED_THRESHOLD:
+            return "confirmed"
+        if posterior <= REJECTED_THRESHOLD:
+            return "rejected"
+        return "uncertain"
+
+    expansion_signals = [
+        {
+            "signal_type": "expansion",
+            "description": getattr(sig, "message", ""),
+            "event": getattr(sig, "event", ""),
+        }
+        for sig in getattr(synara, "expansion_signals", [])
+    ]
+
+    tool_types = list(
+        InvestigationToolLink.objects.filter(investigation=investigation).values_list("tool_type", flat=True).distinct()
+    )
+
+    duration_days = 0
+    if investigation.concluded_at and investigation.created_at:
+        duration_days = (investigation.concluded_at - investigation.created_at).days
+
+    return {
+        "investigation_id": str(investigation.id),
+        "investigation_version": investigation.version,
+        "status": "concluded",
+        "concluded_at": investigation.concluded_at.isoformat() if investigation.concluded_at else None,
+        "concluded_by": str(user.id),
+        "top_hypothesis": {
+            "id": str(top.id) if top else None,
+            "description": top.description if top else "No hypotheses",
+            "posterior": round(top.posterior, 4) if top else 0.0,
+            "status": h_status(top.posterior) if top else "uncertain",
+            "causal_chain": causal_chain,
+        },
+        "competing_hypotheses": [
+            {
+                "id": str(h.id),
+                "description": h.description,
+                "posterior": round(h.posterior, 4),
+                "status": h_status(h.posterior),
+            }
+            for h in sorted_h[1:]
+            if h.posterior > REJECTED_THRESHOLD
+        ],
+        "evidence_summary": [
+            {
+                "id": str(e.id),
+                "summary": e.event,
+                "source_tool": getattr(e, "source", "unknown"),
+                "evidence_weight": round(e.strength, 4),
+                "supports": [str(s) for s in getattr(e, "supports", [])],
+                "weakens": [str(w) for w in getattr(e, "weakens", [])],
+            }
+            for e in evidence_list
+        ],
+        "unresolved_signals": expansion_signals,
+        "investigation_metadata": {
+            "tools_used": tool_types,
+            "evidence_count": len(evidence_list),
+            "hypothesis_count": len(hypotheses),
+            "duration_days": duration_days,
+        },
+    }
+
+
+def _trace_causal_chain(hypothesis_id, hypotheses, links) -> list[dict]:
+    """
+    Walk causal links backward from hypothesis to build a chain.
+    Max depth 20 to prevent cycles.
+    """
+    chain = []
+    visited = set()
+    current = hypothesis_id
+    max_depth = 20
+
+    while current and len(chain) < max_depth:
+        if current in visited:
+            break
+        visited.add(current)
+
+        incoming = [link for link in links if link.to_id == current]
+        if not incoming:
+            break
+
+        strongest = max(incoming, key=lambda cl: cl.strength)
+        source_h = hypotheses.get(strongest.from_id)
+        if not source_h:
+            break
+
+        chain.append(
+            {
+                "hypothesis_id": str(source_h.id),
+                "description": source_h.description,
+                "posterior": round(source_h.posterior, 4),
+                "link_strength": round(strongest.strength, 4),
+                "mechanism": getattr(strongest, "mechanism", ""),
+            }
+        )
+        current = strongest.from_id
+
+    chain.reverse()
+    return chain
+
+
+def _build_export_details(package: dict) -> str:
+    """Build human-readable details string for the Evidence record."""
+    meta = package["investigation_metadata"]
+    details = (
+        f"Investigation conclusion — "
+        f"{meta['evidence_count']} evidence nodes, "
+        f"{meta['hypothesis_count']} hypotheses, "
+        f"{meta['duration_days']} days"
+    )
+    n_signals = len(package.get("unresolved_signals", []))
+    if n_signals > 0:
+        details += (
+            f". WARNING: Investigation has {n_signals} unresolved expansion signals — causal surface may be incomplete"
+        )
+    return details
+
+
+# ---------------------------------------------------------------------------
 # Supersession detection — CANON-002 §8.4
 # ---------------------------------------------------------------------------
 
@@ -280,7 +483,16 @@ def _detect_and_apply_supersession(
     Matches on (source_tool, source_id) — same tool output producing newer
     evidence supersedes prior evidence from the same source.
     """
+    import uuid as _uuid
+
     from core.models import Evidence
+
+    # Validate new_evidence_id is a valid UUID — Synara kernel evidence IDs
+    # (e.g. "e_abc123") are not UUIDs and can't be used in ORM queries.
+    try:
+        _uuid.UUID(new_evidence_id)
+    except (ValueError, AttributeError):
+        return
 
     # Find prior evidence from the same source_tool with same source_description
     # that is not already superseded and is not the new evidence itself
@@ -309,7 +521,7 @@ def _detect_and_apply_supersession(
                 },
             )
         except Evidence.DoesNotExist:
-            pass  # Synara evidence_id doesn't map to a DB Evidence record
+            pass  # Evidence record not found
 
 
 # ---------------------------------------------------------------------------
