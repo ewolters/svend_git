@@ -26,6 +26,37 @@ from .models import Problem
 
 logger = logging.getLogger(__name__)
 
+
+def _doe_connect_investigation(request, investigation_id, event_description, tool_type, spec_type="inference"):
+    """CANON-002 §12 — connect DOE output to investigation graph.
+
+    spec_type: "inference" for results/analysis, "intent" for designs.
+    """
+    from core.models import MeasurementSystem
+
+    from .investigation_bridge import InferenceSpec, IntentSpec, connect_tool
+
+    try:
+        tool_output, _ = MeasurementSystem.objects.get_or_create(
+            name=f"DOE {tool_type}",
+            owner=request.user,
+            defaults={"system_type": "variable"},
+        )
+        if spec_type == "intent":
+            spec = IntentSpec(design_metadata={"description": event_description})
+        else:
+            spec = InferenceSpec(event_description=event_description)
+        connect_tool(
+            investigation_id=investigation_id,
+            tool_output=tool_output,
+            tool_type=tool_type,
+            user=request.user,
+            spec=spec,
+        )
+    except Exception:
+        logger.exception("DOE investigation bridge error")
+
+
 # Server-side cache for power curve grids.
 # Key: (test_type, alpha, power, groups) → list of {effect_size, sample_size, per_group}
 # 50 students in the same ILSSI class hitting identical defaults won't recompute.
@@ -210,6 +241,16 @@ def power_analysis(request):
             except Problem.DoesNotExist:
                 pass
 
+        # CANON-002 §12 — investigation bridge (dual-write)
+        investigation_id = data.get("investigation_id")
+        if investigation_id:
+            _doe_connect_investigation(
+                request,
+                investigation_id,
+                f"Power analysis ({test_type}): {summary_text}",
+                "doe_results",
+            )
+
         return JsonResponse(_sanitize(response_data))
 
     except Exception as e:
@@ -358,6 +399,17 @@ def design_experiment(request):
             except Problem.DoesNotExist:
                 pass
 
+        # CANON-002 §12 — investigation bridge (dual-write)
+        investigation_id = data.get("investigation_id")
+        if investigation_id:
+            _doe_connect_investigation(
+                request,
+                investigation_id,
+                f"Generated {design_type} design: {design.num_runs} runs, {len(factors)} factors",
+                "doe_design",
+                spec_type="intent",
+            )
+
         return JsonResponse(_sanitize(response))
 
     except Exception as e:
@@ -489,6 +541,12 @@ def full_experiment(request):
 
             except Problem.DoesNotExist:
                 pass  # Problem linking is optional
+
+        # CANON-002 §12 — investigation bridge (dual-write)
+        investigation_id = data.get("investigation_id")
+        if investigation_id:
+            desc = f"Designed experiment: {result.design.name if result.design else 'Power Analysis'}"
+            _doe_connect_investigation(request, investigation_id, desc, "doe_design", spec_type="intent")
 
         return JsonResponse(_sanitize(response_data))
 
@@ -918,6 +976,17 @@ def analyze_results(request):
 
             except Problem.DoesNotExist:
                 pass
+
+        # CANON-002 §12 — investigation bridge (dual-write)
+        investigation_id = data.get("investigation_id")
+        if investigation_id and significant_factors:
+            top = significant_factors[0]
+            _doe_connect_investigation(
+                request,
+                investigation_id,
+                f"DOE analysis: {top} significantly affects {response_name}",
+                "doe_results",
+            )
 
         return JsonResponse(_sanitize(response_data))
 
@@ -1463,6 +1532,16 @@ def contour_plot(request):
             except Problem.DoesNotExist:
                 pass
 
+        # CANON-002 §12 — investigation bridge (dual-write)
+        investigation_id = data.get("investigation_id")
+        if investigation_id:
+            _doe_connect_investigation(
+                request,
+                investigation_id,
+                f"Response surface: optimal at {x_factor}={optimal_x}, {y_factor}={optimal_y}",
+                "doe_results",
+            )
+
         return JsonResponse(_sanitize(response_data))
 
     except Exception as e:
@@ -1694,6 +1773,17 @@ def optimize_response(request):
                 response_data["evidence_id"] = evidence["id"]
             except Problem.DoesNotExist:
                 pass
+
+        # CANON-002 §12 — investigation bridge (dual-write)
+        investigation_id = data.get("investigation_id")
+        if investigation_id:
+            settings_str = ", ".join(f"{k}={v}" for k, v in best_settings.items())
+            _doe_connect_investigation(
+                request,
+                investigation_id,
+                f"DOE optimization: desirability={best_composite:.2f}, settings: {settings_str}",
+                "doe_results",
+            )
 
         return JsonResponse(_sanitize(response_data))
 

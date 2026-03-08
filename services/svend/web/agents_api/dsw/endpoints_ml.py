@@ -31,6 +31,30 @@ from .common import (
 logger = logging.getLogger(__name__)
 
 
+def _ml_connect_investigation(request, investigation_id, event_description, sample_size=None):
+    """CANON-002 §12 — connect ML results to investigation graph."""
+    from core.models import MeasurementSystem
+
+    from ..investigation_bridge import InferenceSpec, connect_tool
+
+    try:
+        tool_output, _ = MeasurementSystem.objects.get_or_create(
+            name="ML Model",
+            owner=request.user,
+            defaults={"system_type": "variable"},
+        )
+        spec = InferenceSpec(event_description=event_description, sample_size=sample_size)
+        connect_tool(
+            investigation_id=investigation_id,
+            tool_output=tool_output,
+            tool_type="ml",
+            user=request.user,
+            spec=spec,
+        )
+    except Exception:
+        logger.exception("ML investigation bridge error")
+
+
 def _read_csv_safe(file_or_path):
     """Read CSV with encoding fallback: UTF-8 → latin-1."""
     import io
@@ -209,6 +233,21 @@ def dsw_from_intent(request):
 
         if project_id:
             _create_ml_evidence(request.user, project_id, type(model).__name__, metrics, importances, task, target_name)
+
+        # CANON-002 §12 — investigation bridge (dual-write)
+        investigation_id = data.get("investigation_id")
+        if investigation_id:
+            _ml_connect_investigation(
+                request,
+                investigation_id,
+                f"ML model ({type(model).__name__}) for {target_name}: "
+                + (
+                    f"accuracy={metrics.get('accuracy', 'N/A')}"
+                    if task == "classification"
+                    else f"R²={metrics.get('r2', 'N/A')}"
+                ),
+                sample_size=n_records,
+            )
 
         log_agent_action(
             user=request.user,
@@ -416,6 +455,21 @@ def dsw_from_data(request):
                     response_data["evidence_id"] = evidence["id"]
             except Exception as e_prob:
                 logger.warning(f"Could not link DSW from-data to problem {problem_id}: {e_prob}")
+
+        # CANON-002 §12 — investigation bridge (dual-write)
+        inv_id = request.POST.get("investigation_id", "")
+        if inv_id:
+            _ml_connect_investigation(
+                request,
+                inv_id,
+                f"ML model ({type(model).__name__}) for {target}: "
+                + (
+                    f"accuracy={metrics.get('accuracy', 'N/A')}"
+                    if task == "classification"
+                    else f"R²={metrics.get('r2', 'N/A')}"
+                ),
+                sample_size=original_shape[0],
+            )
 
         return JsonResponse(sanitize_for_json(response_data))
 

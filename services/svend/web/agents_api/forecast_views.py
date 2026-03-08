@@ -13,6 +13,31 @@ from .dsw.common import sanitize_for_json
 
 logger = logging.getLogger(__name__)
 
+
+def _forecast_connect_investigation(request, investigation_id, event_description, sample_size=None):
+    """CANON-002 §12 — connect forecast results to investigation graph."""
+    from core.models import MeasurementSystem
+
+    from .investigation_bridge import InferenceSpec, connect_tool
+
+    try:
+        tool_output, _ = MeasurementSystem.objects.get_or_create(
+            name="Forecast",
+            owner=request.user,
+            defaults={"system_type": "variable"},
+        )
+        spec = InferenceSpec(event_description=event_description, sample_size=sample_size)
+        connect_tool(
+            investigation_id=investigation_id,
+            tool_output=tool_output,
+            tool_type="forecast",
+            user=request.user,
+            spec=spec,
+        )
+    except Exception:
+        logger.exception("Forecast investigation bridge error")
+
+
 DISCLAIMER = (
     "This forecast is for educational/informational purposes only. "
     "It is NOT financial advice. Past performance does not guarantee future results. "
@@ -288,6 +313,17 @@ def forecast(request):
 
     # Track usage
     request.user.increment_queries()
+
+    # CANON-002 §12 — investigation bridge (dual-write)
+    investigation_id = data.get("investigation_id")
+    if investigation_id:
+        _forecast_connect_investigation(
+            request,
+            investigation_id,
+            f"Forecast ({method}): {symbol or 'custom data'}, {days} days, "
+            f"median={final_median:.2f}, range=[{final_low:.2f}, {final_high:.2f}]",
+            sample_size=len(prices),
+        )
 
     return JsonResponse(
         sanitize_for_json(
