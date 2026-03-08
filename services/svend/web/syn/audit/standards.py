@@ -752,7 +752,10 @@ def _is_testcase_needing_db(cls) -> bool:
     """
     from django.test import TransactionTestCase
 
-    return issubclass(cls, TransactionTestCase)
+    try:
+        return isinstance(cls, type) and issubclass(cls, TransactionTestCase)
+    except TypeError:
+        return False
 
 
 def run_tests_batch(test_refs):
