@@ -4984,7 +4984,7 @@ function showProperties(el, type) {
                 <select class="prop-input" onchange="updateProp('dedicated_product', this.value || null)" title="Restrict this machine to one product type. 'Any' = processes all types.">
                     <option value="" ${!el.dedicated_product ? 'selected' : ''}>Any product</option>
                     ${getAllProductTypes().map(pt =>
-                        \`<option value="\${pt}" \${el.dedicated_product === pt ? 'selected' : ''}>\${pt}</option>\`
+                        `<option value="${pt}" ${el.dedicated_product === pt ? 'selected' : ''}>${pt}</option>`
                     ).join('')}
                 </select>
             </div>
@@ -5007,23 +5007,23 @@ function showProperties(el, type) {
                     ? '<div style="font-size:0.5rem;color:var(--text-dim);">Add product sources first</div>'
                     : getAllProductTypes().map(pt => {
                         const _qp = (el.quality_by_product || {})[pt] || {};
-                        return \`<div style="font-size:0.55rem; margin-bottom:4px;">
-                            <strong>\${pt}</strong>
+                        return `<div style="font-size:0.55rem; margin-bottom:4px;">
+                            <strong>${pt}</strong>
                             <div style="display:flex; gap:4px; align-items:center; margin-top:1px;">
                                 <span style="font-size:0.5rem;color:var(--text-dim);">Scrap</span>
-                                <input type="number" class="prop-input" value="\${_qp.scrap_rate != null ? (_qp.scrap_rate * 100).toFixed(0) : ''}"
-                                    onchange="updateQualityByProduct('\${pt}', 'scrap_rate', this.value)"
+                                <input type="number" class="prop-input" value="${_qp.scrap_rate != null ? (_qp.scrap_rate * 100).toFixed(0) : ''}"
+                                    onchange="updateQualityByProduct('${pt}', 'scrap_rate', this.value)"
                                     placeholder="—" step="1" min="0" max="100" style="width:36px; padding:1px 2px; font-size:0.55rem;">
                                 <span style="font-size:0.5rem;color:var(--text-dim);">Def</span>
-                                <input type="number" class="prop-input" value="\${_qp.defect_rate != null ? (_qp.defect_rate * 100).toFixed(0) : ''}"
-                                    onchange="updateQualityByProduct('\${pt}', 'defect_rate', this.value)"
+                                <input type="number" class="prop-input" value="${_qp.defect_rate != null ? (_qp.defect_rate * 100).toFixed(0) : ''}"
+                                    onchange="updateQualityByProduct('${pt}', 'defect_rate', this.value)"
                                     placeholder="—" step="1" min="0" max="100" style="width:36px; padding:1px 2px; font-size:0.55rem;">
                                 <span style="font-size:0.5rem;color:var(--text-dim);">Rwk</span>
-                                <input type="number" class="prop-input" value="\${_qp.rework_rate != null ? (_qp.rework_rate * 100).toFixed(0) : ''}"
-                                    onchange="updateQualityByProduct('\${pt}', 'rework_rate', this.value)"
+                                <input type="number" class="prop-input" value="${_qp.rework_rate != null ? (_qp.rework_rate * 100).toFixed(0) : ''}"
+                                    onchange="updateQualityByProduct('${pt}', 'rework_rate', this.value)"
                                     placeholder="—" step="1" min="0" max="100" style="width:36px; padding:1px 2px; font-size:0.55rem;">
                             </div>
-                        </div>\`;
+                        </div>`;
                     }).join('')
                 }
             </div>
@@ -5211,22 +5211,22 @@ function showProperties(el, type) {
             <div style="margin-top:6px; border-top:1px solid var(--border); padding-top:6px;">
                 <span class="prop-label" style="width:auto; display:block; margin-bottom:2px; font-size:0.6rem;">Product Routing <span style="color:var(--text-dim)">(empty = all products)</span></span>
                 <div id="routing-rules-list">
-                    ${(el.routing_rules || []).map((r, i) => \`
+                    ${(el.routing_rules || []).map((r, i) => `
                         <div style="display:flex; gap:4px; align-items:center; margin-bottom:3px;">
                             <select class="prop-input" style="flex:1; font-size:0.55rem; padding:1px 2px;"
-                                onchange="updateRoutingRule(\${i}, 'product', this.value)">
-                                \${getAllProductTypes().map(pt =>
-                                    \\\`<option value="\\\${pt}" \\\${r.product === pt ? 'selected' : ''}>\\\${pt}</option>\\\`
+                                onchange="updateRoutingRule(${i}, 'product', this.value)">
+                                ${getAllProductTypes().map(pt =>
+                                    `<option value="${pt}" ${r.product === pt ? 'selected' : ''}>${pt}</option>`
                                 ).join('')}
                             </select>
-                            <input type="number" class="prop-input" value="\${((r.weight ?? 1) * 100).toFixed(0)}"
-                                onchange="updateRoutingRule(\${i}, 'weight', +this.value/100)"
+                            <input type="number" class="prop-input" value="${((r.weight ?? 1) * 100).toFixed(0)}"
+                                onchange="updateRoutingRule(${i}, 'weight', +this.value/100)"
                                 min="1" max="100" step="5" style="width:40px; font-size:0.55rem; padding:1px 2px;"
                                 title="Routing weight (100% = always, 50% = half the time)">
                             <span style="font-size:0.5rem;color:var(--text-dim);">%</span>
-                            <button onclick="removeRoutingRule(\${i})" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:0.7rem;padding:0 2px;" title="Remove rule">✕</button>
+                            <button onclick="removeRoutingRule(${i})" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:0.7rem;padding:0 2px;" title="Remove rule">✕</button>
                         </div>
-                    \`).join('')}
+                    `).join('')}
                 </div>
                 <button onclick="addRoutingRule()" style="font-size:0.55rem; padding:2px 6px; background:var(--bg-tertiary); border:1px solid var(--border); color:var(--text-primary); cursor:pointer; border-radius:3px; margin-top:2px;">+ Route Rule</button>
             </div>
@@ -9117,7 +9117,7 @@ function showOperatorDetail(op) {
             <select class="prop-input" onchange="selectedElement.primaryStation = this.value || null; renderOperatorList();">
                 <option value="" ${!op.primaryStation ? 'selected' : ''}>Floating (best match)</option>
                 ${layout.stations.filter(s => s.type !== 'source' && s.type !== 'sink').map(s =>
-                    \`<option value="\${s.id}" \${op.primaryStation === s.id ? 'selected' : ''}>\${s.name || s.id}</option>\`
+                    `<option value="${s.id}" ${op.primaryStation === s.id ? 'selected' : ''}>${s.name || s.id}</option>`
                 ).join('')}
             </select>
         </div>
