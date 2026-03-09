@@ -3424,6 +3424,30 @@ class CAPAReport(models.Model):
         null=True,
         blank=True,
     )
+    copq_category = models.CharField(
+        max_length=30,
+        blank=True,
+        choices=[
+            ("scrap", "Scrap"),
+            ("rework", "Rework"),
+            ("warranty", "Warranty"),
+            ("inspection", "Inspection"),
+            ("sorting", "Sorting"),
+            ("other", "Other"),
+        ],
+        help_text="Direct cost category",
+    )
+    copq_paf_class = models.CharField(
+        max_length=20,
+        blank=True,
+        choices=[
+            ("prevention", "Prevention"),
+            ("appraisal", "Appraisal"),
+            ("internal_failure", "Internal Failure"),
+            ("external_failure", "External Failure"),
+        ],
+        help_text="PAF model classification",
+    )
 
     rca_session = models.ForeignKey(
         "agents_api.RCASession",
@@ -3481,6 +3505,8 @@ class CAPAReport(models.Model):
             "effectiveness_check_date": str(self.effectiveness_check_date) if self.effectiveness_check_date else None,
             "recurrence_check": self.is_recurrence_checked,
             "cost_of_poor_quality": str(self.cost_of_poor_quality) if self.cost_of_poor_quality else None,
+            "copq_category": self.copq_category,
+            "copq_paf_class": self.copq_paf_class,
             "due_date": str(self.due_date) if self.due_date else None,
             "assigned_to": None,
             "closed_at": self.closed_at.isoformat() if self.closed_at else None,

@@ -9,7 +9,7 @@ import logging
 from collections import defaultdict
 from datetime import date
 
-from django.db.models import Avg, Count, F
+from django.db.models import Avg, Count, F, Sum
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
@@ -266,6 +266,10 @@ def capa_detail(request, capa_id):
         capa.due_date = data["due_date"] or None
     if "cost_of_poor_quality" in data:
         capa.cost_of_poor_quality = data["cost_of_poor_quality"] or None
+    if "copq_category" in data:
+        capa.copq_category = data["copq_category"] or ""
+    if "copq_paf_class" in data:
+        capa.copq_paf_class = data["copq_paf_class"] or ""
     if "recurrence_check" in data:
         capa.is_recurrence_checked = data["recurrence_check"]
     if "effectiveness_check_date" in data:
@@ -368,6 +372,62 @@ def capa_stats(request):
             "by_status": by_status,
             "by_priority": by_priority,
             "aging": aging,
+        }
+    )
+
+
+@require_team
+@require_http_methods(["GET"])
+def copq_summary(request):
+    """Cost of Poor Quality summary with PAF breakdown.
+
+    GET /api/capa/copq/?months=12
+    Returns total CoPQ, breakdown by category and PAF class, monthly trending.
+    """
+    from django.db.models.functions import TruncMonth
+
+    user = request.user
+    months = int(request.GET.get("months", 12))
+    cutoff = date.today() - __import__("datetime").timedelta(days=months * 30)
+    capas = CAPAReport.objects.filter(
+        owner=user,
+        cost_of_poor_quality__isnull=False,
+        created_at__gte=cutoff,
+    )
+
+    total_copq = capas.aggregate(total=Sum("cost_of_poor_quality"))["total"] or 0
+
+    # By cost category
+    by_category = [
+        {"category": row["copq_category"] or "unclassified", "total": str(row["total"])}
+        for row in capas.values("copq_category").annotate(total=Sum("cost_of_poor_quality")).order_by("-total")
+    ]
+
+    # By PAF class
+    by_paf = [
+        {"paf_class": row["copq_paf_class"] or "unclassified", "total": str(row["total"])}
+        for row in capas.values("copq_paf_class").annotate(total=Sum("cost_of_poor_quality")).order_by("-total")
+    ]
+
+    # Monthly trending
+    monthly = (
+        capas.annotate(month=TruncMonth("created_at"))
+        .values("month")
+        .annotate(total=Sum("cost_of_poor_quality"), count=Count("id"))
+        .order_by("month")
+    )
+    trending = [
+        {"month": row["month"].strftime("%Y-%m"), "total": str(row["total"]), "count": row["count"]} for row in monthly
+    ]
+
+    return JsonResponse(
+        {
+            "total_copq": str(total_copq),
+            "by_category": by_category,
+            "by_paf_class": by_paf,
+            "trending": trending,
+            "capa_count": capas.count(),
+            "period_months": months,
         }
     )
 

@@ -4282,3 +4282,91 @@ class NCRAnalyticsTest(TestCase):
         self.assertEqual(data["total"], 0)
         self.assertEqual(data["pareto_by_source"], [])
         self.assertEqual(data["trending"], [])
+
+
+# =============================================================================
+# CoPQ (Cost of Poor Quality) Summary
+# =============================================================================
+
+
+@SECURE_OFF
+class CoPQSummaryTest(TestCase):
+    """Test CoPQ summary endpoint with PAF breakdown."""
+
+    def setUp(self):
+        self.user = _make_team_user("copq@test.com")
+        self.client.login(username="copq", password="testpass123!")
+        # Create CAPAs with CoPQ data
+        resp = _post(self.client, "/api/capa/", {"title": "Scrap CAPA"})
+        capa1_id = resp.json()["id"]
+        _put(
+            self.client,
+            f"/api/capa/{capa1_id}/",
+            {
+                "cost_of_poor_quality": "1500.00",
+                "copq_category": "scrap",
+                "copq_paf_class": "internal_failure",
+            },
+        )
+        resp = _post(self.client, "/api/capa/", {"title": "Rework CAPA"})
+        capa2_id = resp.json()["id"]
+        _put(
+            self.client,
+            f"/api/capa/{capa2_id}/",
+            {
+                "cost_of_poor_quality": "800.00",
+                "copq_category": "rework",
+                "copq_paf_class": "internal_failure",
+            },
+        )
+        resp = _post(self.client, "/api/capa/", {"title": "Warranty CAPA"})
+        capa3_id = resp.json()["id"]
+        _put(
+            self.client,
+            f"/api/capa/{capa3_id}/",
+            {
+                "cost_of_poor_quality": "3200.00",
+                "copq_category": "warranty",
+                "copq_paf_class": "external_failure",
+            },
+        )
+
+    def test_copq_total(self):
+        """Total CoPQ aggregated correctly."""
+        resp = self.client.get("/api/capa/copq/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["total_copq"], "5500.00")
+        self.assertEqual(data["capa_count"], 3)
+
+    def test_copq_by_category(self):
+        """CoPQ broken down by cost category."""
+        resp = self.client.get("/api/capa/copq/")
+        data = resp.json()
+        cats = {c["category"]: c["total"] for c in data["by_category"]}
+        self.assertEqual(cats["warranty"], "3200.00")
+        self.assertEqual(cats["scrap"], "1500.00")
+        self.assertEqual(cats["rework"], "800.00")
+
+    def test_copq_by_paf_class(self):
+        """CoPQ broken down by PAF classification."""
+        resp = self.client.get("/api/capa/copq/")
+        data = resp.json()
+        paf = {p["paf_class"]: p["total"] for p in data["by_paf_class"]}
+        self.assertEqual(paf["internal_failure"], "2300.00")
+        self.assertEqual(paf["external_failure"], "3200.00")
+
+    def test_copq_trending(self):
+        """Monthly CoPQ trending returned."""
+        resp = self.client.get("/api/capa/copq/")
+        data = resp.json()
+        self.assertGreaterEqual(len(data["trending"]), 1)
+
+    def test_copq_empty(self):
+        """CoPQ with no data returns zeros."""
+        _make_team_user("nocopq@test.com")
+        self.client.login(username="nocopq", password="testpass123!")
+        resp = self.client.get("/api/capa/copq/")
+        data = resp.json()
+        self.assertEqual(data["total_copq"], "0")
+        self.assertEqual(data["capa_count"], 0)
