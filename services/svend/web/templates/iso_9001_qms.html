@@ -43,7 +43,7 @@
         "url": "https://svend.ai/register/?plan=team"
     },
     "featureList": [
-        "NCR tracking with 6-state CAPA workflow",
+        "NCR tracking with 5-state workflow and 6-state CAPA lifecycle",
         "Internal audit scheduling with auto-NCR cascade",
         "Training matrix with competence tracking",
         "Management review with auto-captured QMS snapshot",
@@ -100,7 +100,7 @@
             "name": "How does Svend handle nonconformance tracking for ISO 9001?",
             "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Full CAPA workflow per clause 10.2 with a validated 6-state workflow: open, investigation, containment, CAPA, verification, closed. Each transition is enforced. Log NCRs with severity classification and ISO clause reference. AI reviews root cause analysis and flags blame framing or premature stops. NCRs auto-create statistical studies for data-driven investigation. Full audit trail — every status transition and field edit logged with timestamp, user, old value, and new value."
+                "text": "Full nonconformance management per clause 10.2. NCRs follow a 5-state workflow: open, investigation, CAPA, verification, closed. When corrective action is needed, a linked CAPA follows a 6-state lifecycle: draft, containment, investigation, corrective action, verification, closed. Each transition is enforced. Log NCRs with severity classification and ISO clause reference. AI reviews root cause analysis and flags blame framing or premature stops. NCRs auto-create statistical studies for data-driven investigation. Full audit trail — every status transition and field edit logged with timestamp, user, old value, and new value."
             }
         },
         {
@@ -892,7 +892,7 @@
     <div class="module-card">
         <div class="module-clause">Clause 10.2</div>
         <div class="module-title">NCR Tracking & CAPA</div>
-        <div class="module-desc">6-state workflow with validated transitions: open &rarr; investigation &rarr; containment &rarr; CAPA &rarr; verification &rarr; closed. Severity classification, ISO clause reference, AI-challenged root cause analysis, and full audit trail. NCRs auto-create statistical studies for data-driven investigation.</div>
+        <div class="module-desc">NCR 5-state workflow: open &rarr; investigation &rarr; CAPA &rarr; verification &rarr; closed. Linked CAPAs follow a 6-state lifecycle with containment. Severity classification, ISO clause reference, AI-challenged root cause analysis, and full audit trail. NCRs auto-create statistical studies for data-driven investigation.</div>
         <div class="module-status active">Active</div>
     </div>
     <div class="module-card">
@@ -1076,7 +1076,7 @@
 
     <div class="faq-item">
         <div class="faq-q">How does Svend handle nonconformance tracking for ISO 9001?</div>
-        <div class="faq-a">Full CAPA workflow per clause 10.2 with a 6-state workflow engine: open &rarr; investigation &rarr; containment &rarr; CAPA &rarr; verification &rarr; closed. Each transition is validated — you cannot skip containment or close without verification. Log NCRs with severity classification (minor, major, critical) and ISO clause reference. Conduct root cause analysis using 5 Whys or fishbone diagrams — Synara AI reviews your analysis and flags blame framing, circular logic, or premature stops. NCRs auto-create statistical studies for data-driven investigation. Full audit trail — every status transition and every field edit logged with timestamp, user, old value, and new value.</div>
+        <div class="faq-a">Full nonconformance management per clause 10.2. NCRs follow a 5-state workflow: open &rarr; investigation &rarr; CAPA &rarr; verification &rarr; closed. When corrective action is needed, a linked CAPA follows a 6-state lifecycle: draft &rarr; containment &rarr; investigation &rarr; corrective action &rarr; verification &rarr; closed. Each transition is validated — you cannot skip steps or close without verification. Log NCRs with severity classification (minor, major, critical) and ISO clause reference. Conduct root cause analysis using 5 Whys or fishbone diagrams — Synara AI reviews your analysis and flags blame framing, circular logic, or premature stops. NCRs auto-create statistical studies for data-driven investigation. Full audit trail — every status transition and every field edit logged with timestamp, user, old value, and new value.</div>
     </div>
 
     <div class="faq-item">
