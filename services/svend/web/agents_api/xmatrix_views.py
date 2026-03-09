@@ -24,7 +24,6 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import require_feature
 
-from .hoshin_views import _get_accessible_sites, _require_tenant
 from .models import (
     AnnualObjective,
     HoshinKPI,
@@ -34,6 +33,8 @@ from .models import (
     ValueStreamMap,
     XMatrixCorrelation,
 )
+from .permissions import get_accessible_sites as _get_accessible_sites
+from .permissions import require_tenant as _require_tenant
 
 logger = logging.getLogger(__name__)
 

@@ -39,100 +39,29 @@ from .models import (
     SiteAccess,
     ValueStreamMap,
 )
+from .permissions import (
+    check_site_read,
+    check_site_write,
+    get_accessible_sites,
+    get_tenant,
+    is_site_admin,
+    require_tenant,
+)
 
 logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Helpers — delegated to agents_api.permissions per ORG-001 §11.3
 # ---------------------------------------------------------------------------
 
-
-def _get_tenant(user):
-    """Get the user's enterprise tenant, or None."""
-    membership = Membership.objects.filter(user=user, is_active=True).select_related("tenant").first()
-    return membership.tenant if membership else None
-
-
-def _require_tenant(user):
-    """Get tenant or return error response."""
-    tenant = _get_tenant(user)
-    if not tenant:
-        return None, JsonResponse(
-            {
-                "error": "No active tenant. Create or join an organization first.",
-            },
-            status=400,
-        )
-    return tenant, None
-
-
-def _get_accessible_sites(user, tenant):
-    """Return (queryset_of_sites, is_org_admin).
-
-    Org owners/admins: all tenant sites.
-    Others: only sites with a SiteAccess entry.
-    """
-    membership = Membership.objects.filter(
-        user=user,
-        tenant=tenant,
-        is_active=True,
-    ).first()
-    if not membership:
-        return Site.objects.none(), False
-
-    if membership.can_admin:
-        return Site.objects.filter(tenant=tenant), True
-
-    accessible_ids = SiteAccess.objects.filter(
-        user=user,
-        site__tenant=tenant,
-    ).values_list("site_id", flat=True)
-    return Site.objects.filter(id__in=accessible_ids), False
-
-
-def _check_site_read(user, site, tenant):
-    """Return True if user can view this site's projects."""
-    membership = Membership.objects.filter(
-        user=user,
-        tenant=tenant,
-        is_active=True,
-    ).first()
-    if not membership:
-        return False
-    if membership.can_admin:
-        return True
-    return SiteAccess.objects.filter(user=user, site=site).exists()
-
-
-def _check_site_write(user, site, tenant):
-    """Return True if user can edit this site's projects."""
-    membership = Membership.objects.filter(
-        user=user,
-        tenant=tenant,
-        is_active=True,
-    ).first()
-    if not membership:
-        return False
-    if membership.can_admin:
-        return True
-    access = SiteAccess.objects.filter(user=user, site=site).first()
-    return access is not None and access.role in ("member", "admin")
-
-
-def _is_site_admin(user, site, tenant):
-    """Return True if user is org admin or site admin for this site."""
-    membership = Membership.objects.filter(
-        user=user,
-        tenant=tenant,
-        is_active=True,
-    ).first()
-    if not membership:
-        return False
-    if membership.can_admin:
-        return True
-    access = SiteAccess.objects.filter(user=user, site=site).first()
-    return access is not None and access.role == "admin"
+# Legacy aliases for backward compatibility within this module
+_get_tenant = get_tenant
+_require_tenant = require_tenant
+_get_accessible_sites = get_accessible_sites
+_check_site_read = check_site_read
+_check_site_write = check_site_write
+_is_site_admin = is_site_admin
 
 
 # ---------------------------------------------------------------------------
