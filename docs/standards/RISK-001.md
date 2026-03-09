@@ -1,10 +1,13 @@
-# RISK-001: Risk Registry Standard
+**RISK-001: RISK REGISTRY STANDARD**
 
-<!-- standard: RISK-001 -->
-<!-- version: 1.0 -->
-<!-- status: active -->
-<!-- owner: Eric + Claude -->
-<!-- compliance: SOC 2 CC3.2, CC9.1 | ISO 9001:2015 §6.1 | AS9100D §6.1 -->
+**Version:** 1.0
+**Status:** APPROVED
+**Date:** 2026-03-06
+**Author:** Eric + Claude (Systems Architect)
+**Compliance:**
+- SOC 2 CC3.2 (Risk Assessment), CC9.1 (Risk Mitigation)
+- ISO 9001:2015 §6.1 (Actions to Address Risks and Opportunities)
+- AS9100D §6.1 (Actions to Address Risks and Opportunities)
 
 ---
 
