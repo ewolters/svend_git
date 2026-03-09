@@ -3219,6 +3219,7 @@ class NonconformanceRecord(models.Model):
     corrective_action = models.TextField(blank=True)
     verification_result = models.TextField(blank=True)
     capa_due_date = models.DateField(null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -3325,6 +3326,7 @@ class NonconformanceRecord(models.Model):
             "corrective_action": self.corrective_action,
             "verification_result": self.verification_result,
             "capa_due_date": str(self.capa_due_date) if self.capa_due_date else None,
+            "approved_at": self.approved_at.isoformat() if self.approved_at else None,
             "closed_at": self.closed_at.isoformat() if self.closed_at else None,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),

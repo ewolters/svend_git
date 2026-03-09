@@ -1419,3 +1419,44 @@ class QMSSiteAwareTest(TestCase):
         resp = self.outsider_client.get("/api/a3/")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["reports"], [])
+
+    def test_ncr_approval_flow(self):
+        """NCR cannot close without approver; approved_at set on close."""
+        from agents_api.models import NonconformanceRecord
+        from agents_api.permissions import qms_set_ownership
+
+        ncr = NonconformanceRecord(title="Approval Test NCR", severity="major")
+        qms_set_ownership(ncr, self.member_user, self.site_a)
+        ncr.save()
+
+        # Advance through statuses to verification
+        ncr.assigned_to = self.admin_user
+        ncr.status = "investigation"
+        ncr.save()
+        ncr.status = "capa"
+        ncr.save()
+        ncr.status = "verification"
+        ncr.save()
+
+        # Try to close without approver — should fail
+        resp = self.member_client.put(
+            f"/api/iso/ncrs/{ncr.id}/",
+            {"status": "closed"},
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("approved_by", _err_msg(resp))
+
+        # Close with approver — should succeed
+        resp = self.member_client.put(
+            f"/api/iso/ncrs/{ncr.id}/",
+            {"status": "closed", "approved_by": str(self.admin_user.id)},
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+
+        ncr.refresh_from_db()
+        self.assertEqual(ncr.status, "closed")
+        self.assertEqual(ncr.approved_by_id, self.admin_user.id)
+        self.assertIsNotNone(ncr.approved_at)
+        self.assertIsNotNone(ncr.closed_at)

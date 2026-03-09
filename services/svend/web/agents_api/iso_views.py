@@ -525,8 +525,23 @@ def ncr_detail(request, ncr_id):
                 entity_id=ncr.id,
             )
 
-        if new_status == "closed" and not ncr.closed_at:
-            ncr.closed_at = timezone.now()
+        if new_status == "closed":
+            now = timezone.now()
+            if not ncr.approved_at:
+                ncr.approved_at = now
+            if not ncr.closed_at:
+                ncr.closed_at = now
+
+            # NTF-001 — notify approver when NCR is closed with their approval
+            if ncr.approved_by and ncr.approved_by != request.user:
+                notify(
+                    recipient=ncr.approved_by,
+                    notification_type="ncr_assigned",
+                    title=f"NCR {ncr.title[:80]} closed with your approval",
+                    message="The NCR has been verified and closed.",
+                    entity_type="ncr",
+                    entity_id=ncr.id,
+                )
 
     # Update other fields (with change logging)
     ncr_fields = [
