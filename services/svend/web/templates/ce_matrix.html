@@ -238,6 +238,9 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     let currentMatrix = null;
     let saveTimer = null;
 
+    // CANON-002 §12 — investigation bridge
+    const currentInvestigationId = new URLSearchParams(window.location.search).get('investigation_id') || null;
+
     function apiFetch(url, opts = {}) {
         return fetch(url, {
             ...opts,
@@ -313,15 +316,17 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
         if (!currentMatrixId || !currentMatrix) return;
         currentMatrix.title = document.getElementById('ce-title').value.trim();
         currentMatrix.status = document.getElementById('ce-status').value;
+        const payload = {
+            title: currentMatrix.title,
+            outputs: currentMatrix.outputs,
+            inputs: currentMatrix.inputs,
+            scores: currentMatrix.scores,
+            status: currentMatrix.status,
+        };
+        if (currentInvestigationId) payload.investigation_id = currentInvestigationId;
         apiFetch(API + currentMatrixId + '/update/', {
             method: 'PUT',
-            body: JSON.stringify({
-                title: currentMatrix.title,
-                outputs: currentMatrix.outputs,
-                inputs: currentMatrix.inputs,
-                scores: currentMatrix.scores,
-                status: currentMatrix.status,
-            }),
+            body: JSON.stringify(payload),
         }).then(data => {
             // Update totals from server
             if (data.matrix && data.matrix.totals) {

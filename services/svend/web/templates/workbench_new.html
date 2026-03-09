@@ -2678,6 +2678,7 @@ function fmt(v, decimals = 4) { return v != null && !isNaN(v) ? Number(v).toFixe
 // =============================================================================
 let currentProjectId = null;
 let currentProjectData = null;  // Full project data including hypotheses, evidence
+let currentInvestigationId = null;  // CANON-002 §12 — investigation bridge context
 
 document.addEventListener('DOMContentLoaded', () => {
     setupRibbonTabs();
@@ -6818,13 +6819,17 @@ function attachSPCInspect(el, plot) {
                 this.disabled = true;
                 this.textContent = 'Creating\u2026';
                 try {
-                    const { data } = await apiPost('/api/rca/sessions/create/', {
+                    const rcaPayload = {
                         event: `Out-of-control point at observation #${obs} (value: ${val}). Rules violated: ${rulesText}`,
                         title: `Investigate OOC #${obs}`,
                         project_id: currentProjectId || undefined,
-                    });
+                    };
+                    if (currentInvestigationId) rcaPayload.investigation_id = currentInvestigationId;
+                    const { data } = await apiPost('/api/rca/sessions/create/', rcaPayload);
                     if (data.session && data.session.id) {
-                        window.open(`/app/rca/?session=${data.session.id}`, '_blank');
+                        let rcaUrl = `/app/rca/?session=${data.session.id}`;
+                        if (currentInvestigationId) rcaUrl += `&investigation_id=${currentInvestigationId}`;
+                        window.open(rcaUrl, '_blank');
                         this.textContent = '\u2713 RCA opened';
                     } else {
                         showToast(safeStr(data.error, 'Could not create RCA session'));

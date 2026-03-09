@@ -1,0 +1,655 @@
+{% extends "base_app.html" %}
+{% block title %}Investigations - SVEND{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ============================================================================
+   INVESTIGATIONS — CANON-002 Investigation Engine UI
+   ============================================================================ */
+
+body > main { padding: 0 !important; }
+body > main > .container { max-width: none !important; padding: 0 !important; }
+
+.inv-layout {
+    display: flex;
+    height: calc(100vh - 56px);
+}
+
+/* --- Sidebar --- */
+.inv-sidebar {
+    width: 280px;
+    border-right: 1px solid var(--border);
+    background: var(--bg-secondary);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.inv-sidebar-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.inv-sidebar-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.inv-sidebar-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.inv-sidebar-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.inv-sidebar-item:hover { background: var(--bg-hover); }
+.inv-sidebar-item.active { background: var(--bg-active, var(--bg-hover)); border-left: 3px solid var(--accent); }
+
+.inv-item-title { font-weight: 500; font-size: 13px; margin-bottom: 4px; }
+.inv-item-meta { font-size: 11px; color: var(--text-dim); }
+
+.inv-status-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+.inv-status-badge.open { background: var(--info-bg, #dbeafe); color: var(--info, #2563eb); }
+.inv-status-badge.active { background: var(--success-bg, #dcfce7); color: var(--success, #16a34a); }
+.inv-status-badge.concluded { background: var(--warning-bg, #fef3c7); color: var(--warning, #d97706); }
+.inv-status-badge.exported { background: var(--text-dim); color: var(--bg); }
+
+/* --- Main area --- */
+.inv-main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px;
+}
+
+.inv-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-dim);
+    font-size: 14px;
+}
+
+/* --- Detail view --- */
+.inv-detail-header {
+    margin-bottom: 24px;
+}
+
+.inv-detail-header h2 {
+    margin: 0 0 8px 0;
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.inv-detail-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--text-dim);
+    align-items: center;
+}
+
+.inv-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+/* --- Sections --- */
+.inv-section {
+    margin-bottom: 28px;
+}
+
+.inv-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+}
+
+/* --- Tool launch grid --- */
+.inv-tool-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+}
+
+.inv-tool-btn {
+    padding: 14px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 0.15s, background 0.15s;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+.inv-tool-btn:hover { border-color: var(--accent); background: var(--bg-hover); }
+.inv-tool-btn .icon { font-size: 20px; margin-bottom: 6px; }
+.inv-tool-btn .label { font-size: 12px; font-weight: 500; }
+
+/* --- Linked tools table --- */
+.inv-tools-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.inv-tools-table th {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 2px solid var(--border);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+}
+.inv-tools-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+/* --- Graph viz --- */
+.inv-graph-container {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    min-height: 200px;
+}
+
+.inv-hypothesis-card {
+    display: inline-block;
+    padding: 10px 14px;
+    margin: 4px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    font-size: 12px;
+}
+.inv-hypothesis-card .prob {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+.inv-hypothesis-card .desc {
+    color: var(--text-secondary);
+    max-width: 300px;
+}
+
+.inv-evidence-item {
+    padding: 6px 10px;
+    margin: 3px 0;
+    border-left: 3px solid var(--accent);
+    background: var(--bg-secondary);
+    font-size: 12px;
+    border-radius: 0 4px 4px 0;
+}
+
+/* --- Modal --- */
+.inv-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+.inv-modal-overlay.active { display: flex; }
+
+.inv-modal {
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 24px;
+    width: 440px;
+    max-width: 90vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.inv-modal h3 { margin: 0 0 16px 0; font-size: 16px; }
+
+.inv-modal input, .inv-modal textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text);
+    font-size: 13px;
+    margin-bottom: 12px;
+    box-sizing: border-box;
+}
+.inv-modal textarea { min-height: 80px; resize: vertical; }
+
+.inv-modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 8px;
+}
+
+/* --- Buttons --- */
+.btn-primary {
+    padding: 8px 16px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+}
+.btn-primary:hover { opacity: 0.9; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-secondary {
+    padding: 8px 16px;
+    background: var(--bg-secondary);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+}
+.btn-secondary:hover { background: var(--bg-hover); }
+
+.btn-danger {
+    padding: 8px 16px;
+    background: var(--danger, #dc2626);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+}
+.btn-danger:hover { opacity: 0.9; }
+
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="inv-layout">
+    <!-- Sidebar -->
+    <div class="inv-sidebar">
+        <div class="inv-sidebar-header">
+            <h3>Investigations</h3>
+            <button class="btn-primary btn-sm" onclick="showCreateModal()">+ New</button>
+        </div>
+        <div class="inv-sidebar-list" id="inv-list"></div>
+    </div>
+
+    <!-- Main content -->
+    <div class="inv-main">
+        <div class="inv-empty" id="inv-empty">
+            Select an investigation or create a new one to begin.
+        </div>
+        <div id="inv-detail" style="display:none;"></div>
+    </div>
+</div>
+
+<!-- Create modal -->
+<div class="inv-modal-overlay" id="create-modal">
+    <div class="inv-modal">
+        <h3>New Investigation</h3>
+        <input type="text" id="create-title" placeholder="Investigation title" autofocus>
+        <textarea id="create-desc" placeholder="Description (optional)"></textarea>
+        <div class="inv-modal-actions">
+            <button class="btn-secondary" onclick="hideCreateModal()">Cancel</button>
+            <button class="btn-primary" onclick="createInvestigation()">Create</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const API = '/api/investigations/';
+const CSRF = document.querySelector('[name=csrfmiddlewaretoken]')?.value
+    || document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+
+let currentInvId = null;
+let currentInv = null;
+let currentTools = [];
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function timeAgo(dt) {
+    if (!dt) return '';
+    const ms = Date.now() - new Date(dt).getTime();
+    if (ms < 60000) return 'just now';
+    if (ms < 3600000) return Math.floor(ms / 60000) + 'm ago';
+    if (ms < 86400000) return Math.floor(ms / 3600000) + 'h ago';
+    return Math.floor(ms / 86400000) + 'd ago';
+}
+
+function apiFetch(url, opts = {}) {
+    return fetch(url, {
+        ...opts,
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF, ...opts.headers },
+    }).then(r => r.json());
+}
+
+// ============================================================================
+// Sidebar
+// ============================================================================
+
+async function loadList() {
+    const data = await apiFetch(API);
+    const list = document.getElementById('inv-list');
+    const investigations = data.investigations || [];
+
+    if (investigations.length === 0) {
+        list.innerHTML = '<div style="padding:16px;color:var(--text-dim);font-size:13px;">No investigations yet. Create one to start linking quality tools.</div>';
+        return;
+    }
+
+    list.innerHTML = investigations
+        .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+        .map(inv => `
+            <div class="inv-sidebar-item ${inv.id === currentInvId ? 'active' : ''}"
+                 onclick="loadInvestigation('${inv.id}')">
+                <div class="inv-item-title">${esc(inv.title)}</div>
+                <div class="inv-item-meta">
+                    <span class="inv-status-badge ${inv.status}">${inv.status}</span>
+                    &middot; ${timeAgo(inv.updated_at)}
+                </div>
+            </div>
+        `).join('');
+}
+
+// ============================================================================
+// Detail
+// ============================================================================
+
+async function loadInvestigation(id) {
+    currentInvId = id;
+    const [detailData, toolsData] = await Promise.all([
+        apiFetch(API + id + '/'),
+        apiFetch(API + id + '/tools/'),
+    ]);
+
+    currentInv = detailData.investigation;
+    currentTools = toolsData.tools || [];
+
+    document.getElementById('inv-empty').style.display = 'none';
+    document.getElementById('inv-detail').style.display = 'block';
+
+    renderDetail();
+    loadList(); // refresh sidebar active state
+}
+
+function renderDetail() {
+    const inv = currentInv;
+    const graph = inv.graph || {};
+    const hypotheses = graph.hypotheses || {};
+    const evidence = graph.evidence || [];
+
+    const canTransition = inv.status === 'open' || inv.status === 'active';
+    const nextStatus = inv.status === 'open' ? 'active' : inv.status === 'active' ? 'concluded' : null;
+
+    let html = `
+        <div class="inv-detail-header">
+            <h2>${esc(inv.title)}</h2>
+            <div class="inv-detail-meta">
+                <span class="inv-status-badge ${inv.status}">${inv.status}</span>
+                <span>v${inv.version}</span>
+                <span>Created ${timeAgo(inv.created_at)}</span>
+                <span>Updated ${timeAgo(inv.updated_at)}</span>
+            </div>
+            ${inv.description ? `<p style="margin:8px 0 0;font-size:13px;color:var(--text-secondary);">${esc(inv.description)}</p>` : ''}
+            <div class="inv-actions">
+                ${canTransition && nextStatus ? `<button class="btn-primary btn-sm" onclick="transitionInv('${nextStatus}')">${nextStatus === 'active' ? 'Activate' : 'Conclude'}</button>` : ''}
+                ${inv.status === 'concluded' ? `<button class="btn-secondary btn-sm" onclick="reopenInv()">Reopen</button>` : ''}
+                ${inv.status === 'open' ? `<button class="btn-danger btn-sm" onclick="deleteInv()">Delete</button>` : ''}
+            </div>
+        </div>
+
+        <!-- Launch tools -->
+        <div class="inv-section">
+            <div class="inv-section-title">Launch Tool</div>
+            <div class="inv-tool-grid">
+                <a class="inv-tool-btn" href="/app/rca/?investigation_id=${inv.id}" target="_blank">
+                    <div class="icon">&#x1f50d;</div>
+                    <div class="label">Root Cause Analysis</div>
+                </a>
+                <a class="inv-tool-btn" href="/app/ishikawa/?investigation_id=${inv.id}" target="_blank">
+                    <div class="icon">&#x1f41f;</div>
+                    <div class="label">Ishikawa Diagram</div>
+                </a>
+                <a class="inv-tool-btn" href="/app/fmea/?investigation_id=${inv.id}" target="_blank">
+                    <div class="icon">&#x26a0;</div>
+                    <div class="label">FMEA</div>
+                </a>
+                <a class="inv-tool-btn" href="/app/ce-matrix/?investigation_id=${inv.id}" target="_blank">
+                    <div class="icon">&#x1f4ca;</div>
+                    <div class="label">C&E Matrix</div>
+                </a>
+                <a class="inv-tool-btn" href="/app/spc/?investigation_id=${inv.id}" target="_blank">
+                    <div class="icon">&#x1f4c8;</div>
+                    <div class="label">SPC</div>
+                </a>
+            </div>
+        </div>
+    `;
+
+    // Linked tools
+    if (currentTools.length > 0) {
+        const toolTypeLabels = {
+            rca: 'Root Cause Analysis',
+            ishikawa: 'Ishikawa Diagram',
+            ce_matrix: 'C&E Matrix',
+            fmea: 'FMEA',
+            spc: 'SPC',
+            spc_control_chart: 'SPC Control Chart',
+            spc_capability: 'SPC Capability',
+            spc_gage_rr: 'SPC Gage R&R',
+            capa: 'CAPA',
+            doe_design: 'DOE Design',
+            doe_analyze: 'DOE Analysis',
+        };
+        html += `
+            <div class="inv-section">
+                <div class="inv-section-title">Linked Tools (${currentTools.length})</div>
+                <table class="inv-tools-table">
+                    <thead><tr><th>Tool</th><th>Function</th><th>Linked</th></tr></thead>
+                    <tbody>
+                        ${currentTools.map(t => `
+                            <tr>
+                                <td>${esc(toolTypeLabels[t.tool_type] || t.tool_type)}</td>
+                                <td style="text-transform:capitalize;">${esc(t.tool_function)}</td>
+                                <td>${timeAgo(t.linked_at)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    // Graph — hypotheses
+    const hypKeys = Object.keys(hypotheses);
+    if (hypKeys.length > 0) {
+        html += `
+            <div class="inv-section">
+                <div class="inv-section-title">Hypotheses (${hypKeys.length})</div>
+                <div class="inv-graph-container">
+                    ${hypKeys.map(k => {
+                        const h = hypotheses[k];
+                        const prob = typeof h.probability === 'number' ? (h.probability * 100).toFixed(0) + '%' : '?';
+                        const status = h.status || '';
+                        return `<div class="inv-hypothesis-card">
+                            <div class="prob">${prob} ${status ? `<span class="inv-status-badge ${status}">${status}</span>` : ''}</div>
+                            <div class="desc">${esc(h.description || k)}</div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Graph — evidence
+    if (evidence.length > 0) {
+        html += `
+            <div class="inv-section">
+                <div class="inv-section-title">Evidence (${evidence.length})</div>
+                ${evidence.map(e => `
+                    <div class="inv-evidence-item">
+                        <strong>${esc(e.source || 'unknown')}</strong>: ${esc(e.event || '')}
+                        ${e.strength ? ` (strength: ${e.strength})` : ''}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    // Empty graph
+    if (hypKeys.length === 0 && evidence.length === 0 && currentTools.length === 0) {
+        html += `
+            <div class="inv-section">
+                <div class="inv-section-title">Investigation Graph</div>
+                <div class="inv-graph-container" style="text-align:center;color:var(--text-dim);padding:40px;">
+                    No data yet. Launch a tool above to start building the causal graph.
+                </div>
+            </div>
+        `;
+    }
+
+    document.getElementById('inv-detail').innerHTML = html;
+}
+
+// ============================================================================
+// Actions
+// ============================================================================
+
+async function transitionInv(targetStatus) {
+    const data = await apiFetch(API + currentInvId + '/transition/', {
+        method: 'POST',
+        body: JSON.stringify({ target_status: targetStatus }),
+    });
+    if (data.error) {
+        alert(data.error);
+        return;
+    }
+    await loadInvestigation(currentInvId);
+}
+
+async function reopenInv() {
+    if (!confirm('Reopen this investigation? A new version will be created.')) return;
+    const data = await apiFetch(API + currentInvId + '/reopen/', {
+        method: 'POST',
+        body: JSON.stringify({}),
+    });
+    if (data.error) {
+        alert(data.error);
+        return;
+    }
+    // Load the new version
+    await loadInvestigation(data.investigation.id);
+    await loadList();
+}
+
+async function deleteInv() {
+    if (!confirm('Delete this investigation? This cannot be undone.')) return;
+    const data = await apiFetch(API + currentInvId + '/', { method: 'DELETE' });
+    if (data.error) {
+        alert(data.error);
+        return;
+    }
+    currentInvId = null;
+    currentInv = null;
+    document.getElementById('inv-detail').style.display = 'none';
+    document.getElementById('inv-empty').style.display = 'flex';
+    await loadList();
+}
+
+// ============================================================================
+// Create
+// ============================================================================
+
+function showCreateModal() {
+    document.getElementById('create-modal').classList.add('active');
+    document.getElementById('create-title').value = '';
+    document.getElementById('create-desc').value = '';
+    document.getElementById('create-title').focus();
+}
+
+function hideCreateModal() {
+    document.getElementById('create-modal').classList.remove('active');
+}
+
+async function createInvestigation() {
+    const title = document.getElementById('create-title').value.trim();
+    if (!title) { alert('Title is required'); return; }
+
+    const data = await apiFetch(API, {
+        method: 'POST',
+        body: JSON.stringify({
+            title: title,
+            description: document.getElementById('create-desc').value.trim(),
+        }),
+    });
+
+    if (data.error) {
+        alert(data.error);
+        return;
+    }
+
+    hideCreateModal();
+    await loadList();
+    await loadInvestigation(data.investigation.id);
+}
+
+// ============================================================================
+// Init
+// ============================================================================
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadList();
+
+    // Auto-load from URL param
+    const params = new URLSearchParams(window.location.search);
+    const invId = params.get('id');
+    if (invId) {
+        await loadInvestigation(invId);
+    }
+});
+</script>
+
+<script>
+window.addEventListener('svendUserReady', function(e) {
+    if (!e.detail.features || !e.detail.features.full_tools) {
+        document.querySelector('.inv-main').innerHTML = `
+            <div class="inv-empty">
+                <div style="text-align:center;">
+                    <p style="font-size:16px;margin-bottom:8px;">Investigations require a paid plan.</p>
+                    <a href="/app/account/" class="btn-primary" style="text-decoration:none;">Upgrade</a>
+                </div>
+            </div>`;
+    }
+});
+</script>
+{% endblock %}

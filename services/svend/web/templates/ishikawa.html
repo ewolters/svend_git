@@ -325,6 +325,9 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     let currentDiagram = null;
     let saveTimer = null;
 
+    // CANON-002 §12 — investigation bridge
+    const currentInvestigationId = new URLSearchParams(window.location.search).get('investigation_id') || null;
+
     // Track which cause modal targets
     let causeTarget = null; // {branchIdx, path: []} where path is array of child indices
 
@@ -428,14 +431,16 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     function saveDiagram() {
         if (!currentDiagramId || !currentDiagram) return;
         currentDiagram.status = document.getElementById('ishi-status').value;
+        const payload = {
+            title: currentDiagram.title,
+            effect: currentDiagram.effect,
+            branches: currentDiagram.branches,
+            status: currentDiagram.status,
+        };
+        if (currentInvestigationId) payload.investigation_id = currentInvestigationId;
         apiFetch(API + currentDiagramId + '/update/', {
             method: 'PUT',
-            body: JSON.stringify({
-                title: currentDiagram.title,
-                effect: currentDiagram.effect,
-                branches: currentDiagram.branches,
-                status: currentDiagram.status,
-            }),
+            body: JSON.stringify(payload),
         }).then(() => {
             const ind = document.getElementById('save-indicator');
             ind.textContent = 'Saved';

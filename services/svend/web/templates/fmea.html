@@ -934,6 +934,9 @@ let actionFilter = 'all';
 let listFilter = 'all';
 let allFmeas = [];
 
+// CANON-002 §12 — investigation bridge
+const currentInvestigationId = new URLSearchParams(window.location.search).get('investigation_id') || null;
+
 // ====== INIT ======
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -1348,12 +1351,14 @@ function updatePrpnPreview() {
 
 async function saveEditField(rowId, field, el) {
     const value = el.type === 'number' ? (parseInt(el.value) || 1) : el.value;
+    const payload = {[field]: value};
+    if (currentInvestigationId) payload.investigation_id = currentInvestigationId;
 
     const resp = await fetch(API + currentFmea.id + '/rows/' + rowId + '/', {
         method: 'PATCH',
         credentials: 'include',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({[field]: value}),
+        body: JSON.stringify(payload),
     });
     if (!resp.ok) return;
     const data = await resp.json();
@@ -1418,11 +1423,13 @@ function closeEditModal() {
 // ====== ROW OPERATIONS ======
 
 async function addRow() {
+    const payload = {failure_mode: 'New failure mode'};
+    if (currentInvestigationId) payload.investigation_id = currentInvestigationId;
     const resp = await fetch(API + currentFmea.id + '/rows/', {
         method: 'POST',
         credentials: 'include',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({failure_mode: 'New failure mode'}),
+        body: JSON.stringify(payload),
     });
     if (!resp.ok) return;
     const data = await resp.json();

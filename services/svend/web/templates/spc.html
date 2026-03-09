@@ -574,6 +574,9 @@ let chartInstance = null;
 let secondaryChartInstance = null;
 let problems = [];
 
+// CANON-002 §12 — investigation bridge
+const currentInvestigationId = new URLSearchParams(window.location.search).get('investigation_id') || null;
+
 // Tab switching
 function showTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -652,6 +655,7 @@ async function createChart() {
     if (usl) body.usl = parseFloat(usl);
     if (lsl) body.lsl = parseFloat(lsl);
     if (problemId) body.problem_id = problemId;
+    if (currentInvestigationId) body.investigation_id = currentInvestigationId;
 
     if (chartType === 'p') {
         const sampleSizesText = document.getElementById('sample-sizes').value;
@@ -837,6 +841,7 @@ async function runCapabilityStudy() {
 
     if (target) body.target = parseFloat(target);
     if (problemId) body.problem_id = problemId;
+    if (currentInvestigationId) body.investigation_id = currentInvestigationId;
 
     try {
         const response = await fetch('/api/spc/capability/', {
@@ -1051,6 +1056,7 @@ async function runGageRR() {
     const body = { parts, operators, measurements };
     if (toleranceVal) body.tolerance = parseFloat(toleranceVal);
     if (problemId) body.problem_id = problemId;
+    if (currentInvestigationId) body.investigation_id = currentInvestigationId;
 
     document.getElementById('grr-results').innerHTML = '<p class="empty-text">Running analysis...</p>';
 
