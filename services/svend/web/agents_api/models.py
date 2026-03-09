@@ -3272,6 +3272,15 @@ class NonconformanceRecord(models.Model):
         related_name="ncrs",
     )
 
+    # Supplier link (when source=supplier)
+    supplier = models.ForeignKey(
+        "agents_api.SupplierRecord",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ncrs",
+    )
+
     # Evidence attachments
     files = models.ManyToManyField(
         "files.UserFile",
@@ -3325,6 +3334,8 @@ class NonconformanceRecord(models.Model):
             "site_id": str(self.site_id) if self.site_id else None,
             "created_by_id": str(self.created_by_id) if self.created_by_id else None,
             "source": self.source,
+            "supplier_id": str(self.supplier_id) if self.supplier_id else None,
+            "supplier_name": self.supplier.name if self.supplier_id and self.supplier else None,
             "iso_clause": self.iso_clause,
             "containment_action": self.containment_action,
             "root_cause": self.root_cause,

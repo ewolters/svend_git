@@ -527,7 +527,7 @@ async function showNCRForm() {
             <div><label class="iso-label">Title *</label><input class="iso-input" id="ncr-title"></div>
             <div><label class="iso-label">Severity</label><select class="iso-input" id="ncr-severity">
                 <option value="minor">Minor</option><option value="major">Major</option><option value="critical">Critical</option></select></div>
-            <div><label class="iso-label">Source</label><select class="iso-input" id="ncr-source">
+            <div><label class="iso-label">Source</label><select class="iso-input" id="ncr-source" onchange="toggleNcrSupplier()">
                 <option value="other">Other</option><option value="internal_audit">Internal Audit</option>
                 <option value="customer_complaint">Customer Complaint</option><option value="supplier">Supplier</option>
                 <option value="process">Process</option><option value="external_audit">External Audit</option>
@@ -538,6 +538,9 @@ async function showNCRForm() {
             <div><label class="iso-label">CAPA Due Date</label><input class="iso-input" type="date" id="ncr-due"></div>
             <div><label class="iso-label">Assign To</label><select class="iso-input" id="ncr-assigned-to">${memberOpts}</select></div>
         </div>
+        <div class="iso-form-grid cols-3" id="ncr-supplier-row" style="display:none">
+            <div><label class="iso-label">Supplier</label><select class="iso-input" id="ncr-supplier"><option value="">— Select —</option></select></div>
+        </div>
         <div class="iso-form-grid cols-3">${siteSelectHtml('ncr-site')}</div>
         <div style="margin-bottom:12px"><label class="iso-label">Description</label><textarea class="iso-textarea" id="ncr-desc" rows="2"></textarea></div>
         <div style="margin-bottom:12px"><label class="iso-label">Containment Action</label><textarea class="iso-textarea" id="ncr-contain" rows="2"></textarea></div>
@@ -546,6 +549,26 @@ async function showNCRForm() {
             <button class="iso-btn" onclick="document.getElementById('ncr-form-area').innerHTML=''">Cancel</button>
         </div>
     </div>`;
+}
+
+async function toggleNcrSupplier() {
+    const row = document.getElementById('ncr-supplier-row');
+    const sel = document.getElementById('ncr-supplier');
+    if (document.getElementById('ncr-source').value === 'supplier') {
+        row.style.display = '';
+        if (sel.options.length <= 1) {
+            try {
+                const suppliers = await apiFetch('/suppliers/');
+                (suppliers.results || suppliers).forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.id; opt.textContent = s.name;
+                    sel.appendChild(opt);
+                });
+            } catch(e) {}
+        }
+    } else {
+        row.style.display = 'none';
+    }
 }
 
 async function saveNCR() {
@@ -562,6 +585,8 @@ async function saveNCR() {
         };
         const assignee = document.getElementById('ncr-assigned-to')?.value;
         if (assignee) body.assigned_to = assignee;
+        const supplierId = document.getElementById('ncr-supplier')?.value;
+        if (supplierId) body.supplier_id = supplierId;
         const sId = siteVal('ncr-site');
         if (sId) body.site_id = sId;
         await apiFetch('/ncrs/', { method: 'POST', body });
@@ -600,7 +625,7 @@ async function loadNCRDetail(id) {
         // Info fields
         html += '<div class="iso-field-row">';
         html += `<div><label class="iso-label">Severity</label>${badge(n.severity)}</div>`;
-        html += `<div><label class="iso-label">Source</label><span style="font-size:13px">${escHtml(n.source.replace(/_/g,' '))}</span></div>`;
+        html += `<div><label class="iso-label">Source</label><span style="font-size:13px">${escHtml(n.source.replace(/_/g,' '))}${n.supplier_name ? ' — '+escHtml(n.supplier_name) : ''}</span></div>`;
         html += `<div><label class="iso-label">ISO Clause</label><span style="font-size:13px">${escHtml(n.iso_clause || '—')}</span></div>`;
         html += '</div>';
         html += '<div class="iso-field-row">';
@@ -638,9 +663,23 @@ async function loadNCRDetail(id) {
         }
 
         // File attachments
+        html += '<div style="margin:12px 0"><label class="iso-label">Attachments</label>';
         if (n.file_ids?.length) {
-            html += `<div style="margin:12px 0"><label class="iso-label">Attachments</label><div>${n.file_ids.length} file(s) attached</div></div>`;
+            html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">';
+            n.file_ids.forEach(fid => {
+                html += `<div class="badge" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;background:var(--bg-secondary);border-radius:4px;font-size:12px">
+                    <a href="/api/files/${fid}/download/" target="_blank" style="color:var(--primary)">File</a>
+                    <button onclick="detachNCRFile('${n.id}','${fid}')" style="background:none;border:none;color:#f87171;cursor:pointer;font-size:14px;padding:0 2px" title="Detach">&times;</button>
+                </div>`;
+            });
+            html += '</div>';
+        } else {
+            html += '<div style="font-size:12px;color:var(--text-dim);margin-bottom:8px">No files attached</div>';
         }
+        if (n.status !== 'closed') {
+            html += `<label class="iso-btn" style="font-size:12px;cursor:pointer"><input type="file" style="display:none" onchange="uploadNCRFile('${n.id}',this)"> + Attach File</label>`;
+        }
+        html += '</div>';
 
         // Status transition
         if (n.status !== 'closed') {
@@ -750,6 +789,31 @@ async function updateNCRFields(id) {
         toast('NCR updated');
         loadNCRDetail(id);
     } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
+}
+
+async function uploadNCRFile(ncrId, input) {
+    if (!input.files.length) return;
+    try {
+        const formData = new FormData();
+        formData.append('file', input.files[0]);
+        const uploadResp = await fetch('/api/files/upload/', { method: 'POST', credentials: 'include', body: formData });
+        if (!uploadResp.ok) { toast('Upload failed', true); return; }
+        const uploadData = await uploadResp.json();
+        const fileId = uploadData.id || uploadData.file_id;
+        if (!fileId) { toast('Upload failed — no file ID', true); return; }
+        await apiFetch(`/ncrs/${ncrId}/files/`, { method: 'POST', body: { file_id: fileId } });
+        toast('File attached');
+        loadNCRDetail(ncrId);
+    } catch (e) { toast(safeStr(e, 'Upload failed'), true); }
+}
+
+async function detachNCRFile(ncrId, fileId) {
+    if (!confirm('Detach this file?')) return;
+    try {
+        await apiFetch(`/ncrs/${ncrId}/files/`, { method: 'DELETE', body: { file_id: fileId } });
+        toast('File detached');
+        loadNCRDetail(ncrId);
+    } catch (e) { toast(safeStr(e, 'Detach failed'), true); }
 }
 
 async function deleteNCR(id) {

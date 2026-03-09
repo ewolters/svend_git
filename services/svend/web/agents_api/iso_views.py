@@ -425,6 +425,15 @@ def ncr_list_create(request):
         except Site.DoesNotExist:
             return JsonResponse({"error": "Site not found"}, status=404)
 
+    # Resolve supplier if provided
+    supplier = None
+    supplier_id = data.get("supplier_id")
+    if supplier_id:
+        try:
+            supplier = SupplierRecord.objects.get(id=supplier_id)
+        except SupplierRecord.DoesNotExist:
+            pass
+
     ncr = NonconformanceRecord(
         raised_by=user,
         assigned_to=assigned_to_user,
@@ -435,6 +444,7 @@ def ncr_list_create(request):
         iso_clause=data.get("iso_clause", ""),
         containment_action=data.get("containment_action", ""),
         capa_due_date=data.get("capa_due_date") or None,
+        supplier=supplier,
     )
     qms_set_ownership(ncr, user, site)
     ncr.save()
@@ -676,6 +686,35 @@ def ncr_detail(request, ncr_id):
                 pass
         else:
             ncr.rca_session = None
+    # Supplier link
+    if "supplier_id" in data:
+        old_supplier = ncr.supplier.name if ncr.supplier_id and ncr.supplier else ""
+        if data["supplier_id"]:
+            try:
+                sup = SupplierRecord.objects.get(id=data["supplier_id"])
+                if old_supplier != sup.name:
+                    QMSFieldChange.objects.create(
+                        record_type="ncr",
+                        record_id=ncr.id,
+                        field_name="supplier",
+                        old_value=old_supplier,
+                        new_value=sup.name,
+                        changed_by=request.user,
+                    )
+                ncr.supplier = sup
+            except SupplierRecord.DoesNotExist:
+                pass
+        else:
+            if old_supplier:
+                QMSFieldChange.objects.create(
+                    record_type="ncr",
+                    record_id=ncr.id,
+                    field_name="supplier",
+                    old_value=old_supplier,
+                    new_value="",
+                    changed_by=request.user,
+                )
+            ncr.supplier = None
     # File attachments
     if "file_ids" in data:
         from files.models import UserFile
