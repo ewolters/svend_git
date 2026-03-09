@@ -660,10 +660,10 @@
     <div class="vsm-sidebar">
         <div class="sidebar-header">
             <div class="vsm-project-row">
-                <select id="project-select" class="vsm-project-select" title="Link to study">
-                    <option value="">No study</option>
+                <select id="project-select" class="vsm-project-select" title="Link to investigation">
+                    <option value="">No investigation</option>
                 </select>
-                <a href="#" id="project-link" class="vsm-project-link" style="display:none" title="Open study">
+                <a href="#" id="project-link" class="vsm-project-link" style="display:none" title="Open investigation">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
                         <polyline points="15 3 21 3 21 9"/>
@@ -1265,7 +1265,7 @@ async function setupProjectSelector() {
 function updateProjectLink(projectId) {
     const link = document.getElementById('project-link');
     if (projectId) {
-        link.href = `/app/projects/#${projectId}`;
+        link.href = `/app/investigations/?id=${projectId}`;
         link.style.display = 'flex';
     } else {
         link.style.display = 'none';

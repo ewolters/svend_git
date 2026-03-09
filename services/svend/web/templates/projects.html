@@ -1,31 +1,31 @@
 {% extends "base_app.html" %}
-{% block title %}Studies - SVEND{% endblock %}
+{% block title %}Investigations - SVEND{% endblock %}
 
 {% block content %}
 <div class="projects-page">
     <!-- Header -->
     <div class="page-header">
         <div>
-            <h1>Studies</h1>
+            <h1>Investigations</h1>
             <p class="subtitle">Track hypotheses. Gather evidence. Find answers.</p>
         </div>
-        <button class="btn btn-primary" onclick="showCreateModal()">+ New Study</button>
+        <button class="btn btn-primary" onclick="showCreateModal()">+ New Investigation</button>
     </div>
 
     <!-- Getting Started Guide -->
     <div id="studies-guide" class="studies-guide" style="display: none;">
         <div class="guide-header" onclick="toggleGuide()">
-            <h3>How Studies Work</h3>
+            <h3>How Investigations Work</h3>
             <span class="guide-toggle" id="guide-toggle-icon">&#x25BC;</span>
         </div>
         <div class="guide-body" id="guide-body">
-            <p class="guide-intro">A <strong>study</strong> tracks a question from hypothesis to conclusion using Bayesian reasoning. Here's how to get started:</p>
+            <p class="guide-intro">An <strong>investigation</strong> tracks a question from hypothesis to conclusion using Bayesian reasoning. Here's how to get started:</p>
             <div class="guide-steps">
                 <div class="guide-step">
                     <div class="step-number">1</div>
                     <div>
-                        <strong>Create a study</strong>
-                        <p>Click <em>+ New Study</em> and give it a title. Only the title is required &mdash; the other charter fields (problem definition, business impact, scope) are optional and can be filled in later.</p>
+                        <strong>Create an investigation</strong>
+                        <p>Click <em>+ New Investigation</em> and give it a title. Only the title is required &mdash; the other charter fields (problem definition, business impact, scope) are optional and can be filled in later.</p>
                     </div>
                 </div>
                 <div class="guide-step">
@@ -46,14 +46,14 @@
                     <div class="step-number">4</div>
                     <div>
                         <strong>Connect tools</strong>
-                        <p>Link DSW analyses, whiteboards, experiment designs, and datasets to your study. Results from these tools can feed directly into your evidence.</p>
+                        <p>Link DSW analyses, whiteboards, experiment designs, and datasets to your investigation. Results from these tools can feed directly into your evidence.</p>
                     </div>
                 </div>
                 <div class="guide-step">
                     <div class="step-number">5</div>
                     <div>
                         <strong>Reach a conclusion</strong>
-                        <p>As evidence accumulates, hypotheses are automatically marked <em>Confirmed</em> or <em>Rejected</em> when they cross their thresholds. Resolve the study when you have your answer.</p>
+                        <p>As evidence accumulates, hypotheses are automatically marked <em>Confirmed</em> or <em>Rejected</em> when they cross their thresholds. Resolve the investigation when you have your answer.</p>
                     </div>
                 </div>
             </div>
@@ -74,15 +74,15 @@
     <div id="projects-list">
         <div class="loading" id="loading-projects">
             <div class="spinner"></div>
-            <span>Loading studies...</span>
+            <span>Loading investigations...</span>
         </div>
     </div>
 
     <!-- Empty State -->
     <div id="empty-state" class="empty-state" style="display: none;">
-        <h3>No studies yet</h3>
+        <h3>No investigations yet</h3>
         <p>Start by creating a hypothesis you want to investigate.</p>
-        <button class="btn btn-primary" onclick="showCreateModal()">Create Your First Study</button>
+        <button class="btn btn-primary" onclick="showCreateModal()">Create Your First Investigation</button>
     </div>
 </div>
 
@@ -90,7 +90,7 @@
 <div id="create-modal" class="modal" style="display: none;">
     <div class="modal-content modal-lg">
         <div class="modal-header">
-            <h2>New Study Charter</h2>
+            <h2>New Investigation Charter</h2>
             <button class="modal-close" onclick="closeModal()">&times;</button>
         </div>
 
@@ -99,7 +99,7 @@
             <div class="charter-section">
                 <div class="form-row">
                     <div class="form-group flex-2">
-                        <label for="project-title">Study Title *</label>
+                        <label for="project-title">Investigation Title *</label>
                         <input type="text" id="project-title" placeholder="e.g., Q4 Defect Rate Reduction" required>
                     </div>
                     <div class="form-group flex-1">
@@ -294,7 +294,7 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group flex-1">
-                            <label for="leader-name">Study Lead</label>
+                            <label for="leader-name">Investigation Lead</label>
                             <input type="text" id="leader-name" placeholder="Name">
                         </div>
                         <div class="form-group flex-1">
@@ -331,7 +331,7 @@
 
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Create Study</button>
+                <button type="submit" class="btn btn-primary">Create Investigation</button>
             </div>
         </form>
     </div>
@@ -340,7 +340,7 @@
 <!-- Project Detail View -->
 <div id="detail-view" class="detail-view" style="display: none;">
     <div class="detail-header">
-        <button class="btn btn-secondary btn-sm" onclick="backToList()">&larr; Back to Studies</button>
+        <button class="btn btn-secondary btn-sm" onclick="backToList()">&larr; Back to Investigations</button>
         <div class="detail-actions">
             <button class="btn btn-secondary btn-sm" onclick="editProject()">Edit</button>
             <button class="btn btn-secondary btn-sm" onclick="archiveProject()">Archive</button>
@@ -360,7 +360,7 @@
     <div class="detail-content">
         <div class="project-info">
             <div class="project-header">
-                <h1 id="detail-title">Study Title</h1>
+                <h1 id="detail-title">Investigation Title</h1>
                 <span class="status-badge" id="detail-status">active</span>
             </div>
             <div class="hypothesis-box">
@@ -465,7 +465,7 @@
                 <h2>NCRs</h2>
             </div>
             <div id="ncr-list" class="tool-list">
-                <p class="empty-text">No nonconformance records linked to this study.</p>
+                <p class="empty-text">No nonconformance records linked to this investigation.</p>
             </div>
         </div>
 
@@ -475,7 +475,7 @@
                 <h2>RCA Sessions</h2>
             </div>
             <div id="rca-list" class="tool-list">
-                <p class="empty-text">No root cause analyses linked to this study.</p>
+                <p class="empty-text">No root cause analyses linked to this investigation.</p>
             </div>
         </div>
 
@@ -485,7 +485,7 @@
                 <h2>Reports</h2>
             </div>
             <div id="reports-list" class="tool-list">
-                <p class="empty-text">No CAPA or 8D reports linked to this study.</p>
+                <p class="empty-text">No CAPA or 8D reports linked to this investigation.</p>
             </div>
         </div>
 
@@ -499,7 +499,7 @@
             </div>
         </div>
 
-        <!-- Study Actions Trail Section -->
+        <!-- Investigation Actions Trail Section -->
         <div class="section" id="study-actions-section" style="display:none;">
             <div class="section-header">
                 <h2>Actions Taken</h2>
@@ -558,7 +558,7 @@
 <!-- Hypothesis Detail View -->
 <div id="hypothesis-view" class="detail-view" style="display: none;">
     <div class="detail-header">
-        <button class="btn btn-secondary btn-sm" onclick="backToProject()">&larr; Back to Study</button>
+        <button class="btn btn-secondary btn-sm" onclick="backToProject()">&larr; Back to Investigation</button>
         <div class="detail-actions">
             <button class="btn btn-primary btn-sm" onclick="editHypothesis()">Edit</button>
         </div>
@@ -2315,11 +2315,11 @@ function renderProjects() {
         container.style.display = 'none';
         emptyState.style.display = 'block';
         if (currentFilter !== 'all') {
-            emptyState.querySelector('h3').textContent = `No ${currentFilter.replace('_', ' ')} studies`;
+            emptyState.querySelector('h3').textContent = `No ${currentFilter.replace('_', ' ')} investigations`;
             emptyState.querySelector('p').textContent = 'Try a different filter.';
             emptyState.querySelector('button').style.display = 'none';
         } else {
-            emptyState.querySelector('h3').textContent = 'No studies yet';
+            emptyState.querySelector('h3').textContent = 'No investigations yet';
             emptyState.querySelector('p').textContent = 'Start by creating a hypothesis you want to investigate.';
             emptyState.querySelector('button').style.display = '';
         }
@@ -2395,8 +2395,8 @@ function closeModal() {
     });
     // Reset edit mode
     delete modal.dataset.editId;
-    modal.querySelector('.modal-header h2').textContent = 'New Study Charter';
-    modal.querySelector('button[type="submit"]').textContent = 'Create Study';
+    modal.querySelector('.modal-header h2').textContent = 'New Investigation Charter';
+    modal.querySelector('button[type="submit"]').textContent = 'Create Investigation';
 }
 
 async function createProject(e) {
@@ -2470,7 +2470,7 @@ async function createProject(e) {
             closeModal();
             viewProject(result.id || editId);
         } else {
-            alert(safeStr(result.error, editId ? 'Failed to update study' : 'Failed to create study'));
+            alert(safeStr(result.error, editId ? 'Failed to update investigation' : 'Failed to create investigation'));
         }
     } catch (err) {
         alert('Error: ' + safeStr(err, 'Unknown error'));
@@ -2490,7 +2490,7 @@ async function viewProject(id) {
         currentProject._changelog = hubData.changelog || [];
         renderProjectDetail();
     } catch (err) {
-        alert('Failed to load study: ' + safeStr(err, 'Unknown error'));
+        alert('Failed to load investigation: ' + safeStr(err, 'Unknown error'));
     }
 }
 
@@ -3481,7 +3481,7 @@ function editProject() {
 
     // Switch modal to edit mode
     const modal = document.getElementById('create-modal');
-    modal.querySelector('.modal-header h2').textContent = 'Edit Study Charter';
+    modal.querySelector('.modal-header h2').textContent = 'Edit Investigation Charter';
     const submitBtn = modal.querySelector('button[type="submit"]');
     submitBtn.textContent = 'Save Changes';
     modal.dataset.editId = p.id;
@@ -3490,7 +3490,7 @@ function editProject() {
 }
 
 async function archiveProject() {
-    if (!confirm('Archive this study? It will be hidden from the active list.')) return;
+    if (!confirm('Archive this investigation? It will be hidden from the active list.')) return;
 
     try {
         const response = await fetch(`/api/core/projects/${currentProject.id}/`, {
@@ -3504,7 +3504,7 @@ async function archiveProject() {
             backToList();
         } else {
             const result = await response.json();
-            alert(safeStr(result.error, 'Failed to archive study'));
+            alert(safeStr(result.error, 'Failed to archive investigation'));
         }
     } catch (err) {
         alert('Error: ' + safeStr(err, 'Unknown error'));
@@ -4003,7 +4003,7 @@ function renderNCRs(ncrs) {
     if (!list) return;
 
     if (ncrs.length === 0) {
-        list.innerHTML = '<p class="empty-text">No nonconformance records linked to this study.</p>';
+        list.innerHTML = '<p class="empty-text">No nonconformance records linked to this investigation.</p>';
         return;
     }
 
@@ -4027,7 +4027,7 @@ function renderRCASessions(sessions) {
     if (!list) return;
 
     if (sessions.length === 0) {
-        list.innerHTML = '<p class="empty-text">No root cause analyses linked to this study.</p>';
+        list.innerHTML = '<p class="empty-text">No root cause analyses linked to this investigation.</p>';
         return;
     }
 
@@ -4051,7 +4051,7 @@ function renderReports(reports) {
     if (!list) return;
 
     if (reports.length === 0) {
-        list.innerHTML = '<p class="empty-text">No CAPA or 8D reports linked to this study.</p>';
+        list.innerHTML = '<p class="empty-text">No CAPA or 8D reports linked to this investigation.</p>';
         return;
     }
 
@@ -4138,7 +4138,7 @@ function renderLensBadges(tools) {
 }
 
 // =============================================================================
-// Study Actions (Phase 7)
+// Investigation Actions (Phase 7)
 // =============================================================================
 
 function toggleActionsDropdown(e) {
@@ -4268,7 +4268,7 @@ async function submitTrainingGap(modal) {
 function showFMEAFlagModal() {
     const fmeas = (currentProject._tools || {}).fmeas || [];
     if (fmeas.length === 0) {
-        alert('No FMEAs linked to this study. Create an FMEA first.');
+        alert('No FMEAs linked to this investigation. Create an FMEA first.');
         return;
     }
 
@@ -4371,7 +4371,7 @@ function renderStudyActions(actions) {
 // =============================================================================
 
 const ACTION_LABELS = {
-    study_created: 'Study Created',
+    study_created: 'Investigation Created',
     phase_advanced: 'Phase Advanced',
     hypothesis_added: 'Hypothesis Added',
     hypothesis_removed: 'Hypothesis Removed',

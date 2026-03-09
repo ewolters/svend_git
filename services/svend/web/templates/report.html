@@ -430,9 +430,9 @@
                 </select>
             </div>
             <div style="margin-bottom:1rem;">
-                <label style="display:block; margin-bottom:4px; font-size:0.85rem; color:var(--text-dim);">Study</label>
+                <label style="display:block; margin-bottom:4px; font-size:0.85rem; color:var(--text-dim);">Investigation</label>
                 <select id="create-project" style="width:100%;">
-                    <option value="">Select study...</option>
+                    <option value="">Select investigation...</option>
                 </select>
             </div>
             <div style="margin-bottom:1rem;">
@@ -812,8 +812,8 @@ function loadImportSource(sourceType) {
     } else if (sourceType === 'project') {
         items = [{
             id: currentReport.project_id,
-            title: 'Study description',
-            meta: 'Import study title and description',
+            title: 'Investigation description',
+            meta: 'Import investigation title and description',
             sourceType: 'project',
         }];
     } else if (sourceType === 'rca') {

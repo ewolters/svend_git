@@ -2764,7 +2764,7 @@ async function loadProjectData(projectId) {
 function updateProjectLink(projectId) {
     const link = document.getElementById('project-link');
     if (projectId) {
-        link.href = '/app/projects/#' + projectId;
+        link.href = '/app/investigations/?id=' + projectId;
         link.style.display = 'flex';
         link.onclick = null; // Let the href handle navigation
     } else {
