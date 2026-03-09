@@ -761,14 +761,14 @@
 
 {% block content %}
 <div class="fmea-container" id="fmea-app">
-    <!-- List View (FMEA studies) -->
+    <!-- List View -->
     <div id="fmea-list-view" style="display:none;">
         <div class="fmea-list-header">
-            <h1>FMEA Studies</h1>
+            <h1>FMEA</h1>
             <button class="fmea-btn primary" onclick="showCreateModal()">+ New FMEA</button>
         </div>
         <div class="fmea-list-filters" id="fmea-list-filters" style="display:none;">
-            <span class="filter-label">Study Status:</span>
+            <span class="filter-label">Status:</span>
             <button class="filter-chip active" data-list-filter="all" onclick="setListFilter('all')">All</button>
             <button class="filter-chip" data-list-filter="draft" onclick="setListFilter('draft')">Draft</button>
             <button class="filter-chip" data-list-filter="active" onclick="setListFilter('active')">Active</button>
@@ -799,7 +799,7 @@
                 <input type="text" class="fmea-title-input" id="fmea-title" placeholder="FMEA Title" onchange="saveMeta()">
             </div>
             <div class="fmea-toolbar-group">
-                <span style="font-size:12px;color:var(--text-dim);">Study Status:</span>
+                <span style="font-size:12px;color:var(--text-dim);">Status:</span>
                 <select class="fmea-status" id="fmea-status" onchange="saveMeta()">
                     <option value="draft">Draft</option>
                     <option value="active">Active</option>
@@ -808,9 +808,9 @@
                 </select>
             </div>
             <div class="fmea-toolbar-group">
-                <span style="font-size:12px;color:var(--text-dim);">Study:</span>
-                <select class="fmea-project-select" id="fmea-project" onchange="saveMeta()">
-                    <option value="">No study linked</option>
+                <span style="font-size:12px;color:var(--text-dim);">Investigation:</span>
+                <select class="fmea-project-select" id="fmea-investigation" onchange="saveMeta()">
+                    <option value="">No investigation linked</option>
                 </select>
             </div>
             <div class="fmea-spacer"></div>
@@ -874,8 +874,8 @@
                 </select>
                 <label>Description (optional)</label>
                 <textarea id="create-desc" placeholder="Brief scope or purpose"></textarea>
-                <label>Study (optional)</label>
-                <select id="create-project">
+                <label>Investigation (optional)</label>
+                <select id="create-investigation">
                     <option value="">None</option>
                 </select>
             </div>
@@ -901,7 +901,7 @@
             </p>
             <div id="hypothesis-list"></div>
             <div id="no-hypotheses" style="display:none;padding:20px;text-align:center;color:var(--text-dim);">
-                No hypotheses found. Link a study with hypotheses first.
+                No hypotheses found. Link an investigation with hypotheses first.
             </div>
         </div>
     </div>
@@ -925,7 +925,7 @@ const API = '/api/fmea/';
 let currentFmea = null;
 let currentRows = [];
 let availableHypotheses = [];
-let projects = [];
+let investigations = [];
 let currentActionItems = [];
 let linkingRowId = null;
 let editingRowId = null;
@@ -941,15 +941,14 @@ const currentInvestigationId = new URLSearchParams(window.location.search).get('
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        const resp = await fetch('/api/core/projects/', {credentials: 'include'});
+        const resp = await fetch('/api/investigations/', {credentials: 'include'});
         if (resp.ok) {
             const data = await resp.json();
-            // DRF returns flat list, not {projects: [...]}
-            projects = Array.isArray(data) ? data : (data.projects || []);
+            investigations = data.investigations || [];
         }
     } catch(e) {}
 
-    populateProjectDropdowns();
+    populateInvestigationDropdowns();
 
     const path = window.location.pathname;
     const match = path.match(/\/app\/fmea\/([0-9a-f-]+)\//);
@@ -960,23 +959,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-function populateProjectDropdowns() {
-    const labels = {'create-project': 'None', 'fmea-project': 'No study linked'};
-    ['create-project', 'fmea-project'].forEach(id => {
+function populateInvestigationDropdowns() {
+    const labels = {'create-investigation': 'None', 'fmea-investigation': 'No investigation linked'};
+    ['create-investigation', 'fmea-investigation'].forEach(id => {
         const sel = document.getElementById(id);
         if (!sel) return;
         const val = sel.value;
         sel.innerHTML = `<option value="">${labels[id]}</option>`;
-        projects.forEach(p => {
-            sel.innerHTML += `<option value="${p.id}">${esc(p.title)}</option>`;
+        investigations.forEach(inv => {
+            sel.innerHTML += `<option value="${inv.id}">${esc(inv.title)}</option>`;
         });
         sel.value = val;
     });
 }
 
-// ====== LIST VIEW (FMEA studies) ======
+// ====== LIST VIEW ======
 
-const studyStatusLabel = {draft: 'Draft', active: 'Active', review: 'Under Review', complete: 'Complete'};
+const statusLabel = {draft: 'Draft', active: 'Active', review: 'Under Review', complete: 'Complete'};
 
 async function loadList() {
     document.getElementById('fmea-list-view').style.display = '';
@@ -1018,7 +1017,7 @@ function renderFmeaCards() {
                 <span class="fmea-card-type ${f.fmea_type}">${f.fmea_type}</span>
             </div>
             <div class="fmea-card-meta">
-                ${f.project_title ? esc(f.project_title) + ' &middot; ' : ''}${studyStatusLabel[f.status] || f.status}
+                ${f.project_title ? esc(f.project_title) + ' &middot; ' : ''}${statusLabel[f.status] || f.status}
             </div>
             <div class="fmea-card-stats">
                 <span>${f.row_count} failure modes</span>
@@ -1058,8 +1057,9 @@ async function loadFmea(id) {
     document.getElementById('fmea-title').value = currentFmea.title;
     document.getElementById('fmea-status').value = currentFmea.status;
 
-    populateProjectDropdowns();
-    document.getElementById('fmea-project').value = currentFmea.project_id || '';
+    populateInvestigationDropdowns();
+    // Set investigation dropdown from URL param or FMEA data
+    document.getElementById('fmea-investigation').value = currentInvestigationId || '';
 
     renderRows();
     renderFmeaActionItems(currentActionItems);
@@ -1444,15 +1444,17 @@ async function saveMeta() {
     if (!currentFmea) return;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(async () => {
+        const metaPayload = {
+            title: document.getElementById('fmea-title').value,
+            status: document.getElementById('fmea-status').value,
+        };
+        const invSel = document.getElementById('fmea-investigation').value;
+        if (invSel) metaPayload.investigation_id = invSel;
         await fetch(API + currentFmea.id + '/update/', {
             method: 'PATCH',
             credentials: 'include',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                title: document.getElementById('fmea-title').value,
-                status: document.getElementById('fmea-status').value,
-                project_id: document.getElementById('fmea-project').value || null,
-            }),
+            body: JSON.stringify(metaPayload),
         });
     }, 500);
 }
@@ -1466,16 +1468,19 @@ async function createFmea() {
     const title = document.getElementById('create-title').value.trim();
     if (!title) { alert('Title required'); return; }
 
+    const createPayload = {
+        title,
+        fmea_type: document.getElementById('create-type').value,
+        description: document.getElementById('create-desc').value,
+    };
+    const createInvSel = document.getElementById('create-investigation').value;
+    if (createInvSel) createPayload.investigation_id = createInvSel;
+    if (currentInvestigationId) createPayload.investigation_id = currentInvestigationId;
     const resp = await fetch(API + 'create/', {
         method: 'POST',
         credentials: 'include',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            title,
-            fmea_type: document.getElementById('create-type').value,
-            description: document.getElementById('create-desc').value,
-            project_id: document.getElementById('create-project').value || undefined,
-        }),
+        body: JSON.stringify(createPayload),
     });
 
     if (!resp.ok) {

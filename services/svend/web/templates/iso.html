@@ -1717,7 +1717,7 @@ async function loadDocDetail(id) {
             <div>
                 <h2 style="margin:0">${escHtml(d.title)}</h2>
                 ${d.document_number ? `<div style="font-size:13px;color:var(--text-secondary);margin-top:2px">${escHtml(d.document_number)}</div>` : ''}
-                ${d.source_study_id ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">From Study: <a href="/app/projects/" style="color:var(--primary)">${escHtml(d.source_study_id)}</a></div>` : ''}
+                ${d.source_study_id ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">From Investigation: <a href="/app/investigations/" style="color:var(--primary)">${escHtml(d.source_study_id)}</a></div>` : ''}
             </div>
             <div style="display:flex;gap:8px">
                 ${badge(d.status)}

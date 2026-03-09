@@ -146,7 +146,6 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     display: block;
 }
 .inv-tool-btn:hover { border-color: var(--accent); background: var(--bg-hover); }
-.inv-tool-btn .icon { font-size: 20px; margin-bottom: 6px; }
 .inv-tool-btn .label { font-size: 12px; font-weight: 500; }
 
 /* --- Linked tools table --- */
@@ -433,23 +432,18 @@ function renderDetail() {
             <div class="inv-section-title">Launch Tool</div>
             <div class="inv-tool-grid">
                 <a class="inv-tool-btn" href="/app/rca/?investigation_id=${inv.id}" target="_blank">
-                    <div class="icon">&#x1f50d;</div>
                     <div class="label">Root Cause Analysis</div>
                 </a>
                 <a class="inv-tool-btn" href="/app/ishikawa/?investigation_id=${inv.id}" target="_blank">
-                    <div class="icon">&#x1f41f;</div>
                     <div class="label">Ishikawa Diagram</div>
                 </a>
                 <a class="inv-tool-btn" href="/app/fmea/?investigation_id=${inv.id}" target="_blank">
-                    <div class="icon">&#x26a0;</div>
                     <div class="label">FMEA</div>
                 </a>
                 <a class="inv-tool-btn" href="/app/ce-matrix/?investigation_id=${inv.id}" target="_blank">
-                    <div class="icon">&#x1f4ca;</div>
-                    <div class="label">C&E Matrix</div>
+                    <div class="label">C&amp;E Matrix</div>
                 </a>
                 <a class="inv-tool-btn" href="/app/spc/?investigation_id=${inv.id}" target="_blank">
-                    <div class="icon">&#x1f4c8;</div>
                     <div class="label">SPC</div>
                 </a>
             </div>
