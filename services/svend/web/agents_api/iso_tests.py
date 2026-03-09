@@ -4030,3 +4030,180 @@ class CAPARCABridgeTest(TestCase):
         rca = self.client.get(f"/api/rca/sessions/{rca_id}/").json()
         session = rca.get("session", rca)
         self.assertEqual(session.get("project_id"), capa2.get("project_id"))
+
+
+# =============================================================================
+# QMS Attachments
+# =============================================================================
+
+
+@SECURE_OFF
+class QMSAttachmentTest(TestCase):
+    """Test generic QMS attachment system."""
+
+    def setUp(self):
+        self.user = _make_team_user("attach@test.com")
+        self.client.login(username="attach", password="testpass123!")
+        # Create a UserFile for attaching
+        from files.models import UserFile
+
+        self.file = UserFile.objects.create(
+            user=self.user,
+            original_name="evidence.pdf",
+            mime_type="application/pdf",
+            size_bytes=1024,
+        )
+        # Create a CAPA to attach to
+        resp = _post(self.client, "/api/capa/", {"title": "Test CAPA for attachments"})
+        self.capa_id = resp.json()["id"]
+
+    def test_create_attachment(self):
+        """Attach a file to a QMS record."""
+        resp = _post(
+            self.client,
+            "/api/qms/attachments/",
+            {
+                "entity_type": "capa",
+                "entity_id": self.capa_id,
+                "file_id": str(self.file.id),
+                "description": "Root cause photo",
+                "attachment_type": "photo",
+            },
+        )
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+        self.assertEqual(data["entity_type"], "capa")
+        self.assertEqual(data["entity_id"], self.capa_id)
+        self.assertEqual(data["description"], "Root cause photo")
+        self.assertEqual(data["attachment_type"], "photo")
+        self.assertEqual(data["file"]["name"], "evidence.pdf")
+
+    def test_list_attachments(self):
+        """List attachments for a specific entity."""
+        _post(
+            self.client,
+            "/api/qms/attachments/",
+            {
+                "entity_type": "capa",
+                "entity_id": self.capa_id,
+                "file_id": str(self.file.id),
+            },
+        )
+        resp = self.client.get(f"/api/qms/attachments/?entity_type=capa&entity_id={self.capa_id}")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["entity_type"], "capa")
+
+    def test_delete_attachment(self):
+        """Delete an attachment."""
+        resp = _post(
+            self.client,
+            "/api/qms/attachments/",
+            {
+                "entity_type": "capa",
+                "entity_id": self.capa_id,
+                "file_id": str(self.file.id),
+            },
+        )
+        att_id = resp.json()["id"]
+        resp = self.client.delete(f"/api/qms/attachments/{att_id}/")
+        self.assertEqual(resp.status_code, 200)
+        # Verify gone
+        resp = self.client.get(f"/api/qms/attachments/?entity_type=capa&entity_id={self.capa_id}")
+        self.assertEqual(len(resp.json()), 0)
+
+    def test_invalid_entity_type(self):
+        """Reject invalid entity_type."""
+        resp = _post(
+            self.client,
+            "/api/qms/attachments/",
+            {
+                "entity_type": "invalid",
+                "entity_id": self.capa_id,
+                "file_id": str(self.file.id),
+            },
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_entity_not_found(self):
+        """Reject attachment to nonexistent entity."""
+        import uuid
+
+        resp = _post(
+            self.client,
+            "/api/qms/attachments/",
+            {
+                "entity_type": "capa",
+                "entity_id": str(uuid.uuid4()),
+                "file_id": str(self.file.id),
+            },
+        )
+        self.assertEqual(resp.status_code, 404)
+
+    def test_file_not_found(self):
+        """Reject attachment with nonexistent file."""
+        import uuid
+
+        resp = _post(
+            self.client,
+            "/api/qms/attachments/",
+            {
+                "entity_type": "capa",
+                "entity_id": self.capa_id,
+                "file_id": str(uuid.uuid4()),
+            },
+        )
+        self.assertEqual(resp.status_code, 404)
+
+    def test_missing_fields(self):
+        """Reject POST with missing required fields."""
+        resp = _post(self.client, "/api/qms/attachments/", {"entity_type": "capa"})
+        self.assertEqual(resp.status_code, 400)
+
+    def test_list_requires_params(self):
+        """GET without entity_type/entity_id returns 400."""
+        resp = self.client.get("/api/qms/attachments/")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_user_isolation(self):
+        """User cannot delete another user's attachment."""
+        resp = _post(
+            self.client,
+            "/api/qms/attachments/",
+            {
+                "entity_type": "capa",
+                "entity_id": self.capa_id,
+                "file_id": str(self.file.id),
+            },
+        )
+        att_id = resp.json()["id"]
+        # Login as different user
+        _make_team_user("other@test.com")
+        self.client.login(username="other", password="testpass123!")
+        resp = self.client.delete(f"/api/qms/attachments/{att_id}/")
+        self.assertEqual(resp.status_code, 404)
+
+    def test_ncr_attachment(self):
+        """Attach file to NCR entity type."""
+        ncr_resp = _post(
+            self.client,
+            "/api/iso/ncrs/",
+            {
+                "title": "Test NCR",
+                "description": "NCR for attachment test",
+                "severity": "minor",
+            },
+        )
+        ncr_id = ncr_resp.json()["id"]
+        resp = _post(
+            self.client,
+            "/api/qms/attachments/",
+            {
+                "entity_type": "ncr",
+                "entity_id": ncr_id,
+                "file_id": str(self.file.id),
+                "attachment_type": "evidence",
+            },
+        )
+        self.assertEqual(resp.status_code, 201)

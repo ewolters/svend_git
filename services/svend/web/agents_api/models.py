@@ -4829,3 +4829,94 @@ class ElectronicSignature(SynaraImmutableLog):
             "previous_hash": self.previous_hash,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+# =========================================================================
+# QMS Attachments (ISO 9001 §7.5 — Documented Information)
+# =========================================================================
+
+
+class QMSAttachment(models.Model):
+    """Generic attachment linking a UserFile to any QMS record.
+
+    Uses entity_type + entity_id pattern to attach files to NCR, CAPA,
+    FMEA, RCA, A3, ManagementReview, InternalAudit, or ControlledDocument.
+    """
+
+    class EntityType(models.TextChoices):
+        NCR = "ncr", "Nonconformance Record"
+        CAPA = "capa", "CAPA Report"
+        FMEA = "fmea", "FMEA"
+        RCA = "rca", "RCA Session"
+        A3 = "a3", "A3 Report"
+        MANAGEMENT_REVIEW = "management_review", "Management Review"
+        INTERNAL_AUDIT = "audit", "Internal Audit"
+        DOCUMENT = "document", "Controlled Document"
+
+    class AttachmentType(models.TextChoices):
+        EVIDENCE = "evidence", "Evidence"
+        PHOTO = "photo", "Photo"
+        REPORT = "report", "Report"
+        FORM = "form", "Form"
+        EXTERNAL = "external_document", "External Document"
+
+    # Map entity_type to model class for validation
+    ENTITY_MODEL_MAP = {
+        "ncr": "NonconformanceRecord",
+        "capa": "CAPAReport",
+        "fmea": "FMEA",
+        "rca": "RCASession",
+        "a3": "A3Report",
+        "management_review": "ManagementReview",
+        "audit": "InternalAudit",
+        "document": "ControlledDocument",
+    }
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    entity_type = models.CharField(max_length=30, choices=EntityType.choices)
+    entity_id = models.UUIDField()
+    file = models.ForeignKey(
+        "files.UserFile",
+        on_delete=models.CASCADE,
+        related_name="qms_attachments",
+    )
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="qms_attachments",
+    )
+    description = models.CharField(max_length=500, blank=True)
+    attachment_type = models.CharField(
+        max_length=30,
+        choices=AttachmentType.choices,
+        default=AttachmentType.EVIDENCE,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "qms_attachments"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["entity_type", "entity_id"]),
+        ]
+
+    def __str__(self):
+        return f"{self.entity_type}:{self.entity_id} — {self.file.original_name}"
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "entity_type": self.entity_type,
+            "entity_id": str(self.entity_id),
+            "file": {
+                "id": str(self.file_id),
+                "name": self.file.original_name,
+                "size_bytes": self.file.size_bytes,
+                "mime_type": self.file.mime_type,
+                "url": self.file.url,
+            },
+            "uploaded_by": self.uploaded_by_id,
+            "description": self.description,
+            "attachment_type": self.attachment_type,
+            "created_at": self.created_at.isoformat(),
+        }

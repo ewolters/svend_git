@@ -38,6 +38,7 @@ from .models import (
     ManagementReviewTemplate,
     NCRStatusChange,
     NonconformanceRecord,
+    QMSAttachment,
     QMSFieldChange,
     RCASession,
     SupplierRecord,
@@ -2140,3 +2141,98 @@ def signature_verify_chain(request):
     tenant_id = _resolve_tenant_id(request.user)
     result = ElectronicSignature.verify_chain(tenant_id=tenant_id)
     return JsonResponse(result)
+
+
+# =========================================================================
+# QMS Attachments (ISO 9001 §7.5 — Documented Information)
+# =========================================================================
+
+
+@require_team
+@require_http_methods(["GET", "POST"])
+def qms_attachment_list_create(request):
+    """List or create QMS attachments.
+
+    GET: /api/qms/attachments/?entity_type=capa&entity_id=<uuid>
+    POST: /api/qms/attachments/ {entity_type, entity_id, file_id, description?, attachment_type?}
+    """
+    user = request.user
+
+    if request.method == "GET":
+        entity_type = request.GET.get("entity_type")
+        entity_id = request.GET.get("entity_id")
+        if not entity_type or not entity_id:
+            return JsonResponse({"error": "entity_type and entity_id required"}, status=400)
+        if entity_type not in QMSAttachment.ENTITY_MODEL_MAP:
+            return JsonResponse(
+                {"error": f"Invalid entity_type. Valid: {list(QMSAttachment.ENTITY_MODEL_MAP.keys())}"},
+                status=400,
+            )
+        attachments = QMSAttachment.objects.filter(
+            entity_type=entity_type,
+            entity_id=entity_id,
+            uploaded_by=user,
+        ).select_related("file")
+        return JsonResponse([a.to_dict() for a in attachments], safe=False)
+
+    # POST — create attachment
+    data = json.loads(request.body)
+    entity_type = data.get("entity_type")
+    entity_id = data.get("entity_id")
+    file_id = data.get("file_id")
+
+    if not entity_type or not entity_id or not file_id:
+        return JsonResponse({"error": "entity_type, entity_id, and file_id required"}, status=400)
+
+    if entity_type not in QMSAttachment.ENTITY_MODEL_MAP:
+        return JsonResponse(
+            {"error": f"Invalid entity_type. Valid: {list(QMSAttachment.ENTITY_MODEL_MAP.keys())}"},
+            status=400,
+        )
+
+    # Validate the target entity exists and belongs to user
+    model_name = QMSAttachment.ENTITY_MODEL_MAP[entity_type]
+    from . import models as _models
+
+    ModelClass = getattr(_models, model_name)
+    owner_field = "owner" if hasattr(ModelClass, "owner") else "user"
+    try:
+        ModelClass.objects.get(id=entity_id, **{owner_field: user})
+    except ModelClass.DoesNotExist:
+        return JsonResponse({"error": f"{entity_type} not found"}, status=404)
+
+    # Validate file exists and belongs to user
+    from files.models import UserFile
+
+    try:
+        uf = UserFile.objects.get(id=file_id, user=user)
+    except UserFile.DoesNotExist:
+        return JsonResponse({"error": "File not found"}, status=404)
+
+    attachment_type = data.get("attachment_type", "evidence")
+    valid_types = [c[0] for c in QMSAttachment.AttachmentType.choices]
+    if attachment_type not in valid_types:
+        attachment_type = "evidence"
+
+    attachment = QMSAttachment.objects.create(
+        entity_type=entity_type,
+        entity_id=entity_id,
+        file=uf,
+        uploaded_by=user,
+        description=data.get("description", ""),
+        attachment_type=attachment_type,
+    )
+    return JsonResponse(attachment.to_dict(), status=201)
+
+
+@require_team
+@require_http_methods(["DELETE"])
+def qms_attachment_delete(request, attachment_id):
+    """Delete a QMS attachment (does not delete the underlying file)."""
+    try:
+        attachment = QMSAttachment.objects.get(id=attachment_id, uploaded_by=request.user)
+    except QMSAttachment.DoesNotExist:
+        return JsonResponse({"error": "Attachment not found"}, status=404)
+
+    attachment.delete()
+    return JsonResponse({"ok": True})
