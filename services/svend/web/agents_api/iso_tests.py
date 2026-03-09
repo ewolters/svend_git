@@ -4370,3 +4370,82 @@ class CoPQSummaryTest(TestCase):
         data = resp.json()
         self.assertEqual(data["total_copq"], "0")
         self.assertEqual(data["capa_count"], 0)
+
+
+# =============================================================================
+# Recurrence Detection
+# =============================================================================
+
+
+@SECURE_OFF
+class RecurrenceDetectionTest(TestCase):
+    """Test CAPA recurrence detection on closure."""
+
+    def setUp(self):
+        self.user = _make_team_user("recurrence@test.com")
+        self.client.login(username="recurrence", password="testpass123!")
+
+    def _create_and_close_capa(self, title, root_cause, source_type=""):
+        """Helper: create a CAPA, set root cause, and close it through workflow."""
+        resp = _post(self.client, "/api/capa/", {"title": title, "source_type": source_type})
+        capa_id = resp.json()["id"]
+        # Walk through workflow to closed
+        _put(self.client, f"/api/capa/{capa_id}/", {"status": "containment", "containment_action": "Contained"})
+        _put(self.client, f"/api/capa/{capa_id}/", {"status": "investigation", "root_cause": root_cause})
+        _put(
+            self.client,
+            f"/api/capa/{capa_id}/",
+            {"status": "corrective", "corrective_action": "Fixed", "preventive_action": "Prevented"},
+        )
+        _put(self.client, f"/api/capa/{capa_id}/", {"status": "verification", "verification_result": "Verified"})
+        _put(self.client, f"/api/capa/{capa_id}/", {"status": "closed"})
+        return capa_id
+
+    def test_recurrence_flagged_on_closure(self):
+        """When a CAPA closes with a root cause matching history, flag it."""
+        # Create 2 historical CAPAs with similar root causes
+        self._create_and_close_capa("CAPA A", "Supplier material defect in raw steel")
+        self._create_and_close_capa("CAPA B", "Material defect found in supplier batch")
+        # Close a third — should detect recurrence
+        capa_id = self._create_and_close_capa("CAPA C", "Material defect from supplier shipment")
+        resp = self.client.get(f"/api/capa/{capa_id}/")
+        capa = resp.json()
+        self.assertTrue(capa["recurrence_check"])
+
+    def test_escalation_at_3_matches(self):
+        """3+ root cause matches escalate priority to critical."""
+        self._create_and_close_capa("H1", "Calibration drift on measurement instrument")
+        self._create_and_close_capa("H2", "Calibration drift detected on instrument")
+        self._create_and_close_capa("H3", "Instrument calibration drift observed")
+        # 4th should trigger escalation
+        capa_id = self._create_and_close_capa("H4", "Calibration drift on instrument again")
+        resp = self.client.get(f"/api/capa/{capa_id}/")
+        capa = resp.json()
+        self.assertEqual(capa["priority"], "critical")
+        self.assertTrue(capa["recurrence_check"])
+
+    def test_no_recurrence_for_unique_root_cause(self):
+        """Unique root cause doesn't flag recurrence."""
+        capa_id = self._create_and_close_capa("Unique", "Completely novel failure mechanism xyz123")
+        resp = self.client.get(f"/api/capa/{capa_id}/")
+        capa = resp.json()
+        self.assertFalse(capa["recurrence_check"])
+
+    def test_recurrence_report_endpoint(self):
+        """GET /api/capa/recurrence/ returns grouped recurrence data."""
+        self._create_and_close_capa("R1", "Operator training gap", "ncr")
+        self._create_and_close_capa("R2", "Training gap for operator", "ncr")
+        resp = self.client.get("/api/capa/recurrence/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertGreaterEqual(data["total_closed_capas"], 2)
+        self.assertIn("recurrences", data)
+
+    def test_recurrence_report_empty(self):
+        """Recurrence report with no CAPAs returns empty."""
+        _make_team_user("empty_rec@test.com")
+        self.client.login(username="empty_rec", password="testpass123!")
+        resp = self.client.get("/api/capa/recurrence/")
+        data = resp.json()
+        self.assertEqual(data["total_closed_capas"], 0)
+        self.assertEqual(data["recurrences"], [])

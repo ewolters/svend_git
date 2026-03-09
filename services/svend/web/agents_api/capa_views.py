@@ -9,7 +9,7 @@ import logging
 from collections import defaultdict
 from datetime import date
 
-from django.db.models import Avg, Count, F, Sum
+from django.db.models import Avg, Count, F, Q, Sum
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
@@ -305,6 +305,10 @@ def capa_detail(request, capa_id):
     if investigation_id and (data.get("root_cause") or data.get("corrective_action") or data.get("preventive_action")):
         _capa_connect_investigation(request, investigation_id, capa, data)
 
+    # Recurrence detection on close (FEAT-012)
+    if new_status == "closed":
+        _check_recurrence(capa, request.user)
+
     # Evidence on close
     if new_status == "closed" and capa.project:
         create_tool_evidence(
@@ -490,4 +494,113 @@ def capa_launch_rca(request, capa_id):
             "pre_populated_from_ncr": bool(rca_chain),
         },
         status=201,
+    )
+
+
+# =========================================================================
+# Recurrence Detection (FEAT-012, ISO 9001 §10.2)
+# =========================================================================
+
+
+def _check_recurrence(capa, user):
+    """Check if this CAPA's root cause matches historical patterns.
+
+    Matches by: source_type, root_cause keyword overlap.
+    If 3+ matches: auto-escalate priority to critical, mark recurrence flag.
+    """
+    if not capa.root_cause:
+        return
+
+    # Find historical closed CAPAs from same user with root causes
+    historical = CAPAReport.objects.filter(owner=user, status="closed", root_cause__gt="").exclude(id=capa.id)
+
+    # Match by source_type if present
+    if capa.source_type:
+        source_matches = historical.filter(source_type=capa.source_type)
+    else:
+        source_matches = historical
+
+    # Keyword overlap: extract significant words (>3 chars) from root cause
+    words = {w.lower() for w in capa.root_cause.split() if len(w) > 3}
+    if not words:
+        return
+
+    # Build Q filter for keyword matching
+    keyword_q = Q()
+    for word in list(words)[:10]:  # Limit to 10 keywords
+        keyword_q |= Q(root_cause__icontains=word)
+
+    matches = source_matches.filter(keyword_q).distinct()
+    match_count = matches.count()
+
+    if match_count > 0:
+        capa.is_recurrence_checked = True
+
+    if match_count >= 3 and capa.priority != "critical":
+        capa.priority = "critical"
+        capa.save(update_fields=["priority", "is_recurrence_checked"])
+        # Notify quality manager
+        notify(
+            recipient=user,
+            notification_type="capa_status",
+            title="Recurring Root Cause Detected",
+            message=f"CAPA '{capa.title}' matches {match_count} previous CAPAs. Priority escalated to critical.",
+            entity_type="capa",
+            entity_id=capa.id,
+        )
+    elif match_count > 0:
+        capa.save(update_fields=["is_recurrence_checked"])
+
+
+@require_team
+@require_http_methods(["GET"])
+def recurrence_report(request):
+    """Recurrence report — which root causes keep coming back.
+
+    GET /api/capa/recurrence/
+    Groups closed CAPAs by root_cause keyword similarity, flags repeat offenders.
+    """
+    user = request.user
+    capas = CAPAReport.objects.filter(
+        owner=user,
+        status="closed",
+        root_cause__gt="",
+    ).order_by("-closed_at")
+
+    # Group by source_type and find repeat root causes
+    from collections import defaultdict
+
+    by_source = defaultdict(list)
+    for c in capas[:200]:  # Limit for performance
+        by_source[c.source_type or "unknown"].append(
+            {
+                "id": str(c.id),
+                "title": c.title,
+                "root_cause": c.root_cause[:200],
+                "priority": c.priority,
+                "closed_at": c.closed_at.isoformat() if c.closed_at else None,
+                "is_recurrence": c.is_recurrence_checked,
+            }
+        )
+
+    recurrences = []
+    for source_type, items in by_source.items():
+        if len(items) >= 2:
+            recurrences.append(
+                {
+                    "source_type": source_type,
+                    "count": len(items),
+                    "capas": items,
+                    "escalated": any(i["priority"] == "critical" and i["is_recurrence"] for i in items),
+                }
+            )
+
+    recurrences.sort(key=lambda r: r["count"], reverse=True)
+
+    return JsonResponse(
+        {
+            "recurrences": recurrences,
+            "total_closed_capas": capas.count(),
+            "total_flagged": capas.filter(is_recurrence_checked=True).count(),
+        }
     )
