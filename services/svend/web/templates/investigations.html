@@ -146,6 +146,17 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     display: block;
 }
 .inv-tool-btn:hover { border-color: var(--accent); background: var(--bg-hover); }
+.inv-tool-icon {
+    width: 36px;
+    height: 36px;
+    margin: 0 auto 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-primary-dim, rgba(99,102,241,0.1));
+    border-radius: 8px;
+}
+.inv-tool-icon svg { width: 20px; height: 20px; color: var(--accent); }
 .inv-tool-btn .label { font-size: 12px; font-weight: 500; }
 
 /* --- Linked tools table --- */
@@ -432,18 +443,23 @@ function renderDetail() {
             <div class="inv-section-title">Launch Tool</div>
             <div class="inv-tool-grid">
                 <a class="inv-tool-btn" href="/app/rca/?investigation_id=${inv.id}" target="_blank">
+                    <div class="inv-tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
                     <div class="label">Root Cause Analysis</div>
                 </a>
                 <a class="inv-tool-btn" href="/app/ishikawa/?investigation_id=${inv.id}" target="_blank">
+                    <div class="inv-tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="12" x2="22" y2="12"/><line x1="7" y1="5" x2="12" y2="12"/><line x1="7" y1="19" x2="12" y2="12"/><line x1="17" y1="5" x2="12" y2="12"/><line x1="17" y1="19" x2="12" y2="12"/></svg></div>
                     <div class="label">Ishikawa Diagram</div>
                 </a>
                 <a class="inv-tool-btn" href="/app/fmea/?investigation_id=${inv.id}" target="_blank">
+                    <div class="inv-tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636-2.871L13.637 3.591a1.914 1.914 0 0 0-3.274 0z"/><circle cx="12" cy="16" r="1"/></svg></div>
                     <div class="label">FMEA</div>
                 </a>
                 <a class="inv-tool-btn" href="/app/ce-matrix/?investigation_id=${inv.id}" target="_blank">
+                    <div class="inv-tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></div>
                     <div class="label">C&amp;E Matrix</div>
                 </a>
                 <a class="inv-tool-btn" href="/app/spc/?investigation_id=${inv.id}" target="_blank">
+                    <div class="inv-tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
                     <div class="label">SPC</div>
                 </a>
             </div>
