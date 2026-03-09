@@ -274,6 +274,36 @@ class APIHeadersMiddlewareTest(SimpleTestCase):
             response = middleware(request)
             self.assertNotEqual(response.status_code, 406, f"{path} returned 406")
 
+    def test_export_download_paths_bypass_accept_check(self):
+        """PDF/file export and download paths bypass Accept header validation."""
+        middleware = self._make_middleware()
+        for path in [
+            "/api/a3/00000000-0000-0000-0000-000000000000/export/pdf/",
+            "/api/reports/00000000-0000-0000-0000-000000000000/export/pdf/",
+            "/api/iso-docs/00000000-0000-0000-0000-000000000000/export/docx/",
+            "/api/triage/abc123/download/",
+            "/api/forge/download/00000000-0000-0000-0000-000000000000",
+            "/api/dsw/models/00000000-0000-0000-0000-000000000000/",
+        ]:
+            request = self.factory.get(path, HTTP_ACCEPT="text/html")
+            response = middleware(request)
+            self.assertNotEqual(response.status_code, 406, f"{path} returned 406")
+
+    def test_accept_header_parsed_by_media_type(self):
+        """Accept header is parsed by media type, not substring."""
+        middleware = self._make_middleware()
+        # application/jsonl should NOT match application/json
+        request = self.factory.get("/api/test/", HTTP_ACCEPT="application/jsonl")
+        response = middleware(request)
+        self.assertEqual(response.status_code, 406)
+
+    def test_accept_with_quality_params(self):
+        """Accept header with quality parameters is parsed correctly."""
+        middleware = self._make_middleware()
+        request = self.factory.get("/api/test/", HTTP_ACCEPT="text/html,application/json;q=0.9")
+        response = middleware(request)
+        self.assertEqual(response.status_code, 200)
+
     def test_adds_charset_to_json(self):
         """Adds charset=utf-8 to JSON Content-Type."""
         middleware = self._make_middleware()
@@ -336,6 +366,20 @@ class IdempotencyMiddlewareTest(SimpleTestCase):
         response = middleware(request)
         self.assertEqual(response.status_code, 200)
 
+    def test_rejects_invalid_idempotency_key_format(self):
+        """Rejects Idempotency-Key that is not a valid ULID."""
+        middleware = self._make_middleware()
+        request = self.factory.post(
+            "/api/test/",
+            data=b'{"a":1}',
+            content_type="application/json",
+            HTTP_IDEMPOTENCY_KEY="not-a-ulid",
+        )
+        response = middleware(request)
+        self.assertEqual(response.status_code, 400)
+        data = json.loads(response.content)
+        self.assertEqual(data["error"]["code"], "invalid_idempotency_key")
+
     def test_conflict_on_different_payload(self):
         """Returns 409 when idempotency key reused with different payload."""
         middleware = self._make_middleware()
@@ -353,7 +397,7 @@ class IdempotencyMiddlewareTest(SimpleTestCase):
                 "/api/test/",
                 data=b'{"new": "data"}',
                 content_type="application/json",
-                HTTP_IDEMPOTENCY_KEY="01HXTEST1234567890123456",
+                HTTP_IDEMPOTENCY_KEY="01HX0000000000000000000000",
             )
             response = middleware(request)
 
@@ -383,7 +427,7 @@ class IdempotencyMiddlewareTest(SimpleTestCase):
                 "/api/test/",
                 data=payload,
                 content_type="application/json",
-                HTTP_IDEMPOTENCY_KEY="01HXTEST1234567890123456",
+                HTTP_IDEMPOTENCY_KEY="01HX0000000000000000000000",
             )
             response = middleware(request)
 

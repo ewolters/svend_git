@@ -58,12 +58,13 @@ MIDDLEWARE = [
     "syn.log.middleware.PerformanceMiddleware",
     # Synara request ID (early — correlation needs this)
     "syn.api.middleware.SynRequestIdMiddleware",
+    # CORS (before API surface — ensures 406/error responses include CORS headers)
+    "corsheaders.middleware.CorsMiddleware",
     # Synara API surface (API-002 §8-9 — needs syn_request_id from above)
     "syn.api.middleware.APIHeadersMiddleware",
     "syn.api.middleware.IdempotencyMiddleware",
     # Svend + Django standard
     "accounts.middleware.NoCacheDynamicMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",

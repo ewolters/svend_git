@@ -1374,13 +1374,10 @@ def email_track_open(request, recipient_id):
     from api.models import EmailRecipient
 
     try:
-        rcpt = EmailRecipient.objects.get(id=recipient_id)
-        if not rcpt.opened_at:
-            from django.utils import timezone as tz
+        from django.utils import timezone as tz
 
-            rcpt.opened_at = tz.now()
-            rcpt.save(update_fields=["opened_at"])
-    except EmailRecipient.DoesNotExist:
+        EmailRecipient.objects.filter(id=recipient_id, opened_at__isnull=True).update(opened_at=tz.now())
+    except Exception:
         pass
 
     return HttpResponse(TRACKING_PIXEL, content_type="image/gif")
@@ -1409,17 +1406,13 @@ def email_track_click(request, recipient_id):
         url = "https://svend.ai"
 
     try:
-        rcpt = EmailRecipient.objects.get(id=recipient_id)
-        if not rcpt.clicked_at:
-            from django.utils import timezone as tz
+        from django.utils import timezone as tz
 
-            rcpt.clicked_at = tz.now()
-            rcpt.save(update_fields=["clicked_at"])
-            # Also mark as opened if not already
-            if not rcpt.opened_at:
-                rcpt.opened_at = tz.now()
-                rcpt.save(update_fields=["opened_at"])
-    except EmailRecipient.DoesNotExist:
+        now = tz.now()
+        # Atomic update: set clicked_at and opened_at in a single query
+        EmailRecipient.objects.filter(id=recipient_id, clicked_at__isnull=True).update(clicked_at=now)
+        EmailRecipient.objects.filter(id=recipient_id, opened_at__isnull=True).update(opened_at=now)
+    except Exception:
         pass
 
     return HttpResponseRedirect(url)

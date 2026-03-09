@@ -1151,9 +1151,11 @@ def api_send_email(request):
             )
 
         # Rewrite links for click tracking
+        from urllib.parse import quote as _url_quote
+
         def _track_link(match):
             url = match.group(1)
-            return f'href="https://svend.ai/api/email/click/{rcpt.id}/?url={url}"'
+            return f'href="https://svend.ai/api/email/click/{rcpt.id}/?url={_url_quote(url, safe="")}"'
 
         personalized = re.sub(r'href="(https?://[^"]+)"', _track_link, personalized)
 
@@ -2936,9 +2938,11 @@ def api_crm_send_one(request):
     )
 
     # Rewrite links for click tracking
+    from urllib.parse import quote as _url_quote2
+
     def _track_link(match):
         url = match.group(1)
-        return f'href="https://svend.ai/api/email/click/{rcpt.id}/?url={url}"'
+        return f'href="https://svend.ai/api/email/click/{rcpt.id}/?url={_url_quote2(url, safe="")}"'
 
     body_html = re.sub(r'href="(https?://[^"]+)"', _track_link, body_html)
 
@@ -3035,9 +3039,11 @@ def api_crm_process_queue(request):
         )
 
         # Rewrite links for click tracking
+        from urllib.parse import quote as _url_quote3
+
         def _track_link(match):
             url = match.group(1)
-            return f'href="https://svend.ai/api/email/click/{rcpt.id}/?url={url}"'
+            return f'href="https://svend.ai/api/email/click/{rcpt.id}/?url={_url_quote3(url, safe="")}"'
 
         body_html = re.sub(r'href="(https?://[^"]+)"', _track_link, body_html)
 

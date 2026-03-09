@@ -2,6 +2,7 @@
 
 import logging
 from datetime import timedelta
+from html import escape as _esc
 
 from django.utils import timezone
 
@@ -41,7 +42,7 @@ LEARNING_PATH_LABELS = {
 
 # Email content keyed by email_key. Each returns (subject, body_html) given user + survey.
 def _email_welcome(user, survey):
-    name = user.display_name or user.username
+    name = _esc(user.display_name or user.username)
     path_label = LEARNING_PATH_LABELS.get(survey.learning_path, "Getting Started") if survey else "Getting Started"
     return (
         "Welcome to Svend!",
@@ -65,7 +66,7 @@ def _email_welcome(user, survey):
 
 
 def _email_getting_started(user, survey):
-    name = user.display_name or user.username
+    name = _esc(user.display_name or user.username)
     goal = survey.primary_goal if survey else ""
 
     # Personalize based on primary goal
@@ -94,7 +95,7 @@ def _email_getting_started(user, survey):
 
 
 def _email_tips(user, survey):
-    name = user.display_name or user.username
+    name = _esc(user.display_name or user.username)
     confidence = survey.confidence_stats if survey else 3
 
     if confidence <= 2:
@@ -132,7 +133,7 @@ def _email_tips(user, survey):
 
 
 def _email_learning_path(user, survey):
-    name = user.display_name or user.username
+    name = _esc(user.display_name or user.username)
     path = survey.learning_path if survey else "beginner"
 
     paths = {
@@ -212,7 +213,7 @@ def _email_learning_path(user, survey):
 
 
 def _email_checkin(user, survey):
-    name = user.display_name or user.username
+    name = _esc(user.display_name or user.username)
     queries = user.total_queries
 
     if queries == 0:
@@ -360,7 +361,7 @@ def process_onboarding_drip(payload, context):
 
 def _lifecycle_activation(user):
     """Quick start guide for users who signed up but haven't queried."""
-    name = user.display_name or user.username
+    name = _esc(user.display_name or user.username)
     return (
         f"Getting the most out of Svend, {name}",
         f"""<h2>Hey {name},</h2>
@@ -378,7 +379,7 @@ def _lifecycle_activation(user):
 
 def _lifecycle_inactive_nudge(user):
     """Nudge for users inactive 7+ days."""
-    name = user.display_name or user.username
+    name = _esc(user.display_name or user.username)
     return (
         f"We've added new features, {name}",
         f"""<h2>Hey {name},</h2>
@@ -397,7 +398,7 @@ def _lifecycle_inactive_nudge(user):
 
 def _lifecycle_upgrade_nudge(user):
     """For users approaching their daily query limit."""
-    name = user.display_name or user.username
+    name = _esc(user.display_name or user.username)
     return (
         f"You're a power user, {name}",
         f"""<h2>Hey {name},</h2>
@@ -417,7 +418,7 @@ def _lifecycle_upgrade_nudge(user):
 
 def _lifecycle_churn_prevention(user):
     """For users whose subscription is set to cancel."""
-    name = user.display_name or user.username
+    name = _esc(user.display_name or user.username)
     return (
         f"Before you go, {name}",
         f"""<h2>Hey {name},</h2>
@@ -431,7 +432,7 @@ def _lifecycle_churn_prevention(user):
 
 def _lifecycle_feature_discovery(user, feature="doe"):
     """Nudge paid users toward features they haven't tried."""
-    name = user.display_name or user.username
+    name = _esc(user.display_name or user.username)
     features = {
         "doe": {
             "title": "Design of Experiments",
@@ -466,7 +467,7 @@ def _lifecycle_feature_discovery(user, feature="doe"):
 
 def _lifecycle_milestone(user, count=100):
     """Celebrate query milestones."""
-    name = user.display_name or user.username
+    name = _esc(user.display_name or user.username)
     return (
         f"Milestone: {count} analyses!",
         f"""<h2>Hey {name},</h2>
@@ -480,7 +481,7 @@ def _lifecycle_milestone(user, count=100):
 
 def _lifecycle_winback(user):
     """Win-back for formerly paid users inactive 45+ days."""
-    name = user.display_name or user.username
+    name = _esc(user.display_name or user.username)
     return (
         f"We've been improving, {name}",
         f"""<h2>Hey {name},</h2>
@@ -553,10 +554,11 @@ def _send_lifecycle_email(user, template_key, **kwargs):
 
     # Link rewriting for click tracking
     import re
+    from urllib.parse import quote
 
     def _track_link(match):
         url = match.group(1)
-        return f'href="https://svend.ai/api/email/click/{rcpt.id}/?url={url}"'
+        return f'href="https://svend.ai/api/email/click/{rcpt.id}/?url={quote(url, safe="")}"'
 
     tracked = re.sub(r'href="(https?://[^"]+)"', _track_link, body_html)
 
@@ -997,9 +999,11 @@ def crm_send_one_email(payload, context):
     )
 
     # Rewrite links for click tracking
+    from urllib.parse import quote as _quote
+
     def _track_link(match):
         url = match.group(1)
-        return f'href="https://svend.ai/api/email/click/{rcpt.id}/?url={url}"'
+        return f'href="https://svend.ai/api/email/click/{rcpt.id}/?url={_quote(url, safe="")}"'
 
     body_html = re.sub(r'href="(https?://[^"]+)"', _track_link, body_html)
 

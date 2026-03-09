@@ -13,7 +13,7 @@ import json
 import time
 
 from django.core.signing import BadSignature, Signer
-from django.http import JsonResponse, StreamingHttpResponse
+from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
@@ -303,4 +303,18 @@ def notification_type_unsubscribe(request):
         muted.append(notification_type)
     user.save(update_fields=["preferences"])
 
-    return JsonResponse({"ok": True, "muted_type": notification_type})
+    html = (
+        '<!DOCTYPE html><html><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1.0">'
+        "<style>body{margin:0;padding:60px 20px;background:#f4f7f4;"
+        "font-family:'Inter',-apple-system,sans-serif;text-align:center;}"
+        ".card{max-width:500px;margin:0 auto;background:#fff;border-radius:8px;"
+        "padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.1);}"
+        "h2{color:#1a2a1a;margin:0 0 12px;}p{color:#5a6a5a;line-height:1.6;}"
+        'a{color:#4a9f6e;}</style></head><body><div class="card">'
+        "<h2>Unsubscribed</h2>"
+        f"<p>You've been unsubscribed from {notification_type.replace('_', ' ')} notifications.</p>"
+        '<p><a href="https://svend.ai/app/settings/">Manage preferences</a></p>'
+        "</div></body></html>"
+    )
+    return HttpResponse(html, content_type="text/html")

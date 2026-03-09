@@ -129,8 +129,9 @@ def _is_exempt_path(path: str) -> bool:
     return any(path.startswith(exempt) for exempt in EXEMPT_PATHS)
 
 
-# API paths that serve browser responses (redirects, images, HTML).
+# API paths that serve browser responses (redirects, images, HTML, PDF, CSV).
 # These must bypass Accept header validation because browsers send text/html.
+# Covers: email tracking, unsubscribe links, PDF/file exports, file downloads.
 _BROWSER_FACING_API_PREFIXES = (
     "/api/email/click/",
     "/api/email/open/",
@@ -138,10 +139,27 @@ _BROWSER_FACING_API_PREFIXES = (
     "/api/notifications/unsubscribe/",
 )
 
+# Suffixes that indicate browser-navigated file downloads/exports.
+_BROWSER_FACING_API_SUFFIXES = (
+    "/export/pdf/",
+    "/export/docx/",
+    "/download/",
+)
+
+# Path segments that indicate browser-navigated downloads (forge, DSW model).
+_BROWSER_FACING_API_SEGMENTS = (
+    "/forge/download/",
+    "/dsw/models/",
+)
+
 
 def _is_browser_facing_api(path: str) -> bool:
-    """Check if an /api/ path is browser-facing (email tracking, unsubscribe)."""
-    return path.startswith(_BROWSER_FACING_API_PREFIXES)
+    """Check if an /api/ path is browser-facing (email, exports, downloads)."""
+    if path.startswith(_BROWSER_FACING_API_PREFIXES):
+        return True
+    if path.endswith(_BROWSER_FACING_API_SUFFIXES):
+        return True
+    return any(seg in path for seg in _BROWSER_FACING_API_SEGMENTS)
 
 
 def _generate_request_id() -> str:
@@ -263,7 +281,7 @@ class APIHeadersMiddleware:
             if not accept or accept == "*/*":
                 # Allow */* but prefer explicit JSON
                 pass
-            elif "application/json" not in accept:
+            elif "application/json" not in {p.split(";")[0].strip() for p in accept.split(",")}:
                 return JsonResponse(
                     {
                         "error": {
@@ -342,6 +360,20 @@ class IdempotencyMiddleware:
                 extra={"request_id": getattr(request, "syn_request_id", None)},
             )
             return self.get_response(request)
+
+        # Validate ULID format (API-002 §9)
+        if not re.match(IDEMPOTENCY_KEY_PATTERN, idempotency_key):
+            return JsonResponse(
+                {
+                    "error": {
+                        "code": "invalid_idempotency_key",
+                        "message": "Idempotency-Key must be a valid ULID",
+                        "retryable": False,
+                        "request_id": getattr(request, "syn_request_id", None),
+                    }
+                },
+                status=400,
+            )
 
         # Compute payload hash for conflict detection
         try:

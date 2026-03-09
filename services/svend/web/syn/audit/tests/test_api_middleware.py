@@ -371,6 +371,21 @@ class APIHeadersTest(TestCase):
                 f"{path} should not return 406 for browser Accept header",
             )
 
+    def test_export_download_paths_bypass_accept_check(self):
+        """Export/download paths bypass Accept header validation for browser navigation."""
+        export_paths = [
+            "/api/a3/00000000-0000-0000-0000-000000000000/export/pdf/",
+            "/api/reports/00000000-0000-0000-0000-000000000000/export/pdf/",
+            "/api/triage/test-job/download/",
+        ]
+        for path in export_paths:
+            res = self.client.get(path, HTTP_ACCEPT="text/html")
+            self.assertNotEqual(
+                res.status_code,
+                406,
+                f"{path} should not return 406 for browser Accept header",
+            )
+
     def test_enforces_charset_on_json_responses(self):
         """JSON responses include charset=utf-8 in Content-Type."""
         res = _api_get(self.client)
