@@ -223,8 +223,8 @@ class NCRLifecycleEvidenceTest(TestCase):
         )
         self.assertEqual(resp.status_code, 200)
 
-        # investigation → capa
-        resp = self._transition_ncr(ncr_id, {"status": "capa"})
+        # investigation → capa (requires root_cause)
+        resp = self._transition_ncr(ncr_id, {"status": "capa", "root_cause": "Operator error"})
         self.assertEqual(resp.status_code, 200)
 
         # capa → verification
@@ -262,7 +262,7 @@ class NCRLifecycleEvidenceTest(TestCase):
                 "assigned_to": str(self.user.id),
             },
         )
-        self._transition_ncr(ncr_id, {"status": "capa"})
+        self._transition_ncr(ncr_id, {"status": "capa", "root_cause": "Material defect"})
         self._transition_ncr(ncr_id, {"status": "verification"})
         self._transition_ncr(
             ncr_id,

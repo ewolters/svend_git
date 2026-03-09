@@ -1389,6 +1389,45 @@ class QMSSiteAwareTest(TestCase):
         resp = self.member_client.get(f"/api/iso/ncrs/{ncr.id}/")
         self.assertIn(resp.status_code, [404, 500])
 
+    def test_ncr_list_paginated(self):
+        """NCR list returns paginated response with total count."""
+        resp = self.member_client.post(
+            "/api/iso/ncrs/",
+            {"title": "Pagination Test NCR", "severity": "minor"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201)
+
+        resp = self.member_client.get("/api/iso/ncrs/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("results", data)
+        self.assertIn("total", data)
+        self.assertIn("limit", data)
+        self.assertIn("offset", data)
+        self.assertGreaterEqual(data["total"], 1)
+
+    def test_ncr_fk_change_logging(self):
+        """Changing assigned_to logs a QMSFieldChange."""
+        from agents_api.models import NonconformanceRecord, QMSFieldChange
+        from agents_api.permissions import qms_set_ownership
+
+        ncr = NonconformanceRecord(title="FK Log Test NCR", severity="minor")
+        qms_set_ownership(ncr, self.member_user, self.site_a)
+        ncr.save()
+
+        # Assign to admin
+        resp = self.member_client.put(
+            f"/api/iso/ncrs/{ncr.id}/",
+            {"assigned_to": str(self.admin_user.id)},
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+
+        changes = QMSFieldChange.objects.filter(record_type="ncr", record_id=ncr.id, field_name="assigned_to")
+        self.assertEqual(changes.count(), 1)
+        self.assertEqual(changes.first().new_value, self.admin_user.display_name or self.admin_user.email)
+
     def test_rca_create_site_aware(self):
         """RCA sessions created individually get owner=user."""
         resp = self.member_client.post(
@@ -1420,6 +1459,41 @@ class QMSSiteAwareTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["reports"], [])
 
+    def test_ncr_capa_requires_root_cause(self):
+        """NCR cannot advance to CAPA without root_cause."""
+        from agents_api.models import NonconformanceRecord
+        from agents_api.permissions import qms_set_ownership
+
+        ncr = NonconformanceRecord(title="Root Cause Test NCR", severity="minor")
+        qms_set_ownership(ncr, self.member_user, self.site_a)
+        ncr.assigned_to = self.admin_user
+        ncr.save()
+
+        # Advance to investigation
+        resp = self.member_client.put(
+            f"/api/iso/ncrs/{ncr.id}/",
+            {"status": "investigation", "assigned_to": str(self.admin_user.id)},
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+
+        # Try to advance to capa without root_cause — should fail
+        resp = self.member_client.put(
+            f"/api/iso/ncrs/{ncr.id}/",
+            {"status": "capa"},
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("root_cause", _err_msg(resp))
+
+        # Advance with root_cause — should succeed
+        resp = self.member_client.put(
+            f"/api/iso/ncrs/{ncr.id}/",
+            {"status": "capa", "root_cause": "Insufficient torque on fastener"},
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+
     def test_ncr_approval_flow(self):
         """NCR cannot close without approver; approved_at set on close."""
         from agents_api.models import NonconformanceRecord
@@ -1433,6 +1507,7 @@ class QMSSiteAwareTest(TestCase):
         ncr.assigned_to = self.admin_user
         ncr.status = "investigation"
         ncr.save()
+        ncr.root_cause = "Operator training gap"
         ncr.status = "capa"
         ncr.save()
         ncr.status = "verification"

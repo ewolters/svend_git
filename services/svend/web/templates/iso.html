@@ -433,6 +433,7 @@ async function loadDashboard() {
 // NCR Tracker tab
 // =========================================================================
 let ncrList = [];
+let ncrTotal = 0;
 let ncrSort = '-created_at';
 let ncrFilterStatus = '';
 let ncrFilterSeverity = '';
@@ -443,7 +444,9 @@ async function loadNCRs() {
     if (ncrFilterStatus) params += `&status=${ncrFilterStatus}`;
     if (ncrFilterSeverity) params += `&severity=${ncrFilterSeverity}`;
     try {
-        ncrList = await apiFetch(`/ncrs/${params}`);
+        const resp = await apiFetch(`/ncrs/${params}`);
+        ncrList = resp.results || resp;
+        ncrTotal = resp.total || ncrList.length;
         renderNCRList(el);
     } catch (e) {
         el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Unknown error'))}</div>`;
@@ -651,6 +654,9 @@ async function loadNCRDetail(id) {
                 if (nextStatus === 'investigation' && !n.assigned_to) {
                     html += `<div><label class="iso-label">Assign To *</label><select class="iso-input" id="ncr-transition-assignee" style="width:160px">${assignOpts}</select></div>`;
                 }
+                if (nextStatus === 'capa' && !n.root_cause) {
+                    html += `<div><label class="iso-label">Root Cause *</label><input class="iso-input" id="ncr-transition-rootcause" placeholder="Required" style="width:200px"></div>`;
+                }
                 if (nextStatus === 'closed' && !n.approved_by) {
                     html += `<div><label class="iso-label">Approved By *</label><select class="iso-input" id="ncr-transition-approver" style="width:160px">${assignOpts}</select></div>`;
                 }
@@ -716,6 +722,8 @@ async function advanceNCR(id, newStatus) {
         const body = { status: newStatus, status_note: note };
         const assignee = document.getElementById('ncr-transition-assignee')?.value;
         if (assignee) body.assigned_to = assignee;
+        const rootCause = document.getElementById('ncr-transition-rootcause')?.value;
+        if (rootCause) body.root_cause = rootCause;
         const approver = document.getElementById('ncr-transition-approver')?.value;
         if (approver) body.approved_by = approver;
         await apiFetch(`/ncrs/${id}/`, { method: 'PUT', body });

@@ -371,6 +371,8 @@ def ncr_list_create(request):
         severity = request.GET.get("severity")
         assigned_to = request.GET.get("assigned_to")
         iso_clause = request.GET.get("iso_clause")
+        source = request.GET.get("source")
+        site_id = request.GET.get("site_id")
         sort = request.GET.get("sort", "-created_at")
         if status:
             ncrs = ncrs.filter(status=status)
@@ -380,6 +382,10 @@ def ncr_list_create(request):
             ncrs = ncrs.filter(assigned_to_id=assigned_to)
         if iso_clause:
             ncrs = ncrs.filter(iso_clause__icontains=iso_clause)
+        if source:
+            ncrs = ncrs.filter(source=source)
+        if site_id:
+            ncrs = ncrs.filter(site_id=site_id)
         # Validate sort field
         allowed_sorts = {
             "created_at",
@@ -395,7 +401,12 @@ def ncr_list_create(request):
         }
         if sort in allowed_sorts:
             ncrs = ncrs.order_by(sort)
-        return JsonResponse([n.to_dict() for n in ncrs[:100]], safe=False)
+        # Pagination
+        limit = min(int(request.GET.get("limit", 100)), 500)
+        offset = int(request.GET.get("offset", 0))
+        total = ncrs.count()
+        results = [n.to_dict() for n in ncrs[offset : offset + limit]]
+        return JsonResponse({"results": results, "total": total, "limit": limit, "offset": offset})
 
     data = json.loads(request.body)
     assigned_to_user = None
@@ -495,6 +506,10 @@ def ncr_detail(request, ncr_id):
                     return JsonResponse({"error": "Approver not found"}, status=400)
             else:
                 ncr.approved_by = None
+        # Apply text fields that may be required for transition (e.g. root_cause for capa)
+        for tf in ("root_cause", "corrective_action", "containment_action", "verification_result"):
+            if tf in data:
+                setattr(ncr, tf, data[tf])
 
         # Validate transition AFTER FK resolution (BUG-04)
         ok, msg = ncr.can_transition(new_status)
@@ -574,10 +589,21 @@ def ncr_detail(request, ncr_id):
         ncr.capa_due_date = data["capa_due_date"] or None
     # Handle assigned_to/approved_by if not already handled by transition
     if "assigned_to" in data and not new_status:
+        old_name = (ncr.assigned_to.display_name or ncr.assigned_to.email) if ncr.assigned_to else ""
         if data["assigned_to"]:
             try:
                 assignee = User.objects.get(id=data["assigned_to"])
                 ncr.assigned_to = assignee
+                new_name = assignee.display_name or assignee.email
+                if old_name != new_name:
+                    QMSFieldChange.objects.create(
+                        record_type="ncr",
+                        record_id=ncr.id,
+                        field_name="assigned_to",
+                        old_value=old_name,
+                        new_value=new_name,
+                        changed_by=request.user,
+                    )
                 # NTF-001 §10.1 — notify new assignee (standalone assignment)
                 if assignee != request.user:
                     notify(
@@ -590,21 +616,62 @@ def ncr_detail(request, ncr_id):
             except User.DoesNotExist:
                 pass
         else:
+            if old_name:
+                QMSFieldChange.objects.create(
+                    record_type="ncr",
+                    record_id=ncr.id,
+                    field_name="assigned_to",
+                    old_value=old_name,
+                    new_value="",
+                    changed_by=request.user,
+                )
             ncr.assigned_to = None
     if "approved_by" in data and not new_status:
+        old_name = (ncr.approved_by.display_name or ncr.approved_by.email) if ncr.approved_by else ""
         if data["approved_by"]:
             try:
-                ncr.approved_by = User.objects.get(id=data["approved_by"])
+                approver = User.objects.get(id=data["approved_by"])
+                new_name = approver.display_name or approver.email
+                if old_name != new_name:
+                    QMSFieldChange.objects.create(
+                        record_type="ncr",
+                        record_id=ncr.id,
+                        field_name="approved_by",
+                        old_value=old_name,
+                        new_value=new_name,
+                        changed_by=request.user,
+                    )
+                ncr.approved_by = approver
             except User.DoesNotExist:
                 pass
         else:
+            if old_name:
+                QMSFieldChange.objects.create(
+                    record_type="ncr",
+                    record_id=ncr.id,
+                    field_name="approved_by",
+                    old_value=old_name,
+                    new_value="",
+                    changed_by=request.user,
+                )
             ncr.approved_by = None
     # Link existing RCA session
     if "rca_session_id" in data:
+        old_rca = str(ncr.rca_session_id) if ncr.rca_session_id else ""
         if data["rca_session_id"]:
             try:
                 rca = qms_queryset(RCASession, request.user)[0].get(id=data["rca_session_id"])
                 ncr.rca_session = rca
+                new_rca = str(rca.id)
+                if old_rca != new_rca:
+                    QMSFieldChange.objects.create(
+                        record_type="ncr",
+                        record_id=ncr.id,
+                        field_name="rca_session",
+                        old_value=old_rca,
+                        new_value=new_rca,
+                        changed_by=request.user,
+                    )
             except RCASession.DoesNotExist:
                 pass
         else:
@@ -657,12 +724,21 @@ def ncr_stats(request):
     ]
     avg_close_days = avg_close.days if avg_close else None
 
+    from django.db.models import Count
+
+    by_severity = dict(ncrs.values_list("severity").annotate(c=Count("id")).values_list("severity", "c"))
+    by_source = dict(ncrs.values_list("source").annotate(c=Count("id")).values_list("source", "c"))
+    by_status = dict(ncrs.values_list("status").annotate(c=Count("id")).values_list("status", "c"))
+
     return JsonResponse(
         {
             "total": ncrs.count(),
             "open": open_ncrs.count(),
             "overdue_capas": overdue,
             "avg_close_days": avg_close_days,
+            "by_severity": by_severity,
+            "by_source": by_source,
+            "by_status": by_status,
         }
     )
 
@@ -928,7 +1004,7 @@ def audit_finding_create(request, audit_id):
         clause_label = f" — {clause}" if clause else ""
         ncr = NonconformanceRecord(
             raised_by=request.user,
-            title=f"Audit Finding — {audit.title}{clause_label}",
+            title=f"Audit Finding — {audit.title}{clause_label} — {finding.description[:100]}",
             description=finding.description,
             severity=severity_map[finding_type],
             source="internal_audit",
