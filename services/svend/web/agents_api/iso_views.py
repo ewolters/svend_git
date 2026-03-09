@@ -612,6 +612,73 @@ def ncr_stats(request):
 
 
 @require_team
+@require_http_methods(["GET"])
+def ncr_analytics(request):
+    """NCR Pareto analysis and trending.
+
+    GET /api/iso/ncrs/analytics/?severity=major&source=supplier&months=12
+    Returns Pareto by source category and monthly trending.
+    """
+
+    from django.db.models import Count
+    from django.db.models.functions import TruncMonth
+
+    user = request.user
+    ncrs = NonconformanceRecord.objects.filter(owner=user)
+
+    # Optional filters
+    severity = request.GET.get("severity")
+    if severity:
+        ncrs = ncrs.filter(severity=severity)
+    source = request.GET.get("source")
+    if source:
+        ncrs = ncrs.filter(source=source)
+    months = int(request.GET.get("months", 12))
+    cutoff = date.today() - timedelta(days=months * 30)
+    ncrs = ncrs.filter(created_at__gte=cutoff)
+
+    # --- Pareto by source ---
+    source_counts = ncrs.values("source").annotate(count=Count("id")).order_by("-count")
+    total = sum(row["count"] for row in source_counts)
+    cumulative = 0
+    pareto = []
+    for row in source_counts:
+        cumulative += row["count"]
+        pareto.append(
+            {
+                "source": row["source"],
+                "count": row["count"],
+                "percent": round(row["count"] / total * 100, 1) if total else 0,
+                "cumulative_percent": round(cumulative / total * 100, 1) if total else 0,
+            }
+        )
+
+    # --- Pareto by severity ---
+    severity_counts = ncrs.values("severity").annotate(count=Count("id")).order_by("-count")
+    severity_pareto = [{"severity": row["severity"], "count": row["count"]} for row in severity_counts]
+
+    # --- Monthly trending ---
+    monthly = (
+        ncrs.annotate(month=TruncMonth("created_at")).values("month").annotate(count=Count("id")).order_by("month")
+    )
+    trending = [{"month": row["month"].strftime("%Y-%m"), "count": row["count"]} for row in monthly]
+
+    return JsonResponse(
+        {
+            "pareto_by_source": pareto,
+            "pareto_by_severity": severity_pareto,
+            "trending": trending,
+            "total": total,
+            "filters": {
+                "severity": severity,
+                "source": source,
+                "months": months,
+            },
+        }
+    )
+
+
+@require_team
 @require_http_methods(["POST"])
 def ncr_launch_rca(request, ncr_id):
     """Create an RCA session linked to this NCR."""

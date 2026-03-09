@@ -4207,3 +4207,78 @@ class QMSAttachmentTest(TestCase):
             },
         )
         self.assertEqual(resp.status_code, 201)
+
+
+# =============================================================================
+# NCR Analytics (Pareto + Trending)
+# =============================================================================
+
+
+@SECURE_OFF
+class NCRAnalyticsTest(TestCase):
+    """Test NCR Pareto analysis and trending endpoint."""
+
+    def setUp(self):
+        self.user = _make_team_user("ncranalytics@test.com")
+        self.client.login(username="ncranalytics", password="testpass123!")
+        # Create several NCRs with varying sources and severities
+        for source in ["supplier", "supplier", "supplier", "process", "process", "internal_audit"]:
+            _post(
+                self.client,
+                "/api/iso/ncrs/",
+                {
+                    "title": f"NCR from {source}",
+                    "description": "Test NCR",
+                    "severity": "minor" if source == "process" else "major",
+                    "source": source,
+                },
+            )
+
+    def test_pareto_by_source(self):
+        """Pareto returns sources ordered by count with cumulative %."""
+        resp = self.client.get("/api/iso/ncrs/analytics/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        pareto = data["pareto_by_source"]
+        self.assertEqual(pareto[0]["source"], "supplier")
+        self.assertEqual(pareto[0]["count"], 3)
+        self.assertEqual(pareto[0]["cumulative_percent"], 50.0)
+        self.assertEqual(data["total"], 6)
+
+    def test_pareto_by_severity(self):
+        """Severity breakdown returned."""
+        resp = self.client.get("/api/iso/ncrs/analytics/")
+        data = resp.json()
+        severities = {s["severity"]: s["count"] for s in data["pareto_by_severity"]}
+        self.assertEqual(severities["major"], 4)
+        self.assertEqual(severities["minor"], 2)
+
+    def test_trending(self):
+        """Monthly trending returns at least one month."""
+        resp = self.client.get("/api/iso/ncrs/analytics/")
+        data = resp.json()
+        self.assertGreaterEqual(len(data["trending"]), 1)
+        self.assertIn("month", data["trending"][0])
+        self.assertIn("count", data["trending"][0])
+
+    def test_filter_by_severity(self):
+        """Filter analytics by severity."""
+        resp = self.client.get("/api/iso/ncrs/analytics/?severity=major")
+        data = resp.json()
+        self.assertEqual(data["total"], 4)
+
+    def test_filter_by_source(self):
+        """Filter analytics by source."""
+        resp = self.client.get("/api/iso/ncrs/analytics/?source=supplier")
+        data = resp.json()
+        self.assertEqual(data["total"], 3)
+
+    def test_empty_data(self):
+        """Analytics with no NCRs returns empty structure."""
+        _make_team_user("empty@test.com")
+        self.client.login(username="empty", password="testpass123!")
+        resp = self.client.get("/api/iso/ncrs/analytics/")
+        data = resp.json()
+        self.assertEqual(data["total"], 0)
+        self.assertEqual(data["pareto_by_source"], [])
+        self.assertEqual(data["trending"], [])

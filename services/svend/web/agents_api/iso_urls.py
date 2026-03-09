@@ -12,6 +12,7 @@ urlpatterns = [
     # NCR Tracker (clause 10.2)
     path("ncrs/", iso_views.ncr_list_create, name="iso_ncr_list"),
     path("ncrs/stats/", iso_views.ncr_stats, name="iso_ncr_stats"),
+    path("ncrs/analytics/", iso_views.ncr_analytics, name="iso_ncr_analytics"),
     path("ncrs/<uuid:ncr_id>/", iso_views.ncr_detail, name="iso_ncr_detail"),
     path("ncrs/<uuid:ncr_id>/launch-rca/", iso_views.ncr_launch_rca, name="iso_ncr_launch_rca"),
     path("ncrs/<uuid:ncr_id>/files/", iso_views.ncr_files, name="iso_ncr_files"),
