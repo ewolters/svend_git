@@ -569,11 +569,26 @@ class A3Report(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    # Ownership
+    # Ownership (nullable per ORG-001 §2.2 — NULL when site-scoped)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="a3_reports",
+    )
+    site = models.ForeignKey(
+        "agents_api.Site",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="a3_records",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="a3_reports_created",
     )
 
     # Link to project (A3 is always part of a project)
@@ -629,6 +644,8 @@ class A3Report(models.Model):
             "project_id": str(self.project_id),
             "title": self.title,
             "status": self.status,
+            "site_id": str(self.site_id) if self.site_id else None,
+            "created_by_id": str(self.created_by_id) if self.created_by_id else None,
             "background": self.background,
             "current_condition": self.current_condition,
             "goal": self.goal,
@@ -766,8 +783,23 @@ class FMEA(models.Model):
 
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="fmeas",
+    )
+    site = models.ForeignKey(
+        "agents_api.Site",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="fmea_records",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="fmeas_created",
     )
 
     project = models.ForeignKey(
@@ -804,6 +836,8 @@ class FMEA(models.Model):
             "title": self.title,
             "description": self.description,
             "status": self.status,
+            "site_id": str(self.site_id) if self.site_id else None,
+            "created_by_id": str(self.created_by_id) if self.created_by_id else None,
             "fmea_type": self.fmea_type,
             "scoring_method": self.scoring_method,
             "rows": [r.to_dict() for r in rows],
@@ -1044,11 +1078,26 @@ class RCASession(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    # Ownership
+    # Ownership (nullable per ORG-001 §2.2 — NULL when site-scoped)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="rca_sessions",
+    )
+    site = models.ForeignKey(
+        "agents_api.Site",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="rca_records",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="rca_sessions_created",
     )
 
     # Optional project link
@@ -1154,6 +1203,8 @@ class RCASession(models.Model):
             "project_id": str(self.project_id) if self.project_id else None,
             "a3_report_id": str(self.a3_report_id) if self.a3_report_id else None,
             "title": self.title,
+            "site_id": str(self.site_id) if self.site_id else None,
+            "created_by_id": str(self.created_by_id) if self.created_by_id else None,
             "event": self.event,
             "chain": self.chain,
             "root_cause": self.root_cause,
@@ -3139,8 +3190,23 @@ class NonconformanceRecord(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="ncrs",
+    )
+    site = models.ForeignKey(
+        "agents_api.Site",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ncr_records",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="ncrs_created",
     )
     title = models.CharField(max_length=300)
     description = models.TextField(blank=True)
@@ -3250,6 +3316,8 @@ class NonconformanceRecord(models.Model):
             "description": self.description,
             "severity": self.severity,
             "status": self.status,
+            "site_id": str(self.site_id) if self.site_id else None,
+            "created_by_id": str(self.created_by_id) if self.created_by_id else None,
             "source": self.source,
             "iso_clause": self.iso_clause,
             "containment_action": self.containment_action,
@@ -3381,8 +3449,23 @@ class CAPAReport(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="capa_reports",
+    )
+    site = models.ForeignKey(
+        "agents_api.Site",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="capa_records",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="capa_reports_created",
     )
     project = models.ForeignKey(
         "core.Project",
@@ -3493,6 +3576,8 @@ class CAPAReport(models.Model):
             "title": self.title,
             "description": self.description,
             "status": self.status,
+            "site_id": str(self.site_id) if self.site_id else None,
+            "created_by_id": str(self.created_by_id) if self.created_by_id else None,
             "priority": self.priority,
             "source_type": self.source_type,
             "source_id": str(self.source_id) if self.source_id else None,
@@ -3575,8 +3660,23 @@ class InternalAudit(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="internal_audits",
+    )
+    site = models.ForeignKey(
+        "agents_api.Site",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="audit_records",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="audits_created",
     )
     title = models.CharField(max_length=300)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PLANNED)
@@ -3602,6 +3702,8 @@ class InternalAudit(models.Model):
             "id": str(self.id),
             "title": self.title,
             "status": self.status,
+            "site_id": str(self.site_id) if self.site_id else None,
+            "created_by_id": str(self.created_by_id) if self.created_by_id else None,
             "scheduled_date": str(self.scheduled_date),
             "completed_date": str(self.completed_date) if self.completed_date else None,
             "lead_auditor": self.lead_auditor,
@@ -3685,8 +3787,23 @@ class TrainingRequirement(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="training_requirements",
+    )
+    site = models.ForeignKey(
+        "agents_api.Site",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="training_records",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="training_created",
     )
     name = models.CharField(max_length=300)
     description = models.TextField(blank=True)
@@ -3724,6 +3841,8 @@ class TrainingRequirement(models.Model):
             "id": str(self.id),
             "name": self.name,
             "description": self.description,
+            "site_id": str(self.site_id) if self.site_id else None,
+            "created_by_id": str(self.created_by_id) if self.created_by_id else None,
             "iso_clause": self.iso_clause,
             "frequency_months": self.frequency_months,
             "is_mandatory": self.is_mandatory,
@@ -4052,8 +4171,23 @@ class ControlledDocument(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="controlled_documents",
+    )
+    site = models.ForeignKey(
+        "agents_api.Site",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="document_records",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="documents_created",
     )
     title = models.CharField(max_length=300)
     document_number = models.CharField(max_length=50, blank=True)
@@ -4130,6 +4264,8 @@ class ControlledDocument(models.Model):
             "title": self.title,
             "document_number": self.document_number,
             "status": self.status,
+            "site_id": str(self.site_id) if self.site_id else None,
+            "created_by_id": str(self.created_by_id) if self.created_by_id else None,
             "category": self.category,
             "iso_clause": self.iso_clause,
             "current_version": self.current_version,
