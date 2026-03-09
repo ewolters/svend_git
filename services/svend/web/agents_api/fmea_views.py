@@ -15,7 +15,8 @@ from accounts.permissions import gated_paid
 from core.models import Evidence, EvidenceLink, Hypothesis, Project
 
 from .evidence_bridge import create_tool_evidence
-from .models import FMEA, ActionItem, FMEARow
+from .models import FMEA, ActionItem, FMEARow, RCASession, Site
+from .permissions import qms_can_edit, qms_queryset, qms_set_ownership
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ def list_fmeas(request):
     - status: filter by status
     - fmea_type: filter by type (process/design/system)
     """
-    fmeas = FMEA.objects.filter(owner=request.user).select_related("project").prefetch_related("rows")
+    fmeas = qms_queryset(FMEA, request.user)[0].select_related("project").prefetch_related("rows")
 
     project_id = request.GET.get("project_id")
     if project_id:
@@ -108,14 +109,22 @@ def create_fmea(request):
         except Project.DoesNotExist:
             return JsonResponse({"error": "Study not found"}, status=404)
 
-    fmea = FMEA.objects.create(
-        owner=request.user,
+    site = None
+    if data.get("site_id"):
+        try:
+            site = Site.objects.get(id=data["site_id"])
+        except Site.DoesNotExist:
+            return JsonResponse({"error": "Site not found"}, status=404)
+
+    fmea = FMEA(
         project=project,
         title=title,
         description=data.get("description", ""),
         fmea_type=fmea_type,
         scoring_method=scoring_method,
     )
+    qms_set_ownership(fmea, request.user, site)
+    fmea.save()
 
     return JsonResponse(
         {
@@ -129,7 +138,11 @@ def create_fmea(request):
 @require_http_methods(["GET"])
 def get_fmea(request, fmea_id):
     """Get a single FMEA with all rows and available hypotheses."""
-    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
+    qs = qms_queryset(FMEA, request.user)[0]
+    try:
+        fmea = qs.get(id=fmea_id)
+    except FMEA.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
 
     # Available hypotheses for linking
     hypotheses = []
@@ -171,7 +184,13 @@ def get_fmea(request, fmea_id):
 @require_http_methods(["PUT", "PATCH"])
 def update_fmea(request, fmea_id):
     """Update FMEA metadata (title, description, status, type, project)."""
-    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
+    qs, tenant, _is_admin = qms_queryset(FMEA, request.user)
+    try:
+        fmea = qs.get(id=fmea_id)
+    except FMEA.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+    if not qms_can_edit(request.user, fmea, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
 
     try:
         data = json.loads(request.body)
@@ -212,7 +231,7 @@ def update_fmea(request, fmea_id):
 @require_http_methods(["DELETE"])
 def delete_fmea(request, fmea_id):
     """Delete an FMEA and all its rows."""
-    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
+    fmea = get_object_or_404(qms_queryset(FMEA, request.user)[0], id=fmea_id)
     fmea.delete()
     return JsonResponse({"success": True})
 
@@ -242,7 +261,7 @@ def add_row(request, fmea_id):
         "hypothesis_id": "uuid (optional)"
     }
     """
-    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
+    fmea = get_object_or_404(qms_queryset(FMEA, request.user)[0], id=fmea_id)
 
     try:
         data = json.loads(request.body) if request.body else {}
@@ -303,7 +322,7 @@ def add_row(request, fmea_id):
 @require_http_methods(["PUT", "PATCH"])
 def update_row(request, fmea_id, row_id):
     """Update a failure mode row."""
-    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
+    fmea = get_object_or_404(qms_queryset(FMEA, request.user)[0], id=fmea_id)
     row = get_object_or_404(FMEARow, id=row_id, fmea=fmea)
 
     try:
@@ -361,7 +380,7 @@ def update_row(request, fmea_id, row_id):
 @require_http_methods(["DELETE"])
 def delete_row(request, fmea_id, row_id):
     """Delete a failure mode row."""
-    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
+    fmea = get_object_or_404(qms_queryset(FMEA, request.user)[0], id=fmea_id)
     row = get_object_or_404(FMEARow, id=row_id, fmea=fmea)
     row.delete()
     return JsonResponse({"success": True})
@@ -377,7 +396,7 @@ def reorder_rows(request, fmea_id):
         "row_ids": ["uuid1", "uuid2", "uuid3"]
     }
     """
-    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
+    fmea = get_object_or_404(qms_queryset(FMEA, request.user)[0], id=fmea_id)
 
     try:
         data = json.loads(request.body)
@@ -420,7 +439,7 @@ def link_to_hypothesis(request, fmea_id, row_id):
     - High severity + high occurrence → strong evidence supporting hypothesis
     - Low scores → weaker evidence
     """
-    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
+    fmea = get_object_or_404(qms_queryset(FMEA, request.user)[0], id=fmea_id)
     row = get_object_or_404(FMEARow, id=row_id, fmea=fmea)
 
     if not fmea.project:
@@ -562,7 +581,7 @@ def record_revision(request, fmea_id, row_id):
     If the row is linked to a hypothesis, generates new evidence showing
     the RPN reduction and updates the hypothesis probability.
     """
-    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
+    fmea = get_object_or_404(qms_queryset(FMEA, request.user)[0], id=fmea_id)
     row = get_object_or_404(FMEARow, id=row_id, fmea=fmea)
 
     try:
@@ -641,7 +660,7 @@ def record_revision(request, fmea_id, row_id):
 @require_http_methods(["GET"])
 def rpn_summary(request, fmea_id):
     """Get RPN summary with Pareto data and before/after comparison."""
-    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
+    fmea = get_object_or_404(qms_queryset(FMEA, request.user)[0], id=fmea_id)
 
     rows = list(fmea.rows.order_by("-rpn"))
 
@@ -739,7 +758,7 @@ def rpn_trending(request, fmea_id):
     Returns RPN history derived from Evidence records (revisions, SPC updates)
     and classifies each row's trend direction.
     """
-    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
+    fmea = get_object_or_404(qms_queryset(FMEA, request.user)[0], id=fmea_id)
     rows = list(fmea.rows.order_by("sort_order"))
 
     if not rows:
@@ -884,9 +903,10 @@ def cross_fmea_patterns(request):
 
     if source_row_id:
         try:
+            fmea_qs = qms_queryset(FMEA, request.user)[0]
             source_row = FMEARow.objects.select_related("fmea").get(
                 id=source_row_id,
-                fmea__owner=request.user,
+                fmea__in=fmea_qs,
             )
             query_text = f"{source_row.process_step} {source_row.failure_mode} {source_row.effect} {source_row.cause}"
         except FMEARow.DoesNotExist:
@@ -901,7 +921,7 @@ def cross_fmea_patterns(request):
 
     # Load all user's FMEA rows and generate embeddings
     all_rows = FMEARow.objects.filter(
-        fmea__owner=request.user,
+        fmea__in=qms_queryset(FMEA, request.user)[0],
     ).select_related("fmea")[:500]
 
     embeddings = []
@@ -957,7 +977,7 @@ def suggest_failure_modes(request, fmea_id):
         "context": "automotive brake caliper"
     }
     """
-    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
+    fmea = get_object_or_404(qms_queryset(FMEA, request.user)[0], id=fmea_id)
 
     try:
         data = json.loads(request.body) if request.body else {}
@@ -1035,7 +1055,7 @@ def spc_update_occurrence(request, fmea_id, row_id):
 
     Request body: { "ooc_count": 3, "total_points": 100 }
     """
-    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
+    fmea = get_object_or_404(qms_queryset(FMEA, request.user)[0], id=fmea_id)
     row = get_object_or_404(FMEARow, id=row_id, fmea=fmea)
 
     try:
@@ -1123,7 +1143,7 @@ def spc_cpk_update_occurrence(request, fmea_id, row_id):
     Request body: { "cpk": 1.45 }
     Maps Cpk to AIAG 4th Edition occurrence scale per QMS-001 §5.4.1.
     """
-    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
+    fmea = get_object_or_404(qms_queryset(FMEA, request.user)[0], id=fmea_id)
     row = get_object_or_404(FMEARow, id=row_id, fmea=fmea)
 
     try:
@@ -1245,7 +1265,7 @@ def _fmea_connect_investigation(request, investigation_id, fmea, row):
 @require_http_methods(["GET"])
 def list_fmea_actions(request, fmea_id):
     """List all action items linked to any row in this FMEA."""
-    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
+    fmea = get_object_or_404(qms_queryset(FMEA, request.user)[0], id=fmea_id)
     row_ids = list(fmea.rows.values_list("id", flat=True))
     items = ActionItem.objects.filter(source_type="fmea", source_id__in=row_ids)
     return JsonResponse({"action_items": [i.to_dict() for i in items]})
@@ -1255,7 +1275,7 @@ def list_fmea_actions(request, fmea_id):
 @require_http_methods(["POST"])
 def promote_fmea_action(request, fmea_id, row_id):
     """Promote an FMEA row's recommended action to a tracked ActionItem."""
-    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
+    fmea = get_object_or_404(qms_queryset(FMEA, request.user)[0], id=fmea_id)
     row = get_object_or_404(FMEARow, id=row_id, fmea=fmea)
 
     if not fmea.project:
@@ -1298,17 +1318,16 @@ def investigate_row(request, fmea_id, row_id):
     Bridges FMEA → RCA per QMS-001 §5.1. The failure mode becomes the
     RCA event, effects and causes become initial chain context.
     """
-    from .models import RCASession
-
-    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
+    fmea = get_object_or_404(qms_queryset(FMEA, request.user)[0], id=fmea_id)
     row = get_object_or_404(FMEARow, id=row_id, fmea=fmea)
 
     # Check if RCA already exists for this row
     existing = (
-        RCASession.objects.filter(
-            owner=request.user,
+        qms_queryset(RCASession, request.user)[0]
+        .filter(
             source_fmea_row_id=row.id,
-        ).first()
+        )
+        .first()
         if hasattr(RCASession, "source_fmea_row_id")
         else None
     )
@@ -1340,13 +1359,14 @@ def investigate_row(request, fmea_id, row_id):
             }
         )
 
-    session = RCASession.objects.create(
-        owner=request.user,
+    session = RCASession(
         title=f"RCA: {row.failure_mode[:200]}",
         event=event,
         chain=chain,
         status="draft",
     )
+    qms_set_ownership(session, request.user, fmea.site)
+    session.save()
 
     # Link to same project if FMEA has one
     if fmea.project:

@@ -568,6 +568,12 @@
             </select>
         </div>
 
+        <div class="a3-toolbar-group" id="a3-site-group" style="display:none">
+            <select id="a3-site" class="a3-btn">
+                <option value="">— Personal —</option>
+            </select>
+        </div>
+
         <div class="a3-toolbar-group">
             <select id="report-status-select" class="a3-status-select" onchange="updateStatus(this.value)">
                 <option value="draft">Draft</option>
@@ -818,10 +824,32 @@ function exportPDF() {
     window.open(`/api/a3/${currentReportId}/export/pdf/`, '_blank');
 }
 
+// ORG-001 §5.3 — site selector for multi-site QMS
+async function loadA3Sites() {
+    try {
+        const r = await fetch('/api/iso/sites/', {credentials: 'include'});
+        if (!r.ok) return;
+        const data = await r.json();
+        if (data.sites && data.sites.length) {
+            const sel = document.getElementById('a3-site');
+            data.sites.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = `${s.name} (${s.code})`;
+                sel.appendChild(opt);
+            });
+            document.getElementById('a3-site-group').style.display = '';
+        }
+    } catch(e) {}
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     // Set today's date
     document.getElementById('a3-date').textContent = new Date().toLocaleDateString();
+
+    // Load site selector
+    await loadA3Sites();
 
     // Check if editing existing report
     const pathParts = window.location.pathname.split('/');
@@ -875,13 +903,13 @@ async function loadProject(projectId) {
 
     // Create new A3 for this project
     try {
+        const a3Body = { project_id: projectId, title: 'New A3 Report' };
+        const a3SiteEl = document.getElementById('a3-site');
+        if (a3SiteEl && a3SiteEl.value) a3Body.site_id = a3SiteEl.value;
         const resp = await fetch('/api/a3/create/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                project_id: projectId,
-                title: 'New A3 Report'
-            })
+            body: JSON.stringify(a3Body)
         });
         const data = await resp.json();
         if (data.id) {

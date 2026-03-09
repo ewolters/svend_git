@@ -5,6 +5,8 @@ from django.urls import path
 from . import iso_views
 
 urlpatterns = [
+    # Sites (for site selector in QMS forms)
+    path("sites/", iso_views.qms_sites, name="qms_sites"),
     # Dashboard
     path("dashboard/", iso_views.iso_dashboard, name="iso_dashboard"),
     # Team members (for assignment dropdowns)

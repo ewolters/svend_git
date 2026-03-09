@@ -15,7 +15,8 @@ from accounts.permissions import gated_paid
 from core.models import Hypothesis, Project
 
 from .evidence_bridge import create_tool_evidence
-from .models import A3Report, ActionItem, Board, DSWResult, RCASession
+from .models import A3Report, ActionItem, Board, DSWResult, RCASession, Site
+from .permissions import qms_can_edit, qms_queryset, qms_set_ownership
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ def list_a3_reports(request):
     - project_id: filter by project
     - status: filter by status
     """
-    reports = A3Report.objects.filter(owner=request.user).select_related("project")
+    reports = qms_queryset(A3Report, request.user)[0].select_related("project")
 
     project_id = request.GET.get("project_id")
     if project_id:
@@ -88,7 +89,7 @@ def create_a3_report(request):
     rca_linked = None
     if rca_session_id:
         try:
-            rca = RCASession.objects.get(id=rca_session_id, owner=request.user)
+            rca = qms_queryset(RCASession, request.user)[0].get(id=rca_session_id)
             rca_linked = rca
             rca_content = f"**Event:** {rca.event}\n\n"
             if rca.chain:
@@ -103,8 +104,14 @@ def create_a3_report(request):
         except RCASession.DoesNotExist:
             pass
 
-    report = A3Report.objects.create(
-        owner=request.user,
+    site = None
+    if data.get("site_id"):
+        try:
+            site = Site.objects.get(id=data["site_id"])
+        except Site.DoesNotExist:
+            return JsonResponse({"error": "Site not found"}, status=404)
+
+    report = A3Report(
         project=project,
         title=title,
         background=data.get("background", ""),
@@ -115,6 +122,8 @@ def create_a3_report(request):
         implementation_plan=data.get("implementation_plan", ""),
         follow_up=data.get("follow_up", ""),
     )
+    qms_set_ownership(report, request.user, site)
+    report.save()
 
     # Link RCA session FK to A3
     if rca_linked:
@@ -134,7 +143,11 @@ def create_a3_report(request):
 @require_http_methods(["GET"])
 def get_a3_report(request, report_id):
     """Get a single A3 report with full details."""
-    report = get_object_or_404(A3Report, id=report_id, owner=request.user)
+    qs = qms_queryset(A3Report, request.user)[0]
+    try:
+        report = qs.get(id=report_id)
+    except A3Report.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
 
     # Also get related data for import suggestions
     project = report.project
@@ -190,7 +203,13 @@ def get_a3_report(request, report_id):
 @require_http_methods(["PUT", "PATCH"])
 def update_a3_report(request, report_id):
     """Update an A3 report."""
-    report = get_object_or_404(A3Report, id=report_id, owner=request.user)
+    qs, tenant, _is_admin = qms_queryset(A3Report, request.user)
+    try:
+        report = qs.get(id=report_id)
+    except A3Report.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+    if not qms_can_edit(request.user, report, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
 
     try:
         data = json.loads(request.body)
@@ -253,7 +272,13 @@ def update_a3_report(request, report_id):
 @require_http_methods(["DELETE"])
 def delete_a3_report(request, report_id):
     """Delete an A3 report."""
-    report = get_object_or_404(A3Report, id=report_id, owner=request.user)
+    qs, tenant, _is_admin = qms_queryset(A3Report, request.user)
+    try:
+        report = qs.get(id=report_id)
+    except A3Report.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+    if not qms_can_edit(request.user, report, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
     report.delete()
 
     return JsonResponse({"success": True})
@@ -272,7 +297,7 @@ def import_to_a3(request, report_id):
         "append": true  // false to replace
     }
     """
-    report = get_object_or_404(A3Report, id=report_id, owner=request.user)
+    report = get_object_or_404(qms_queryset(A3Report, request.user)[0], id=report_id)
 
     try:
         data = json.loads(request.body)
@@ -437,7 +462,7 @@ def auto_populate_a3(request, report_id):
         "sections": ["background", "root_cause", ...]  // sections to populate
     }
     """
-    report = get_object_or_404(A3Report, id=report_id, owner=request.user)
+    report = get_object_or_404(qms_queryset(A3Report, request.user)[0], id=report_id)
 
     try:
         data = json.loads(request.body) if request.body else {}
@@ -599,7 +624,7 @@ def critique_a3(request, report_id):
         "sections": ["root_cause", "countermeasures"]  // default: all sections
     }
     """
-    report = get_object_or_404(A3Report, id=report_id, owner=request.user)
+    report = get_object_or_404(qms_queryset(A3Report, request.user)[0], id=report_id)
 
     try:
         data = json.loads(request.body) if request.body else {}
@@ -679,7 +704,7 @@ def embed_diagram(request, report_id):
         "room_code": "ABC123"
     }
     """
-    report = get_object_or_404(A3Report, id=report_id, owner=request.user)
+    report = get_object_or_404(qms_queryset(A3Report, request.user)[0], id=report_id)
 
     try:
         data = json.loads(request.body)
@@ -785,7 +810,7 @@ def embed_diagram(request, report_id):
 @require_http_methods(["DELETE"])
 def remove_diagram(request, report_id, diagram_id):
     """Remove an embedded diagram from an A3 report."""
-    report = get_object_or_404(A3Report, id=report_id, owner=request.user)
+    report = get_object_or_404(qms_queryset(A3Report, request.user)[0], id=report_id)
 
     diagrams = report.embedded_diagrams or {}
     removed = False
@@ -811,7 +836,7 @@ def remove_diagram(request, report_id, diagram_id):
 @require_http_methods(["GET"])
 def list_a3_actions(request, report_id):
     """List action items linked to an A3 report."""
-    report = get_object_or_404(A3Report, id=report_id, owner=request.user)
+    report = get_object_or_404(qms_queryset(A3Report, request.user)[0], id=report_id)
     items = ActionItem.objects.filter(source_type="a3", source_id=report.id)
     return JsonResponse({"action_items": [i.to_dict() for i in items]})
 
@@ -820,7 +845,7 @@ def list_a3_actions(request, report_id):
 @require_http_methods(["POST"])
 def create_a3_action(request, report_id):
     """Create a tracked action item from an A3 report."""
-    report = get_object_or_404(A3Report, id=report_id, owner=request.user)
+    report = get_object_or_404(qms_queryset(A3Report, request.user)[0], id=report_id)
     data = json.loads(request.body)
 
     title = data.get("title", "").strip()
@@ -858,7 +883,7 @@ def export_a3_pdf(request, report_id):
     import re
     from io import BytesIO
 
-    report = get_object_or_404(A3Report, id=report_id, owner=request.user)
+    report = get_object_or_404(qms_queryset(A3Report, request.user)[0], id=report_id)
     diagrams = report.embedded_diagrams or {}
 
     try:

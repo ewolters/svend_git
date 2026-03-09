@@ -878,6 +878,7 @@
                 <select id="create-investigation">
                     <option value="">None</option>
                 </select>
+                <div id="fmea-site-slot"></div>
             </div>
         </div>
         <div class="fmea-modal-footer">
@@ -937,6 +938,18 @@ let allFmeas = [];
 // CANON-002 §12 — investigation bridge
 const currentInvestigationId = new URLSearchParams(window.location.search).get('investigation_id') || null;
 
+// ORG-001 §5.3 — site selector for multi-site QMS
+let _fmeaSitesCache = null;
+async function loadFmeaSites() {
+    if (_fmeaSitesCache) return _fmeaSitesCache;
+    try {
+        const r = await fetch('/api/iso/sites/', {credentials: 'include'});
+        if (r.ok) _fmeaSitesCache = await r.json();
+        else _fmeaSitesCache = { sites: [], has_org: false };
+    } catch(e) { _fmeaSitesCache = { sites: [], has_org: false }; }
+    return _fmeaSitesCache;
+}
+
 // ====== INIT ======
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -949,6 +962,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch(e) {}
 
     populateInvestigationDropdowns();
+
+    // Populate site selector slot if user has org sites
+    const siteData = await loadFmeaSites();
+    if (siteData.sites.length) {
+        const slot = document.getElementById('fmea-site-slot');
+        let opts = '<option value="">— Personal —</option>';
+        siteData.sites.forEach(s => {
+            const el = document.createElement('div');
+            el.textContent = s.name; const safeName = el.innerHTML;
+            el.textContent = s.code; const safeCode = el.innerHTML;
+            opts += `<option value="${s.id}">${safeName} (${safeCode})</option>`;
+        });
+        slot.innerHTML = `<label>Site</label><select id="fmea-site">${opts}</select>`;
+    }
 
     const path = window.location.pathname;
     const match = path.match(/\/app\/fmea\/([0-9a-f-]+)\//);
@@ -1476,6 +1503,8 @@ async function createFmea() {
     const createInvSel = document.getElementById('create-investigation').value;
     if (createInvSel) createPayload.investigation_id = createInvSel;
     if (currentInvestigationId) createPayload.investigation_id = currentInvestigationId;
+    const fmeaSiteEl = document.getElementById('fmea-site');
+    if (fmeaSiteEl && fmeaSiteEl.value) createPayload.site_id = fmeaSiteEl.value;
     const resp = await fetch(API + 'create/', {
         method: 'POST',
         credentials: 'include',

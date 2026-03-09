@@ -17,7 +17,8 @@ from core.models import Project
 
 from .evidence_bridge import create_tool_evidence
 from .llm_manager import CLAUDE_MODELS
-from .models import ActionItem, CAPAReport, RCASession, check_rate_limit
+from .models import ActionItem, CAPAReport, RCASession, Site, check_rate_limit
+from .permissions import qms_can_edit, qms_queryset, qms_set_ownership
 
 logger = logging.getLogger(__name__)
 
@@ -532,10 +533,11 @@ def cluster_root_causes(request):
     import numpy as np
 
     sessions = list(
-        RCASession.objects.filter(
-            owner=request.user,
+        qms_queryset(RCASession, request.user)[0]
+        .filter(
             embedding__isnull=False,
-        ).exclude(status="draft")
+        )
+        .exclude(status="draft")
     )
 
     if len(sessions) < 2:
@@ -649,7 +651,7 @@ def cluster_root_causes(request):
 @require_http_methods(["GET"])
 def list_sessions(request):
     """List user's RCA sessions."""
-    sessions = RCASession.objects.filter(owner=request.user).order_by("-updated_at")[:50]
+    sessions = qms_queryset(RCASession, request.user)[0].order_by("-updated_at")[:50]
     return JsonResponse({"sessions": [s.to_dict() for s in sessions]})
 
 
@@ -666,16 +668,24 @@ def create_session(request):
     if not event:
         return JsonResponse({"error": "Event description required"}, status=400)
 
-    session = RCASession.objects.create(
-        owner=request.user,
+    site = None
+    if data.get("site_id"):
+        try:
+            site = Site.objects.get(id=data["site_id"])
+        except Site.DoesNotExist:
+            return JsonResponse({"error": "Site not found"}, status=404)
+
+    session = RCASession(
         title=data.get("title", "").strip(),
         event=event,
         chain=data.get("chain", []),
         root_cause=data.get("root_cause", ""),
         countermeasure=data.get("countermeasure", ""),
         evaluation=data.get("evaluation", ""),
-        status="draft",  # Always start as draft regardless of input
+        status="draft",
     )
+    qms_set_ownership(session, request.user, site)
+    session.save()
 
     # Generate embedding for similarity search
     session.generate_embedding()
@@ -697,7 +707,7 @@ def create_session(request):
         try:
             from .models import A3Report
 
-            a3 = A3Report.objects.get(id=a3_id, owner=request.user)
+            a3 = qms_queryset(A3Report, request.user)[0].get(id=a3_id)
             session.a3_report = a3
             session.save()
         except A3Report.DoesNotExist:
@@ -711,7 +721,7 @@ def create_session(request):
 def get_session(request, session_id):
     """Get a single RCA session."""
     try:
-        session = RCASession.objects.get(id=session_id, owner=request.user)
+        session = qms_queryset(RCASession, request.user)[0].get(id=session_id)
         action_items = ActionItem.objects.filter(source_type="rca", source_id=session.id)
         result = {
             "session": session.to_dict(),
@@ -737,10 +747,13 @@ def get_session(request, session_id):
 @require_http_methods(["PUT", "PATCH"])
 def update_session(request, session_id):
     """Update an RCA session."""
+    qs, tenant, _is_admin = qms_queryset(RCASession, request.user)
     try:
-        session = RCASession.objects.get(id=session_id, owner=request.user)
+        session = qs.get(id=session_id)
     except RCASession.DoesNotExist:
         return JsonResponse({"error": "Session not found"}, status=404)
+    if not qms_can_edit(request.user, session, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
 
     try:
         data = json.loads(request.body)
@@ -788,9 +801,8 @@ def update_session(request, session_id):
 
     # FEAT-006: RCA → CAPA backflow — when root_cause is set, update linked CAPA
     if "root_cause" in data and data["root_cause"]:
-        linked_capas = CAPAReport.objects.filter(
+        linked_capas = qms_queryset(CAPAReport, request.user)[0].filter(
             rca_session=session,
-            owner=request.user,
         )
         for capa in linked_capas:
             if not capa.root_cause:
@@ -821,12 +833,15 @@ def update_session(request, session_id):
 @require_http_methods(["DELETE"])
 def delete_session(request, session_id):
     """Delete an RCA session."""
+    qs, tenant, _is_admin = qms_queryset(RCASession, request.user)
     try:
-        session = RCASession.objects.get(id=session_id, owner=request.user)
-        session.delete()
-        return JsonResponse({"success": True})
+        session = qs.get(id=session_id)
     except RCASession.DoesNotExist:
         return JsonResponse({"error": "Session not found"}, status=404)
+    if not qms_can_edit(request.user, session, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
+    session.delete()
+    return JsonResponse({"success": True})
 
 
 @gated_paid
@@ -834,7 +849,7 @@ def delete_session(request, session_id):
 def link_to_a3(request, session_id):
     """Link an RCA session to an A3 report and optionally populate root cause."""
     try:
-        session = RCASession.objects.get(id=session_id, owner=request.user)
+        session = qms_queryset(RCASession, request.user)[0].get(id=session_id)
     except RCASession.DoesNotExist:
         return JsonResponse({"error": "Session not found"}, status=404)
 
@@ -850,7 +865,7 @@ def link_to_a3(request, session_id):
     try:
         from .models import A3Report
 
-        a3 = A3Report.objects.get(id=a3_id, owner=request.user)
+        a3 = qms_queryset(A3Report, request.user)[0].get(id=a3_id)
     except A3Report.DoesNotExist:
         return JsonResponse({"error": "A3 report not found"}, status=404)
 
@@ -925,11 +940,14 @@ def find_similar(request):
 
     # Get all sessions with embeddings (owned by this user or completed)
     # For now, only show user's own sessions - could expand to team/org later
-    sessions = RCASession.objects.filter(
-        owner=request.user,
-        embedding__isnull=False,
-    ).exclude(
-        status="draft"  # Don't show draft sessions as similar
+    sessions = (
+        qms_queryset(RCASession, request.user)[0]
+        .filter(
+            embedding__isnull=False,
+        )
+        .exclude(
+            status="draft"  # Don't show draft sessions as similar
+        )
     )
 
     # Build embedding list for in-memory search
@@ -980,7 +998,7 @@ def reindex_embeddings(request):
 
     Useful after model updates or for sessions created before embeddings.
     """
-    sessions = RCASession.objects.filter(owner=request.user)
+    sessions = qms_queryset(RCASession, request.user)[0]
 
     updated = 0
     failed = 0
@@ -1008,7 +1026,7 @@ def reindex_embeddings(request):
 @require_http_methods(["GET"])
 def list_rca_actions(request, session_id):
     """List action items linked to an RCA session."""
-    session = get_object_or_404(RCASession, id=session_id, owner=request.user)
+    session = get_object_or_404(qms_queryset(RCASession, request.user)[0], id=session_id)
     items = ActionItem.objects.filter(source_type="rca", source_id=session.id)
     return JsonResponse({"action_items": [i.to_dict() for i in items]})
 
@@ -1017,7 +1035,7 @@ def list_rca_actions(request, session_id):
 @require_http_methods(["POST"])
 def create_rca_action(request, session_id):
     """Create a tracked action item from an RCA session."""
-    session = get_object_or_404(RCASession, id=session_id, owner=request.user)
+    session = get_object_or_404(qms_queryset(RCASession, request.user)[0], id=session_id)
 
     if not session.project:
         return JsonResponse({"error": "RCA session must be linked to a project first"}, status=400)

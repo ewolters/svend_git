@@ -26,7 +26,9 @@ from .models import (
     NonconformanceRecord,
     QMSFieldChange,
     RCASession,
+    Site,
 )
+from .permissions import qms_can_edit, qms_queryset, qms_set_ownership
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +106,7 @@ def capa_list_create(request):
     user = request.user
 
     if request.method == "GET":
-        capas = CAPAReport.objects.filter(owner=user)
+        capas = qms_queryset(CAPAReport, user)[0]
         status = request.GET.get("status")
         priority = request.GET.get("priority")
         source_type = request.GET.get("source_type")
@@ -146,8 +148,14 @@ def capa_list_create(request):
         except User.DoesNotExist:
             pass
 
-    capa = CAPAReport.objects.create(
-        owner=user,
+    site = None
+    if data.get("site_id"):
+        try:
+            site = Site.objects.get(id=data["site_id"])
+        except Site.DoesNotExist:
+            return JsonResponse({"error": "Site not found"}, status=404)
+
+    capa = CAPAReport(
         assigned_to=assigned_to_user,
         title=data["title"],
         description=data.get("description", ""),
@@ -157,12 +165,14 @@ def capa_list_create(request):
         due_date=data.get("due_date") or None,
         containment_action=data.get("containment_action", ""),
     )
+    qms_set_ownership(capa, user, site)
+    capa.save()
 
     # Link RCA session if provided
     rca_session_id = data.get("rca_session_id")
     if rca_session_id:
         try:
-            rca = RCASession.objects.get(id=rca_session_id, owner=user)
+            rca = qms_queryset(RCASession, user)[0].get(id=rca_session_id)
             capa.rca_session = rca
             capa.save(update_fields=["rca_session"])
         except RCASession.DoesNotExist:
@@ -184,13 +194,17 @@ def capa_list_create(request):
 @require_http_methods(["GET", "PUT", "DELETE"])
 def capa_detail(request, capa_id):
     """Get, update, or delete a CAPA."""
+    qs, tenant, _is_admin = qms_queryset(CAPAReport, request.user)
     try:
-        capa = CAPAReport.objects.get(id=capa_id, owner=request.user)
+        capa = qs.get(id=capa_id)
     except CAPAReport.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
 
     if request.method == "GET":
         return JsonResponse(capa.to_dict())
+
+    if not qms_can_edit(request.user, capa, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
 
     if request.method == "DELETE":
         capa.delete()
@@ -289,7 +303,7 @@ def capa_detail(request, capa_id):
     if "rca_session_id" in data:
         if data["rca_session_id"]:
             try:
-                rca = RCASession.objects.get(id=data["rca_session_id"], owner=request.user)
+                rca = qms_queryset(RCASession, request.user)[0].get(id=data["rca_session_id"])
                 capa.rca_session = rca
             except RCASession.DoesNotExist:
                 pass
@@ -334,7 +348,7 @@ def capa_detail(request, capa_id):
 def capa_stats(request):
     """CAPA statistics for dashboard."""
     user = request.user
-    capas = CAPAReport.objects.filter(owner=user)
+    capas = qms_queryset(CAPAReport, user)[0]
     open_capas = capas.exclude(status="closed")
     overdue = open_capas.filter(due_date__lt=date.today()).count()
 
@@ -353,7 +367,8 @@ def capa_stats(request):
 
     # Aging: average time spent in each state (from CAPAStatusChange records)
     aging = {}
-    changes = CAPAStatusChange.objects.filter(capa__owner=user).order_by("capa_id", "created_at")
+    capa_qs = qms_queryset(CAPAReport, user)[0]
+    changes = CAPAStatusChange.objects.filter(capa__in=capa_qs).order_by("capa_id", "created_at")
     # Group by capa, compute time between consecutive transitions
     state_durations = defaultdict(list)
     prev_by_capa = {}
@@ -393,8 +408,7 @@ def copq_summary(request):
     user = request.user
     months = int(request.GET.get("months", 12))
     cutoff = date.today() - __import__("datetime").timedelta(days=months * 30)
-    capas = CAPAReport.objects.filter(
-        owner=user,
+    capas = qms_queryset(CAPAReport, user)[0].filter(
         cost_of_poor_quality__isnull=False,
         created_at__gte=cutoff,
     )
@@ -440,10 +454,13 @@ def copq_summary(request):
 @require_http_methods(["POST"])
 def capa_launch_rca(request, capa_id):
     """Create an RCA session linked to this CAPA."""
+    qs, tenant, _is_admin = qms_queryset(CAPAReport, request.user)
     try:
-        capa = CAPAReport.objects.get(id=capa_id, owner=request.user)
+        capa = qs.get(id=capa_id)
     except CAPAReport.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
+    if not qms_can_edit(request.user, capa, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
 
     _ensure_capa_project(capa, request.user)
 
@@ -452,9 +469,8 @@ def capa_launch_rca(request, capa_id):
     rca_chain = []
     if capa.source_type == "ncr" and capa.source_id:
         try:
-            ncr = NonconformanceRecord.objects.get(
+            ncr = qms_queryset(NonconformanceRecord, request.user)[0].get(
                 id=capa.source_id,
-                owner=request.user,
             )
             event_text = f"{ncr.title}\n\n{ncr.description}" if ncr.description else ncr.title
             # Seed chain with NCR containment if present
@@ -469,14 +485,15 @@ def capa_launch_rca(request, capa_id):
         except NonconformanceRecord.DoesNotExist:
             pass
 
-    session = RCASession.objects.create(
-        owner=request.user,
+    session = RCASession(
         title=f"RCA for CAPA: {capa.title}",
         event=event_text,
         chain=rca_chain,
         project=capa.project,
         status="draft",
     )
+    qms_set_ownership(session, request.user, capa.site)
+    session.save()
     capa.rca_session = session
     capa.save(update_fields=["rca_session"])
 
@@ -512,7 +529,7 @@ def _check_recurrence(capa, user):
         return
 
     # Find historical closed CAPAs from same user with root causes
-    historical = CAPAReport.objects.filter(owner=user, status="closed", root_cause__gt="").exclude(id=capa.id)
+    historical = qms_queryset(CAPAReport, user)[0].filter(status="closed", root_cause__gt="").exclude(id=capa.id)
 
     # Match by source_type if present
     if capa.source_type:
@@ -561,11 +578,14 @@ def recurrence_report(request):
     Groups closed CAPAs by root_cause keyword similarity, flags repeat offenders.
     """
     user = request.user
-    capas = CAPAReport.objects.filter(
-        owner=user,
-        status="closed",
-        root_cause__gt="",
-    ).order_by("-closed_at")
+    capas = (
+        qms_queryset(CAPAReport, user)[0]
+        .filter(
+            status="closed",
+            root_cause__gt="",
+        )
+        .order_by("-closed_at")
+    )
 
     # Group by source_type and find repeat root causes
     from collections import defaultdict

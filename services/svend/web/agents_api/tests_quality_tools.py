@@ -1136,3 +1136,286 @@ class OwnershipIsolationTest(TestCase):
 
         resp = self.client_b.delete(f"/api/whiteboard/boards/{room_code}/delete/")
         self.assertEqual(resp.status_code, 403)
+
+
+# =========================================================================
+# Site-Aware QMS Tests (ORG-001 / CR3)
+# =========================================================================
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class QMSSiteAwareTest(TestCase):
+    """Test site-aware queryset, ownership, and permission logic per ORG-001."""
+
+    def setUp(self):
+        from agents_api.models import Site, SiteAccess
+        from core.models.tenant import Membership, Tenant
+
+        # Individual user (no org)
+        self.solo_user = _make_user("solo", tier="team")
+        self.solo_client = _auth_client(self.solo_user)
+
+        # Org setup
+        self.tenant = Tenant.objects.create(name="Acme Corp")
+        self.admin_user = _make_user("admin", tier="enterprise")
+        self.member_user = _make_user("member", tier="enterprise")
+        self.outsider = _make_user("outsider", tier="enterprise")
+
+        Membership.objects.create(
+            user=self.admin_user,
+            tenant=self.tenant,
+            role="admin",
+            is_active=True,
+        )
+        Membership.objects.create(
+            user=self.member_user,
+            tenant=self.tenant,
+            role="member",
+            is_active=True,
+        )
+
+        self.site_a = Site.objects.create(tenant=self.tenant, name="Plant A", code="PA")
+        self.site_b = Site.objects.create(tenant=self.tenant, name="Plant B", code="PB")
+
+        # Member has access to site A only
+        SiteAccess.objects.create(user=self.member_user, site=self.site_a, role="member")
+
+        self.admin_client = _auth_client(self.admin_user)
+        self.member_client = _auth_client(self.member_user)
+        self.outsider_client = _auth_client(self.outsider)
+
+    # ---- qms_set_ownership tests ----
+
+    def test_ownership_individual_sets_owner(self):
+        """Individual user: owner=user, created_by=user, site=None."""
+        from agents_api.models import FMEA
+        from agents_api.permissions import qms_set_ownership
+
+        fmea = FMEA(title="Test", fmea_type="process")
+        qms_set_ownership(fmea, self.solo_user)
+        self.assertEqual(fmea.owner, self.solo_user)
+        self.assertEqual(fmea.created_by, self.solo_user)
+        self.assertIsNone(fmea.site)
+
+    def test_ownership_site_scoped_clears_owner(self):
+        """Site-scoped: owner=None, created_by=user, site=site."""
+        from agents_api.models import FMEA
+        from agents_api.permissions import qms_set_ownership
+
+        fmea = FMEA(title="Test", fmea_type="process")
+        qms_set_ownership(fmea, self.member_user, self.site_a)
+        self.assertIsNone(fmea.owner)
+        self.assertEqual(fmea.created_by, self.member_user)
+        self.assertEqual(fmea.site, self.site_a)
+
+    # ---- qms_queryset tests ----
+
+    def test_individual_user_sees_only_own_records(self):
+        """Solo user sees only records where owner=self."""
+        from agents_api.models import FMEA
+        from agents_api.permissions import qms_queryset
+
+        FMEA.objects.create(owner=self.solo_user, title="Mine", fmea_type="process")
+        FMEA.objects.create(owner=self.admin_user, title="Not mine", fmea_type="process")
+        qs, tenant, is_admin = qms_queryset(FMEA, self.solo_user)
+        self.assertIsNone(tenant)
+        self.assertFalse(is_admin)
+        self.assertEqual(qs.count(), 1)
+        self.assertEqual(qs.first().title, "Mine")
+
+    def test_org_admin_sees_all_tenant_records(self):
+        """Org admin sees site-scoped records + unscoped records from org members."""
+        from agents_api.models import FMEA
+        from agents_api.permissions import qms_queryset, qms_set_ownership
+
+        # Site-scoped record
+        f1 = FMEA(title="Site A FMEA", fmea_type="process")
+        qms_set_ownership(f1, self.member_user, self.site_a)
+        f1.save()
+
+        # Unscoped record by member
+        f2 = FMEA(title="Member personal", fmea_type="process")
+        qms_set_ownership(f2, self.member_user)
+        f2.save()
+
+        # Outsider record (not in org)
+        FMEA.objects.create(owner=self.outsider, title="Outsider", fmea_type="process")
+
+        qs, tenant, is_admin = qms_queryset(FMEA, self.admin_user)
+        self.assertEqual(tenant, self.tenant)
+        self.assertTrue(is_admin)
+        titles = set(qs.values_list("title", flat=True))
+        self.assertIn("Site A FMEA", titles)
+        self.assertIn("Member personal", titles)
+        self.assertNotIn("Outsider", titles)
+
+    def test_org_member_sees_own_and_accessible_site_records(self):
+        """Org member sees own records + records at sites they can access."""
+        from agents_api.models import FMEA
+        from agents_api.permissions import qms_queryset, qms_set_ownership
+
+        # Site A record (member has access)
+        f1 = FMEA(title="Site A", fmea_type="process")
+        qms_set_ownership(f1, self.admin_user, self.site_a)
+        f1.save()
+
+        # Site B record (member has NO access)
+        f2 = FMEA(title="Site B", fmea_type="process")
+        qms_set_ownership(f2, self.admin_user, self.site_b)
+        f2.save()
+
+        # Member's own unscoped record
+        f3 = FMEA(title="My FMEA", fmea_type="process")
+        qms_set_ownership(f3, self.member_user)
+        f3.save()
+
+        qs, tenant, is_admin = qms_queryset(FMEA, self.member_user)
+        self.assertEqual(tenant, self.tenant)
+        self.assertFalse(is_admin)
+        titles = set(qs.values_list("title", flat=True))
+        self.assertIn("Site A", titles)
+        self.assertIn("My FMEA", titles)
+        self.assertNotIn("Site B", titles)
+
+    # ---- qms_can_edit tests ----
+
+    def test_individual_owner_can_edit(self):
+        """Individual user can edit their own records."""
+        from agents_api.models import FMEA
+        from agents_api.permissions import qms_can_edit, qms_set_ownership
+
+        fmea = FMEA(title="Mine", fmea_type="process")
+        qms_set_ownership(fmea, self.solo_user)
+        fmea.save()
+
+        self.assertTrue(qms_can_edit(self.solo_user, fmea, None))
+
+    def test_org_admin_can_edit_site_record(self):
+        """Org admin can edit any record in the org."""
+        from agents_api.models import FMEA
+        from agents_api.permissions import qms_can_edit, qms_set_ownership
+
+        fmea = FMEA(title="Site A", fmea_type="process")
+        qms_set_ownership(fmea, self.member_user, self.site_a)
+        fmea.save()
+
+        self.assertTrue(qms_can_edit(self.admin_user, fmea, self.tenant))
+
+    def test_member_can_edit_at_accessible_site(self):
+        """Member with site access can edit site-scoped records."""
+        from agents_api.models import FMEA
+        from agents_api.permissions import qms_can_edit, qms_set_ownership
+
+        fmea = FMEA(title="Site A", fmea_type="process")
+        qms_set_ownership(fmea, self.admin_user, self.site_a)
+        fmea.save()
+
+        self.assertTrue(qms_can_edit(self.member_user, fmea, self.tenant))
+
+    def test_member_cannot_edit_at_inaccessible_site(self):
+        """Member without site access cannot edit site-scoped records."""
+        from agents_api.models import FMEA
+        from agents_api.permissions import qms_can_edit, qms_set_ownership
+
+        fmea = FMEA(title="Site B", fmea_type="process")
+        qms_set_ownership(fmea, self.admin_user, self.site_b)
+        fmea.save()
+
+        self.assertFalse(qms_can_edit(self.member_user, fmea, self.tenant))
+
+    # ---- View integration tests ----
+
+    def test_fmea_list_site_aware(self):
+        """FMEA list endpoint returns site-aware results."""
+        from agents_api.models import FMEA
+        from agents_api.permissions import qms_set_ownership
+
+        f1 = FMEA(title="Site A FMEA", fmea_type="process")
+        qms_set_ownership(f1, self.member_user, self.site_a)
+        f1.save()
+
+        f2 = FMEA(title="Site B FMEA", fmea_type="process")
+        qms_set_ownership(f2, self.admin_user, self.site_b)
+        f2.save()
+
+        # Member sees site A only
+        resp = self.member_client.get("/api/fmea/")
+        self.assertEqual(resp.status_code, 200)
+        titles = [f["title"] for f in resp.json()["fmeas"]]
+        self.assertIn("Site A FMEA", titles)
+        self.assertNotIn("Site B FMEA", titles)
+
+        # Admin sees both
+        resp = self.admin_client.get("/api/fmea/")
+        self.assertEqual(resp.status_code, 200)
+        titles = [f["title"] for f in resp.json()["fmeas"]]
+        self.assertIn("Site A FMEA", titles)
+        self.assertIn("Site B FMEA", titles)
+
+    def test_ncr_create_with_site(self):
+        """NCR creation with site_id sets ownership correctly."""
+        resp = self.member_client.post(
+            "/api/iso/ncrs/",
+            {
+                "title": "Site A NCR",
+                "description": "Defective part",
+                "severity": "major",
+                "site_id": str(self.site_a.id),
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+        self.assertEqual(data["site_id"], str(self.site_a.id))
+        self.assertEqual(data["created_by_id"], str(self.member_user.id))
+        # Site-scoped: owner should be null
+        self.assertIsNone(data.get("owner_id"))
+
+    def test_ncr_detail_permission_denied(self):
+        """Member cannot edit NCR at inaccessible site."""
+        from agents_api.models import NonconformanceRecord
+        from agents_api.permissions import qms_set_ownership
+
+        ncr = NonconformanceRecord(
+            title="Site B NCR",
+            description="Test",
+            severity="minor",
+            raised_by=self.admin_user,
+        )
+        qms_set_ownership(ncr, self.admin_user, self.site_b)
+        ncr.save()
+
+        # Member can't even see it (not in their queryset)
+        resp = self.member_client.get(f"/api/iso/ncrs/{ncr.id}/")
+        self.assertIn(resp.status_code, [404, 500])
+
+    def test_rca_create_site_aware(self):
+        """RCA sessions created individually get owner=user."""
+        resp = self.member_client.post(
+            "/api/rca/sessions/create/",
+            {"title": "My RCA", "event": "Something happened"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()["session"]
+        self.assertEqual(data["created_by_id"], str(self.member_user.id))
+
+    def test_a3_list_site_aware(self):
+        """A3 reports respect site-aware queryset."""
+        from agents_api.models import A3Report
+        from agents_api.permissions import qms_set_ownership
+
+        project = _make_project(self.member_user, "A3 Study")
+        a3 = A3Report(title="Site A Report", project=project)
+        qms_set_ownership(a3, self.member_user, self.site_a)
+        a3.save()
+
+        resp = self.member_client.get("/api/a3/")
+        self.assertEqual(resp.status_code, 200)
+        titles = [r["title"] for r in resp.json()["reports"]]
+        self.assertIn("Site A Report", titles)
+
+        # Outsider sees nothing
+        resp = self.outsider_client.get("/api/a3/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["reports"], [])

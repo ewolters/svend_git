@@ -41,12 +41,14 @@ from .models import (
     QMSAttachment,
     QMSFieldChange,
     RCASession,
+    Site,
     SupplierRecord,
     SupplierStatusChange,
     TrainingRecord,
     TrainingRecordChange,
     TrainingRequirement,
 )
+from .permissions import qms_can_edit, qms_queryset, qms_set_ownership
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +132,31 @@ def _ncr_connect_investigation(request, investigation_id, ncr, data):
 
 
 # =========================================================================
+# Sites (for site selector in QMS forms)
+# =========================================================================
+
+
+@require_team
+@require_http_methods(["GET"])
+def qms_sites(request):
+    """List sites accessible to the current user for QMS forms."""
+    from .permissions import get_accessible_sites, get_tenant
+
+    tenant = get_tenant(request.user)
+    if not tenant:
+        return JsonResponse({"sites": [], "has_org": False})
+
+    sites, is_admin = get_accessible_sites(request.user, tenant)
+    return JsonResponse(
+        {
+            "sites": [{"id": str(s.id), "name": s.name, "code": s.code} for s in sites.order_by("name")],
+            "has_org": True,
+            "is_org_admin": is_admin,
+        }
+    )
+
+
+# =========================================================================
 # Dashboard overview
 # =========================================================================
 
@@ -145,7 +172,7 @@ def iso_dashboard(request):
     thirty_days = now + timedelta(days=30)
 
     # ---- NCR KPIs ----
-    ncrs = NonconformanceRecord.objects.filter(owner=user)
+    ncrs = qms_queryset(NonconformanceRecord, user)[0]
     open_ncrs = ncrs.exclude(status="closed")
     overdue = open_ncrs.filter(capa_due_date__lt=today).count()
     capa_due_soon = list(
@@ -171,7 +198,7 @@ def iso_dashboard(request):
     trend.reverse()
 
     # ---- Audit KPIs ----
-    audits = InternalAudit.objects.filter(owner=user)
+    audits = qms_queryset(InternalAudit, user)[0]
     upcoming_audits = list(
         audits.filter(
             scheduled_date__gte=today,
@@ -185,8 +212,8 @@ def iso_dashboard(request):
         a["scheduled_date"] = str(a["scheduled_date"])
 
     # ---- Training KPIs ----
-    reqs = TrainingRequirement.objects.filter(owner=user)
-    all_records = TrainingRecord.objects.filter(requirement__owner=user)
+    reqs = qms_queryset(TrainingRequirement, user)[0]
+    all_records = TrainingRecord.objects.filter(requirement__in=reqs)
     total_records = all_records.count()
     complete_records = all_records.filter(status="complete").count()
     compliance_rate = round(complete_records / total_records * 100) if total_records else 100
@@ -212,7 +239,7 @@ def iso_dashboard(request):
         last_review_data = {"date": str(last_review["meeting_date"]), "days_ago": days_ago}
 
     # ---- Document KPIs ----
-    docs_qs = ControlledDocument.objects.filter(owner=user)
+    docs_qs = qms_queryset(ControlledDocument, user)[0]
     review_due_count = docs_qs.filter(
         review_due_date__isnull=False,
         review_due_date__lte=fourteen_days,
@@ -220,7 +247,7 @@ def iso_dashboard(request):
     ).count()
 
     # ---- Supplier KPIs ----
-    suppliers_qs = SupplierRecord.objects.filter(owner=user)
+    suppliers_qs = qms_queryset(SupplierRecord, user)[0]
     eval_overdue_count = suppliers_qs.filter(
         next_evaluation_date__isnull=False,
         next_evaluation_date__lt=today,
@@ -339,7 +366,7 @@ def ncr_list_create(request):
     user = request.user
 
     if request.method == "GET":
-        ncrs = NonconformanceRecord.objects.filter(owner=user)
+        ncrs, _tenant, _is_admin = qms_queryset(NonconformanceRecord, user)
         status = request.GET.get("status")
         severity = request.GET.get("severity")
         assigned_to = request.GET.get("assigned_to")
@@ -378,8 +405,16 @@ def ncr_list_create(request):
         except User.DoesNotExist:
             pass
 
-    ncr = NonconformanceRecord.objects.create(
-        owner=user,
+    # Resolve site if provided (ORG-001 §5.2)
+    site = None
+    site_id = data.get("site_id")
+    if site_id:
+        try:
+            site = Site.objects.get(id=site_id)
+        except Site.DoesNotExist:
+            return JsonResponse({"error": "Site not found"}, status=404)
+
+    ncr = NonconformanceRecord(
         raised_by=user,
         assigned_to=assigned_to_user,
         title=data.get("title", ""),
@@ -390,11 +425,13 @@ def ncr_list_create(request):
         containment_action=data.get("containment_action", ""),
         capa_due_date=data.get("capa_due_date") or None,
     )
+    qms_set_ownership(ncr, user, site)
+    ncr.save()
     # Link existing RCA session if provided
     rca_session_id = data.get("rca_session_id")
     if rca_session_id:
         try:
-            rca = RCASession.objects.get(id=rca_session_id, owner=user)
+            rca = qms_queryset(RCASession, user)[0].get(id=rca_session_id)
             ncr.rca_session = rca
             ncr.save(update_fields=["rca_session"])
         except RCASession.DoesNotExist:
@@ -420,13 +457,17 @@ def ncr_list_create(request):
 @require_http_methods(["GET", "PUT", "DELETE"])
 def ncr_detail(request, ncr_id):
     """Get, update, or delete an NCR."""
+    qs, tenant, _is_admin = qms_queryset(NonconformanceRecord, request.user)
     try:
-        ncr = NonconformanceRecord.objects.get(id=ncr_id, owner=request.user)
+        ncr = qs.get(id=ncr_id)
     except NonconformanceRecord.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
 
     if request.method == "GET":
         return JsonResponse(ncr.to_dict())
+
+    if not qms_can_edit(request.user, ncr, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
 
     if request.method == "DELETE":
         ncr.delete()
@@ -547,7 +588,7 @@ def ncr_detail(request, ncr_id):
     if "rca_session_id" in data:
         if data["rca_session_id"]:
             try:
-                rca = RCASession.objects.get(id=data["rca_session_id"], owner=request.user)
+                rca = qms_queryset(RCASession, request.user)[0].get(id=data["rca_session_id"])
                 ncr.rca_session = rca
             except RCASession.DoesNotExist:
                 pass
@@ -589,7 +630,7 @@ def ncr_detail(request, ncr_id):
 def ncr_stats(request):
     """NCR statistics for dashboard."""
     user = request.user
-    ncrs = NonconformanceRecord.objects.filter(owner=user)
+    ncrs = qms_queryset(NonconformanceRecord, user)[0]
     open_ncrs = ncrs.exclude(status="closed")
     overdue = open_ncrs.filter(capa_due_date__lt=date.today()).count()
 
@@ -624,7 +665,7 @@ def ncr_analytics(request):
     from django.db.models.functions import TruncMonth
 
     user = request.user
-    ncrs = NonconformanceRecord.objects.filter(owner=user)
+    ncrs = qms_queryset(NonconformanceRecord, user)[0]
 
     # Optional filters
     severity = request.GET.get("severity")
@@ -682,21 +723,25 @@ def ncr_analytics(request):
 @require_http_methods(["POST"])
 def ncr_launch_rca(request, ncr_id):
     """Create an RCA session linked to this NCR."""
+    qs, tenant, _is_admin = qms_queryset(NonconformanceRecord, request.user)
     try:
-        ncr = NonconformanceRecord.objects.get(id=ncr_id, owner=request.user)
+        ncr = qs.get(id=ncr_id)
     except NonconformanceRecord.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
+    if not qms_can_edit(request.user, ncr, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
 
     # Ensure NCR has a project before linking
     _ensure_ncr_project(ncr, request.user)
 
-    session = RCASession.objects.create(
-        owner=request.user,
+    session = RCASession(
         title=f"RCA for {ncr.title}",
         event=ncr.description or ncr.title,
         project=ncr.project,  # Land in same Study as NCR
         status="draft",
     )
+    qms_set_ownership(session, request.user, ncr.site)
+    session.save()
     ncr.rca_session = session
     ncr.save(update_fields=["rca_session"])
     if ncr.project:
@@ -708,10 +753,13 @@ def ncr_launch_rca(request, ncr_id):
 @require_http_methods(["POST", "DELETE"])
 def ncr_files(request, ncr_id):
     """Attach or detach files from an NCR."""
+    qs, tenant, _is_admin = qms_queryset(NonconformanceRecord, request.user)
     try:
-        ncr = NonconformanceRecord.objects.get(id=ncr_id, owner=request.user)
+        ncr = qs.get(id=ncr_id)
     except NonconformanceRecord.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
+    if not qms_can_edit(request.user, ncr, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
 
     data = json.loads(request.body)
     file_id = data.get("file_id")
@@ -745,15 +793,20 @@ def audit_list_create(request):
     user = request.user
 
     if request.method == "GET":
-        audits = InternalAudit.objects.filter(owner=user)
+        audits = qms_queryset(InternalAudit, user)[0]
         status = request.GET.get("status")
         if status:
             audits = audits.filter(status=status)
         return JsonResponse([a.to_dict() for a in audits[:50]], safe=False)
 
     data = json.loads(request.body)
-    audit = InternalAudit.objects.create(
-        owner=user,
+    site = None
+    if data.get("site_id"):
+        try:
+            site = Site.objects.get(id=data["site_id"])
+        except Site.DoesNotExist:
+            return JsonResponse({"error": "Site not found"}, status=404)
+    audit = InternalAudit(
         title=data.get("title", ""),
         scheduled_date=data.get("scheduled_date", date.today()),
         lead_auditor=data.get("lead_auditor", ""),
@@ -761,6 +814,8 @@ def audit_list_create(request):
         departments=data.get("departments", []),
         scope=data.get("scope", ""),
     )
+    qms_set_ownership(audit, user, site)
+    audit.save()
     return JsonResponse(audit.to_dict(), status=201)
 
 
@@ -768,13 +823,17 @@ def audit_list_create(request):
 @require_http_methods(["GET", "PUT", "DELETE"])
 def audit_detail(request, audit_id):
     """Get, update, or delete an audit."""
+    qs, tenant, _is_admin = qms_queryset(InternalAudit, request.user)
     try:
-        audit = InternalAudit.objects.get(id=audit_id, owner=request.user)
+        audit = qs.get(id=audit_id)
     except InternalAudit.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
 
     if request.method == "GET":
         return JsonResponse(audit.to_dict())
+
+    if not qms_can_edit(request.user, audit, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
 
     if request.method == "DELETE":
         audit.delete()
@@ -824,10 +883,13 @@ def audit_detail(request, audit_id):
 @require_http_methods(["POST"])
 def audit_finding_create(request, audit_id):
     """Add a finding to an audit. Auto-creates NCR for NC findings."""
+    qs, tenant, _is_admin = qms_queryset(InternalAudit, request.user)
     try:
-        audit = InternalAudit.objects.get(id=audit_id, owner=request.user)
+        audit = qs.get(id=audit_id)
     except InternalAudit.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
+    if not qms_can_edit(request.user, audit, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
 
     data = json.loads(request.body)
     finding_type = data.get("finding_type", "observation")
@@ -849,8 +911,7 @@ def audit_finding_create(request, audit_id):
     if finding_type in ("nc_major", "nc_minor"):
         severity_map = {"nc_major": "critical", "nc_minor": "major"}
         clause_label = f" — {clause}" if clause else ""
-        ncr = NonconformanceRecord.objects.create(
-            owner=request.user,
+        ncr = NonconformanceRecord(
             raised_by=request.user,
             title=f"Audit Finding — {audit.title}{clause_label}",
             description=finding.description,
@@ -858,6 +919,8 @@ def audit_finding_create(request, audit_id):
             source="internal_audit",
             iso_clause=clause,
         )
+        qms_set_ownership(ncr, request.user, audit.site)
+        ncr.save()
         _ensure_ncr_project(ncr, request.user)
         finding.ncr = ncr
         finding.save(update_fields=["ncr"])
@@ -930,25 +993,32 @@ def training_list_create(request):
     user = request.user
 
     if request.method == "GET":
-        reqs = TrainingRequirement.objects.filter(owner=user).prefetch_related(
+        reqs = qms_queryset(TrainingRequirement, user)[0].prefetch_related(
             "records", "records__changes", "records__changes__changed_by"
         )
         return JsonResponse([r.to_dict() for r in reqs], safe=False)
 
     data = json.loads(request.body)
-    req = TrainingRequirement.objects.create(
-        owner=user,
+    site = None
+    if data.get("site_id"):
+        try:
+            site = Site.objects.get(id=data["site_id"])
+        except Site.DoesNotExist:
+            return JsonResponse({"error": "Site not found"}, status=404)
+    req = TrainingRequirement(
         name=data.get("name", ""),
         description=data.get("description", ""),
         iso_clause=data.get("iso_clause", ""),
         frequency_months=data.get("frequency_months", 0),
         is_mandatory=data.get("is_mandatory", False),
     )
+    qms_set_ownership(req, user, site)
+    req.save()
     # Link to controlled document if provided
     doc_id = data.get("document_id")
     if doc_id:
         try:
-            doc = ControlledDocument.objects.get(id=doc_id, owner=user)
+            doc = qms_queryset(ControlledDocument, user)[0].get(id=doc_id)
             req.document = doc
             req.document_version = doc.current_version
             req.save()
@@ -961,13 +1031,17 @@ def training_list_create(request):
 @require_http_methods(["GET", "PUT", "DELETE"])
 def training_detail(request, req_id):
     """Get, update, or delete a training requirement."""
+    qs, tenant, _is_admin = qms_queryset(TrainingRequirement, request.user)
     try:
-        req = TrainingRequirement.objects.get(id=req_id, owner=request.user)
+        req = qs.get(id=req_id)
     except TrainingRequirement.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
 
     if request.method == "GET":
         return JsonResponse(req.to_dict())
+
+    if not qms_can_edit(request.user, req, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
 
     if request.method == "DELETE":
         req.delete()
@@ -982,7 +1056,7 @@ def training_detail(request, req_id):
         doc_id = data["document_id"]
         if doc_id:
             try:
-                doc = ControlledDocument.objects.get(id=doc_id, owner=request.user)
+                doc = qms_queryset(ControlledDocument, request.user)[0].get(id=doc_id)
                 req.document = doc
                 req.document_version = doc.current_version
             except ControlledDocument.DoesNotExist:
@@ -999,9 +1073,10 @@ def training_detail(request, req_id):
 def training_record_files(request, record_id):
     """Attach or detach artifact files from a training record."""
     try:
+        req_qs = qms_queryset(TrainingRequirement, request.user)[0]
         record = TrainingRecord.objects.get(
             id=record_id,
-            requirement__owner=request.user,
+            requirement__in=req_qs,
         )
     except TrainingRecord.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
@@ -1031,7 +1106,7 @@ def training_record_files(request, record_id):
 def training_record_create(request, req_id):
     """Add a training record to a requirement."""
     try:
-        req = TrainingRequirement.objects.get(id=req_id, owner=request.user)
+        req = qms_queryset(TrainingRequirement, request.user)[0].get(id=req_id)
     except TrainingRequirement.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
 
@@ -1059,9 +1134,10 @@ def training_record_create(request, req_id):
 def training_record_update(request, record_id):
     """Update or delete a training record."""
     try:
+        req_qs = qms_queryset(TrainingRequirement, request.user)[0]
         record = TrainingRecord.objects.get(
             id=record_id,
-            requirement__owner=request.user,
+            requirement__in=req_qs,
         )
     except TrainingRecord.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
@@ -1147,9 +1223,10 @@ def review_list_create(request):
         return JsonResponse([r.to_dict() for r in reviews[:50]], safe=False)
 
     # Auto-populate rich snapshot per ISO 9001:2015 clause 9.3.2
-    ncrs = NonconformanceRecord.objects.filter(owner=user)
-    audits = InternalAudit.objects.filter(owner=user)
-    records = TrainingRecord.objects.filter(requirement__owner=user)
+    ncrs = qms_queryset(NonconformanceRecord, user)[0]
+    audits = qms_queryset(InternalAudit, user)[0]
+    req_qs = qms_queryset(TrainingRequirement, user)[0]
+    records = TrainingRecord.objects.filter(requirement__in=req_qs)
     total_records = records.count()
     complete_records = records.filter(status="complete").count()
 
@@ -1182,7 +1259,7 @@ def review_list_create(request):
     # Audit summary
     completed_audits = audits.filter(status__in=["complete", "report_issued"])
     open_findings = AuditFinding.objects.filter(
-        audit__owner=user,
+        audit__in=audits,
         status="open",
     ).count()
     audit_summary = {
@@ -1355,7 +1432,7 @@ def document_list_create(request):
     user = request.user
 
     if request.method == "GET":
-        docs = ControlledDocument.objects.filter(owner=user)
+        docs = qms_queryset(ControlledDocument, user)[0]
         status = request.GET.get("status")
         category = request.GET.get("category")
         search = request.GET.get("search")
@@ -1389,8 +1466,13 @@ def document_list_create(request):
         return JsonResponse([d.to_dict() for d in docs[:100]], safe=False)
 
     data = json.loads(request.body)
-    doc = ControlledDocument.objects.create(
-        owner=user,
+    site = None
+    if data.get("site_id"):
+        try:
+            site = Site.objects.get(id=data["site_id"])
+        except Site.DoesNotExist:
+            return JsonResponse({"error": "Site not found"}, status=404)
+    doc = ControlledDocument(
         title=data.get("title", ""),
         document_number=data.get("document_number", ""),
         category=data.get("category", ""),
@@ -1399,6 +1481,8 @@ def document_list_create(request):
         review_due_date=data.get("review_due_date") or None,
         retention_years=data.get("retention_years", 7),
     )
+    qms_set_ownership(doc, user, site)
+    doc.save()
     return JsonResponse(doc.to_dict(), status=201)
 
 
@@ -1406,13 +1490,17 @@ def document_list_create(request):
 @require_http_methods(["GET", "PUT", "DELETE"])
 def document_detail(request, doc_id):
     """Get, update, or delete a controlled document."""
+    qs, tenant, _is_admin = qms_queryset(ControlledDocument, request.user)
     try:
-        doc = ControlledDocument.objects.get(id=doc_id, owner=request.user)
+        doc = qs.get(id=doc_id)
     except ControlledDocument.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
 
     if request.method == "GET":
         return JsonResponse(doc.to_dict())
+
+    if not qms_can_edit(request.user, doc, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
 
     if request.method == "DELETE":
         doc.delete()
@@ -1529,10 +1617,13 @@ def document_detail(request, doc_id):
 @require_http_methods(["POST", "DELETE"])
 def document_files(request, doc_id):
     """Attach or detach files from a document."""
+    qs, tenant, _is_admin = qms_queryset(ControlledDocument, request.user)
     try:
-        doc = ControlledDocument.objects.get(id=doc_id, owner=request.user)
+        doc = qs.get(id=doc_id)
     except ControlledDocument.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
+    if not qms_can_edit(request.user, doc, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
 
     data = json.loads(request.body)
     file_id = data.get("file_id")
@@ -1566,7 +1657,7 @@ def supplier_list_create(request):
     user = request.user
 
     if request.method == "GET":
-        suppliers = SupplierRecord.objects.filter(owner=user)
+        suppliers = qms_queryset(SupplierRecord, user)[0]
         status = request.GET.get("status")
         supplier_type = request.GET.get("supplier_type")
         search = request.GET.get("search")
@@ -1598,8 +1689,7 @@ def supplier_list_create(request):
         return JsonResponse([s.to_dict() for s in suppliers[:100]], safe=False)
 
     data = json.loads(request.body)
-    supplier = SupplierRecord.objects.create(
-        owner=user,
+    supplier = SupplierRecord(
         name=data.get("name", ""),
         supplier_type=data.get("supplier_type", "other"),
         contact_name=data.get("contact_name", ""),
@@ -1608,6 +1698,8 @@ def supplier_list_create(request):
         products_services=data.get("products_services", ""),
         notes=data.get("notes", ""),
     )
+    qms_set_ownership(supplier, user)
+    supplier.save()
     return JsonResponse(supplier.to_dict(), status=201)
 
 
@@ -1615,13 +1707,17 @@ def supplier_list_create(request):
 @require_http_methods(["GET", "PUT", "DELETE"])
 def supplier_detail(request, supplier_id):
     """Get, update, or delete a supplier."""
+    qs, tenant, _is_admin = qms_queryset(SupplierRecord, request.user)
     try:
-        supplier = SupplierRecord.objects.get(id=supplier_id, owner=request.user)
+        supplier = qs.get(id=supplier_id)
     except SupplierRecord.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
 
     if request.method == "GET":
         return JsonResponse(supplier.to_dict())
+
+    if not qms_can_edit(request.user, supplier, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
 
     if request.method == "DELETE":
         supplier.delete()
@@ -1777,8 +1873,7 @@ def study_raise_capa(request):
     context = _get_study_context(project)
     title = data.get("title", f"CAPA — {project.title}")
 
-    capa = CAPAReport.objects.create(
-        owner=request.user,
+    capa = CAPAReport(
         project=project,
         title=title,
         description=context["problem"],
@@ -1787,6 +1882,8 @@ def study_raise_capa(request):
         source_type=data.get("source_type", ""),
         source_id=data.get("source_id") or None,
     )
+    qms_set_ownership(capa, request.user)
+    capa.save()
 
     StudyAction.objects.create(
         project=project,
@@ -1832,13 +1929,14 @@ def study_schedule_audit(request):
         if context["root_cause"]:
             scope += f"\nRoot cause: {context['root_cause'][:200]}"
 
-    audit = InternalAudit.objects.create(
-        owner=request.user,
+    audit = InternalAudit(
         title=data.get("title", f"Verification Audit — {project.title}"),
         scheduled_date=scheduled_date,
         scope=scope,
         lead_auditor=data.get("lead_auditor", ""),
     )
+    qms_set_ownership(audit, request.user)
+    audit.save()
 
     StudyAction.objects.create(
         project=project,
@@ -1883,8 +1981,7 @@ def study_request_doc_update(request):
         if context["root_cause"]:
             justification += f"\nRoot cause: {context['root_cause'][:300]}"
 
-    doc = ControlledDocument.objects.create(
-        owner=request.user,
+    doc = ControlledDocument(
         title=title,
         category=data.get("category", "Change Request"),
         content=justification,
@@ -1892,6 +1989,8 @@ def study_request_doc_update(request):
         iso_clause=data.get("iso_clause", ""),
         source_study=project,
     )
+    qms_set_ownership(doc, request.user)
+    doc.save()
 
     StudyAction.objects.create(
         project=project,
@@ -1934,14 +2033,15 @@ def study_flag_training_gap(request):
     if not description:
         description = f"Training gap identified from Study: {project.title}"
 
-    req = TrainingRequirement.objects.create(
-        owner=request.user,
+    req = TrainingRequirement(
         name=name,
         description=description,
         iso_clause=data.get("iso_clause", ""),
         frequency_months=data.get("frequency_months", 0),
         is_mandatory=data.get("is_mandatory", True),
     )
+    qms_set_ownership(req, request.user)
+    req.save()
 
     StudyAction.objects.create(
         project=project,
@@ -1981,7 +2081,7 @@ def study_flag_fmea_update(request):
         return JsonResponse({"error": "fmea_id required"}, status=400)
 
     try:
-        fmea = FMEA.objects.get(id=fmea_id, owner=request.user)
+        fmea = qms_queryset(FMEA, request.user)[0].get(id=fmea_id)
     except FMEA.DoesNotExist:
         return JsonResponse({"error": "FMEA not found"}, status=404)
 

@@ -246,6 +246,31 @@ function toast(msg, isErr) {
 }
 
 // =========================================================================
+// Site selector (ORG-001 multi-site)
+// =========================================================================
+let _sitesCache = null;
+async function loadSites() {
+    if (_sitesCache) return _sitesCache;
+    try {
+        _sitesCache = await apiFetch('/sites/');
+    } catch (e) {
+        _sitesCache = { sites: [], has_org: false };
+    }
+    return _sitesCache;
+}
+function siteSelectHtml(id) {
+    if (!_sitesCache || !_sitesCache.sites.length) return '';
+    let opts = '<option value="">— Personal —</option>';
+    _sitesCache.sites.forEach(s => { opts += `<option value="${s.id}">${escHtml(s.name)} (${escHtml(s.code)})</option>`; });
+    return `<div><label class="iso-label">Site</label><select class="iso-input" id="${id}">${opts}</select></div>`;
+}
+function siteVal(id) { const el = document.getElementById(id); return el ? el.value || null : null; }
+function siteBadge(siteId, siteName) {
+    if (!siteId) return '';
+    return `<span class="badge" style="background:var(--accent);color:white;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:4px;">${escHtml(siteName || 'Site')}</span>`;
+}
+
+// =========================================================================
 // Navigation
 // =========================================================================
 const TABS = ['dashboard', 'ncrs', 'audits', 'training', 'reviews', 'documents', 'suppliers'];
@@ -270,7 +295,7 @@ function navigate(tab) {
 }
 
 window.addEventListener('hashchange', () => navigate(location.hash.replace('#/', '')));
-document.addEventListener('DOMContentLoaded', () => navigate(location.hash.replace('#/', '') || 'dashboard'));
+document.addEventListener('DOMContentLoaded', () => { loadSites(); navigate(location.hash.replace('#/', '') || 'dashboard'); });
 
 // =========================================================================
 // Dashboard tab
@@ -488,6 +513,7 @@ function renderNCRList(el) {
 async function showNCRForm() {
     const area = document.getElementById('ncr-form-area');
     if (area.innerHTML) { area.innerHTML = ''; return; }
+    await loadSites();
     let memberOpts = '<option value="">— Unassigned —</option>';
     try {
         const data = await apiFetch('/team-members/');
@@ -509,6 +535,7 @@ async function showNCRForm() {
             <div><label class="iso-label">CAPA Due Date</label><input class="iso-input" type="date" id="ncr-due"></div>
             <div><label class="iso-label">Assign To</label><select class="iso-input" id="ncr-assigned-to">${memberOpts}</select></div>
         </div>
+        <div class="iso-form-grid cols-3">${siteSelectHtml('ncr-site')}</div>
         <div style="margin-bottom:12px"><label class="iso-label">Description</label><textarea class="iso-textarea" id="ncr-desc" rows="2"></textarea></div>
         <div style="margin-bottom:12px"><label class="iso-label">Containment Action</label><textarea class="iso-textarea" id="ncr-contain" rows="2"></textarea></div>
         <div style="display:flex;gap:8px">
@@ -532,6 +559,8 @@ async function saveNCR() {
         };
         const assignee = document.getElementById('ncr-assigned-to')?.value;
         if (assignee) body.assigned_to = assignee;
+        const sId = siteVal('ncr-site');
+        if (sId) body.site_id = sId;
         await apiFetch('/ncrs/', { method: 'POST', body });
         toast('NCR created');
         document.getElementById('ncr-form-area').innerHTML = '';
@@ -797,15 +826,17 @@ function renderAuditList(el) {
     el.innerHTML = html;
 }
 
-function showAuditForm() {
+async function showAuditForm() {
     const area = document.getElementById('audit-form-area');
     if (area.innerHTML) { area.innerHTML = ''; return; }
+    await loadSites();
     area.innerHTML = `<div class="iso-form">
         <div class="iso-form-grid cols-3">
             <div><label class="iso-label">Title *</label><input class="iso-input" id="audit-title"></div>
             <div><label class="iso-label">Scheduled Date *</label><input class="iso-input" type="date" id="audit-date"></div>
             <div><label class="iso-label">Lead Auditor</label><input class="iso-input" id="audit-lead"></div>
         </div>
+        <div class="iso-form-grid cols-3">${siteSelectHtml('audit-site')}</div>
         <div class="iso-form-grid">
             <div><label class="iso-label">ISO Clauses (comma-separated)</label><input class="iso-input" id="audit-clauses" placeholder="4.1, 8.5, 9.2"></div>
             <div><label class="iso-label">Departments (comma-separated)</label><input class="iso-input" id="audit-depts" placeholder="Production, Quality"></div>
@@ -823,13 +854,16 @@ async function saveAudit() {
     const dateVal = document.getElementById('audit-date').value;
     if (!title || !dateVal) return toast('Title and date are required', true);
     try {
-        await apiFetch('/audits/', { method: 'POST', body: {
+        const auditBody = {
             title, scheduled_date: dateVal,
             lead_auditor: document.getElementById('audit-lead').value,
             iso_clauses: document.getElementById('audit-clauses').value.split(',').map(s => s.trim()).filter(Boolean),
             departments: document.getElementById('audit-depts').value.split(',').map(s => s.trim()).filter(Boolean),
             scope: document.getElementById('audit-scope').value,
-        }});
+        };
+        const auditSite = siteVal('audit-site');
+        if (auditSite) auditBody.site_id = auditSite;
+        await apiFetch('/audits/', { method: 'POST', body: auditBody });
         toast('Audit created');
         document.getElementById('audit-form-area').innerHTML = '';
         loadAudits();
@@ -1169,15 +1203,17 @@ function renderTrainingList() {
     return html;
 }
 
-function showTrainingForm() {
+async function showTrainingForm() {
     const area = document.getElementById('training-form-area');
     if (area.innerHTML) { area.innerHTML = ''; return; }
+    await loadSites();
     area.innerHTML = `<div class="iso-form">
         <div class="iso-form-grid cols-3">
             <div><label class="iso-label">Name *</label><input class="iso-input" id="train-name"></div>
             <div><label class="iso-label">ISO Clause</label><input class="iso-input" id="train-clause" placeholder="e.g. 7.2"></div>
             <div><label class="iso-label">Frequency (months, 0=one-time)</label><input class="iso-input" type="number" id="train-freq" value="0" min="0"></div>
         </div>
+        <div class="iso-form-grid cols-3">${siteSelectHtml('train-site')}</div>
         <div class="iso-form-grid">
             <div><label class="iso-label">Description</label><textarea class="iso-textarea" id="train-desc" rows="2"></textarea></div>
             <div style="display:flex;align-items:center;gap:8px;margin-top:16px"><input type="checkbox" id="train-mandatory"> <label for="train-mandatory" style="font-size:13px">Mandatory</label></div>
@@ -1193,12 +1229,15 @@ async function saveTraining() {
     const name = document.getElementById('train-name').value.trim();
     if (!name) return toast('Name is required', true);
     try {
-        await apiFetch('/training/', { method: 'POST', body: {
+        const trainBody = {
             name, description: document.getElementById('train-desc').value,
             iso_clause: document.getElementById('train-clause').value,
             frequency_months: parseInt(document.getElementById('train-freq').value) || 0,
             is_mandatory: document.getElementById('train-mandatory').checked,
-        }});
+        };
+        const trainSite = siteVal('train-site');
+        if (trainSite) trainBody.site_id = trainSite;
+        await apiFetch('/training/', { method: 'POST', body: trainBody });
         toast('Training requirement created');
         document.getElementById('training-form-area').innerHTML = '';
         loadTraining();
@@ -1660,9 +1699,10 @@ function renderDocList(el) {
     el.innerHTML = html;
 }
 
-function showDocForm() {
+async function showDocForm() {
     const area = document.getElementById('doc-form-area');
     if (area.innerHTML) { area.innerHTML = ''; return; }
+    await loadSites();
     area.innerHTML = `<div class="iso-form">
         <div class="iso-form-grid cols-3">
             <div><label class="iso-label">Title *</label><input class="iso-input" id="doc-title"></div>
@@ -1671,6 +1711,7 @@ function showDocForm() {
                 <option value="">Select...</option><option value="SOP">SOP</option><option value="Work Instruction">Work Instruction</option>
                 <option value="Policy">Policy</option><option value="Form">Form</option><option value="Other">Other</option></select></div>
         </div>
+        <div class="iso-form-grid cols-3">${siteSelectHtml('doc-site')}</div>
         <div class="iso-form-grid cols-3">
             <div><label class="iso-label">ISO Clause</label><input class="iso-input" id="doc-clause" placeholder="e.g. 7.5"></div>
             <div><label class="iso-label">Review Due Date</label><input class="iso-input" type="date" id="doc-due"></div>
@@ -1688,14 +1729,17 @@ async function saveDoc() {
     const title = document.getElementById('doc-title').value.trim();
     if (!title) return toast('Title is required', true);
     try {
-        await apiFetch('/documents/', { method: 'POST', body: {
+        const docBody = {
             title, document_number: document.getElementById('doc-number').value,
             category: document.getElementById('doc-category').value,
             iso_clause: document.getElementById('doc-clause').value,
             content: document.getElementById('doc-content').value,
             review_due_date: document.getElementById('doc-due').value || null,
             retention_years: parseInt(document.getElementById('doc-retention').value) || 7,
-        }});
+        };
+        const docSite = siteVal('doc-site');
+        if (docSite) docBody.site_id = docSite;
+        await apiFetch('/documents/', { method: 'POST', body: docBody });
         toast('Document created');
         document.getElementById('doc-form-area').innerHTML = '';
         loadDocuments();
