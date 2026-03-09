@@ -355,6 +355,22 @@ class APIHeadersTest(TestCase):
         res = self.client.get("/", HTTP_ACCEPT="text/html")
         self.assertNotEqual(res.status_code, 406)
 
+    def test_browser_facing_api_paths_bypass_accept_check(self):
+        """Browser-facing /api/ paths (email click/open/unsubscribe) allow text/html Accept."""
+        browser_paths = [
+            "/api/email/click/00000000-0000-0000-0000-000000000000/",
+            "/api/email/open/00000000-0000-0000-0000-000000000000/",
+            "/api/email/unsubscribe/",
+            "/api/notifications/unsubscribe/",
+        ]
+        for path in browser_paths:
+            res = self.client.get(path, HTTP_ACCEPT="text/html")
+            self.assertNotEqual(
+                res.status_code,
+                406,
+                f"{path} should not return 406 for browser Accept header",
+            )
+
     def test_enforces_charset_on_json_responses(self):
         """JSON responses include charset=utf-8 in Content-Type."""
         res = _api_get(self.client)

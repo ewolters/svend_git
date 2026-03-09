@@ -261,6 +261,19 @@ class APIHeadersMiddlewareTest(SimpleTestCase):
         response = middleware(request)
         self.assertEqual(response.status_code, 200)
 
+    def test_browser_facing_api_bypasses_accept_check(self):
+        """Browser-facing email endpoints bypass Accept header validation."""
+        middleware = self._make_middleware()
+        for path in [
+            "/api/email/click/00000000-0000-0000-0000-000000000000/",
+            "/api/email/open/00000000-0000-0000-0000-000000000000/",
+            "/api/email/unsubscribe/",
+            "/api/notifications/unsubscribe/",
+        ]:
+            request = self.factory.get(path, HTTP_ACCEPT="text/html")
+            response = middleware(request)
+            self.assertNotEqual(response.status_code, 406, f"{path} returned 406")
+
     def test_adds_charset_to_json(self):
         """Adds charset=utf-8 to JSON Content-Type."""
         middleware = self._make_middleware()

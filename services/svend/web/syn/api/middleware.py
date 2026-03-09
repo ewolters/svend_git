@@ -129,6 +129,21 @@ def _is_exempt_path(path: str) -> bool:
     return any(path.startswith(exempt) for exempt in EXEMPT_PATHS)
 
 
+# API paths that serve browser responses (redirects, images, HTML).
+# These must bypass Accept header validation because browsers send text/html.
+_BROWSER_FACING_API_PREFIXES = (
+    "/api/email/click/",
+    "/api/email/open/",
+    "/api/email/unsubscribe/",
+    "/api/notifications/unsubscribe/",
+)
+
+
+def _is_browser_facing_api(path: str) -> bool:
+    """Check if an /api/ path is browser-facing (email tracking, unsubscribe)."""
+    return path.startswith(_BROWSER_FACING_API_PREFIXES)
+
+
 def _generate_request_id() -> str:
     """
     Generate a new request ID in ULID format.
@@ -243,7 +258,7 @@ class APIHeadersMiddleware:
             return self.get_response(request)
 
         # Validate Accept header for API paths
-        if request.path.startswith("/api/"):
+        if request.path.startswith("/api/") and not _is_browser_facing_api(request.path):
             accept = request.headers.get(HEADER_ACCEPT, "")
             if not accept or accept == "*/*":
                 # Allow */* but prefer explicit JSON
