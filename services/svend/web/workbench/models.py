@@ -467,6 +467,7 @@ class Workbench(models.Model):
             "datasets": self.datasets,
             "guide_observations": self.guide_observations,
             "conclusion": self.conclusion,
+            "conclusion_confidence": self.conclusion_confidence,
             "created": self.created_at.isoformat(),
             "updated": self.updated_at.isoformat(),
         }

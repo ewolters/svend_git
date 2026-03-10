@@ -1410,3 +1410,406 @@ class KnowledgeGraphTest(TestCase):
         self.client.logout()
         resp = self.client.get(f"{BASE}")
         self.assertIn(resp.status_code, [302, 401])
+
+
+# =========================================================================
+# 6. DSWSessionReloadTest — Behavioral tests for save/load round-trip
+# =========================================================================
+
+
+@SECURE_OFF
+class DSWSessionReloadTest(TestCase):
+    """Behavioral tests: simulate a user uploading data, saving a session,
+    then reloading it and verifying everything comes back.
+
+    These tests hit the actual API endpoints the frontend calls — the same
+    sequence a real user triggers. They exist because DSW session reload has
+    regressed multiple times due to shape mismatches, missing fields, and
+    broken restore logic.
+
+    CR: 20fdd5cb — Fix DSW session reload
+    """
+
+    DSW_BASE = "/api/dsw/"
+
+    def setUp(self):
+        self.user = _make_user("dsw_reload@test.com")
+        self.client.force_login(self.user)
+
+    def _upload_csv(self, filename="test_data.csv", content=None):
+        """Upload a CSV file via the DSW upload endpoint, return response data."""
+        import io
+
+        if content is None:
+            content = "temperature,pressure,yield\n100,50,85\n110,55,88\n120,60,92\n130,65,78\n"
+        f = io.BytesIO(content.encode("utf-8"))
+        f.name = filename
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        upload = SimpleUploadedFile(filename, content.encode("utf-8"), content_type="text/csv")
+        resp = self.client.post(f"{self.DSW_BASE}upload-data/", {"file": upload})
+        return resp
+
+    def _create_workbench(self, title="Reload Test Session"):
+        resp = _post(self.client, f"{BASE}create/", {"title": title})
+        self.assertEqual(resp.status_code, 201)
+        return resp.json()["workbench"]["id"]
+
+    def _save_session(self, wb_id, layout, datasets=None, **kwargs):
+        payload = {"layout": layout}
+        if datasets is not None:
+            payload["datasets"] = datasets
+        payload.update(kwargs)
+        resp = _patch(self.client, f"{BASE}{wb_id}/update/", payload)
+        self.assertEqual(resp.status_code, 200)
+        return resp
+
+    def _load_session(self, wb_id):
+        resp = self.client.get(f"{BASE}{wb_id}/")
+        self.assertEqual(resp.status_code, 200)
+        return resp.json()
+
+    def _retrieve_data(self, data_id, filename="dataset"):
+        resp = _post(self.client, f"{self.DSW_BASE}retrieve-data/", {"data_id": data_id, "filename": filename})
+        return resp
+
+    # ----- Core round-trip tests -----
+
+    def test_save_and_reload_preserves_layout(self):
+        """Save layout state (data_id, cache_key, output_tabs) → reload → verify all fields present."""
+        wb_id = self._create_workbench()
+        layout = {
+            "data_id": "data_abc123def456",
+            "data_file": "measurements.csv",
+            "cache_key": "ck_test_123",
+            "output_tabs": [
+                {"id": "out_1", "title": "Regression", "html": "<div>R²=0.95</div>"},
+                {"id": "out_2", "title": "ANOVA", "html": "<div>F=12.3, p=0.001</div>"},
+            ],
+            "project_id": "proj_test_001",
+        }
+        self._save_session(wb_id, layout)
+
+        loaded = self._load_session(wb_id)
+        self.assertEqual(loaded["layout"]["data_id"], "data_abc123def456")
+        self.assertEqual(loaded["layout"]["data_file"], "measurements.csv")
+        self.assertEqual(loaded["layout"]["cache_key"], "ck_test_123")
+        self.assertEqual(loaded["layout"]["project_id"], "proj_test_001")
+        self.assertEqual(len(loaded["layout"]["output_tabs"]), 2)
+        self.assertEqual(loaded["layout"]["output_tabs"][0]["title"], "Regression")
+        self.assertIn("R²=0.95", loaded["layout"]["output_tabs"][0]["html"])
+
+    def test_save_and_reload_preserves_datasets(self):
+        """Save dataset metadata → reload → verify datasets array intact."""
+        wb_id = self._create_workbench()
+        datasets = [
+            {"name": "batch_data.csv", "data_id": "data_aaa111bbb222", "cache_key": "ck_1", "rows": 500, "cols": 8},
+            {"name": "validation.csv", "data_id": "data_ccc333ddd444", "cache_key": "ck_2", "rows": 100, "cols": 3},
+        ]
+        self._save_session(wb_id, {}, datasets=datasets)
+
+        loaded = self._load_session(wb_id)
+        self.assertEqual(len(loaded["datasets"]), 2)
+        self.assertEqual(loaded["datasets"][0]["name"], "batch_data.csv")
+        self.assertEqual(loaded["datasets"][0]["data_id"], "data_aaa111bbb222")
+        self.assertEqual(loaded["datasets"][0]["rows"], 500)
+        self.assertEqual(loaded["datasets"][1]["name"], "validation.csv")
+        self.assertEqual(loaded["datasets"][1]["cols"], 3)
+
+    def test_save_and_reload_preserves_conclusion_confidence(self):
+        """conclusion_confidence field must survive the save/load round-trip."""
+        wb_id = self._create_workbench()
+        _patch(
+            self.client,
+            f"{BASE}{wb_id}/update/",
+            {
+                "conclusion": "Temperature above 125°C causes yield degradation",
+                "conclusion_confidence": "high",
+            },
+        )
+
+        loaded = self._load_session(wb_id)
+        self.assertEqual(loaded["conclusion"], "Temperature above 125°C causes yield degradation")
+        self.assertEqual(loaded["conclusion_confidence"], "high")
+
+    def test_save_and_reload_preserves_guide_observations(self):
+        """AI Guide observations must survive save/load."""
+        wb_id = self._create_workbench()
+        observations = [
+            {
+                "timestamp": "2026-03-10T10:00:00",
+                "observation": "High variance in col3",
+                "suggestion": "Check outliers",
+                "acknowledged": False,
+            },
+            {
+                "timestamp": "2026-03-10T10:05:00",
+                "observation": "Non-normal distribution",
+                "suggestion": "Use Kruskal-Wallis",
+                "acknowledged": True,
+            },
+        ]
+        _patch(self.client, f"{BASE}{wb_id}/update/", {"guide_observations": observations})
+
+        loaded = self._load_session(wb_id)
+        self.assertEqual(len(loaded["guide_observations"]), 2)
+        self.assertEqual(loaded["guide_observations"][0]["observation"], "High variance in col3")
+        self.assertTrue(loaded["guide_observations"][1]["acknowledged"])
+
+    def test_save_and_reload_preserves_template_state(self):
+        """DMAIC template state must survive save/load including phase history."""
+        resp = _post(self.client, f"{BASE}create/", {"title": "DMAIC Reload", "template": "dmaic"})
+        wb_id = resp.json()["workbench"]["id"]
+
+        # Advance to Measure phase
+        _post(self.client, f"{BASE}{wb_id}/advance-phase/", {"notes": "Define complete"})
+
+        loaded = self._load_session(wb_id)
+        self.assertEqual(loaded["template"], "dmaic")
+        self.assertEqual(loaded["template_state"]["current_phase"], "measure")
+        self.assertEqual(len(loaded["template_state"]["phase_history"]), 2)
+
+    # ----- Data retrieval on reload -----
+
+    def test_upload_then_retrieve_returns_same_data(self):
+        """Upload CSV → retrieve by data_id → verify columns and data match."""
+        csv_content = "temp,pressure,yield\n100,50,85\n110,55,88\n120,60,92\n"
+        upload_resp = self._upload_csv("process_data.csv", csv_content)
+        self.assertEqual(upload_resp.status_code, 200)
+        upload_data = upload_resp.json()
+        data_id = upload_data["id"]
+
+        # Retrieve — same call frontend makes on loadWorkbench
+        ret_resp = self._retrieve_data(data_id, "process_data.csv")
+        self.assertEqual(ret_resp.status_code, 200)
+        ret_data = ret_resp.json()
+
+        # Column names must match
+        upload_col_names = [c["name"] for c in upload_data["columns"]]
+        ret_col_names = [c["name"] for c in ret_data["columns"]]
+        self.assertEqual(upload_col_names, ret_col_names)
+
+        # Column dtypes must match
+        upload_dtypes = [c["dtype"] for c in upload_data["columns"]]
+        ret_dtypes = [c["dtype"] for c in ret_data["columns"]]
+        self.assertEqual(upload_dtypes, ret_dtypes)
+
+        # Row count must match
+        self.assertEqual(ret_data["row_count"], 3)
+
+        # Filename preserved
+        self.assertEqual(ret_data["filename"], "process_data.csv")
+
+    def test_retrieve_returns_dict_of_arrays_preview(self):
+        """retrieve-data preview must be dict-of-arrays (col -> [vals]) for displayDataTable."""
+        csv_content = "x,y\n1,10\n2,20\n3,30\n"
+        upload_resp = self._upload_csv("xy.csv", csv_content)
+        data_id = upload_resp.json()["id"]
+
+        ret_resp = self._retrieve_data(data_id)
+        ret_data = ret_resp.json()
+
+        # preview must be dict with column keys
+        self.assertIsInstance(ret_data["preview"], dict)
+        self.assertIn("x", ret_data["preview"])
+        self.assertIn("y", ret_data["preview"])
+
+        # Each column value must be a list
+        self.assertIsInstance(ret_data["preview"]["x"], list)
+        self.assertEqual(len(ret_data["preview"]["x"]), 3)
+        self.assertEqual(ret_data["preview"]["y"], [10, 20, 30])
+
+    def test_retrieve_nonexistent_data_returns_404(self):
+        """retrieve-data for missing data_id returns 404, not 500."""
+        ret_resp = self._retrieve_data("data_000000000000")
+        self.assertEqual(ret_resp.status_code, 404)
+
+    def test_retrieve_invalid_data_id_rejected(self):
+        """Path traversal attempts in data_id are rejected."""
+        resp = _post(self.client, f"{self.DSW_BASE}retrieve-data/", {"data_id": "../../../etc/passwd"})
+        self.assertEqual(resp.status_code, 400)
+
+    # ----- Full user simulation: upload → save → reload → verify data -----
+
+    def test_full_session_round_trip_with_data(self):
+        """Simulate complete user flow: upload CSV → run analysis (mock) → save session → reload → verify everything."""
+        # Step 1: Upload data
+        csv_content = "machine,cycle_time,defects\nA,12.5,3\nB,13.1,1\nA,11.9,2\nB,14.0,5\nA,12.2,0\n"
+        upload_resp = self._upload_csv("factory_data.csv", csv_content)
+        self.assertEqual(upload_resp.status_code, 200)
+        upload_data = upload_resp.json()
+        data_id = upload_data["id"]
+
+        # Step 2: Create workbench
+        wb_id = self._create_workbench("Factory Analysis")
+
+        # Step 3: Save session (mimics saveWorkbench() in frontend)
+        layout = {
+            "data_id": data_id,
+            "data_file": "factory_data.csv",
+            "cache_key": "ck_factory_001",
+            "output_tabs": [
+                {"id": "out_1", "title": "Summary Stats", "html": "<div>Mean cycle time: 12.74</div>"},
+            ],
+            "project_id": "",
+        }
+        datasets = [
+            {
+                "name": "factory_data.csv",
+                "data_id": data_id,
+                "cache_key": "ck_factory_001",
+                "rows": 5,
+                "cols": 3,
+            }
+        ]
+        self._save_session(
+            wb_id,
+            layout,
+            datasets=datasets,
+            guide_observations=[
+                {
+                    "timestamp": "2026-03-10T12:00:00",
+                    "observation": "Machine B has higher defect rate",
+                    "suggestion": "Run chi-square test",
+                    "acknowledged": False,
+                }
+            ],
+        )
+
+        # Step 4: Reload session (mimics loadWorkbench() in frontend)
+        loaded = self._load_session(wb_id)
+
+        # Verify layout restored
+        self.assertEqual(loaded["layout"]["data_id"], data_id)
+        self.assertEqual(loaded["layout"]["data_file"], "factory_data.csv")
+        self.assertEqual(loaded["layout"]["cache_key"], "ck_factory_001")
+
+        # Verify output tabs restored
+        self.assertEqual(len(loaded["layout"]["output_tabs"]), 1)
+        self.assertIn("Mean cycle time", loaded["layout"]["output_tabs"][0]["html"])
+
+        # Verify datasets metadata restored
+        self.assertEqual(len(loaded["datasets"]), 1)
+        self.assertEqual(loaded["datasets"][0]["name"], "factory_data.csv")
+        self.assertEqual(loaded["datasets"][0]["data_id"], data_id)
+
+        # Verify guide observations restored
+        self.assertEqual(len(loaded["guide_observations"]), 1)
+        self.assertEqual(loaded["guide_observations"][0]["observation"], "Machine B has higher defect rate")
+
+        # Step 5: Re-fetch data (mimics the retrieve-data call in loadWorkbench)
+        ret_resp = self._retrieve_data(data_id, "factory_data.csv")
+        self.assertEqual(ret_resp.status_code, 200)
+        ret_data = ret_resp.json()
+
+        # Verify data is actually there and usable
+        self.assertEqual(ret_data["row_count"], 5)
+        self.assertEqual(len(ret_data["columns"]), 3)
+        col_names = [c["name"] for c in ret_data["columns"]]
+        self.assertIn("machine", col_names)
+        self.assertIn("cycle_time", col_names)
+        self.assertIn("defects", col_names)
+
+        # Verify preview has actual values
+        self.assertIn("machine", ret_data["preview"])
+        self.assertEqual(ret_data["preview"]["machine"], ["A", "B", "A", "B", "A"])
+
+    def test_to_json_includes_all_fields(self):
+        """to_json() must return every field the frontend needs for full restore."""
+        resp = _post(self.client, f"{BASE}create/", {"title": "Completeness Check", "template": "dmaic"})
+        wb_id = resp.json()["workbench"]["id"]
+
+        # Set all fields
+        _patch(
+            self.client,
+            f"{BASE}{wb_id}/update/",
+            {
+                "description": "Checking all fields",
+                "status": "active",
+                "layout": {"data_id": "data_aaa111bbb222", "cache_key": "ck_1"},
+                "datasets": [{"name": "d.csv", "data_id": "data_aaa111bbb222", "rows": 10, "cols": 2}],
+                "guide_observations": [{"observation": "test", "suggestion": "test", "acknowledged": False}],
+                "conclusion": "All good",
+                "conclusion_confidence": "medium",
+            },
+        )
+
+        loaded = self._load_session(wb_id)
+
+        # Every field the frontend depends on must be present
+        required_fields = [
+            "id",
+            "inquiry",
+            "description",
+            "template",
+            "status",
+            "template_state",
+            "artifacts",
+            "connections",
+            "layout",
+            "datasets",
+            "guide_observations",
+            "conclusion",
+            "conclusion_confidence",
+            "created",
+            "updated",
+        ]
+        for field in required_fields:
+            self.assertIn(field, loaded, f"Missing field in to_json(): {field}")
+
+        # Verify values
+        self.assertEqual(loaded["inquiry"], "Completeness Check")
+        self.assertEqual(loaded["conclusion_confidence"], "medium")
+        self.assertEqual(loaded["template"], "dmaic")
+
+    def test_reload_with_artifacts_and_connections(self):
+        """Artifacts and connections must survive the round-trip."""
+        wb_id = self._create_workbench("Artifact Test")
+
+        # Add artifacts
+        resp = _post(
+            self.client,
+            f"{BASE}{wb_id}/artifacts/",
+            {
+                "type": "analysis",
+                "title": "Regression Result",
+                "content": {"r_squared": 0.95, "p_value": 0.001},
+            },
+        )
+        self.assertEqual(resp.status_code, 201)
+        art1_id = resp.json()["artifact"]["id"]
+
+        resp = _post(
+            self.client,
+            f"{BASE}{wb_id}/artifacts/",
+            {
+                "type": "note",
+                "title": "Observation",
+                "content": {"text": "Strong linear relationship"},
+            },
+        )
+        self.assertEqual(resp.status_code, 201)
+        art2_id = resp.json()["artifact"]["id"]
+
+        # Connect them
+        _post(self.client, f"{BASE}{wb_id}/connect/", {"from": art1_id, "to": art2_id, "label": "supports"})
+
+        # Reload
+        loaded = self._load_session(wb_id)
+        self.assertEqual(len(loaded["artifacts"]), 2)
+        art_titles = [a["title"] for a in loaded["artifacts"]]
+        self.assertIn("Regression Result", art_titles)
+        self.assertIn("Observation", art_titles)
+        self.assertEqual(len(loaded["connections"]), 1)
+        self.assertEqual(loaded["connections"][0]["label"], "supports")
+
+    def test_other_user_cannot_retrieve_data(self):
+        """User B cannot retrieve User A's uploaded data."""
+        upload_resp = self._upload_csv("secret.csv", "a,b\n1,2\n")
+        data_id = upload_resp.json()["id"]
+
+        other = _make_user("intruder@test.com")
+        self.client.force_login(other)
+        ret_resp = self._retrieve_data(data_id)
+        # Should be 404 — file stored under original user's directory
+        self.assertIn(ret_resp.status_code, [404, 500])
