@@ -1153,6 +1153,192 @@ div:hover > .aw-copy-btn { opacity: 1; }
     color: var(--aw-text);
     font-family: 'JetBrains Mono', monospace;
 }
+
+/* ── Narrative block — hero output (charts-first philosophy) ── */
+.dsw-narrative {
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 0.88rem;
+    line-height: 1.7;
+    padding: 1.25rem 1.5rem;
+    background: rgba(74, 159, 110, 0.06);
+    border-left: 3px solid var(--aw-accent);
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+    color: var(--aw-text);
+    position: relative;
+}
+.dsw-narrative .dsw-verdict {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 0.6rem;
+    color: #E8EFE8;
+    letter-spacing: -0.01em;
+}
+.dsw-narrative p { margin: 0.4rem 0; color: #C0D0C0; }
+.dsw-narrative strong { color: var(--aw-accent); font-weight: 600; }
+.dsw-narrative .dsw-next {
+    margin-top: 0.85rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid rgba(74, 159, 110, 0.15);
+    font-size: 0.82rem;
+    color: var(--aw-accent);
+    font-weight: 500;
+}
+.dsw-narrative .dsw-next strong { color: var(--aw-accent); font-weight: 700; }
+
+/* ── Diagnostics — assumption checks, contradictions, next steps ── */
+.dsw-diag {
+    padding: 0.65rem 1rem;
+    border-radius: 0 5px 5px 0;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+}
+.dsw-diag-icon { font-size: 1rem; flex-shrink: 0; line-height: 1.3; }
+.dsw-diag-body { flex: 1; }
+.dsw-diag-title { font-weight: 600; margin-bottom: 0.2rem; }
+.dsw-diag-detail { font-size: 0.78rem; opacity: 0.85; margin-top: 0.15rem; }
+.dsw-diag-warning { border-left: 3px solid #e8953f; background: rgba(232, 149, 63, 0.08); }
+.dsw-diag-warning .dsw-diag-title { color: #e8953f; }
+.dsw-diag-error, .dsw-diag-contradiction { border-left: 3px solid #dc5050; background: rgba(220, 80, 80, 0.08); }
+.dsw-diag-error .dsw-diag-title, .dsw-diag-contradiction .dsw-diag-title { color: #dc5050; }
+.dsw-diag-info { border-left: 3px solid #4a90d9; background: rgba(74, 144, 217, 0.06); }
+.dsw-diag-info .dsw-diag-title { color: #4a90d9; }
+.dsw-diag-action {
+    display: inline-block;
+    margin-top: 0.4rem;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--aw-accent);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+.dsw-diag-action:hover { opacity: 0.85; }
+.dsw-diag-action.dsw-diag-action-warn { background: #e8953f; }
+
+/* ── Inspect panel (chart click-to-inspect) ── */
+.dsw-inspect-panel {
+    margin-top: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(74, 159, 110, 0.25);
+    border-radius: 6px;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: #C0D0C0;
+    position: relative;
+    animation: dswFadeInUp 0.15s ease-out;
+}
+.dsw-inspect-panel .dsw-inspect-close {
+    position: absolute; top: 6px; right: 8px;
+    background: none; border: none; color: #7A8F7A;
+    cursor: pointer; font-size: 0.9rem; line-height: 1; padding: 2px 4px;
+}
+.dsw-inspect-panel .dsw-inspect-close:hover { color: #E8EFE8; }
+.dsw-inspect-panel table { width: 100%; border-collapse: collapse; margin-top: 0.4rem; }
+.dsw-inspect-panel th, .dsw-inspect-panel td {
+    text-align: left; padding: 3px 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.75rem;
+}
+.dsw-inspect-panel th { color: #7A8F7A; font-weight: 500; text-transform: uppercase; letter-spacing: 0.03em; }
+.dsw-inspect-panel .dsw-inspect-scatter { width: 100%; min-height: 250px; margin-top: 0.5rem; }
+
+/* ── Selection toolbar ── */
+.dsw-selection-toolbar {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.4rem 0.75rem; margin-top: 0.25rem;
+    background: rgba(74, 159, 110, 0.08); border-radius: 4px; font-size: 0.78rem;
+}
+.dsw-sel-count { color: #7A8F7A; }
+.dsw-sel-btn {
+    padding: 0.25rem 0.6rem; border-radius: 3px;
+    border: 1px solid rgba(74, 159, 110, 0.3);
+    background: rgba(74, 159, 110, 0.12); color: #4a9f6e;
+    font-size: 0.75rem; cursor: pointer;
+}
+.dsw-sel-btn:hover { background: rgba(74, 159, 110, 0.25); }
+.dsw-sel-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.dsw-explanation { font-size: 0.82rem; line-height: 1.6; }
+.dsw-explain-error { color: #7A8F7A; font-style: italic; }
+.dsw-delta-display { font-size: 0.82rem; line-height: 1.8; font-family: 'Berkeley Mono', monospace; }
+.dsw-rca-investigate { margin-top: 0.4rem; }
+.dsw-fmea-update:hover { background: rgba(232, 168, 56, 0.25) !important; }
+.dsw-build-a3 { margin-top: 0.2rem; }
+
+@keyframes dswFadeInUp {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Evidence Grade badge (full) ── */
+.dsw-evidence-grade {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.5rem 1rem; border-radius: 5px;
+    font-size: 0.82rem; margin-bottom: 0.75rem;
+}
+.dsw-grade-label {
+    font-weight: 700; font-size: 0.78rem; letter-spacing: 0.03em;
+    text-transform: uppercase; white-space: nowrap;
+}
+.dsw-grade-rationale { opacity: 0.85; font-size: 0.78rem; }
+.dsw-grade-strong { background: rgba(74, 159, 110, 0.1); border-left: 3px solid #4a9f6e; }
+.dsw-grade-strong .dsw-grade-label { color: #4a9f6e; }
+.dsw-grade-moderate { background: rgba(74, 144, 217, 0.08); border-left: 3px solid #4a90d9; }
+.dsw-grade-moderate .dsw-grade-label { color: #4a90d9; }
+.dsw-grade-weak { background: rgba(232, 149, 63, 0.08); border-left: 3px solid #e8953f; }
+.dsw-grade-weak .dsw-grade-label { color: #e8953f; }
+.dsw-grade-inconclusive { background: rgba(255, 255, 255, 0.04); border-left: 3px solid #7A8F7A; }
+.dsw-grade-inconclusive .dsw-grade-label { color: #7A8F7A; }
+
+/* ── Bayesian Shadow panel ── */
+.dsw-bayesian-shadow {
+    margin-bottom: 0.75rem;
+    border: 1px solid rgba(74, 159, 110, 0.15);
+    border-radius: 5px;
+    background: rgba(74, 159, 110, 0.03);
+}
+.dsw-shadow-toggle {
+    cursor: pointer; font-size: 0.78rem; padding: 0.5rem 1rem;
+    color: #7A8F7A; user-select: none;
+    display: flex; align-items: center; gap: 0.5rem;
+}
+.dsw-shadow-toggle:hover { color: var(--aw-text); }
+.dsw-shadow-icon { font-weight: 700; font-size: 0.85rem; color: var(--aw-accent); }
+.dsw-shadow-body {
+    padding: 0.75rem 1rem; font-size: 0.82rem; line-height: 1.6;
+    border-top: 1px solid rgba(74, 159, 110, 0.1);
+}
+
+/* ── Resize handles ── */
+.aw-resize-h {
+    width: 5px; cursor: col-resize;
+    background: transparent; flex-shrink: 0;
+    transition: background 0.15s;
+}
+.aw-resize-h:hover { background: rgba(74, 159, 110, 0.3); }
+.aw-resize-v {
+    height: 5px; cursor: row-resize;
+    background: transparent; flex-shrink: 0;
+    transition: background 0.15s;
+}
+.aw-resize-v:hover { background: rgba(74, 159, 110, 0.3); }
+
+/* ── Workbench list modal ── */
+.workbench-list-item {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--aw-border);
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.workbench-list-item:hover { background: var(--aw-accent-dim); }
+.workbench-list-item h4 { margin: 0; font-size: 12px; color: var(--aw-text); }
+.workbench-list-meta { font-size: 10px; color: var(--aw-text-muted); margin-top: 2px; }
 </style>
 {% endblock %}
 
@@ -1168,6 +1354,7 @@ div:hover > .aw-copy-btn { opacity: 1; }
         <span class="aw-menu-item" onclick="showAnalysisMenu('reliability')">Reliability</span>
         <span class="aw-menu-item" onclick="showAnalysisMenu('msa')">MSA</span>
         <span class="aw-menu-item" onclick="showAnalysisMenu('viz')">Graph</span>
+        <span class="aw-menu-item" onclick="showAnalysisMenu('siop')" style="color:#e8c547;font-weight:600;">S&OP</span>
         <span class="aw-menu-item" onclick="showAnalysisMenu('tools')">Tools</span>
         <span class="aw-menu-item" onclick="showAnalysisMenu('simulate')">Simulate</span>
     </div>
@@ -1422,13 +1609,36 @@ div:hover > .aw-copy-btn { opacity: 1; }
             <select id="project-selector" style="padding:1px 4px;font-size:9px;border:1px solid var(--aw-border);background:var(--aw-bg-dark);color:var(--aw-text);max-width:120px;">
                 <option value="">None</option>
             </select>
+            <a href="#" id="project-link" style="display:none;align-items:center;color:var(--aw-accent);margin-left:2px;" title="Open investigation">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                    <polyline points="15 3 21 3 21 9"/>
+                    <line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
+            </a>
+
+            <div class="aw-toolbar-sep"></div>
+
+            <input type="text" id="workbench-title" placeholder="Untitled session" style="padding:1px 6px;font-size:9px;border:1px solid var(--aw-border);background:var(--aw-bg-dark);color:var(--aw-text);width:120px;border-radius:3px;">
+            <button class="aw-toolbar-btn" onclick="saveWorkbenchSession()" title="Save Session">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                    <polyline points="7 3 7 8 15 8"/>
+                </svg>
+            </button>
+            <button class="aw-toolbar-btn" onclick="showWorkbenchList()" title="Load Session">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
+            </button>
         </div>
     </div>
 
     <!-- Main Layout -->
     <div class="aw-main">
         <!-- Navigator (Sidebar) -->
-        <div class="aw-sidebar">
+        <div class="aw-sidebar" id="aw-sidebar">
             <!-- Data Section -->
             <div class="aw-sidebar-section">
                 <div class="aw-sidebar-header" onclick="toggleSection(this)">
@@ -1487,8 +1697,11 @@ div:hover > .aw-copy-btn { opacity: 1; }
             </div>
         </div>
 
+        <!-- Resize handle: sidebar ↔ workspace -->
+        <div class="aw-resize-h" id="sidebar-resize"></div>
+
         <!-- Workspace -->
-        <div class="aw-workspace">
+        <div class="aw-workspace" id="aw-workspace">
             <!-- Top Row: Worksheet + Graphs -->
             <div class="aw-pane-row" style="flex:1.5;">
                 <!-- Worksheet Pane -->
@@ -1728,6 +1941,23 @@ div:hover > .aw-copy-btn { opacity: 1; }
     </div>
 </div>
 
+<!-- Workbench List Modal -->
+<div id="workbench-list-modal" class="aw-dialog-overlay" style="display:none;">
+    <div class="aw-dialog" style="max-width:500px;">
+        <div class="aw-dialog-header">
+            <span>Your Sessions</span>
+            <button class="aw-dialog-close" onclick="closeWorkbenchList()">&times;</button>
+        </div>
+        <div class="aw-dialog-body">
+            <div id="workbench-list"></div>
+        </div>
+        <div class="aw-dialog-footer" style="padding:8px 16px;display:flex;justify-content:flex-end;gap:8px;">
+            <button class="aw-btn" onclick="closeWorkbenchList()">Cancel</button>
+            <button class="aw-btn aw-btn-primary" onclick="createNewWorkbench()">New Session</button>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <script>
 // ============================================================================
@@ -1738,6 +1968,7 @@ let columns = [];
 let history = [];
 let sessionHistory = [];  // Detailed history for LLM context
 let currentAnalysis = null;
+let currentWorkbench = null;  // Workbench CRUD state
 
 // Multi-dataset tab support
 let dataTabs = [];  // [{id, name, data_id, columns, preview, rows}]
@@ -2403,7 +2634,8 @@ async function applySynaraWeights(target) {
         });
 
         if (!response.ok) {
-            const err = await response.json();
+            let err = {};
+            try { err = await response.json(); } catch (_) {}
             throw new Error(safeStr(err.error, 'Failed to save evidence'));
         }
 
@@ -2509,7 +2741,11 @@ async function applyStatisticsEvidence() {
     if (!currentProject) return;
 
     const container = document.querySelector('.statistics-evidence');
-    const statistics = JSON.parse(container?.dataset.statistics || '[]');
+    if (!container) {
+        appendSession('error', 'No statistics evidence panel found. Run an analysis first.');
+        return;
+    }
+    const statistics = JSON.parse(container.dataset.statistics || '[]');
 
     const evidenceItems = [];
     container.querySelectorAll('.stat-hypothesis').forEach((select, i) => {
@@ -2583,7 +2819,8 @@ async function applyStatisticsEvidence() {
         });
 
         if (!response.ok) {
-            const err = await response.json();
+            let err = {};
+            try { err = await response.json(); } catch (_) {}
             throw new Error(safeStr(err.error, 'Failed to save evidence'));
         }
 
@@ -3443,6 +3680,21 @@ const analysisMenus = {
             { id: 'bayes_changepoint', name: 'Bayesian Change Point', desc: 'When did the shift occur?' },
             { id: 'bayes_proportion', name: 'Bayesian Proportion', desc: 'Estimate rate with credible interval' },
         ]
+    },
+    siop: {
+        title: 'S&OP / Inventory',
+        items: [
+            { id: 'abc_analysis', name: 'ABC/XYZ Analysis', desc: 'Pareto classification + demand variability matrix' },
+            { id: 'eoq', name: 'EOQ', desc: 'Economic Order Quantity with cost curves' },
+            { id: 'safety_stock', name: 'Safety Stock', desc: 'Statistical safety stock & reorder point' },
+            { id: 'inventory_turns', name: 'Inventory Turns', desc: 'Turns analysis with industry benchmarks' },
+            { id: 'service_level', name: 'Service Level', desc: 'Fill rate vs cost trade-off curves' },
+            { id: 'demand_profile', name: 'Demand Profile', desc: 'CoV, trend, Syntetos-Boylan classification' },
+            { id: 'kanban_sizing', name: 'Kanban Sizing', desc: 'Pull system card calculation' },
+            { id: 'epei', name: 'EPEI', desc: 'Every Part Every Interval scheduling' },
+            { id: 'rop_simulation', name: 'ROP Simulation', desc: 'Monte Carlo (s,Q) policy simulation' },
+            { id: 'mrp_netting', name: 'MRP Netting', desc: 'Gross-to-net requirements explosion' },
+        ]
     }
 };
 
@@ -3466,6 +3718,7 @@ function showAnalysisMenu(type) {
         msa: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
         tools: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
         simulate: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>',
+        siop: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="6" height="14" rx="1"/><rect x="9" y="3" width="6" height="18" rx="1"/><rect x="16" y="10" width="6" height="11" rx="1"/></svg>',
     };
     const icon = categoryIcons[type] || '';
 
@@ -6409,11 +6662,309 @@ function generateConfigForm(type, id) {
         `;
     }
 
+    if (type === 'siop') {
+        if (id === 'abc_analysis') {
+            return `
+                <div class="aw-form-group">
+                    <label>Item/SKU column:</label>
+                    <select id="cfg-item_col">${colOptions}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Value column (annual $ or revenue):</label>
+                    <select id="cfg-value_col"><option value="">Auto-detect</option>${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>XYZ: Period demand columns (multi-select for CoV):</label>
+                    <div class="aw-checkbox-list" style="max-height:120px;overflow-y:auto;">
+                        ${columns.filter(c => c.dtype === 'numeric').map(c => `
+                            <label class="aw-checkbox-item">
+                                <input type="checkbox" name="demand_cols" value="${c.name}">
+                                <span>${c.name}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>A threshold (%):</label>
+                        <input type="number" id="cfg-a_threshold" value="80" min="50" max="95">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>B threshold (%):</label>
+                        <input type="number" id="cfg-b_threshold" value="95" min="80" max="99">
+                    </div>
+                </div>
+            `;
+        }
+        if (id === 'eoq') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Annual demand (D):</label>
+                        <input type="number" id="cfg-demand" value="10000" min="1">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Order cost ($/order):</label>
+                        <input type="number" id="cfg-order_cost" value="50" min="0.01" step="0.01">
+                    </div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Unit cost ($):</label>
+                        <input type="number" id="cfg-unit_cost" value="25" min="0.01" step="0.01">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Holding cost (% of unit):</label>
+                        <input type="number" id="cfg-holding_pct" value="25" min="1" max="100">
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Or use demand data column:</label>
+                    <select id="cfg-demand_col"><option value="">Manual entry above</option>${numCols}</select>
+                </div>
+            `;
+        }
+        if (id === 'safety_stock') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Mean demand/period:</label>
+                        <input type="number" id="cfg-demand_mean" value="100" min="0" step="0.1">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Demand std dev:</label>
+                        <input type="number" id="cfg-demand_std" value="20" min="0" step="0.1">
+                    </div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Lead time (periods):</label>
+                        <input type="number" id="cfg-lead_time" value="5" min="0.1" step="0.1">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Lead time std dev:</label>
+                        <input type="number" id="cfg-lead_time_std" value="1" min="0" step="0.1">
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Service level (%):</label>
+                    <input type="number" id="cfg-service_level" value="95" min="80" max="99.9" step="0.5">
+                </div>
+                <div class="aw-form-group">
+                    <label>Or use demand data column:</label>
+                    <select id="cfg-demand_col"><option value="">Manual entry above</option>${numCols}</select>
+                </div>
+            `;
+        }
+        if (id === 'inventory_turns') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Annual COGS ($):</label>
+                        <input type="number" id="cfg-cogs" value="5000000" min="1">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Avg inventory ($):</label>
+                        <input type="number" id="cfg-avg_inventory" value="800000" min="1">
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Industry benchmark:</label>
+                    <select id="cfg-industry">
+                        <option value="manufacturing">Manufacturing</option>
+                        <option value="retail">Retail</option>
+                        <option value="food">Food & Beverage</option>
+                        <option value="automotive">Automotive</option>
+                        <option value="pharma">Pharmaceutical</option>
+                        <option value="electronics">Electronics</option>
+                    </select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Or use data columns for trend:</label>
+                    <div class="aw-form-row">
+                        <select id="cfg-cogs_col"><option value="">None</option>${numCols}</select>
+                        <select id="cfg-inventory_col"><option value="">None</option>${numCols}</select>
+                    </div>
+                </div>
+            `;
+        }
+        if (id === 'service_level') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Mean demand/period:</label>
+                        <input type="number" id="cfg-demand_mean" value="100" min="0" step="0.1">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Demand std dev:</label>
+                        <input type="number" id="cfg-demand_std" value="20" min="0" step="0.1">
+                    </div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Lead time:</label>
+                        <input type="number" id="cfg-lead_time" value="5" min="0.1" step="0.1">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Unit cost ($):</label>
+                        <input type="number" id="cfg-unit_cost" value="25" min="0.01" step="0.01">
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Stockout cost ($/unit short, optional):</label>
+                    <input type="number" id="cfg-stockout_cost" value="" placeholder="Leave blank for cost-only view" min="0" step="1">
+                </div>
+            `;
+        }
+        if (id === 'demand_profile') {
+            return `
+                <div class="aw-form-group">
+                    <label>Demand column:</label>
+                    <select id="cfg-demand_col">${numCols}</select>
+                </div>
+            `;
+        }
+        if (id === 'kanban_sizing') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Demand/period:</label>
+                        <input type="number" id="cfg-demand" value="50" min="1">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Lead time (periods):</label>
+                        <input type="number" id="cfg-lead_time" value="3" min="0.1" step="0.1">
+                    </div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Safety factor (%):</label>
+                        <input type="number" id="cfg-safety_pct" value="15" min="0" max="100">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Container size:</label>
+                        <input type="number" id="cfg-container_size" value="25" min="1">
+                    </div>
+                </div>
+            `;
+        }
+        if (id === 'epei') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Available hours/day:</label>
+                        <input type="number" id="cfg-available_hours" value="8" min="1" max="24" step="0.5">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Number of parts:</label>
+                        <input type="number" id="cfg-num_parts" value="12" min="1">
+                    </div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Avg changeover (min):</label>
+                        <input type="number" id="cfg-changeover_time" value="15" min="1">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>C/O budget (%):</label>
+                        <input type="number" id="cfg-target_pct" value="10" min="1" max="50">
+                    </div>
+                </div>
+            `;
+        }
+        if (id === 'rop_simulation') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Mean demand/period:</label>
+                        <input type="number" id="cfg-demand_mean" value="100" min="0">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Demand std dev:</label>
+                        <input type="number" id="cfg-demand_std" value="20" min="0">
+                    </div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Lead time:</label>
+                        <input type="number" id="cfg-lead_time" value="5" min="1">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>LT std dev:</label>
+                        <input type="number" id="cfg-lead_time_std" value="1" min="0">
+                    </div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Reorder point (s):</label>
+                        <input type="number" id="cfg-reorder_point" value="680" min="0">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Order quantity (Q):</label>
+                        <input type="number" id="cfg-order_quantity" value="400" min="1">
+                    </div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Holding $/unit/period:</label>
+                        <input type="number" id="cfg-holding_cost" value="0.02" min="0" step="0.01">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Stockout $/unit:</label>
+                        <input type="number" id="cfg-stockout_cost" value="5" min="0" step="0.1">
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Simulation runs:</label>
+                    <input type="number" id="cfg-runs" value="1000" min="100" max="5000">
+                </div>
+            `;
+        }
+        if (id === 'mrp_netting') {
+            return `
+                <div class="aw-form-group">
+                    <label>Gross requirements column:</label>
+                    <select id="cfg-gross_col">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Scheduled receipts column (optional):</label>
+                    <select id="cfg-receipts_col"><option value="">None</option>${numCols}</select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>On-hand inventory:</label>
+                        <input type="number" id="cfg-on_hand" value="0" min="0">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Safety stock:</label>
+                        <input type="number" id="cfg-safety_stock" value="0" min="0">
+                    </div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Lead time (periods):</label>
+                        <input type="number" id="cfg-lead_time" value="2" min="1">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Lot sizing:</label>
+                        <select id="cfg-lot_size">
+                            <option value="lot_for_lot">Lot-for-Lot</option>
+                            <option value="fixed">Fixed Quantity</option>
+                            <option value="eoq">EOQ</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+        }
+        return `<p style="color:#9aaa9a;font-size:11px;">Select an S&OP analysis.</p>`;
+    }
+
     return '<p style="color:#9aaa9a;font-size:11px;">Configure analysis options.</p>';
 }
 
 async function executeAnalysis() {
-    if (!currentAnalysis || !currentData) {
+    const noDataTypes = ['simulation', 'bayesian', 'siop'];
+    if (!currentAnalysis || (!currentData && !noDataTypes.includes(currentAnalysis.type))) {
         alert('Please load data first');
         return;
     }
@@ -6836,6 +7387,35 @@ function showNextSteps(analysisId, analysisType) {
         'chi2': [
             { id: 'fisher_exact', type: 'stats', label: "Fisher's Exact Test" },
             { id: 'correspondence_analysis', type: 'ml', label: 'Correspondence Analysis' },
+        ],
+        // S&OP chains
+        'abc_analysis': [
+            { id: 'safety_stock', type: 'siop', label: 'Safety Stock (Class A)' },
+            { id: 'eoq', type: 'siop', label: 'EOQ (order sizing)' },
+            { id: 'demand_profile', type: 'siop', label: 'Demand Profile' },
+        ],
+        'eoq': [
+            { id: 'safety_stock', type: 'siop', label: 'Safety Stock & ROP' },
+            { id: 'rop_simulation', type: 'siop', label: 'ROP Simulation' },
+            { id: 'abc_analysis', type: 'siop', label: 'ABC Classification' },
+        ],
+        'safety_stock': [
+            { id: 'rop_simulation', type: 'siop', label: 'Monte Carlo ROP Sim' },
+            { id: 'service_level', type: 'siop', label: 'Service Level Trade-off' },
+            { id: 'eoq', type: 'siop', label: 'EOQ (order quantity)' },
+        ],
+        'demand_profile': [
+            { id: 'safety_stock', type: 'siop', label: 'Safety Stock' },
+            { id: 'abc_analysis', type: 'siop', label: 'ABC/XYZ Analysis' },
+            { id: 'arima', type: 'stats', label: 'ARIMA Forecast' },
+        ],
+        'inventory_turns': [
+            { id: 'abc_analysis', type: 'siop', label: 'ABC Classification' },
+            { id: 'eoq', type: 'siop', label: 'EOQ' },
+        ],
+        'kanban_sizing': [
+            { id: 'demand_profile', type: 'siop', label: 'Demand Profile' },
+            { id: 'safety_stock', type: 'siop', label: 'Statistical Safety Stock' },
         ],
     };
 
@@ -7868,7 +8448,7 @@ document.getElementById('assistant-input').addEventListener('keydown', (e) => {
 });
 
 // ============================================================================
-// DRAG & DROP
+// DRAG & DROP (global — anywhere in the workbench)
 // ============================================================================
 const worksheetPane = document.getElementById('worksheet-pane');
 worksheetPane.addEventListener('dragover', (e) => {
@@ -7888,5 +8468,235 @@ worksheetPane.addEventListener('drop', async (e) => {
         handleFileUpload({ target: fileInput });
     }
 });
+// Also accept drop on the entire container
+const awContainer = document.querySelector('.aw-container');
+awContainer.addEventListener('dragover', (e) => { e.preventDefault(); });
+awContainer.addEventListener('drop', async (e) => {
+    if (e.target.closest('#worksheet-pane')) return; // Already handled above
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    if (files.length) {
+        const fileInput = document.getElementById('file-upload-input');
+        fileInput.files = files;
+        handleFileUpload({ target: fileInput });
+    }
+});
+
+// ============================================================================
+// RESIZE HANDLES
+// ============================================================================
+(function setupResizeHandles() {
+    // Sidebar ↔ Workspace
+    const hHandle = document.getElementById('sidebar-resize');
+    const sidebar = document.getElementById('aw-sidebar');
+    const workspace = document.getElementById('aw-workspace');
+    if (hHandle && sidebar && workspace) {
+        let startX, startW;
+        hHandle.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            startX = e.clientX;
+            startW = sidebar.offsetWidth;
+            const onMove = (ev) => {
+                const dx = ev.clientX - startX;
+                sidebar.style.width = Math.max(100, Math.min(400, startW + dx)) + 'px';
+            };
+            const onUp = () => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+        });
+    }
+})();
+
+// ============================================================================
+// INVESTIGATION LINK
+// ============================================================================
+(function setupInvestigationLink() {
+    const selector = document.getElementById('project-selector');
+    const link = document.getElementById('project-link');
+    if (!selector || !link) return;
+
+    function updateLink() {
+        const val = selector.value;
+        if (val) {
+            link.href = '/app/investigations/?id=' + val;
+            link.style.display = 'flex';
+        } else {
+            link.style.display = 'none';
+        }
+    }
+
+    // Update on change (supplements existing onProjectChange handler)
+    selector.addEventListener('change', updateLink);
+    // Set initial state
+    setTimeout(updateLink, 200);
+})();
+
+// ============================================================================
+// WORKBENCH SESSION CRUD
+// ============================================================================
+async function wbApiCall(endpoint, method = 'GET', body = null) {
+    const opts = {
+        method,
+        credentials: 'include',
+        headers: { 'X-CSRFToken': getCSRFToken() }
+    };
+    if (body) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(body);
+    }
+    const resp = await fetch('/api/workbench/' + endpoint, opts);
+    return resp.json();
+}
+
+function collectSessionState() {
+    // Collect graph pane charts as output
+    const graphContainer = document.getElementById('graph-container');
+    const chartHtml = graphContainer ? graphContainer.innerHTML : '';
+    return {
+        data_id: currentData?.id || null,
+        data_file: currentData?.filename || null,
+        cache_key: null,
+        project_id: currentProject || null,
+        output_html: chartHtml,
+    };
+}
+
+async function saveWorkbenchSession() {
+    const title = document.getElementById('workbench-title').value.trim();
+    if (!title) {
+        document.getElementById('workbench-title').focus();
+        document.getElementById('workbench-title').style.borderColor = '#d06060';
+        setTimeout(() => { document.getElementById('workbench-title').style.borderColor = ''; }, 2000);
+        return;
+    }
+
+    const sessionState = collectSessionState();
+    const datasetInfo = currentData?.id ? [{
+        name: currentData.filename || 'dataset',
+        data_id: currentData.id,
+        rows: currentData.rows || null,
+        cols: currentData.columns?.length || null,
+    }] : [];
+
+    try {
+        if (currentWorkbench) {
+            await wbApiCall(`${currentWorkbench.id}/update/`, 'PATCH', {
+                title,
+                datasets: datasetInfo,
+                layout: sessionState,
+            });
+        } else {
+            const data = await wbApiCall('create/', 'POST', { title, description: '' });
+            if (data.workbench) {
+                currentWorkbench = { id: data.workbench.id };
+                await wbApiCall(`${currentWorkbench.id}/update/`, 'PATCH', {
+                    datasets: datasetInfo,
+                    layout: sessionState,
+                });
+                const url = new URL(window.location);
+                url.searchParams.set('wb', currentWorkbench.id);
+                window.history.replaceState({}, '', url);
+            }
+        }
+        appendSession('success', 'Session saved.');
+    } catch (err) {
+        appendSession('error', 'Save failed: ' + err.message);
+    }
+}
+
+function showWorkbenchList() {
+    document.getElementById('workbench-list-modal').style.display = 'flex';
+    loadWorkbenchList();
+}
+function closeWorkbenchList() {
+    document.getElementById('workbench-list-modal').style.display = 'none';
+}
+
+async function loadWorkbenchList() {
+    const list = document.getElementById('workbench-list');
+    try {
+        const data = await wbApiCall('');
+        if (!data.workbenches || data.workbenches.length === 0) {
+            list.innerHTML = '<div style="padding:20px;color:var(--aw-text-muted);text-align:center;">No saved sessions yet.</div>';
+            return;
+        }
+        list.innerHTML = data.workbenches.map(wb => `
+            <div class="workbench-list-item" onclick="closeWorkbenchList(); loadWorkbenchById('${wb.id}')">
+                <h4>${wb.title}</h4>
+                <div class="workbench-list-meta">${new Date(wb.updated_at).toLocaleDateString()}</div>
+            </div>
+        `).join('');
+    } catch (err) {
+        list.innerHTML = '<div style="padding:20px;color:var(--aw-text-muted);text-align:center;"><a href="/login/?next=/app/analysis/" style="color:var(--aw-accent);">Log in</a> to save and load sessions.</div>';
+    }
+}
+
+async function loadWorkbenchById(id) {
+    try {
+        const data = await wbApiCall(`${id}/`);
+        currentWorkbench = data;
+        document.getElementById('workbench-title').value = data.inquiry || data.title || '';
+
+        const layout = data.layout || {};
+        if (layout.data_id) {
+            // Restore dataset
+            const resp = await fetch('/api/dsw/retrieve-data/', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                body: JSON.stringify({ data_id: layout.data_id, filename: layout.data_file || 'dataset' })
+            });
+            if (resp.ok) {
+                const retData = await resp.json();
+                if (retData.columns) {
+                    currentData = retData;
+                    columns = retData.columns;
+                    addDataTab(retData, layout.data_file);
+                }
+            }
+        }
+
+        if (layout.project_id) {
+            const selector = document.getElementById('project-selector');
+            if (selector) {
+                selector.value = layout.project_id;
+                onProjectChange(layout.project_id);
+            }
+        }
+
+        const url = new URL(window.location);
+        url.searchParams.set('wb', id);
+        window.history.replaceState({}, '', url);
+        appendSession('success', 'Session loaded: ' + (data.inquiry || data.title || id));
+    } catch (err) {
+        appendSession('error', 'Failed to load session: ' + err.message);
+    }
+}
+
+function createNewWorkbench() {
+    closeWorkbenchList();
+    currentWorkbench = null;
+    document.getElementById('workbench-title').value = '';
+    const url = new URL(window.location);
+    url.searchParams.delete('wb');
+    window.history.replaceState({}, '', url);
+    appendSession('note', 'New session started.');
+}
+
+// Auto-load workbench from URL param on startup
+(function autoLoadWorkbench() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const wbId = urlParams.get('wb');
+    if (wbId) {
+        setTimeout(() => loadWorkbenchById(wbId), 300);
+    }
+})();
 </script>
 {% endblock %}
