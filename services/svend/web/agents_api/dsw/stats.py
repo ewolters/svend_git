@@ -6,8 +6,8 @@ run_statistical_analysis from this module — the API is unchanged.
 
 import logging
 
+from .exploratory import _run_exploratory
 from .stats_advanced import _run_advanced
-from .stats_exploratory import _run_exploratory
 from .stats_nonparametric import _run_nonparametric
 from .stats_parametric import _run_parametric
 from .stats_posthoc import _run_posthoc

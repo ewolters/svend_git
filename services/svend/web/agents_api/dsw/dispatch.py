@@ -2,6 +2,7 @@
 
 import json
 import logging
+import math
 import tempfile
 import time
 import uuid
@@ -91,6 +92,7 @@ def run_analysis(request):
     config = body.get("config", {})
     data_id = body.get("data_id")
     project_id = body.get("project_id")
+    investigation_id = body.get("investigation_id")
     result_title = body.get("title", "")
     save_result = body.get("save_result", False)
 
@@ -145,7 +147,7 @@ def run_analysis(request):
             except Exception:
                 pass
 
-        if df is None and analysis_type in ("simulation", "bayesian"):
+        if df is None and analysis_type in ("simulation", "bayesian", "siop"):
             df = pd.DataFrame()  # Simulation can run without data (user-defined distributions)
         elif df is None:
             _log_rejection(request, "no_data_loaded", analysis_type, analysis_id)
@@ -163,7 +165,7 @@ def run_analysis(request):
 
             result = run_ml_analysis(df, analysis_id, config, request.user)
         elif analysis_type == "spc":
-            from .spc import run_spc_analysis
+            from .spc_pkg import run_spc_analysis
 
             result = run_spc_analysis(df, analysis_id, config)
         elif analysis_type == "viz":
@@ -221,6 +223,10 @@ def run_analysis(request):
                     model_obj = cached.get("model")
                     model_feats = cached.get("meta", {}).get("features", [])
             result = run_interventional_shap(df, analysis_id, config, model=model_obj, model_features=model_feats)
+        elif analysis_type == "siop":
+            from .siop import run_siop
+
+            result = run_siop(df, analysis_id, config)
         else:
             _log_rejection(request, f"unknown_analysis_type: {analysis_type}", analysis_type, analysis_id)
             return JsonResponse({"error": f"Unknown analysis type: {analysis_type}"}, status=400)
@@ -272,9 +278,111 @@ def run_analysis(request):
 
         result = standardize_output(result, analysis_type, analysis_id)
 
+        # Investigation bridge (CANON-002 §12) — link DSW evidence to investigation
+        if investigation_id:
+            bridge_result = _dsw_connect_investigation(
+                request=request,
+                investigation_id=investigation_id,
+                result=result,
+                analysis_type=analysis_type,
+                analysis_id=analysis_id,
+                config=config,
+            )
+            if bridge_result:
+                result["investigation_bridge"] = bridge_result
+
         return safe_json_response(result)
 
     except Exception as e:
         logger.exception(f"Analysis error: {e}")
         log_agent_action(request.user, "analysis", analysis_id, success=False, error_message=str(e))
         return JsonResponse({"error": str(e)}, status=500)
+
+
+def _dsw_connect_investigation(request, investigation_id, result, analysis_type, analysis_id, config):
+    """Connect DSW analysis output to an investigation via the bridge (CANON-002 §12).
+
+    Extracts statistical metrics from the standardized result, builds an
+    InferenceSpec, and calls connect_tool() with tool_type="dsw".
+
+    Returns bridge result dict or None on error.
+    """
+    from .standardize import _classify_effect, _extract_p_value
+
+    try:
+        from ..investigation_bridge import InferenceSpec, connect_tool
+
+        # Extract statistical metrics from the standardized result
+        p_value = _extract_p_value(result)
+        stats = result.get("statistics", {})
+        if not isinstance(stats, dict):
+            stats = {}
+        for _key in ("n", "n_obs", "n_total", "sample_size"):
+            _val = stats.get(_key)
+            if _val is not None:
+                try:
+                    sample_size = int(float(_val))
+                except (TypeError, ValueError):
+                    sample_size = None
+                break
+        else:
+            sample_size = None
+        effect_mag = _classify_effect(result)
+
+        # Build human-readable event description
+        label = analysis_id.replace("_", " ").title()
+        parts = [f"DSW {analysis_type}/{label}"]
+        if p_value is not None and math.isfinite(p_value):
+            parts.append(f"p={p_value:.4f}")
+        if effect_mag:
+            parts.append(f"effect={effect_mag}")
+        evidence_grade = result.get("evidence_grade")
+        if evidence_grade:
+            parts.append(f"grade={evidence_grade}")
+        event_description = " — ".join(parts)
+
+        # Study quality factors from config (optional)
+        study_quality_factors = {}
+        if config.get("blinding"):
+            study_quality_factors["blinding"] = config["blinding"]
+        if config.get("pre_registration"):
+            study_quality_factors["pre_registration"] = config["pre_registration"]
+
+        # Use MeasurementSystem as tool_output (UUID PK required by InvestigationToolLink)
+        from core.models import MeasurementSystem
+
+        tool_output, _ = MeasurementSystem.objects.get_or_create(
+            name=f"DSW {analysis_type}",
+            owner=request.user,
+            defaults={"system_type": "variable"},
+        )
+
+        spec = InferenceSpec(
+            event_description=event_description,
+            context={
+                "analysis_type": analysis_type,
+                "analysis_id": analysis_id,
+                "p_value": p_value,
+                "effect_magnitude": effect_mag,
+                "evidence_grade": evidence_grade,
+            },
+            raw_output={
+                "summary": result.get("summary", "")[:500],
+                "statistics": stats,
+            },
+            sample_size=sample_size,
+            study_quality_factors=study_quality_factors or None,
+        )
+
+        bridge_result = connect_tool(
+            investigation_id=investigation_id,
+            tool_output=tool_output,
+            tool_type="dsw",
+            user=request.user,
+            spec=spec,
+        )
+        return bridge_result
+
+    except Exception:
+        logger.exception("DSW investigation bridge error")
+        return None
