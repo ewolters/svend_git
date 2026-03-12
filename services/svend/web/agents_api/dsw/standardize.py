@@ -272,14 +272,26 @@ def _extract_p_value(result):
 
 def _classify_effect(result):
     """Classify effect magnitude from result statistics."""
+    import math
+
     stats = result.get("statistics", {})
     if not isinstance(stats, dict):
         return None
 
+    def _safe_float(val):
+        """Convert to float, return None on failure or non-finite."""
+        if val is None:
+            return None
+        try:
+            f = float(val)
+            return f if math.isfinite(f) else None
+        except (TypeError, ValueError):
+            return None
+
     # Cohen's d
-    d = stats.get("cohens_d") or stats.get("effect_size_d")
+    d = _safe_float(stats.get("cohens_d") or stats.get("effect_size_d"))
     if d is not None:
-        d = abs(float(d))
+        d = abs(d)
         if d >= 0.8:
             return "large"
         elif d >= 0.5:
@@ -289,9 +301,9 @@ def _classify_effect(result):
         return "negligible"
 
     # Eta squared / partial eta squared
-    eta = stats.get("eta_squared") or stats.get("partial_eta_squared") or stats.get("epsilon_squared")
+    eta = _safe_float(stats.get("eta_squared") or stats.get("partial_eta_squared") or stats.get("epsilon_squared"))
     if eta is not None:
-        eta = abs(float(eta))
+        eta = abs(eta)
         if eta >= 0.14:
             return "large"
         elif eta >= 0.06:
@@ -301,9 +313,9 @@ def _classify_effect(result):
         return "negligible"
 
     # Effect r
-    r = stats.get("effect_size_r") or stats.get("effect_r") or stats.get("spearman_rho")
+    r = _safe_float(stats.get("effect_size_r") or stats.get("effect_r") or stats.get("spearman_rho"))
     if r is not None:
-        r = abs(float(r))
+        r = abs(r)
         if r >= 0.5:
             return "large"
         elif r >= 0.3:
@@ -313,9 +325,8 @@ def _classify_effect(result):
         return "negligible"
 
     # R-squared (regression)
-    r2 = stats.get("r_squared") or stats.get("R2")
+    r2 = _safe_float(stats.get("r_squared") or stats.get("R2"))
     if r2 is not None:
-        r2 = float(r2)
         if r2 >= 0.26:
             return "large"
         elif r2 >= 0.13:
@@ -405,7 +416,6 @@ def _normalize_what_if(result, entry):
     pe = result.get("power_explorer")
     if pe and isinstance(pe, dict):
         params = []
-        pe.get("test_type", "")
         obs_n = pe.get("observed_n", 30)
         obs_d = pe.get("cohens_d", 0.5)
         alpha = pe.get("alpha", 0.05)

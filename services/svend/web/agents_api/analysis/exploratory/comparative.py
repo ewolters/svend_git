@@ -27,6 +27,16 @@ def run_chi2(df, config):
 
     # Create contingency table
     contingency = pd.crosstab(df[row_var], df[col_var])
+    if contingency.shape[0] < 2 or contingency.shape[1] < 2:
+        result["summary"] = (
+            f"<<COLOR:danger>>Chi-square requires at least a 2×2 contingency table.<</COLOR>>\n\n"
+            f"Got {contingency.shape[0]} row(s) × {contingency.shape[1]} column(s).\n"
+            f"'{row_var}' has {contingency.shape[0]} unique value(s), "
+            f"'{col_var}' has {contingency.shape[1]} unique value(s).\n\n"
+            "Both variables must have at least 2 distinct values."
+        )
+        result["guide_observation"] = f"Chi-square test not applicable: {row_var} or {col_var} has fewer than 2 levels."
+        return result
     chi2, pval, dof, expected = stats.chi2_contingency(contingency)
 
     summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"

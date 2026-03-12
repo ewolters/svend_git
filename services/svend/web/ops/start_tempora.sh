@@ -4,7 +4,9 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+# Always cd to the web root (one level up from ops/)
+WEB_ROOT="${SCRIPT_DIR%/ops}"
+cd "$WEB_ROOT"
 
 export PATH="$HOME/.local/bin:$PATH"
 

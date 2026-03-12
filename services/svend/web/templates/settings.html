@@ -268,6 +268,89 @@
                     <p class="text-dim">No pending invitations</p>
                 </div>
             </section>
+
+            <!-- Sites -->
+            <section class="card settings-section" id="org-sites-section" style="display:none;">
+                <h2>Sites</h2>
+                <p class="section-desc">Manufacturing facilities in your organization.</p>
+                <div id="sites-list"></div>
+                <div id="site-form-container" style="display:none; margin-top:1rem;">
+                    <form id="site-form">
+                        <input type="hidden" id="site-edit-id">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                            <div class="form-group">
+                                <label for="site-name">Name</label>
+                                <input type="text" id="site-name" placeholder="Fort Worth Plant" required maxlength="255">
+                            </div>
+                            <div class="form-group">
+                                <label for="site-code">Code</label>
+                                <input type="text" id="site-code" placeholder="PLT-01" maxlength="20">
+                            </div>
+                            <div class="form-group">
+                                <label for="site-business-unit">Business Unit</label>
+                                <input type="text" id="site-business-unit" placeholder="Printing Division" maxlength="255">
+                            </div>
+                            <div class="form-group">
+                                <label for="site-address">Address</label>
+                                <input type="text" id="site-address" placeholder="123 Main St, Fort Worth, TX">
+                            </div>
+                            <div class="form-group">
+                                <label for="site-plant-manager">Plant Manager</label>
+                                <input type="text" id="site-plant-manager" maxlength="255">
+                            </div>
+                            <div class="form-group">
+                                <label for="site-ci-leader">CI Leader</label>
+                                <input type="text" id="site-ci-leader" maxlength="255">
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
+                            <button type="submit" class="btn btn-primary" id="site-submit-btn">Add Site</button>
+                            <button type="button" class="btn" onclick="cancelSiteForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+                <button class="btn" id="add-site-btn" style="margin-top:0.75rem; display:none;" onclick="showSiteForm()">Add Site</button>
+                <p class="help-text" id="site-limit-text" style="display:none;"></p>
+            </section>
+
+            <!-- People (Non-User Employees) -->
+            <section class="card settings-section" id="org-people-section" style="display:none;">
+                <h2>People</h2>
+                <p class="section-desc">Plant personnel who participate in CI activities. These do not require Svend accounts or seats.</p>
+                <div id="people-list"></div>
+                <div id="person-form-container" style="display:none; margin-top:1rem;">
+                    <form id="person-form">
+                        <input type="hidden" id="person-edit-id">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                            <div class="form-group">
+                                <label for="person-name">Name</label>
+                                <input type="text" id="person-name" required maxlength="255">
+                            </div>
+                            <div class="form-group">
+                                <label for="person-email">Email</label>
+                                <input type="email" id="person-email" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="person-role">Role / Title</label>
+                                <input type="text" id="person-role" placeholder="Press Operator" maxlength="255">
+                            </div>
+                            <div class="form-group">
+                                <label for="person-department">Department</label>
+                                <input type="text" id="person-department" placeholder="Production" maxlength="255">
+                            </div>
+                            <div class="form-group">
+                                <label for="person-site">Site</label>
+                                <select id="person-site"><option value="">— No site —</option></select>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
+                            <button type="submit" class="btn btn-primary" id="person-submit-btn">Add Person</button>
+                            <button type="button" class="btn" onclick="cancelPersonForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+                <button class="btn" id="add-person-btn" style="margin-top:0.75rem; display:none;" onclick="showPersonForm()">Add Person</button>
+            </section>
         </div>
     </div><!-- /tab-org -->
 
@@ -837,6 +920,12 @@
                 loadOrgInvitations();
             }
 
+            // Sites and People — visible to all org members
+            document.getElementById('org-sites-section').style.display = '';
+            document.getElementById('org-people-section').style.display = '';
+            loadOrgSites();
+            loadOrgPeople();
+
             orgLoaded = true;
         } catch (err) {
             document.getElementById('org-info-content').innerHTML =
@@ -1017,6 +1106,276 @@
             showToast('Invitation cancelled');
             loadOrgInvitations();
             loadOrgMembers();
+        } catch (err) {
+            showToast(safeStr(err, 'Unknown error'), 'error');
+        }
+    }
+
+    // ---- Site Management (ORG-001 §8.2) ----
+    let sitesData = [];
+
+    async function loadOrgSites() {
+        try {
+            const res = await fetch('/api/core/org/sites/', { credentials: 'include' });
+            const data = await res.json();
+            sitesData = data.sites || [];
+            const canManage = data.can_manage;
+            const maxSites = data.max_sites;
+            const container = document.getElementById('sites-list');
+
+            if (sitesData.length === 0) {
+                container.innerHTML = '<p class="text-dim">No sites configured yet.</p>';
+            } else {
+                container.innerHTML = sitesData.map(s => `
+                    <div class="invite-item">
+                        <div>
+                            <div style="font-weight:500;">${s.name}${s.code ? ' <code style="font-size:0.75rem;">' + s.code + '</code>' : ''}</div>
+                            <div class="invite-meta">
+                                ${s.business_unit || ''}${s.business_unit && s.plant_manager ? ' · ' : ''}${s.plant_manager ? 'PM: ' + s.plant_manager : ''}
+                                ${!s.is_active ? ' <span style="color:var(--error);">(inactive)</span>' : ''}
+                            </div>
+                        </div>
+                        ${canManage ? `
+                            <div style="display:flex; gap:0.25rem;">
+                                <button class="btn btn-sm" onclick="editSite('${s.id}')">Edit</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteSite('${s.id}', '${s.name.replace(/'/g, "\\'")}')">Delete</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('');
+            }
+
+            const addBtn = document.getElementById('add-site-btn');
+            const limitText = document.getElementById('site-limit-text');
+            if (canManage) {
+                if (maxSites && sitesData.length >= maxSites) {
+                    addBtn.style.display = 'none';
+                    limitText.textContent = 'Team plan is limited to 1 site. Upgrade to Enterprise for multiple sites.';
+                    limitText.style.display = '';
+                } else {
+                    addBtn.style.display = '';
+                    limitText.style.display = 'none';
+                }
+            }
+
+            // Populate site dropdown in person form
+            const siteSelect = document.getElementById('person-site');
+            siteSelect.innerHTML = '<option value="">— No site —</option>' +
+                sitesData.filter(s => s.is_active).map(s =>
+                    `<option value="${s.id}">${s.name}</option>`
+                ).join('');
+        } catch (err) {
+            console.error('Failed to load sites:', err);
+        }
+    }
+
+    function showSiteForm(editId) {
+        document.getElementById('site-form-container').style.display = '';
+        document.getElementById('add-site-btn').style.display = 'none';
+        const btn = document.getElementById('site-submit-btn');
+        if (editId) {
+            const s = sitesData.find(x => x.id === editId);
+            if (s) {
+                document.getElementById('site-edit-id').value = s.id;
+                document.getElementById('site-name').value = s.name;
+                document.getElementById('site-code').value = s.code || '';
+                document.getElementById('site-business-unit').value = s.business_unit || '';
+                document.getElementById('site-address').value = s.address || '';
+                document.getElementById('site-plant-manager').value = s.plant_manager || '';
+                document.getElementById('site-ci-leader').value = s.ci_leader || '';
+                btn.textContent = 'Save Changes';
+            }
+        } else {
+            document.getElementById('site-form').reset();
+            document.getElementById('site-edit-id').value = '';
+            btn.textContent = 'Add Site';
+        }
+    }
+
+    function cancelSiteForm() {
+        document.getElementById('site-form-container').style.display = 'none';
+        document.getElementById('site-form').reset();
+        document.getElementById('site-edit-id').value = '';
+        if (orgData && orgData.membership && orgData.membership.can_admin) {
+            document.getElementById('add-site-btn').style.display = '';
+        }
+    }
+
+    function editSite(id) { showSiteForm(id); }
+
+    document.getElementById('site-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const editId = document.getElementById('site-edit-id').value;
+        const payload = {
+            name: document.getElementById('site-name').value.trim(),
+            code: document.getElementById('site-code').value.trim(),
+            business_unit: document.getElementById('site-business-unit').value.trim(),
+            address: document.getElementById('site-address').value.trim(),
+            plant_manager: document.getElementById('site-plant-manager').value.trim(),
+            ci_leader: document.getElementById('site-ci-leader').value.trim(),
+        };
+
+        try {
+            const url = editId ? `/api/core/org/sites/${editId}/` : '/api/core/org/sites/create/';
+            const method = editId ? 'PUT' : 'POST';
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                credentials: 'include',
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(safeStr(data.error, 'Request failed'));
+            showToast(editId ? 'Site updated' : 'Site created');
+            cancelSiteForm();
+            loadOrgSites();
+        } catch (err) {
+            showToast(safeStr(err, 'Unknown error'), 'error');
+        }
+    });
+
+    async function deleteSite(id, name) {
+        if (!confirm(`Delete site "${name}"? Projects at this site may be affected.`)) return;
+        try {
+            const res = await fetch(`/api/core/org/sites/${id}/delete/`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': getCSRFToken() },
+                credentials: 'include',
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(safeStr(data.error, 'Request failed'));
+            showToast(data.deactivated ? `Site deactivated (${data.project_count} project(s) preserved)` : 'Site deleted');
+            loadOrgSites();
+        } catch (err) {
+            showToast(safeStr(err, 'Unknown error'), 'error');
+        }
+    }
+
+    // ---- People (Non-User Employees) Management (ORG-001 §7) ----
+
+    async function loadOrgPeople() {
+        try {
+            const res = await fetch('/api/core/org/employees/', { credentials: 'include' });
+            const data = await res.json();
+            const people = data.employees || [];
+            const canManage = data.can_manage;
+            const container = document.getElementById('people-list');
+
+            if (people.length === 0) {
+                container.innerHTML = '<p class="text-dim">No personnel records yet.</p>';
+            } else {
+                container.innerHTML = `
+                    <table class="members-table">
+                        <thead><tr><th>Name</th><th>Role</th><th>Department</th><th>Site</th>${canManage ? '<th></th>' : ''}</tr></thead>
+                        <tbody>${people.map(p => {
+                            const site = sitesData.find(s => s.id === p.site_id);
+                            return `<tr${!p.is_active ? ' style="opacity:0.5;"' : ''}>
+                                <td>
+                                    <div>${p.name}</div>
+                                    <div style="font-size:0.75rem; color:var(--text-dim);">${p.email}</div>
+                                </td>
+                                <td style="font-size:0.85rem;">${p.role || '—'}</td>
+                                <td style="font-size:0.85rem;">${p.department || '—'}</td>
+                                <td style="font-size:0.85rem;">${site ? site.name : '—'}</td>
+                                ${canManage ? `<td>
+                                    <button class="btn btn-sm" onclick="editPerson('${p.id}')">Edit</button>
+                                    <button class="btn btn-danger btn-sm" onclick="deletePerson('${p.id}', '${p.name.replace(/'/g, "\\'")}')">Delete</button>
+                                </td>` : ''}
+                            </tr>`;
+                        }).join('')}</tbody>
+                    </table>`;
+            }
+
+            if (canManage) {
+                document.getElementById('add-person-btn').style.display = '';
+            }
+        } catch (err) {
+            console.error('Failed to load people:', err);
+        }
+    }
+
+    let peopleData = [];
+
+    function showPersonForm(editId) {
+        document.getElementById('person-form-container').style.display = '';
+        document.getElementById('add-person-btn').style.display = 'none';
+        const btn = document.getElementById('person-submit-btn');
+        if (editId) {
+            // Fetch current data
+            fetch(`/api/core/org/employees/`, { credentials: 'include' })
+                .then(r => r.json())
+                .then(data => {
+                    const p = (data.employees || []).find(x => x.id === editId);
+                    if (p) {
+                        document.getElementById('person-edit-id').value = p.id;
+                        document.getElementById('person-name').value = p.name;
+                        document.getElementById('person-email').value = p.email;
+                        document.getElementById('person-role').value = p.role || '';
+                        document.getElementById('person-department').value = p.department || '';
+                        document.getElementById('person-site').value = p.site_id || '';
+                        btn.textContent = 'Save Changes';
+                    }
+                });
+        } else {
+            document.getElementById('person-form').reset();
+            document.getElementById('person-edit-id').value = '';
+            btn.textContent = 'Add Person';
+        }
+    }
+
+    function cancelPersonForm() {
+        document.getElementById('person-form-container').style.display = 'none';
+        document.getElementById('person-form').reset();
+        document.getElementById('person-edit-id').value = '';
+        if (orgData && orgData.membership && orgData.membership.can_admin) {
+            document.getElementById('add-person-btn').style.display = '';
+        }
+    }
+
+    function editPerson(id) { showPersonForm(id); }
+
+    document.getElementById('person-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const editId = document.getElementById('person-edit-id').value;
+        const payload = {
+            name: document.getElementById('person-name').value.trim(),
+            email: document.getElementById('person-email').value.trim(),
+            role: document.getElementById('person-role').value.trim(),
+            department: document.getElementById('person-department').value.trim(),
+            site_id: document.getElementById('person-site').value || null,
+        };
+
+        try {
+            const url = editId ? `/api/core/org/employees/${editId}/` : '/api/core/org/employees/create/';
+            const method = editId ? 'PUT' : 'POST';
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                credentials: 'include',
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(safeStr(data.error, 'Request failed'));
+            showToast(editId ? 'Person updated' : 'Person added');
+            cancelPersonForm();
+            loadOrgPeople();
+        } catch (err) {
+            showToast(safeStr(err, 'Unknown error'), 'error');
+        }
+    });
+
+    async function deletePerson(id, name) {
+        if (!confirm(`Remove ${name} from the personnel list?`)) return;
+        try {
+            const res = await fetch(`/api/core/org/employees/${id}/delete/`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': getCSRFToken() },
+                credentials: 'include',
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(safeStr(data.error, 'Request failed'));
+            showToast('Person removed');
+            loadOrgPeople();
         } catch (err) {
             showToast(safeStr(err, 'Unknown error'), 'error');
         }

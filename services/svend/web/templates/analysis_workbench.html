@@ -670,6 +670,21 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 }
 
 /* Analysis Dialog */
+.aw-dialog-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+.aw-dialog-overlay .aw-dialog {
+    display: block;
+    position: static;
+    inset: auto;
+    background: none;
+}
 .aw-dialog {
     display: none;
     position: fixed;
@@ -4151,15 +4166,14 @@ function generateConfigForm(type, id) {
             `;
         }
         if (id === 'chi2') {
-            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
             return `
                 <div class="aw-form-group">
                     <label>Row variable:</label>
-                    <select id="cfg-row_var">${catCols || colOptions}</select>
+                    <select id="cfg-row_var">${colOptions}</select>
                 </div>
                 <div class="aw-form-group">
                     <label>Column variable:</label>
-                    <select id="cfg-col_var">${catCols || colOptions}</select>
+                    <select id="cfg-col_var">${colOptions}</select>
                 </div>
             `;
         }
@@ -4633,6 +4647,180 @@ function generateConfigForm(type, id) {
                 </div>
             `;
         }
+        if (id === 'nonnormal_capability') {
+            return `
+                <div class="aw-form-group">
+                    <label>Measurement column:</label>
+                    <select id="cfg-measurement">${numCols}</select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>LSL:</label><input type="number" id="cfg-lsl" step="any"></div>
+                    <div class="aw-form-group"><label>USL:</label><input type="number" id="cfg-usl" step="any"></div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Target (optional):</label>
+                    <input type="number" id="cfg-target" step="any" placeholder="Midpoint if blank">
+                </div>
+                <div style="background:rgba(232,149,71,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#e89547;">Non-Normal Capability:</strong> Fits best distribution (Weibull, lognormal, etc.) then computes Ppk/Pp. Use when data fails normality test.
+                </div>
+            `;
+        }
+        if (id === 'degradation_capability') {
+            return `
+                <div class="aw-form-group">
+                    <label>Measurement column:</label>
+                    <select id="cfg-measurement">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Time column:</label>
+                    <select id="cfg-time_column">${numCols}</select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>LSL:</label><input type="number" id="cfg-lsl" step="any"></div>
+                    <div class="aw-form-group"><label>USL:</label><input type="number" id="cfg-usl" step="any"></div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Target Cpk:</label>
+                    <input type="number" id="cfg-target_cpk" value="1.33" step="0.01" min="0">
+                </div>
+                <div style="background:rgba(217,74,74,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#d94a4a;">Degradation Capability:</strong> Tracks capability over time windows. Detects when process drifts toward spec limits.
+                </div>
+            `;
+        }
+        if (id === 'between_within') {
+            return `
+                <div class="aw-form-group">
+                    <label>Measurement column:</label>
+                    <select id="cfg-measurement">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Subgroup column:</label>
+                    <select id="cfg-subgroup">${colOptions}</select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>LSL:</label><input type="number" id="cfg-lsl" step="any"></div>
+                    <div class="aw-form-group"><label>USL:</label><input type="number" id="cfg-usl" step="any"></div>
+                </div>
+                <div style="background:rgba(74,144,217,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#4a90d9;">Between/Within:</strong> Separates between-subgroup and within-subgroup variation. Ppk uses total, Cpk uses within.
+                </div>
+            `;
+        }
+        if (id === 'laney_p') {
+            return `
+                <div class="aw-form-group">
+                    <label>Defectives column:</label>
+                    <select id="cfg-defectives">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Sample size column:</label>
+                    <select id="cfg-sample_size">${numCols}</select>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Laney P':</strong> Adjusted P chart for overdispersed data. Prevents false alarms when large sample sizes inflate sensitivity.
+                </div>
+            `;
+        }
+        if (id === 'laney_u') {
+            return `
+                <div class="aw-form-group">
+                    <label>Defects column:</label>
+                    <select id="cfg-defects">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Units column:</label>
+                    <select id="cfg-units">${numCols}</select>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Laney U':</strong> Adjusted U chart for overdispersed defect rates. Corrects control limits when data variance exceeds Poisson assumption.
+                </div>
+            `;
+        }
+        if (id === 'moving_average') {
+            return `
+                <div class="aw-form-group">
+                    <label>Measurement column:</label>
+                    <select id="cfg-measurement">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Span (window size):</label>
+                    <input type="number" id="cfg-span" value="5" min="2" max="50">
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Moving Average:</strong> Smooths individual observations with a rolling window. Good for autocorrelated data.
+                </div>
+            `;
+        }
+        if (id === 'zone_chart') {
+            return `
+                <div class="aw-form-group">
+                    <label>Measurement column:</label>
+                    <select id="cfg-measurement">${numCols}</select>
+                </div>
+                <div style="background:rgba(74,144,217,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#4a90d9;">Zone Chart:</strong> Scores each point by zone (A=4, B=2, C=0). Out of control when cumulative score ≥ 8.
+                </div>
+            `;
+        }
+        if (id === 'mewma') {
+            const mvCheckboxes = columns.filter(c => c.dtype === 'numeric').map(c =>
+                `<label class="aw-checkbox-item"><input type="checkbox" name="variables" value="${c.name}" checked><span>${c.name}</span></label>`
+            ).join('');
+            return `
+                <div class="aw-form-group">
+                    <label>Variables:</label>
+                    <div class="aw-checkbox-list" style="max-height:120px;overflow-y:auto;">${mvCheckboxes}</div>
+                </div>
+                <div class="aw-form-group">
+                    <label>λ (smoothing 0-1):</label>
+                    <input type="number" id="cfg-lambda" value="0.2" step="0.05" min="0.05" max="1">
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">MEWMA:</strong> Multivariate EWMA for monitoring correlated variables simultaneously. Detects small shifts in the mean vector.
+                </div>
+            `;
+        }
+        if (id === 'generalized_variance') {
+            const mvCheckboxes = columns.filter(c => c.dtype === 'numeric').map(c =>
+                `<label class="aw-checkbox-item"><input type="checkbox" name="variables" value="${c.name}" checked><span>${c.name}</span></label>`
+            ).join('');
+            return `
+                <div class="aw-form-group">
+                    <label>Variables:</label>
+                    <div class="aw-checkbox-list" style="max-height:120px;overflow-y:auto;">${mvCheckboxes}</div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Subgroup column (optional):</label>
+                    <select id="cfg-subgroup"><option value="">None</option>${colOptions}</select>
+                </div>
+                <div style="background:rgba(232,149,71,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#e89547;">Generalized Variance:</strong> Monitors the determinant of the covariance matrix. Detects changes in multivariate dispersion.
+                </div>
+            `;
+        }
+        if (id === 'entropy_spc') {
+            return `
+                <div class="aw-form-group">
+                    <label>Measurement column:</label>
+                    <select id="cfg-measurement">${numCols}</select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Alpha:</label>
+                        <input type="number" id="cfg-alpha" value="0.05" step="0.01" min="0.001" max="0.5">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Window size:</label>
+                        <input type="number" id="cfg-window" value="20" min="5" max="200">
+                    </div>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Entropy SPC:</strong> Information-theoretic control chart. Detects distributional changes beyond just mean/variance shifts.
+                </div>
+            `;
+        }
         return `<p style="color:#9aaa9a;font-size:11px;">Select SPC chart type.</p>`;
     }
 
@@ -4774,7 +4962,11 @@ function generateConfigForm(type, id) {
             return `
                 <div class="aw-form-group">
                     <label>Time to failure:</label>
-                    <select id="cfg-var">${numCols}</select>
+                    <select id="cfg-time">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Censoring column (optional, 1=failed):</label>
+                    <select id="cfg-censor"><option value="">All failed</option>${numCols}</select>
                 </div>
                 <div style="background:rgba(232,149,71,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
                     <strong style="color:#e89547;">Weibull:</strong> β<1 = infant mortality, β=1 = random, β>1 = wear-out failures.
@@ -4803,6 +4995,154 @@ function generateConfigForm(type, id) {
                 </div>
                 <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
                     <strong style="color:var(--aw-accent);">Kaplan-Meier:</strong> Survival curves. Compare groups to see if survival differs.
+                </div>
+            `;
+        }
+        if (id === 'lognormal' || id === 'exponential') {
+            const distName = id === 'lognormal' ? 'Lognormal' : 'Exponential';
+            const distNote = id === 'lognormal'
+                ? 'Lognormal fits right-skewed failure data. Common for fatigue, corrosion, and chemical degradation.'
+                : 'Exponential assumes constant hazard rate (memoryless). Use for electronic components or random failures.';
+            return `
+                <div class="aw-form-group">
+                    <label>Time to failure:</label>
+                    <select id="cfg-time">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Censoring column (optional, 1=failed):</label>
+                    <select id="cfg-censor"><option value="">All failed</option>${numCols}</select>
+                </div>
+                <div style="background:rgba(232,149,71,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#e89547;">${distName}:</strong> ${distNote}
+                </div>
+            `;
+        }
+        if (id === 'distribution_id') {
+            return `
+                <div class="aw-form-group">
+                    <label>Time to failure:</label>
+                    <select id="cfg-time">${numCols}</select>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Distribution ID:</strong> Fits Weibull, lognormal, exponential, and normal. Compares AIC/BIC to recommend the best model.
+                </div>
+            `;
+        }
+        if (id === 'reliability_test_plan') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Target reliability:</label>
+                        <input type="number" id="cfg-target_reliability" value="0.90" step="0.01" min="0.5" max="0.999">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Confidence:</label>
+                        <input type="number" id="cfg-confidence" value="0.95" step="0.01" min="0.5" max="0.999">
+                    </div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Test duration:</label>
+                        <input type="number" id="cfg-test_duration" value="1000" min="1">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Distribution:</label>
+                        <select id="cfg-distribution">
+                            <option value="exponential">Exponential</option>
+                            <option value="weibull">Weibull</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Weibull β (shape, if applicable):</label>
+                    <input type="number" id="cfg-beta" value="1.0" step="0.1" min="0.1">
+                </div>
+                <div style="background:rgba(74,144,217,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#4a90d9;">Test Plan:</strong> Calculates sample size needed to demonstrate reliability target at given confidence. No dataset required.
+                </div>
+            `;
+        }
+        if (id === 'accelerated_life') {
+            return `
+                <div class="aw-form-group">
+                    <label>Time to failure:</label>
+                    <select id="cfg-time">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Stress variable:</label>
+                    <select id="cfg-stress">${numCols}</select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Model:</label>
+                        <select id="cfg-model">
+                            <option value="arrhenius">Arrhenius (temperature)</option>
+                            <option value="inverse_power">Inverse Power (voltage/load)</option>
+                            <option value="eyring">Eyring</option>
+                        </select>
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Use stress level:</label>
+                        <input type="number" id="cfg-use_stress" step="any" placeholder="Normal operating">
+                    </div>
+                </div>
+                <div style="background:rgba(217,74,74,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#d94a4a;">Accelerated Life:</strong> Extrapolates failure times from high-stress tests to normal conditions. Arrhenius for temperature, Inverse Power for voltage/mechanical stress.
+                </div>
+            `;
+        }
+        if (id === 'repairable_systems') {
+            return `
+                <div class="aw-form-group">
+                    <label>Failure time column:</label>
+                    <select id="cfg-time">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>System ID column (optional):</label>
+                    <select id="cfg-system"><option value="">Single system</option>${colOptions}</select>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Repairable Systems:</strong> Tests for trend (improving/deteriorating) using Crow-AMSAA model. ROCOF = Rate of Occurrence of Failures.
+                </div>
+            `;
+        }
+        if (id === 'warranty') {
+            return `
+                <div class="aw-form-group">
+                    <label>Time to claim:</label>
+                    <select id="cfg-time">${numCols}</select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Warranty period:</label>
+                        <input type="number" id="cfg-warranty_period" value="12" min="1">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Fleet size:</label>
+                        <input type="number" id="cfg-fleet_size" value="1000" min="1">
+                    </div>
+                </div>
+                <div style="background:rgba(232,149,71,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#e89547;">Warranty:</strong> Projects future warranty claims using current failure data. Accounts for IBNR (Incurred But Not Reported) claims.
+                </div>
+            `;
+        }
+        if (id === 'competing_risks') {
+            return `
+                <div class="aw-form-group">
+                    <label>Time to event:</label>
+                    <select id="cfg-time">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Event indicator (1=event):</label>
+                    <select id="cfg-event"><option value="">All observed</option>${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Failure mode column:</label>
+                    <select id="cfg-failure_mode">${colOptions}</select>
+                </div>
+                <div style="background:rgba(217,74,74,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#d94a4a;">Competing Risks:</strong> Separates multiple failure modes. Cumulative incidence functions show probability of each failure type over time.
                 </div>
             `;
         }
@@ -5599,6 +5939,244 @@ function generateConfigForm(type, id) {
                 </div>
             `;
         }
+        if (id === 'regression_ml') {
+            return `
+                <div class="aw-form-group">
+                    <label>Target (response):</label>
+                    <select id="cfg-target">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label style="display:flex;justify-content:space-between;align-items:center;">
+                        Features:
+                        <span style="font-size:9px;font-weight:normal;">
+                            <a href="#" onclick="toggleAllCheckboxes('features', true);return false;" style="color:var(--aw-accent);">All</a> |
+                            <a href="#" onclick="toggleAllCheckboxes('features', false);return false;" style="color:var(--aw-accent);">None</a>
+                        </span>
+                    </label>
+                    <div class="aw-checkbox-list" style="max-height:120px;overflow-y:auto;">${featureCheckboxes}</div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Algorithm:</label>
+                    <select id="cfg-algorithm">
+                        <option value="random_forest">Random Forest</option>
+                        <option value="gradient_boosting">Gradient Boosting</option>
+                        <option value="svr">SVR</option>
+                        <option value="linear">Linear Regression</option>
+                    </select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Test split:</label>
+                    <select id="cfg-split">
+                        <option value="0.2">20%</option>
+                        <option value="0.3">30%</option>
+                        <option value="0.25">25%</option>
+                    </select>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">ML Regression:</strong> Predicts continuous target. Reports RMSE, R², and feature importance.
+                </div>
+            `;
+        }
+        if (id === 'xgboost' || id === 'lightgbm') {
+            const boostName = id === 'xgboost' ? 'XGBoost' : 'LightGBM';
+            const boostNote = id === 'xgboost'
+                ? 'Gradient-boosted trees. Strong baseline for tabular data. Tune n_estimators and max_depth first.'
+                : 'Fast gradient boosting with leaf-wise growth. Often faster than XGBoost on large datasets. Tune num_leaves first.';
+            return `
+                <div class="aw-form-group">
+                    <label>Target:</label>
+                    <select id="cfg-target">${colOptions}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label style="display:flex;justify-content:space-between;align-items:center;">
+                        Features:
+                        <span style="font-size:9px;font-weight:normal;">
+                            <a href="#" onclick="toggleAllCheckboxes('features', true);return false;" style="color:var(--aw-accent);">All</a> |
+                            <a href="#" onclick="toggleAllCheckboxes('features', false);return false;" style="color:var(--aw-accent);">None</a>
+                        </span>
+                    </label>
+                    <div class="aw-checkbox-list" style="max-height:120px;overflow-y:auto;">${featureCheckboxes}</div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Estimators:</label>
+                        <input type="number" id="cfg-n_estimators" value="100" min="10" max="2000">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>${id === 'lightgbm' ? 'Num leaves:' : 'Max depth:'}</label>
+                        <input type="number" id="cfg-${id === 'lightgbm' ? 'num_leaves' : 'max_depth'}" value="${id === 'lightgbm' ? '31' : '6'}" min="2" max="${id === 'lightgbm' ? '256' : '20'}">
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Learning rate:</label>
+                    <input type="number" id="cfg-learning_rate" value="0.1" step="0.01" min="0.001" max="1">
+                </div>
+                <div class="aw-form-group">
+                    <label>Task:</label>
+                    <select id="cfg-task_type">
+                        <option value="auto">Auto-detect</option>
+                        <option value="classification">Classification</option>
+                        <option value="regression">Regression</option>
+                    </select>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">${boostName}:</strong> ${boostNote}
+                </div>
+            `;
+        }
+        if (id === 'model_compare') {
+            return `
+                <div class="aw-form-group">
+                    <label>Target:</label>
+                    <select id="cfg-target">${colOptions}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label style="display:flex;justify-content:space-between;align-items:center;">
+                        Features:
+                        <span style="font-size:9px;font-weight:normal;">
+                            <a href="#" onclick="toggleAllCheckboxes('features', true);return false;" style="color:var(--aw-accent);">All</a> |
+                            <a href="#" onclick="toggleAllCheckboxes('features', false);return false;" style="color:var(--aw-accent);">None</a>
+                        </span>
+                    </label>
+                    <div class="aw-checkbox-list" style="max-height:120px;overflow-y:auto;">${featureCheckboxes}</div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>CV folds:</label>
+                        <input type="number" id="cfg-cv_folds" value="5" min="2" max="20">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Task:</label>
+                        <select id="cfg-task_type">
+                            <option value="auto">Auto-detect</option>
+                            <option value="classification">Classification</option>
+                            <option value="regression">Regression</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="background:rgba(74,144,217,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#4a90d9;">Model Compare:</strong> Benchmarks RF, XGBoost, LightGBM, SVM, and Linear/Logistic with cross-validation. Shows ranked performance.
+                </div>
+            `;
+        }
+        if (id === 'shap_explain') {
+            return `
+                <div class="aw-form-group">
+                    <label>Target:</label>
+                    <select id="cfg-target">${colOptions}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label style="display:flex;justify-content:space-between;align-items:center;">
+                        Features:
+                        <span style="font-size:9px;font-weight:normal;">
+                            <a href="#" onclick="toggleAllCheckboxes('features', true);return false;" style="color:var(--aw-accent);">All</a> |
+                            <a href="#" onclick="toggleAllCheckboxes('features', false);return false;" style="color:var(--aw-accent);">None</a>
+                        </span>
+                    </label>
+                    <div class="aw-checkbox-list" style="max-height:120px;overflow-y:auto;">${featureCheckboxes}</div>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">SHAP Explain:</strong> Builds a model internally and computes SHAP values showing how each feature drives predictions. Beeswarm + bar plots.
+                </div>
+            `;
+        }
+        if (id === 'hyperparameter_tune') {
+            return `
+                <div class="aw-form-group">
+                    <label>Target:</label>
+                    <select id="cfg-target">${colOptions}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label style="display:flex;justify-content:space-between;align-items:center;">
+                        Features:
+                        <span style="font-size:9px;font-weight:normal;">
+                            <a href="#" onclick="toggleAllCheckboxes('features', true);return false;" style="color:var(--aw-accent);">All</a> |
+                            <a href="#" onclick="toggleAllCheckboxes('features', false);return false;" style="color:var(--aw-accent);">None</a>
+                        </span>
+                    </label>
+                    <div class="aw-checkbox-list" style="max-height:120px;overflow-y:auto;">${featureCheckboxes}</div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Model:</label>
+                        <select id="cfg-model_type">
+                            <option value="random_forest">Random Forest</option>
+                            <option value="xgboost">XGBoost</option>
+                            <option value="lightgbm">LightGBM</option>
+                            <option value="svm">SVM</option>
+                        </select>
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Trials:</label>
+                        <input type="number" id="cfg-n_trials" value="50" min="10" max="500">
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Task:</label>
+                    <select id="cfg-task_type">
+                        <option value="auto">Auto-detect</option>
+                        <option value="classification">Classification</option>
+                        <option value="regression">Regression</option>
+                    </select>
+                </div>
+                <div style="background:rgba(232,149,71,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#e89547;">Hyperparameter Tune:</strong> Bayesian optimization (Optuna) to find best hyperparameters. More efficient than grid search.
+                </div>
+            `;
+        }
+        if (id === 'factor_analysis') {
+            return `
+                <div class="aw-form-group">
+                    <label style="display:flex;justify-content:space-between;align-items:center;">
+                        Variables:
+                        <span style="font-size:9px;font-weight:normal;">
+                            <a href="#" onclick="toggleAllCheckboxes('features', true);return false;" style="color:var(--aw-accent);">All</a> |
+                            <a href="#" onclick="toggleAllCheckboxes('features', false);return false;" style="color:var(--aw-accent);">None</a>
+                        </span>
+                    </label>
+                    <div class="aw-checkbox-list" style="max-height:120px;overflow-y:auto;">${numericFeatureCheckboxes}</div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Number of factors:</label>
+                    <input type="number" id="cfg-n_components" value="3" min="1" max="20">
+                </div>
+                <div style="background:rgba(74,144,217,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#4a90d9;">Factor Analysis:</strong> Identifies latent constructs from observed variables. Use KMO ≥ 0.6 and Bartlett p &lt; 0.05 to validate suitability.
+                </div>
+            `;
+        }
+        if (id === 'correspondence_analysis') {
+            return `
+                <div class="aw-form-group">
+                    <label>Row variable:</label>
+                    <select id="cfg-row_var">${colOptions}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Column variable:</label>
+                    <select id="cfg-col_var">${colOptions}</select>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Correspondence Analysis:</strong> Visualizes associations between categorical variables in 2D. Points close together are associated.
+                </div>
+            `;
+        }
+        if (id === 'item_analysis') {
+            return `
+                <div class="aw-form-group">
+                    <label style="display:flex;justify-content:space-between;align-items:center;">
+                        Items (scale variables):
+                        <span style="font-size:9px;font-weight:normal;">
+                            <a href="#" onclick="toggleAllCheckboxes('features', true);return false;" style="color:var(--aw-accent);">All</a> |
+                            <a href="#" onclick="toggleAllCheckboxes('features', false);return false;" style="color:var(--aw-accent);">None</a>
+                        </span>
+                    </label>
+                    <div class="aw-checkbox-list" style="max-height:150px;overflow-y:auto;">${numericFeatureCheckboxes}</div>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Item Analysis:</strong> Cronbach's α for internal consistency. Item-total correlations show which items to drop. α ≥ 0.7 is acceptable.
+                </div>
+            `;
+        }
     }
 
     // Bayesian Inference section - feeds Synara
@@ -5894,6 +6472,153 @@ function generateConfigForm(type, id) {
                 <div class="aw-form-group">
                     <label>Operator column:</label>
                     <select id="cfg-operator">${colOptions}</select>
+                </div>
+                ${synaraNote}
+            `;
+        }
+        if (id === 'bayes_chi2') {
+            return `
+                <div class="aw-form-group">
+                    <label>Row variable:</label>
+                    <select id="cfg-row_var">${colOptions}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Column variable:</label>
+                    <select id="cfg-col_var">${colOptions}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Prior scale:</label>
+                    <select id="cfg-prior_scale">
+                        <option value="medium">Medium</option>
+                        <option value="wide">Wide</option>
+                        <option value="ultrawide">Ultrawide</option>
+                    </select>
+                </div>
+                ${synaraNote}
+            `;
+        }
+        if (id === 'bayes_poisson') {
+            return `
+                <div class="aw-form-group">
+                    <label>Count variable:</label>
+                    <select id="cfg-var">${numCols}</select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Prior α:</label>
+                        <input type="number" id="cfg-prior_a" value="1" step="0.1" min="0.01">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Prior β:</label>
+                        <input type="number" id="cfg-prior_b" value="1" step="0.1" min="0.01">
+                    </div>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Bayesian Poisson:</strong> Gamma-Poisson conjugate model. Prior α=β=1 is uninformative. Posterior gives credible interval for rate λ.
+                </div>
+                ${synaraNote}
+            `;
+        }
+        if (id === 'bayes_logistic') {
+            return `
+                <div class="aw-form-group">
+                    <label>Outcome (binary):</label>
+                    <select id="cfg-var1">${colOptions}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Predictor:</label>
+                    <select id="cfg-var2">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Exposure column (optional):</label>
+                    <select id="cfg-exposure"><option value="">None</option>${numCols}</select>
+                </div>
+                <div style="background:rgba(74,144,217,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#4a90d9;">Bayesian Logistic:</strong> Binary outcome regression with posterior odds ratios and credible intervals. More interpretable than p-values for rare events.
+                </div>
+                ${synaraNote}
+            `;
+        }
+        if (id === 'bayes_meta') {
+            return `
+                <div class="aw-form-group">
+                    <label>Effect sizes column:</label>
+                    <select id="cfg-effects_col">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Standard errors column:</label>
+                    <select id="cfg-se_col">${numCols}</select>
+                </div>
+                <div style="background:rgba(232,149,71,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#e89547;">Bayesian Meta-Analysis:</strong> Hierarchical model pooling multiple studies. Posterior gives credible interval for overall effect + heterogeneity τ².
+                </div>
+                ${synaraNote}
+            `;
+        }
+        if (id === 'bayes_ewma') {
+            return `
+                <div class="aw-form-group">
+                    <label>Measurement column:</label>
+                    <select id="cfg-measurement">${numCols}</select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Target (0 = mean):</label>
+                        <input type="number" id="cfg-target" value="0" step="any">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>λ (smoothing):</label>
+                        <input type="number" id="cfg-lambda_param" value="0.2" step="0.05" min="0.05" max="1">
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Prior scale:</label>
+                    <select id="cfg-prior_scale">
+                        <option value="medium">Medium</option>
+                        <option value="wide">Wide</option>
+                    </select>
+                </div>
+                ${synaraNote}
+            `;
+        }
+        if (id === 'bayes_equivalence') {
+            return `
+                <div class="aw-form-group">
+                    <label>Variable:</label>
+                    <select id="cfg-var">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Group variable:</label>
+                    <select id="cfg-group">${colOptions}</select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>ROPE low:</label>
+                        <input type="number" id="cfg-rope_low" value="-0.1" step="0.01">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>ROPE high:</label>
+                        <input type="number" id="cfg-rope_high" value="0.1" step="0.01">
+                    </div>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Bayesian Equivalence:</strong> Tests if difference falls within ROPE (Region of Practical Equivalence). More useful than null hypothesis testing for process validation.
+                </div>
+                ${synaraNote}
+            `;
+        }
+        if (id === 'bayes_survival') {
+            return `
+                <div class="aw-form-group">
+                    <label>Time variable:</label>
+                    <select id="cfg-var1">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Event indicator (1=event):</label>
+                    <select id="cfg-var2"><option value="">All observed</option>${numCols}</select>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Bayesian Survival:</strong> Posterior distribution for survival parameters with credible intervals. Handles censoring naturally.
                 </div>
                 ${synaraNote}
             `;
@@ -7629,7 +8354,7 @@ function renderDSWBlocks(result) {
     // 1. Evidence grade badge
     if (result.evidence_grade) {
         const badge = document.createElement('span');
-        const grade = result.evidence_grade.toLowerCase();
+        const grade = (typeof result.evidence_grade === 'string' ? result.evidence_grade : String(result.evidence_grade)).toLowerCase();
         badge.className = 'dsw-evidence-badge ' + grade;
         badge.textContent = result.evidence_grade;
         const wrapper = document.createElement('div');

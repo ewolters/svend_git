@@ -119,6 +119,21 @@ def qms_queryset(model, user):
     if not tenant:
         return model.objects.filter(owner=user), None, False
 
+    # Detect whether this model supports site-aware queries.
+    # Models like SupplierRecord only have 'owner', not 'site'/'created_by'.
+    field_names = {f.name for f in model._meta.get_fields()}
+    has_site = "site" in field_names
+    has_created_by = "created_by" in field_names
+
+    if not has_site and not has_created_by:
+        # Owner-only model (e.g. SupplierRecord) — no site scoping possible
+        accessible_sites, is_admin = get_accessible_sites(user, tenant)
+        if is_admin:
+            tenant_user_ids = Membership.objects.filter(tenant=tenant, is_active=True).values_list("user_id", flat=True)
+            return model.objects.filter(owner__in=tenant_user_ids), tenant, True
+        else:
+            return model.objects.filter(owner=user), tenant, False
+
     accessible_sites, is_admin = get_accessible_sites(user, tenant)
 
     if is_admin:

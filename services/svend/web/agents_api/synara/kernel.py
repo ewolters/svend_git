@@ -68,6 +68,10 @@ class HypothesisRegion:
     upstream: list[str] = field(default_factory=list)  # hypotheses that cause this
     downstream: list[str] = field(default_factory=list)  # hypotheses this causes
 
+    # Confirmation threshold status (CANON-002 §10.1)
+    # Set by _apply_confirmation_thresholds() — must be a field to survive serialization
+    confirmation_status: str = "uncertain"
+
     def to_dict(self) -> dict:
         d = asdict(self)
         d["created_at"] = self.created_at.isoformat()

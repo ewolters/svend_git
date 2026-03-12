@@ -46,6 +46,7 @@ CAT_ANYTIME = "anytime_valid"
 CAT_QUALITY_ECON = "quality_economics"
 CAT_PBS = "process_behaviour"
 CAT_ISHAP = "interventional_shap"
+CAT_SIOP = "siop"
 
 # ── Effect types ────────────────────────────────────────────────────────────
 
@@ -364,6 +365,17 @@ ANALYSIS_REGISTRY = {
     ("pbs", "pbs_health"): _entry("pbs", CAT_PBS, False, has_education=True),
     # ── interventional_shap.py (single function) ──────────────────────
     ("ishap", "ishap"): _entry("ishap", CAT_ISHAP, False, has_narrative=False),
+    # ── siop.py — S&OP / inventory / supply chain ────────────────────
+    ("siop", "abc_analysis"): _entry("siop", CAT_SIOP, False, what_if_tier=1),
+    ("siop", "eoq"): _entry("siop", CAT_SIOP, False, what_if_tier=1),
+    ("siop", "safety_stock"): _entry("siop", CAT_SIOP, False, what_if_tier=1),
+    ("siop", "inventory_turns"): _entry("siop", CAT_SIOP, False),
+    ("siop", "service_level"): _entry("siop", CAT_SIOP, False),
+    ("siop", "demand_profile"): _entry("siop", CAT_SIOP, has_pvalue=True),
+    ("siop", "kanban_sizing"): _entry("siop", CAT_SIOP, False),
+    ("siop", "epei"): _entry("siop", CAT_SIOP, False),
+    ("siop", "rop_simulation"): _entry("siop", CAT_SIOP, False),
+    ("siop", "mrp_netting"): _entry("siop", CAT_SIOP, False),
 }
 
 

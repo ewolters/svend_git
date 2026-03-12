@@ -12,12 +12,12 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from accounts.constants import Tier
+from core.models import Membership, OrgInvitation, Tenant
+
 # Production has SECURE_SSL_REDIRECT=True — disable in tests so the test
 # client's plain-HTTP requests don't get 301'd to HTTPS.
 SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
-
-from accounts.constants import Tier
-from core.models import Membership, OrgInvitation, Tenant
 
 User = get_user_model()
 
@@ -1073,3 +1073,491 @@ class TierGatingIntegrationTest(TestCase):
                 should_allow,
                 msg=f"Tier {tier}: can_create_org should be {should_allow}",
             )
+
+
+# =========================================================================
+# Site Management (ORG-001 §8.2)
+# =========================================================================
+
+
+@SECURE_OFF
+class OrgSitesListTest(TestCase):
+    """Tests for GET /api/core/org/sites/."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.tenant = _make_tenant(plan=Tenant.Plan.TEAM)
+        self.admin = _make_user("site-admin@example.com", Tier.TEAM)
+        _make_membership(self.tenant, self.admin, Membership.Role.ADMIN)
+        self.member = _make_user("site-member@example.com", Tier.TEAM)
+        _make_membership(self.tenant, self.member, Membership.Role.MEMBER)
+
+    def test_unauthenticated_returns_forbidden(self):
+        res = self.client.get("/api/core/org/sites/")
+        self.assertIn(res.status_code, [401, 403])
+
+    def test_member_can_list_sites(self):
+        """Any org member can list sites (read-only)."""
+        from agents_api.models import Site
+
+        Site.objects.create(tenant=self.tenant, name="Plant A", code="PLT-A")
+        Site.objects.create(tenant=self.tenant, name="Plant B", code="PLT-B")
+
+        self.client.force_authenticate(self.member)
+        res = self.client.get("/api/core/org/sites/")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(len(data["sites"]), 2)
+        self.assertFalse(data["can_manage"])  # member can't manage
+        self.assertEqual(data["max_sites"], 1)  # team plan
+
+    def test_admin_can_manage_flag(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.get("/api/core/org/sites/")
+        self.assertTrue(res.json()["can_manage"])
+
+    def test_enterprise_unlimited_sites(self):
+        ent_tenant = _make_tenant(name="Ent Org", slug="ent-org", plan=Tenant.Plan.ENTERPRISE)
+        user = _make_user("ent-sites@example.com", Tier.ENTERPRISE)
+        _make_membership(ent_tenant, user, Membership.Role.OWNER)
+        self.client.force_authenticate(user)
+        res = self.client.get("/api/core/org/sites/")
+        self.assertIsNone(res.json()["max_sites"])
+
+    def test_no_org_returns_error(self):
+        user = _make_user("lonely@example.com", Tier.TEAM)
+        self.client.force_authenticate(user)
+        res = self.client.get("/api/core/org/sites/")
+        self.assertEqual(res.status_code, 400)
+
+
+@SECURE_OFF
+class OrgCreateSiteTest(TestCase):
+    """Tests for POST /api/core/org/sites/create/."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.tenant = _make_tenant(plan=Tenant.Plan.TEAM)
+        self.admin = _make_user("create-site-admin@example.com", Tier.TEAM)
+        _make_membership(self.tenant, self.admin, Membership.Role.ADMIN)
+        self.member = _make_user("create-site-member@example.com", Tier.TEAM)
+        _make_membership(self.tenant, self.member, Membership.Role.MEMBER)
+
+    def test_admin_creates_site(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.post(
+            "/api/core/org/sites/create/",
+            {"name": "New Plant", "code": "NP-01", "business_unit": "Operations"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 201)
+        site = res.json()["site"]
+        self.assertEqual(site["name"], "New Plant")
+        self.assertEqual(site["code"], "NP-01")
+        self.assertEqual(site["business_unit"], "Operations")
+
+    def test_member_cannot_create_site(self):
+        self.client.force_authenticate(self.member)
+        res = self.client.post(
+            "/api/core/org/sites/create/",
+            {"name": "Blocked Plant"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 403)
+
+    def test_name_required(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.post("/api/core/org/sites/create/", {"code": "X"}, format="json")
+        self.assertEqual(res.status_code, 400)
+
+    def test_team_one_site_limit(self):
+        """Team plan can only have 1 site."""
+        from agents_api.models import Site
+
+        Site.objects.create(tenant=self.tenant, name="Existing Plant")
+        self.client.force_authenticate(self.admin)
+        res = self.client.post(
+            "/api/core/org/sites/create/",
+            {"name": "Second Plant"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 403)
+
+    def test_enterprise_multiple_sites(self):
+        """Enterprise plan has no site limit."""
+        from agents_api.models import Site
+
+        ent_tenant = _make_tenant(name="Enterprise Org", slug="enterprise-org", plan=Tenant.Plan.ENTERPRISE)
+        user = _make_user("ent-create@example.com", Tier.ENTERPRISE)
+        _make_membership(ent_tenant, user, Membership.Role.ADMIN)
+
+        Site.objects.create(tenant=ent_tenant, name="Plant Alpha")
+        self.client.force_authenticate(user)
+        res = self.client.post(
+            "/api/core/org/sites/create/",
+            {"name": "Plant Beta"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 201)
+
+
+@SECURE_OFF
+class OrgUpdateSiteTest(TestCase):
+    """Tests for PUT/PATCH /api/core/org/sites/<uuid>/."""
+
+    def setUp(self):
+        from agents_api.models import Site
+
+        self.client = APIClient()
+        self.tenant = _make_tenant(plan=Tenant.Plan.TEAM)
+        self.admin = _make_user("update-site-admin@example.com", Tier.TEAM)
+        _make_membership(self.tenant, self.admin, Membership.Role.ADMIN)
+        self.site = Site.objects.create(tenant=self.tenant, name="Old Name", code="OLD")
+
+    def test_admin_updates_site(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.put(
+            f"/api/core/org/sites/{self.site.id}/",
+            {"name": "New Name", "code": "NEW"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["site"]["name"], "New Name")
+        self.assertEqual(res.json()["site"]["code"], "NEW")
+
+    def test_partial_update(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.patch(
+            f"/api/core/org/sites/{self.site.id}/",
+            {"plant_manager": "John Doe"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["site"]["plant_manager"], "John Doe")
+        self.assertEqual(res.json()["site"]["name"], "Old Name")  # unchanged
+
+    def test_cannot_update_other_tenant_site(self):
+        other_tenant = _make_tenant(name="Other", slug="other", plan=Tenant.Plan.TEAM)
+        from agents_api.models import Site
+
+        other_site = Site.objects.create(tenant=other_tenant, name="Other Site")
+        self.client.force_authenticate(self.admin)
+        res = self.client.put(
+            f"/api/core/org/sites/{other_site.id}/",
+            {"name": "Hacked"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 404)
+
+    def test_member_cannot_update(self):
+        member = _make_user("update-site-member@example.com", Tier.TEAM)
+        _make_membership(self.tenant, member, Membership.Role.MEMBER)
+        self.client.force_authenticate(member)
+        res = self.client.put(
+            f"/api/core/org/sites/{self.site.id}/",
+            {"name": "Nope"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 403)
+
+
+@SECURE_OFF
+class OrgDeleteSiteTest(TestCase):
+    """Tests for DELETE /api/core/org/sites/<uuid>/delete/."""
+
+    def setUp(self):
+        from agents_api.models import Site
+
+        self.client = APIClient()
+        self.tenant = _make_tenant(plan=Tenant.Plan.TEAM)
+        self.admin = _make_user("delete-site-admin@example.com", Tier.TEAM)
+        _make_membership(self.tenant, self.admin, Membership.Role.ADMIN)
+        self.site = Site.objects.create(tenant=self.tenant, name="Doomed Site")
+
+    def test_hard_delete_no_projects(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.delete(f"/api/core/org/sites/{self.site.id}/delete/")
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.json()["deleted"])
+
+        from agents_api.models import Site
+
+        self.assertFalse(Site.objects.filter(id=self.site.id).exists())
+
+    def test_soft_delete_with_projects(self):
+        """Sites with hoshin projects are deactivated, not deleted."""
+        from agents_api.models import HoshinProject
+        from core.models import Project
+
+        core_proj = Project.objects.create(title="CI Project", tenant=self.tenant)
+        HoshinProject.objects.create(project=core_proj, site=self.site)
+        self.client.force_authenticate(self.admin)
+        res = self.client.delete(f"/api/core/org/sites/{self.site.id}/delete/")
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.json()["deactivated"])
+        self.assertEqual(res.json()["project_count"], 1)
+
+        self.site.refresh_from_db()
+        self.assertFalse(self.site.is_active)
+
+    def test_delete_nonexistent_site(self):
+        self.client.force_authenticate(self.admin)
+        fake_id = uuid.uuid4()
+        res = self.client.delete(f"/api/core/org/sites/{fake_id}/delete/")
+        self.assertEqual(res.status_code, 404)
+
+
+# =========================================================================
+# Employee Management (ORG-001 §7)
+# =========================================================================
+
+
+@SECURE_OFF
+class OrgEmployeesListTest(TestCase):
+    """Tests for GET /api/core/org/employees/."""
+
+    def setUp(self):
+        from agents_api.models import Employee, Site
+
+        self.client = APIClient()
+        self.tenant = _make_tenant(plan=Tenant.Plan.TEAM)
+        self.admin = _make_user("emp-admin@example.com", Tier.TEAM)
+        _make_membership(self.tenant, self.admin, Membership.Role.ADMIN)
+        self.site = Site.objects.create(tenant=self.tenant, name="Main Plant")
+        Employee.objects.create(tenant=self.tenant, name="Alice", email="alice@plant.com", site=self.site)
+        Employee.objects.create(tenant=self.tenant, name="Bob", email="bob@plant.com", is_active=False)
+
+    def test_list_all_employees(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.get("/api/core/org/employees/")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["count"], 2)
+
+    def test_filter_by_site(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.get(f"/api/core/org/employees/?site={self.site.id}")
+        self.assertEqual(res.json()["count"], 1)
+        self.assertEqual(res.json()["employees"][0]["name"], "Alice")
+
+    def test_filter_active_only(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.get("/api/core/org/employees/?active_only=true")
+        self.assertEqual(res.json()["count"], 1)
+        self.assertEqual(res.json()["employees"][0]["name"], "Alice")
+
+    def test_member_can_list(self):
+        member = _make_user("emp-member@example.com", Tier.TEAM)
+        _make_membership(self.tenant, member, Membership.Role.MEMBER)
+        self.client.force_authenticate(member)
+        res = self.client.get("/api/core/org/employees/")
+        self.assertEqual(res.status_code, 200)
+        self.assertFalse(res.json()["can_manage"])
+
+
+@SECURE_OFF
+class OrgCreateEmployeeTest(TestCase):
+    """Tests for POST /api/core/org/employees/create/."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.tenant = _make_tenant(plan=Tenant.Plan.TEAM)
+        self.admin = _make_user("create-emp-admin@example.com", Tier.TEAM)
+        _make_membership(self.tenant, self.admin, Membership.Role.ADMIN)
+
+    def test_create_employee(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.post(
+            "/api/core/org/employees/create/",
+            {"name": "Charlie", "email": "charlie@plant.com", "role": "Operator", "department": "Assembly"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 201)
+        emp = res.json()["employee"]
+        self.assertEqual(emp["name"], "Charlie")
+        self.assertEqual(emp["role"], "Operator")
+
+    def test_create_employee_with_site(self):
+        from agents_api.models import Site
+
+        site = Site.objects.create(tenant=self.tenant, name="Plant X")
+        self.client.force_authenticate(self.admin)
+        res = self.client.post(
+            "/api/core/org/employees/create/",
+            {"name": "Diana", "email": "diana@plant.com", "site_id": str(site.id)},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 201)
+        self.assertEqual(res.json()["employee"]["site_id"], str(site.id))
+
+    def test_name_required(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.post(
+            "/api/core/org/employees/create/",
+            {"email": "no-name@plant.com"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 400)
+
+    def test_email_required(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.post(
+            "/api/core/org/employees/create/",
+            {"name": "No Email"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 400)
+
+    def test_duplicate_email_rejected(self):
+        from agents_api.models import Employee
+
+        Employee.objects.create(tenant=self.tenant, name="Existing", email="dupe@plant.com")
+        self.client.force_authenticate(self.admin)
+        res = self.client.post(
+            "/api/core/org/employees/create/",
+            {"name": "New Person", "email": "dupe@plant.com"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 409)
+
+    def test_member_cannot_create(self):
+        member = _make_user("emp-blocked@example.com", Tier.TEAM)
+        _make_membership(self.tenant, member, Membership.Role.MEMBER)
+        self.client.force_authenticate(member)
+        res = self.client.post(
+            "/api/core/org/employees/create/",
+            {"name": "Blocked", "email": "blocked@plant.com"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 403)
+
+    def test_invalid_site_rejected(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.post(
+            "/api/core/org/employees/create/",
+            {"name": "Eve", "email": "eve@plant.com", "site_id": str(uuid.uuid4())},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 404)
+
+
+@SECURE_OFF
+class OrgUpdateEmployeeTest(TestCase):
+    """Tests for PUT/PATCH /api/core/org/employees/<uuid>/."""
+
+    def setUp(self):
+        from agents_api.models import Employee
+
+        self.client = APIClient()
+        self.tenant = _make_tenant(plan=Tenant.Plan.TEAM)
+        self.admin = _make_user("update-emp-admin@example.com", Tier.TEAM)
+        _make_membership(self.tenant, self.admin, Membership.Role.ADMIN)
+        self.emp = Employee.objects.create(
+            tenant=self.tenant, name="Old Name", email="update-me@plant.com", role="Operator"
+        )
+
+    def test_update_employee(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.put(
+            f"/api/core/org/employees/{self.emp.id}/",
+            {"name": "New Name", "role": "Supervisor"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["employee"]["name"], "New Name")
+        self.assertEqual(res.json()["employee"]["role"], "Supervisor")
+
+    def test_reassign_site(self):
+        from agents_api.models import Site
+
+        site = Site.objects.create(tenant=self.tenant, name="New Site")
+        self.client.force_authenticate(self.admin)
+        res = self.client.patch(
+            f"/api/core/org/employees/{self.emp.id}/",
+            {"site_id": str(site.id)},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["employee"]["site_id"], str(site.id))
+
+    def test_clear_site(self):
+        from agents_api.models import Site
+
+        site = Site.objects.create(tenant=self.tenant, name="Temp Site")
+        self.emp.site = site
+        self.emp.save()
+        self.client.force_authenticate(self.admin)
+        res = self.client.patch(
+            f"/api/core/org/employees/{self.emp.id}/",
+            {"site_id": None},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertIsNone(res.json()["employee"]["site_id"])
+
+    def test_cannot_update_other_tenant_employee(self):
+        from agents_api.models import Employee
+
+        other_tenant = _make_tenant(name="Other", slug="other-emp", plan=Tenant.Plan.TEAM)
+        other_emp = Employee.objects.create(tenant=other_tenant, name="Other", email="other@plant.com")
+        self.client.force_authenticate(self.admin)
+        res = self.client.put(
+            f"/api/core/org/employees/{other_emp.id}/",
+            {"name": "Hacked"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 404)
+
+
+@SECURE_OFF
+class OrgDeleteEmployeeTest(TestCase):
+    """Tests for DELETE /api/core/org/employees/<uuid>/delete/."""
+
+    def setUp(self):
+        from agents_api.models import Employee
+
+        self.client = APIClient()
+        self.tenant = _make_tenant(plan=Tenant.Plan.TEAM)
+        self.admin = _make_user("delete-emp-admin@example.com", Tier.TEAM)
+        _make_membership(self.tenant, self.admin, Membership.Role.ADMIN)
+        self.emp = Employee.objects.create(tenant=self.tenant, name="Deletable", email="delete-me@plant.com")
+
+    def test_delete_employee(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.delete(f"/api/core/org/employees/{self.emp.id}/delete/")
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.json()["success"])
+
+        from agents_api.models import Employee
+
+        self.assertFalse(Employee.objects.filter(id=self.emp.id).exists())
+
+    def test_delete_blocked_with_active_commitments(self):
+        """Employee with active ResourceCommitments cannot be deleted."""
+        from datetime import date
+
+        from agents_api.models import HoshinProject, ResourceCommitment, Site
+        from core.models import Project
+
+        site = Site.objects.create(tenant=self.tenant, name="Commitment Site")
+        core_proj = Project.objects.create(title="HP", tenant=self.tenant)
+        hoshin = HoshinProject.objects.create(project=core_proj, site=site)
+        ResourceCommitment.objects.create(
+            employee=self.emp,
+            project=hoshin,
+            role="team_member",
+            status="active",
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 12, 31),
+        )
+        self.client.force_authenticate(self.admin)
+        res = self.client.delete(f"/api/core/org/employees/{self.emp.id}/delete/")
+        self.assertEqual(res.status_code, 409)
+        err = res.json().get("error", {})
+        msg = err.get("message", str(err)) if isinstance(err, dict) else str(err)
+        self.assertIn("commitment", msg.lower())
+
+    def test_delete_nonexistent_employee(self):
+        self.client.force_authenticate(self.admin)
+        fake_id = uuid.uuid4()
+        res = self.client.delete(f"/api/core/org/employees/{fake_id}/delete/")
+        self.assertEqual(res.status_code, 404)

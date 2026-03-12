@@ -1824,3 +1824,273 @@ def org_accept_invitation(request):
             "role": invitation.role,
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# Org Site Management — ORG-001 §8.2 (exposed to org admins, not just Enterprise)
+# ---------------------------------------------------------------------------
+
+
+def _get_org_context(request):
+    """Return (tenant, membership, error_response). Error response is a DRF Response."""
+    membership = Membership.objects.filter(user=request.user, is_active=True).select_related("tenant").first()
+    if not membership:
+        return None, None, Response({"error": "No active organization"}, status=400)
+    return membership.tenant, membership, None
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def org_sites(request):
+    """List sites in the user's organization."""
+    from agents_api.models import Site
+
+    tenant, membership, err = _get_org_context(request)
+    if err:
+        return err
+
+    sites = Site.objects.filter(tenant=tenant).order_by("name")
+    return Response(
+        {
+            "sites": [s.to_dict() for s in sites],
+            "can_manage": membership.can_admin,
+            "max_sites": 1 if tenant.plan == "team" else None,
+        }
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@require_org_admin
+def org_create_site(request):
+    """Create a site. Team tier: max 1 site (ORG-001 §6.2)."""
+    from agents_api.models import Site
+
+    tenant, membership, err = _get_org_context(request)
+    if err:
+        return err
+
+    # Enforce Team = 1 site limit
+    if tenant.plan == "team":
+        existing = Site.objects.filter(tenant=tenant).count()
+        if existing >= 1:
+            return Response(
+                {
+                    "error": "Team plan is limited to 1 site. Upgrade to Enterprise for multiple sites.",
+                    "upgrade_url": "/billing/checkout/?plan=enterprise",
+                },
+                status=403,
+            )
+
+    data = request.data
+    name = (data.get("name") or "").strip()
+    if not name:
+        return Response({"error": "Site name is required"}, status=400)
+
+    site = Site.objects.create(
+        tenant=tenant,
+        name=name,
+        code=(data.get("code") or "").strip(),
+        business_unit=(data.get("business_unit") or "").strip(),
+        plant_manager=(data.get("plant_manager") or "").strip(),
+        ci_leader=(data.get("ci_leader") or "").strip(),
+        controller=(data.get("controller") or "").strip(),
+        address=(data.get("address") or "").strip(),
+    )
+    return Response({"success": True, "site": site.to_dict()}, status=201)
+
+
+@api_view(["PUT", "PATCH"])
+@permission_classes([IsAuthenticated])
+@require_org_admin
+def org_update_site(request, site_id):
+    """Update a site."""
+    from agents_api.models import Site
+
+    tenant, membership, err = _get_org_context(request)
+    if err:
+        return err
+
+    try:
+        site = Site.objects.get(id=site_id, tenant=tenant)
+    except Site.DoesNotExist:
+        return Response({"error": "Site not found"}, status=404)
+
+    data = request.data
+    for field in ("name", "code", "business_unit", "plant_manager", "ci_leader", "controller", "address"):
+        if field in data:
+            val = data[field]
+            setattr(site, field, val.strip() if isinstance(val, str) else val)
+    if "is_active" in data:
+        site.is_active = bool(data["is_active"])
+    site.save()
+
+    return Response({"success": True, "site": site.to_dict()})
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+@require_org_admin
+def org_delete_site(request, site_id):
+    """Delete a site (soft-delete by deactivating, or hard delete if no projects)."""
+    from agents_api.models import HoshinProject, Site
+
+    tenant, membership, err = _get_org_context(request)
+    if err:
+        return err
+
+    try:
+        site = Site.objects.get(id=site_id, tenant=tenant)
+    except Site.DoesNotExist:
+        return Response({"error": "Site not found"}, status=404)
+
+    project_count = HoshinProject.objects.filter(site=site).count()
+    if project_count > 0:
+        # Soft-delete — deactivate to preserve project references
+        site.is_active = False
+        site.save(update_fields=["is_active", "updated_at"])
+        return Response({"success": True, "deactivated": True, "project_count": project_count})
+
+    site.delete()
+    return Response({"success": True, "deleted": True})
+
+
+# ---------------------------------------------------------------------------
+# Org Employee (Non-User Personnel) Management — ORG-001 §7
+# ---------------------------------------------------------------------------
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def org_employees(request):
+    """List employees in the user's organization."""
+    from agents_api.models import Employee
+
+    tenant, membership, err = _get_org_context(request)
+    if err:
+        return err
+
+    qs = Employee.objects.filter(tenant=tenant).select_related("site").order_by("name")
+    site_id = request.query_params.get("site")
+    if site_id:
+        qs = qs.filter(site_id=site_id)
+    active_only = request.query_params.get("active_only", "").lower()
+    if active_only == "true":
+        qs = qs.filter(is_active=True)
+
+    return Response(
+        {
+            "employees": [e.to_dict() for e in qs],
+            "count": qs.count(),
+            "can_manage": membership.can_admin,
+        }
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@require_org_admin
+def org_create_employee(request):
+    """Create an employee (non-user personnel)."""
+    from agents_api.models import Employee, Site
+
+    tenant, membership, err = _get_org_context(request)
+    if err:
+        return err
+
+    data = request.data
+    name = (data.get("name") or "").strip()
+    email = (data.get("email") or "").strip()
+    if not name:
+        return Response({"error": "Name is required"}, status=400)
+    if not email:
+        return Response({"error": "Email is required"}, status=400)
+
+    # Check uniqueness within tenant
+    if Employee.objects.filter(tenant=tenant, email=email).exists():
+        return Response({"error": f"Employee with email {email} already exists"}, status=409)
+
+    site = None
+    site_id = data.get("site_id")
+    if site_id:
+        try:
+            site = Site.objects.get(id=site_id, tenant=tenant)
+        except Site.DoesNotExist:
+            return Response({"error": "Site not found"}, status=404)
+
+    emp = Employee.objects.create(
+        tenant=tenant,
+        name=name,
+        email=email,
+        role=(data.get("role") or "").strip(),
+        department=(data.get("department") or "").strip(),
+        site=site,
+    )
+    return Response({"success": True, "employee": emp.to_dict()}, status=201)
+
+
+@api_view(["PUT", "PATCH"])
+@permission_classes([IsAuthenticated])
+@require_org_admin
+def org_update_employee(request, employee_id):
+    """Update an employee."""
+    from agents_api.models import Employee, Site
+
+    tenant, membership, err = _get_org_context(request)
+    if err:
+        return err
+
+    try:
+        emp = Employee.objects.get(id=employee_id, tenant=tenant)
+    except Employee.DoesNotExist:
+        return Response({"error": "Employee not found"}, status=404)
+
+    data = request.data
+    for field in ("name", "email", "role", "department"):
+        if field in data:
+            val = data[field]
+            setattr(emp, field, val.strip() if isinstance(val, str) else val)
+
+    if "site_id" in data:
+        site_id = data["site_id"]
+        if site_id:
+            try:
+                emp.site = Site.objects.get(id=site_id, tenant=tenant)
+            except Site.DoesNotExist:
+                return Response({"error": "Site not found"}, status=404)
+        else:
+            emp.site = None
+
+    if "is_active" in data:
+        emp.is_active = bool(data["is_active"])
+
+    emp.save()
+    return Response({"success": True, "employee": emp.to_dict()})
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+@require_org_admin
+def org_delete_employee(request, employee_id):
+    """Delete an employee record."""
+    from agents_api.models import Employee, ResourceCommitment
+
+    tenant, membership, err = _get_org_context(request)
+    if err:
+        return err
+
+    try:
+        emp = Employee.objects.get(id=employee_id, tenant=tenant)
+    except Employee.DoesNotExist:
+        return Response({"error": "Employee not found"}, status=404)
+
+    # Check for active commitments
+    active_commitments = ResourceCommitment.objects.filter(employee=emp, status__in=("confirmed", "active")).count()
+    if active_commitments > 0:
+        return Response(
+            {"error": f"Employee has {active_commitments} active commitment(s). Complete or remove them first."},
+            status=409,
+        )
+
+    emp.delete()
+    return Response({"success": True})

@@ -149,6 +149,7 @@ _BROWSER_FACING_API_SUFFIXES = (
 # Path segments that indicate browser-navigated downloads (forge, DSW model).
 _BROWSER_FACING_API_SEGMENTS = (
     "/forge/download/",
+    "/dsw/download/",
     "/dsw/models/",
 )
 
@@ -538,6 +539,10 @@ class ErrorEnvelopeMiddleware:
 
         # Only process error responses for API paths
         if not request.path.startswith("/api/"):
+            return response
+
+        # Skip browser-facing API paths — they return HTML/redirects, not JSON
+        if _is_browser_facing_api(request.path):
             return response
 
         # Only process error status codes

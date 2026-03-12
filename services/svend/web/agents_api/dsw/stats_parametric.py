@@ -36,6 +36,12 @@ def _run_parametric(analysis_id, df, config):
 
         x = df[var1].dropna()
         n = len(x)
+        if n < 2:
+            return {
+                "summary": f"Insufficient data: t-test requires at least 2 observations (got {n}).",
+                "plots": [],
+                "statistics": {"n": n},
+            }
         stat, pval = stats.ttest_1samp(x, mu)
 
         # Confidence interval

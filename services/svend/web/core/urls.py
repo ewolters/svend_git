@@ -66,4 +66,14 @@ urlpatterns = [
     path("org/invitations/", views.org_invitations, name="org_invitations"),
     path("org/invitations/<uuid:invitation_id>/cancel/", views.org_cancel_invitation, name="org_cancel_invitation"),
     path("org/accept-invite/", views.org_accept_invitation, name="org_accept_invitation"),
+    # Site management (ORG-001 §8.2 — available to org admins, not Enterprise-gated)
+    path("org/sites/", views.org_sites, name="org_sites"),
+    path("org/sites/create/", views.org_create_site, name="org_create_site"),
+    path("org/sites/<uuid:site_id>/", views.org_update_site, name="org_update_site"),
+    path("org/sites/<uuid:site_id>/delete/", views.org_delete_site, name="org_delete_site"),
+    # Employee management (ORG-001 §7 — non-user personnel)
+    path("org/employees/", views.org_employees, name="org_employees"),
+    path("org/employees/create/", views.org_create_employee, name="org_create_employee"),
+    path("org/employees/<uuid:employee_id>/", views.org_update_employee, name="org_update_employee"),
+    path("org/employees/<uuid:employee_id>/delete/", views.org_delete_employee, name="org_delete_employee"),
 ]
