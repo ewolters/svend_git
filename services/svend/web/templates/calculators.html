@@ -3,6 +3,10 @@
 
 {% block extra_head %}
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script src="/static/js/svend-math.js"></script>
+<script src="/static/js/svend-charts.js"></script>
+<script src="/static/js/svend-spc.js"></script>
+<script src="/static/js/svend-sim-core.js"></script>
 <style>
 /* ============================================================================
    OPERATIONS WORKBENCH - Full Layout
@@ -1084,6 +1088,22 @@ input[type="number"] {
                 <div class="ops-nav-item" onclick="showCalc('safety-sim')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18"/><path d="M5 20V10l7-7 7 7v10"/><path d="M9 20v-4h6v4"/><path d="M3 20l2-2M21 20l-2-2"/></svg>
                     <span>Safety Stock Sim</span>
+                </div>
+                <div class="ops-nav-item" onclick="showCalc('abc')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="14" width="4" height="8" rx="1"/><rect x="10" y="8" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="19" rx="1"/><path d="M3 6 Q12 2 21 5" stroke-dasharray="3,2"/></svg>
+                    <span>ABC Analysis</span>
+                </div>
+                <div class="ops-nav-item" onclick="showCalc('demand-profile')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20l4-4 3 2 4-6 3 3 4-8"/><circle cx="14" cy="12" r="1.5" fill="currentColor" opacity="0.4"/></svg>
+                    <span>Demand Profile</span>
+                </div>
+                <div class="ops-nav-item" onclick="showCalc('service-level')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                    <span>Service Level</span>
+                </div>
+                <div class="ops-nav-item" onclick="showCalc('mrp')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="9" width="20" height="4" rx="1"/><rect x="2" y="15" width="20" height="4" rx="1"/><path d="M7 19v2M12 19v2M17 19v2"/></svg>
+                    <span>MRP Netting</span>
                 </div>
             </div>
             <div class="ops-nav-group">
@@ -7226,6 +7246,234 @@ input[type="number"] {
                 <div id="pbs-sigma-next-steps" class="calc-next-steps" style="display:none"></div>
             </div>
 
+            <!-- ABC Analysis -->
+            <div class="calc-layout" id="layout-abc">
+                <div class="calc-section">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div class="calc-section-title" style="margin: 0;">Items</div>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="loadSampleABCItems()" style="padding: 6px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
+                                Load Sample
+                            </button>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-bottom:6px;padding:0 8px;">
+                        <span style="flex:1;font-size:11px;color:var(--text-dim);text-transform:uppercase;">SKU / Item</span>
+                        <span style="width:100px;font-size:11px;color:var(--text-dim);text-transform:uppercase;text-align:right;">Annual Value ($)</span>
+                        <span style="width:24px;"></span>
+                    </div>
+                    <div id="abc-items" class="yamazumi-stations"></div>
+                    <div class="yamazumi-add" onclick="addABCItem()" style="margin-top: 12px;">+ Add Item</div>
+                </div>
+                <div class="calc-section">
+                    <div class="calc-section-title">Thresholds</div>
+                    <div class="calc-inputs">
+                        <div class="calc-input">
+                            <label>A Threshold (%)</label>
+                            <input type="number" id="abc-a-pct" value="80" min="50" max="95" oninput="calcABC()">
+                            <span class="input-hint">cumulative % for A class</span>
+                        </div>
+                        <div class="calc-input">
+                            <label>B Threshold (%)</label>
+                            <input type="number" id="abc-b-pct" value="95" min="80" max="99" oninput="calcABC()">
+                            <span class="input-hint">cumulative % for B class</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="calc-section">
+                    <div class="calc-section-title">Classification</div>
+                    <div class="calc-results">
+                        <div class="calc-result-card primary">
+                            <div class="calc-result-label">A Items</div>
+                            <div class="calc-result-value" id="abc-a-count">-</div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">B Items</div>
+                            <div class="calc-result-value" id="abc-b-count">-</div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">C Items</div>
+                            <div class="calc-result-value" id="abc-c-count">-</div>
+                        </div>
+                    </div>
+                    <div class="calc-breakdown" id="abc-breakdown"></div>
+                </div>
+                <div class="calc-chart">
+                    <div class="calc-chart-title">Pareto Chart</div>
+                    <div id="abc-chart" style="height: 350px;"></div>
+                </div>
+                <div class="calc-next-steps" id="abc-next-steps"></div>
+            </div>
+
+            <!-- Demand Profile -->
+            <div class="calc-layout" id="layout-demand-profile">
+                <div class="calc-section">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div class="calc-section-title" style="margin: 0;">Demand History</div>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="loadSampleDPPeriods()" style="padding: 6px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
+                                Load Sample
+                            </button>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-bottom:6px;padding:0 8px;">
+                        <span style="flex:1;font-size:11px;color:var(--text-dim);text-transform:uppercase;">Period</span>
+                        <span style="width:100px;font-size:11px;color:var(--text-dim);text-transform:uppercase;text-align:right;">Demand</span>
+                        <span style="width:24px;"></span>
+                    </div>
+                    <div id="dp-periods" class="yamazumi-stations"></div>
+                    <div class="yamazumi-add" onclick="addDPPeriod()" style="margin-top: 12px;">+ Add Period</div>
+                </div>
+                <div class="calc-section">
+                    <div class="calc-section-title">Classification</div>
+                    <div class="calc-results">
+                        <div class="calc-result-card primary">
+                            <div class="calc-result-label">Pattern</div>
+                            <div class="calc-result-value" id="dp-pattern" style="font-size:1.2rem;">-</div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">CoV (demand)</div>
+                            <div class="calc-result-value" id="dp-cov">-</div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">ADI</div>
+                            <div class="calc-result-value" id="dp-adi">-</div>
+                        </div>
+                    </div>
+                    <div class="calc-breakdown">
+                        <div class="calc-breakdown-row"><span>CoV² Threshold</span><span>0.49 (squared)</span></div>
+                        <div class="calc-breakdown-row"><span>ADI Threshold</span><span>1.32 periods</span></div>
+                        <div class="calc-breakdown-row"><span>Framework</span><span>Syntetos-Boylan (2005)</span></div>
+                    </div>
+                </div>
+                <div class="calc-chart">
+                    <div class="calc-chart-title">Demand Pattern</div>
+                    <div id="dp-chart" style="height: 300px;"></div>
+                </div>
+                <div class="calc-next-steps" id="dp-next-steps"></div>
+            </div>
+
+            <!-- Service Level -->
+            <div class="calc-layout" id="layout-service-level">
+                <div class="calc-section">
+                    <div class="calc-section-title">Inputs</div>
+                    <div class="calc-inputs">
+                        <div class="calc-input">
+                            <label>Mean Demand / Period</label>
+                            <input type="number" id="sl-demand" value="200" oninput="calcServiceLevel()">
+                        </div>
+                        <div class="calc-input">
+                            <label>Demand Std Dev</label>
+                            <input type="number" id="sl-std" value="40" oninput="calcServiceLevel()">
+                        </div>
+                        <div class="calc-input">
+                            <label>Lead Time (periods)</label>
+                            <input type="number" id="sl-lt" value="7" oninput="calcServiceLevel()">
+                        </div>
+                        <div class="calc-input">
+                            <label>Unit Cost ($)</label>
+                            <input type="number" id="sl-unit" value="25" oninput="calcServiceLevel()">
+                        </div>
+                        <div class="calc-input">
+                            <label>Holding Cost (%)</label>
+                            <input type="number" id="sl-hold" value="20" oninput="calcServiceLevel()">
+                        </div>
+                        <div class="calc-input">
+                            <label>Stockout Cost ($/unit)</label>
+                            <input type="number" id="sl-stockout" value="50" oninput="calcServiceLevel()">
+                        </div>
+                    </div>
+                </div>
+                <div class="calc-section">
+                    <div class="calc-section-title">Trade-off Analysis</div>
+                    <div class="calc-results">
+                        <div class="calc-result-card primary">
+                            <div class="calc-result-label">Optimal Service Level</div>
+                            <div class="calc-result-value" id="sl-optimal">-<span class="calc-result-unit">%</span></div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">Safety Stock at Optimal</div>
+                            <div class="calc-result-value" id="sl-ss">-<span class="calc-result-unit">units</span></div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">Total Relevant Cost</div>
+                            <div class="calc-result-value" id="sl-cost">-</div>
+                        </div>
+                    </div>
+                    <div class="calc-breakdown" id="sl-breakdown"></div>
+                </div>
+                <div class="calc-chart">
+                    <div class="calc-chart-title">Service Level vs Cost Trade-off</div>
+                    <div id="sl-chart" style="height: 350px;"></div>
+                </div>
+                <div class="calc-next-steps" id="sl-next-steps"></div>
+            </div>
+
+            <!-- MRP Netting -->
+            <div class="calc-layout" id="layout-mrp">
+                <div class="calc-section">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div class="calc-section-title" style="margin: 0;">Requirements by Period</div>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="loadSampleMRPPeriods()" style="padding: 6px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
+                                Load Sample
+                            </button>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-bottom:6px;padding:0 8px;">
+                        <span style="width:50px;font-size:11px;color:var(--text-dim);text-transform:uppercase;">Period</span>
+                        <span style="flex:1;font-size:11px;color:var(--text-dim);text-transform:uppercase;text-align:right;">Gross Req</span>
+                        <span style="flex:1;font-size:11px;color:var(--text-dim);text-transform:uppercase;text-align:right;">Sched Receipts</span>
+                        <span style="width:24px;"></span>
+                    </div>
+                    <div id="mrp-periods" class="yamazumi-stations"></div>
+                    <div class="yamazumi-add" onclick="addMRPPeriod()" style="margin-top: 12px;">+ Add Period</div>
+                </div>
+                <div class="calc-section">
+                    <div class="calc-section-title">Parameters</div>
+                    <div class="calc-inputs">
+                        <div class="calc-input">
+                            <label>On-Hand Inventory</label>
+                            <input type="number" id="mrp-oh" value="50" oninput="calcMRP()">
+                        </div>
+                        <div class="calc-input">
+                            <label>Safety Stock</label>
+                            <input type="number" id="mrp-ss" value="0" oninput="calcMRP()">
+                        </div>
+                        <div class="calc-input">
+                            <label>Lead Time (periods)</label>
+                            <input type="number" id="mrp-lt" value="2" oninput="calcMRP()">
+                        </div>
+                        <div class="calc-input">
+                            <label>Lot Sizing</label>
+                            <select id="mrp-lot" oninput="calcMRP()">
+                                <option value="l4l">Lot-for-Lot</option>
+                                <option value="fixed">Fixed (100 units)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="calc-section">
+                    <div class="calc-section-title">MRP Grid</div>
+                    <div id="mrp-grid" style="overflow-x:auto;"></div>
+                    <div class="calc-results" style="margin-top:16px;">
+                        <div class="calc-result-card primary">
+                            <div class="calc-result-label">Planned Orders</div>
+                            <div class="calc-result-value" id="mrp-orders">-</div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">Total Ordered</div>
+                            <div class="calc-result-value" id="mrp-total">-<span class="calc-result-unit">units</span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="calc-chart">
+                    <div class="calc-chart-title">Inventory Projection</div>
+                    <div id="mrp-chart" style="height: 300px;"></div>
+                </div>
+                <div class="calc-next-steps" id="mrp-next-steps"></div>
+            </div>
+
         </div>
     </main>
 </div>
@@ -7301,6 +7549,11 @@ const calcMeta = {
     'pbs-belief': { title: 'Belief Chart (BOCPD)', desc: 'Bayesian Online Changepoint Detection. Find where your process shifted — no window tuning needed.' },
     'pbs-evidence': { title: 'Evidence Strength', desc: 'E-value accumulation for sequential evidence against a reference mean. Anytime-valid inference.' },
     'pbs-sigma': { title: 'Bayesian Sigma', desc: 'Escape probability via quasipotential landscape. How far is the process from spec limits, accounting for momentum and uncertainty?' },
+    // SIOP
+    'abc': { title: 'ABC Analysis', desc: 'Pareto classification of items by cumulative value — A (vital few), B (moderate), C (trivial many)' },
+    'demand-profile': { title: 'Demand Profile', desc: 'Syntetos-Boylan demand pattern classification — smooth, erratic, intermittent, or lumpy' },
+    'service-level': { title: 'Service Level Trade-off', desc: 'Optimal fill rate balancing holding cost vs stockout cost' },
+    'mrp': { title: 'MRP Netting', desc: 'Gross-to-net requirements explosion with planned order releases' },
 };
 
 // ============================================================================
@@ -7645,6 +7898,38 @@ const calcGuide = {
         ],
         feedsInto: [],
         publishes: ['safetySimServiceLevel', 'safetySimAvgInventory', 'safetySimStockouts']
+    },
+    abc: {
+        purpose: 'Segments inventory into A/B/C classes by cumulative value. Focus management attention on the vital few (A items) that drive 80% of value.',
+        inputs: { 'SKU Data': 'Item names and annual usage values (paste CSV).', 'A Threshold': '% of cumulative value for A class (default 80%).', 'B Threshold': '% for B class (default 95%).' },
+        formula: 'Sort by value desc → cumulative % → classify A/B/C',
+        feedsFrom: [],
+        feedsInto: [{ calcId: 'eoq', label: 'EOQ (for A items)', pullKey: 'abcAItems' }, { calcId: 'safety', label: 'Safety Stock', pullKey: 'abcAItems' }],
+        publishes: ['abcAItems', 'abcBItems', 'abcCItems']
+    },
+    'demand-profile': {
+        purpose: 'Classifies demand pattern using the Syntetos-Boylan framework. Determines whether demand is smooth, erratic, intermittent, or lumpy based on CoV² and ADI thresholds.',
+        inputs: { 'Demand History': 'Comma-separated demand values per period. Zeros indicate no-demand periods.' },
+        formula: 'CoV² = (σ/μ)² vs 0.49 threshold; ADI = avg inter-demand interval vs 1.32 threshold',
+        feedsFrom: [],
+        feedsInto: [{ calcId: 'safety', label: 'Safety Stock', pullKey: 'demandMean' }],
+        publishes: ['demandPattern', 'demandMean', 'demandCoV']
+    },
+    'service-level': {
+        purpose: 'Finds the optimal service level (fill rate) by balancing inventory holding costs against stockout costs. Shows the total cost curve across service levels.',
+        inputs: { 'Mean Demand': 'Average demand per period.', 'Demand Std Dev': 'Demand variability.', 'Lead Time': 'Replenishment lead time.', 'Holding/Stockout Costs': 'Cost parameters for trade-off.' },
+        formula: 'Optimal SL where marginal holding cost = marginal stockout cost reduction',
+        feedsFrom: [{ calcId: 'safety', label: 'Safety Stock', key: 'safetyStock' }],
+        feedsInto: [],
+        publishes: ['optimalServiceLevel', 'optimalSafetyStock']
+    },
+    mrp: {
+        purpose: 'Performs gross-to-net requirements explosion. Starting from gross requirements and on-hand inventory, calculates net requirements and offsets planned order releases by lead time.',
+        inputs: { 'Gross Requirements': 'Demand per period.', 'Scheduled Receipts': 'Already-ordered quantities.', 'On-Hand': 'Starting inventory.', 'Lead Time': 'Order lead time.' },
+        formula: 'Net = Gross - On Hand - Receipts + Safety Stock; Planned Release = Net offset by LT',
+        feedsFrom: [{ calcId: 'eoq', label: 'EOQ', key: 'eoq' }],
+        feedsInto: [],
+        publishes: ['mrpPlannedOrders']
     }
 };
 
@@ -10876,10 +11161,7 @@ const ssSimState = {
 };
 
 function ssRandn() {
-    let u = 0, v = 0;
-    while (u === 0) u = Math.random();
-    while (v === 0) v = Math.random();
-    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    return SvendMath.randn();
 }
 
 function ssComputeDerived() {
@@ -17941,20 +18223,7 @@ function refreshAllDisplays() {
 
 // Toast notification helper
 function showToast(message) {
-    const existing = document.querySelector('.ops-toast');
-    if (existing) existing.remove();
-
-    const toast = document.createElement('div');
-    toast.className = 'ops-toast';
-    toast.style.cssText = `
-        position: fixed; bottom: 20px; right: 20px; padding: 12px 20px;
-        background: var(--accent); color: white; border-radius: 8px;
-        font-size: 13px; font-weight: 500; z-index: 9999;
-        animation: fadeInUp 0.3s ease;
-    `;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
+    svendToast(message);
 }
 
 // Hook auto-save into state-changing functions
@@ -18855,10 +19124,7 @@ function setKanbanMode(mode) {
 function updateKanbanParams() {}
 
 function boxNormalRandom() {
-    let u = 0, v = 0;
-    while (u === 0) u = Math.random();
-    while (v === 0) v = Math.random();
-    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    return SvendMath.randn();
 }
 
 function startKanbanSim() {
@@ -20757,28 +21023,15 @@ function probitRenderTable() {
 
 // Normal distribution helpers
 function probitPhi(x) {
-    // Standard normal CDF (Abramowitz & Stegun approximation)
-    const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
-    const sign = x < 0 ? -1 : 1;
-    x = Math.abs(x) / Math.sqrt(2);
-    const t = 1.0 / (1.0 + p * x);
-    const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
-    return 0.5 * (1.0 + sign * y);
+    return SvendMath.phi(x);
 }
 
 function probitPhiPDF(x) {
-    return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
+    return SvendMath.phiPDF(x);
 }
 
 function probitPhiInv(p) {
-    // Rational approximation for inverse normal CDF
-    if (p <= 0) return -8;
-    if (p >= 1) return 8;
-    if (p < 0.5) return -probitPhiInv(1 - p);
-    const t = Math.sqrt(-2 * Math.log(1 - p));
-    const c0 = 2.515517, c1 = 0.802853, c2 = 0.010328;
-    const d1 = 1.432788, d2 = 0.189269, d3 = 0.001308;
-    return t - (c0 + c1 * t + c2 * t * t) / (1 + d1 * t + d2 * t * t + d3 * t * t * t);
+    return SvendMath.phiInv(p);
 }
 
 function probitLink(eta, model) {
@@ -21184,29 +21437,11 @@ function _renderMTBF(mtbf, mttr, totalTime, failures, downtime) {
 // ============================================================================
 
 function _factorial(n) {
-    if (n <= 1) return 1;
-    let r = 1;
-    for (let i = 2; i <= n; i++) r *= i;
-    return r;
+    return SvendMath.factorial(n);
 }
 
 function _erlangC(agents, traffic) {
-    // P(wait) using Erlang C formula
-    if (agents <= traffic) return 1; // unstable
-    const c = agents;
-    const A = traffic;
-
-    // Numerator: (A^c / c!) * (c / (c - A))
-    let num = Math.pow(A, c) / _factorial(c) * (c / (c - A));
-
-    // Denominator: sum_{k=0}^{c-1} A^k/k! + numerator term
-    let denom = 0;
-    for (let k = 0; k < c; k++) {
-        denom += Math.pow(A, k) / _factorial(k);
-    }
-    denom += num;
-
-    return num / denom;
+    return SvendMath.erlangC(agents, traffic);
 }
 
 function calcErlang() {
@@ -23313,12 +23548,451 @@ function hjSimUpdateInsights() {
     });
 })();
 
+// =============================================================================
+// ABC Analysis (Client-Side)
+// =============================================================================
+let abcItems = [];
+
+function addABCItem(name, value) {
+    abcItems.push({ name: name || `SKU-${String(abcItems.length + 1).padStart(3, '0')}`, value: value || 0 });
+    renderABCItems();
+}
+
+function removeABCItem(idx) {
+    abcItems.splice(idx, 1);
+    renderABCItems();
+}
+
+function updateABCItem(idx, field, val) {
+    if (field === 'value') val = parseFloat(val) || 0;
+    abcItems[idx][field] = val;
+    calcABC();
+}
+
+function loadSampleABCItems() {
+    abcItems = [
+        { name: 'SKU-001', value: 50000 }, { name: 'SKU-002', value: 42000 },
+        { name: 'SKU-003', value: 38000 }, { name: 'SKU-004', value: 35000 },
+        { name: 'SKU-005', value: 30000 }, { name: 'SKU-006', value: 12000 },
+        { name: 'SKU-007', value: 11000 }, { name: 'SKU-008', value: 10000 },
+        { name: 'SKU-009', value: 9000 },  { name: 'SKU-010', value: 8000 },
+        { name: 'SKU-011', value: 3000 },  { name: 'SKU-012', value: 2800 },
+        { name: 'SKU-013', value: 2500 },  { name: 'SKU-014', value: 2200 },
+        { name: 'SKU-015', value: 2000 },
+    ];
+    renderABCItems();
+}
+
+function renderABCItems() {
+    const container = document.getElementById('abc-items');
+    if (!container) return;
+    container.innerHTML = abcItems.map((item, i) => `
+        <div class="yamazumi-station" style="gap: 8px;">
+            <input type="text" value="${item.name}" style="flex: 1; padding: 8px;"
+                   oninput="updateABCItem(${i}, 'name', this.value)" placeholder="SKU name">
+            <input type="number" value="${item.value}" style="width: 100px; text-align: right;"
+                   oninput="updateABCItem(${i}, 'value', this.value)" placeholder="Value">
+            <button class="yamazumi-station-remove" onclick="removeABCItem(${i})">&times;</button>
+        </div>
+    `).join('');
+    calcABC();
+}
+
+function calcABC() {
+    const aPct = parseFloat(document.getElementById('abc-a-pct').value) || 80;
+    const bPct = parseFloat(document.getElementById('abc-b-pct').value) || 95;
+
+    const items = abcItems.filter(item => item.name && item.value > 0).map(i => ({...i}));
+    if (items.length === 0) return;
+
+    items.sort((a, b) => b.value - a.value);
+    const totalValue = items.reduce((s, i) => s + i.value, 0);
+
+    let cumulative = 0;
+    items.forEach(item => {
+        cumulative += item.value;
+        item.cumPct = (cumulative / totalValue) * 100;
+        item.category = item.cumPct <= aPct ? 'A' : item.cumPct <= bPct ? 'B' : 'C';
+    });
+
+    const aItems = items.filter(i => i.category === 'A');
+    const bItems = items.filter(i => i.category === 'B');
+    const cItems = items.filter(i => i.category === 'C');
+
+    document.getElementById('abc-a-count').innerHTML = `${aItems.length}<span class="calc-result-unit"> (${(aItems.length/items.length*100).toFixed(0)}%)</span>`;
+    document.getElementById('abc-b-count').innerHTML = `${bItems.length}<span class="calc-result-unit"> (${(bItems.length/items.length*100).toFixed(0)}%)</span>`;
+    document.getElementById('abc-c-count').innerHTML = `${cItems.length}<span class="calc-result-unit"> (${(cItems.length/items.length*100).toFixed(0)}%)</span>`;
+
+    const aVal = aItems.reduce((s,i) => s+i.value, 0);
+    const bVal = bItems.reduce((s,i) => s+i.value, 0);
+    const cVal = cItems.reduce((s,i) => s+i.value, 0);
+    document.getElementById('abc-breakdown').innerHTML = `
+        <div class="calc-breakdown-row"><span>A Items Value</span><span>$${Math.round(aVal).toLocaleString()} (${(aVal/totalValue*100).toFixed(1)}%)</span></div>
+        <div class="calc-breakdown-row"><span>B Items Value</span><span>$${Math.round(bVal).toLocaleString()} (${(bVal/totalValue*100).toFixed(1)}%)</span></div>
+        <div class="calc-breakdown-row"><span>C Items Value</span><span>$${Math.round(cVal).toLocaleString()} (${(cVal/totalValue*100).toFixed(1)}%)</span></div>
+        <div class="calc-breakdown-row"><span>Total Value</span><span>$${Math.round(totalValue).toLocaleString()}</span></div>`;
+
+    // Pareto chart
+    const colors = items.map(i => i.category === 'A' ? '#4a9f6e' : i.category === 'B' ? '#e8c547' : '#e89547');
+    Plotly.newPlot('abc-chart', [
+        { x: items.map(i => i.name), y: items.map(i => i.value), type: 'bar', marker: { color: colors }, name: 'Value' },
+        { x: items.map(i => i.name), y: items.map(i => i.cumPct), type: 'scatter', mode: 'lines+markers', yaxis: 'y2', name: 'Cumulative %', line: { color: '#e74c3c', width: 2 } }
+    ], {
+        shapes: [
+            { type: 'line', x0: -0.5, x1: items.length-0.5, y0: aPct, y1: aPct, yref: 'y2', line: { color: '#4a9f6e', width: 1, dash: 'dash' } },
+            { type: 'line', x0: -0.5, x1: items.length-0.5, y0: bPct, y1: bPct, yref: 'y2', line: { color: '#e8c547', width: 1, dash: 'dash' } }
+        ],
+        yaxis: { title: 'Value ($)', gridcolor: 'rgba(255,255,255,0.1)', zeroline: false },
+        yaxis2: { title: 'Cumulative %', overlaying: 'y', side: 'right', range: [0, 105], gridcolor: 'rgba(255,255,255,0.05)' },
+        margin: { t: 20, b: 80, l: 60, r: 60 },
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: { color: '#9aaa9a' },
+        legend: { orientation: 'h', y: -0.4, x: 0.5, xanchor: 'center' },
+        hovermode: 'x unified'
+    }, { responsive: true, displayModeBar: false });
+
+    SvendOps.publish('abcAItems', aItems.length, 'items', 'ABC Analysis');
+    SvendOps.publish('abcBItems', bItems.length, 'items', 'ABC Analysis');
+    SvendOps.publish('abcCItems', cItems.length, 'items', 'ABC Analysis');
+
+    renderNextSteps('abc-next-steps', [
+        { title: 'EOQ for A Items', calcId: 'eoq' },
+        { title: 'Safety Stock', calcId: 'safety' },
+        { title: 'Demand Profile', calcId: 'demand-profile' }
+    ]);
+}
+
+// =============================================================================
+// Demand Profile (Syntetos-Boylan Classification)
+// =============================================================================
+let dpPeriods = [];
+
+function addDPPeriod(demand) {
+    dpPeriods.push({ label: `P${dpPeriods.length + 1}`, demand: demand || 0 });
+    renderDPPeriods();
+}
+
+function removeDPPeriod(idx) {
+    dpPeriods.splice(idx, 1);
+    dpPeriods.forEach((p, i) => p.label = `P${i + 1}`);
+    renderDPPeriods();
+}
+
+function updateDPPeriod(idx, val) {
+    dpPeriods[idx].demand = parseFloat(val) || 0;
+    calcDemandProfile();
+}
+
+function loadSampleDPPeriods() {
+    const sample = [120,0,130,0,125,140,0,135,150,0,145,160,0,155,170,0,165,180];
+    dpPeriods = sample.map((d, i) => ({ label: `P${i + 1}`, demand: d }));
+    renderDPPeriods();
+}
+
+function renderDPPeriods() {
+    const container = document.getElementById('dp-periods');
+    if (!container) return;
+    container.innerHTML = dpPeriods.map((p, i) => `
+        <div class="yamazumi-station" style="gap: 8px;">
+            <span style="width:50px;color:var(--text-dim);font-size:12px;">${p.label}</span>
+            <input type="number" value="${p.demand}" style="flex: 1; text-align: right; padding: 8px;"
+                   oninput="updateDPPeriod(${i}, this.value)" placeholder="Demand">
+            <button class="yamazumi-station-remove" onclick="removeDPPeriod(${i})">&times;</button>
+        </div>
+    `).join('');
+    calcDemandProfile();
+}
+
+function calcDemandProfile() {
+    const values = dpPeriods.map(p => p.demand);
+    if (values.length < 3) return;
+
+    // Non-zero demands only for CoV
+    const nonZero = values.filter(v => v > 0);
+    const mean = nonZero.reduce((s, v) => s + v, 0) / nonZero.length;
+    const std = Math.sqrt(nonZero.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / nonZero.length);
+    const cov = mean > 0 ? std / mean : 0;
+    const covSq = cov * cov;
+
+    // Average inter-demand interval (ADI)
+    let intervals = [];
+    let lastDemand = -1;
+    for (let i = 0; i < values.length; i++) {
+        if (values[i] > 0) {
+            if (lastDemand >= 0) intervals.push(i - lastDemand);
+            lastDemand = i;
+        }
+    }
+    const adi = intervals.length > 0 ? intervals.reduce((s, v) => s + v, 0) / intervals.length : values.length;
+
+    // Syntetos-Boylan classification
+    let pattern;
+    if (covSq < 0.49 && adi < 1.32) pattern = 'Smooth';
+    else if (covSq >= 0.49 && adi < 1.32) pattern = 'Erratic';
+    else if (covSq < 0.49 && adi >= 1.32) pattern = 'Intermittent';
+    else pattern = 'Lumpy';
+
+    const patternColors = { Smooth: '#4a9f6e', Erratic: '#e8c547', Intermittent: '#e89547', Lumpy: '#e74c3c' };
+    document.getElementById('dp-pattern').innerHTML = `<span style="color:${patternColors[pattern]}">${pattern}</span>`;
+    document.getElementById('dp-cov').textContent = cov.toFixed(3);
+    document.getElementById('dp-adi').textContent = adi.toFixed(2);
+
+    // Demand time series chart
+    Plotly.newPlot('dp-chart', [
+        { x: values.map((_, i) => `P${i+1}`), y: values, type: 'bar', marker: { color: values.map(v => v > 0 ? patternColors[pattern] : 'rgba(255,255,255,0.1)') }, name: 'Demand' },
+        { x: values.map((_, i) => `P${i+1}`), y: Array(values.length).fill(mean), type: 'scatter', mode: 'lines', name: `Mean (${mean.toFixed(0)})`, line: { color: '#e74c3c', dash: 'dash', width: 1 } }
+    ], {
+        margin: { t: 20, b: 50, l: 50, r: 20 },
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: { color: '#9aaa9a' },
+        yaxis: { title: 'Demand', gridcolor: 'rgba(255,255,255,0.1)', zeroline: false },
+        legend: { orientation: 'h', y: -0.3, x: 0.5, xanchor: 'center' },
+        hovermode: 'x unified'
+    }, { responsive: true, displayModeBar: false });
+
+    SvendOps.publish('demandPattern', pattern, '', 'Demand Profile');
+    SvendOps.publish('demandMean', mean, 'units', 'Demand Profile');
+    SvendOps.publish('demandCoV', cov, '', 'Demand Profile');
+
+    renderNextSteps('dp-next-steps', [
+        { title: 'Safety Stock', calcId: 'safety' },
+        { title: 'ABC Analysis', calcId: 'abc' }
+    ]);
+}
+
+// =============================================================================
+// Service Level Trade-off
+// =============================================================================
+function calcServiceLevel() {
+    const demandMean = parseFloat(document.getElementById('sl-demand').value) || 0;
+    const demandStd = parseFloat(document.getElementById('sl-std').value) || 0;
+    const lt = parseFloat(document.getElementById('sl-lt').value) || 1;
+    const unitCost = parseFloat(document.getElementById('sl-unit').value) || 0;
+    const holdPct = parseFloat(document.getElementById('sl-hold').value) || 0;
+    const stockoutCost = parseFloat(document.getElementById('sl-stockout').value) || 0;
+
+    const holdingCost = unitCost * (holdPct / 100);
+    const ltDemandStd = demandStd * Math.sqrt(lt);
+
+    // Standard normal inverse (approximation)
+    function normInv(p) {
+        if (p <= 0) return -4; if (p >= 1) return 4;
+        const t = Math.sqrt(-2 * Math.log(p < 0.5 ? p : 1 - p));
+        const c0 = 2.515517, c1 = 0.802853, c2 = 0.010328;
+        const d1 = 1.432788, d2 = 0.189269, d3 = 0.001308;
+        let z = t - (c0 + c1*t + c2*t*t) / (1 + d1*t + d2*t*t + d3*t*t*t);
+        return p < 0.5 ? -z : z;
+    }
+
+    // Sweep service levels
+    const levels = [];
+    const holdCosts = [];
+    const stockCosts = [];
+    const totalCosts = [];
+    let minCost = Infinity, optLevel = 95, optSS = 0;
+
+    for (let sl = 80; sl <= 99.9; sl += 0.5) {
+        const z = normInv(sl / 100);
+        const ss = z * ltDemandStd;
+        const hc = ss * holdingCost;
+        const expectedShortage = ltDemandStd * (Math.exp(-z*z/2) / Math.sqrt(2*Math.PI) - z * (1 - sl/100));
+        const sc = Math.max(0, expectedShortage) * stockoutCost * (demandMean * 365 / (demandMean * lt || 1));
+        const tc = hc + sc;
+
+        levels.push(sl);
+        holdCosts.push(hc);
+        stockCosts.push(sc);
+        totalCosts.push(tc);
+
+        if (tc < minCost) { minCost = tc; optLevel = sl; optSS = ss; }
+    }
+
+    document.getElementById('sl-optimal').innerHTML = `${optLevel.toFixed(1)}<span class="calc-result-unit">%</span>`;
+    document.getElementById('sl-ss').innerHTML = `${Math.round(optSS)}<span class="calc-result-unit">units</span>`;
+    document.getElementById('sl-cost').textContent = `$${Math.round(minCost).toLocaleString()}/yr`;
+
+    const optZ = normInv(optLevel / 100);
+    document.getElementById('sl-breakdown').innerHTML = `
+        <div class="calc-breakdown-row"><span>Z-score at optimal</span><span>${optZ.toFixed(2)}</span></div>
+        <div class="calc-breakdown-row"><span>LT demand std</span><span>${ltDemandStd.toFixed(1)} units</span></div>
+        <div class="calc-breakdown-row"><span>Holding cost at optimal</span><span>$${Math.round(optSS * holdingCost).toLocaleString()}/yr</span></div>
+        <div class="calc-breakdown-row"><span>Formula</span><span>Min(Holding + Stockout cost) over SL range</span></div>`;
+
+    Plotly.newPlot('sl-chart', [
+        { x: levels, y: holdCosts, type: 'scatter', mode: 'lines', name: 'Holding Cost', line: { color: '#3a7f8f', width: 2 } },
+        { x: levels, y: stockCosts, type: 'scatter', mode: 'lines', name: 'Stockout Cost', line: { color: '#e89547', width: 2 } },
+        { x: levels, y: totalCosts, type: 'scatter', mode: 'lines', name: 'Total Cost', line: { color: '#4a9f6e', width: 3 } }
+    ], {
+        shapes: [{ type: 'line', x0: optLevel, x1: optLevel, y0: 0, y1: minCost * 2, line: { color: '#e74c3c', width: 2, dash: 'dash' } }],
+        annotations: [{ x: optLevel, y: minCost, text: `Optimal: ${optLevel.toFixed(1)}%`, showarrow: true, arrowhead: 2, arrowcolor: '#e74c3c', font: { color: '#e74c3c', size: 12 }, ax: 40, ay: -30 }],
+        margin: { t: 20, b: 50, l: 70, r: 20 },
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: { color: '#9aaa9a' },
+        xaxis: { title: 'Service Level (%)', gridcolor: 'rgba(255,255,255,0.1)' },
+        yaxis: { title: 'Annual Cost ($)', gridcolor: 'rgba(255,255,255,0.1)', zeroline: false },
+        legend: { orientation: 'h', y: -0.35, x: 0.5, xanchor: 'center' },
+        hovermode: 'x unified'
+    }, { responsive: true, displayModeBar: false });
+
+    SvendOps.publish('optimalServiceLevel', optLevel, '%', 'Service Level');
+    SvendOps.publish('optimalSafetyStock', Math.round(optSS), 'units', 'Service Level');
+
+    renderNextSteps('sl-next-steps', [
+        { title: 'Safety Stock Calculator', calcId: 'safety' },
+        { title: 'EOQ', calcId: 'eoq' }
+    ]);
+}
+
+// =============================================================================
+// MRP Netting (Gross-to-Net)
+// =============================================================================
+let mrpPeriods = [];
+
+function addMRPPeriod(gross, receipts) {
+    mrpPeriods.push({ gross: gross || 0, receipts: receipts || 0 });
+    renderMRPPeriods();
+}
+
+function removeMRPPeriod(idx) {
+    mrpPeriods.splice(idx, 1);
+    renderMRPPeriods();
+}
+
+function updateMRPPeriod(idx, field, val) {
+    mrpPeriods[idx][field] = parseFloat(val) || 0;
+    calcMRP();
+}
+
+function loadSampleMRPPeriods() {
+    mrpPeriods = [
+        { gross: 100, receipts: 0 }, { gross: 120, receipts: 100 },
+        { gross: 80, receipts: 0 },  { gross: 150, receipts: 0 },
+        { gross: 90, receipts: 0 },  { gross: 110, receipts: 0 },
+    ];
+    renderMRPPeriods();
+}
+
+function renderMRPPeriods() {
+    const container = document.getElementById('mrp-periods');
+    if (!container) return;
+    container.innerHTML = mrpPeriods.map((p, i) => `
+        <div class="yamazumi-station" style="gap: 8px;">
+            <span style="width:50px;color:var(--text-dim);font-size:12px;">P${i + 1}</span>
+            <input type="number" value="${p.gross}" style="flex: 1; text-align: right; padding: 8px;"
+                   oninput="updateMRPPeriod(${i}, 'gross', this.value)" placeholder="Gross" title="Gross requirement">
+            <input type="number" value="${p.receipts}" style="flex: 1; text-align: right; padding: 8px;"
+                   oninput="updateMRPPeriod(${i}, 'receipts', this.value)" placeholder="Receipts" title="Scheduled receipts">
+            <button class="yamazumi-station-remove" onclick="removeMRPPeriod(${i})">&times;</button>
+        </div>
+    `).join('');
+    calcMRP();
+}
+
+function calcMRP() {
+    const onHand = parseFloat(document.getElementById('mrp-oh').value) || 0;
+    const ss = parseFloat(document.getElementById('mrp-ss').value) || 0;
+    const lt = parseInt(document.getElementById('mrp-lt').value) || 1;
+    const lotType = document.getElementById('mrp-lot').value;
+
+    const gross = mrpPeriods.map(p => p.gross);
+    const receipts = mrpPeriods.map(p => p.receipts);
+    const n = gross.length;
+    if (n === 0) return;
+
+    // MRP netting
+    const netReq = [];
+    const plannedReceipt = [];
+    const plannedRelease = Array(n).fill(0);
+    const projected = [];
+    let oh = onHand;
+    let totalOrdered = 0;
+    let orderCount = 0;
+
+    for (let i = 0; i < n; i++) {
+        const available = oh + receipts[i] + (plannedReceipt[i] || 0);
+        const net = gross[i] + ss - available;
+        netReq.push(Math.max(0, net));
+
+        let orderQty = 0;
+        if (net > 0) {
+            orderQty = lotType === 'fixed' ? Math.ceil(net / 100) * 100 : net;
+            orderCount++;
+            totalOrdered += orderQty;
+        }
+        plannedReceipt[i] = (plannedReceipt[i] || 0) + orderQty;
+
+        // Offset release by lead time
+        const releaseIdx = i - lt;
+        if (releaseIdx >= 0 && orderQty > 0) {
+            plannedRelease[releaseIdx] = orderQty;
+        }
+
+        oh = available + orderQty - gross[i];
+        projected.push(oh);
+    }
+
+    document.getElementById('mrp-orders').textContent = orderCount;
+    document.getElementById('mrp-total').innerHTML = `${Math.round(totalOrdered).toLocaleString()}<span class="calc-result-unit">units</span>`;
+
+    // MRP Grid table
+    let gridHtml = `<table style="width:100%;border-collapse:collapse;font-size:12px;color:var(--text);">
+        <tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:4px;">Period</th>`;
+    for (let i = 0; i < n; i++) gridHtml += `<th style="padding:4px;text-align:right;">${i+1}</th>`;
+    gridHtml += '</tr>';
+
+    const rows = [
+        ['Gross Req', gross],
+        ['Sched Receipts', receipts],
+        ['Net Req', netReq],
+        ['Planned Receipt', plannedReceipt.slice(0, n)],
+        ['Planned Release', plannedRelease],
+        ['Projected OH', projected]
+    ];
+    rows.forEach(([label, data]) => {
+        gridHtml += `<tr style="border-bottom:1px solid var(--border,rgba(255,255,255,0.1));"><td style="padding:4px;font-weight:500;">${label}</td>`;
+        (data || []).forEach(v => {
+            const val = Math.round(v || 0);
+            const style = val < 0 ? 'color:#e74c3c;' : val > 0 && label === 'Planned Release' ? 'color:#4a9f6e;font-weight:600;' : '';
+            gridHtml += `<td style="padding:4px;text-align:right;${style}">${val}</td>`;
+        });
+        gridHtml += '</tr>';
+    });
+    gridHtml += '</table>';
+    document.getElementById('mrp-grid').innerHTML = gridHtml;
+
+    // Chart
+    Plotly.newPlot('mrp-chart', [
+        { x: gross.map((_, i) => `P${i+1}`), y: gross, type: 'bar', name: 'Gross Req', marker: { color: '#e89547', opacity: 0.6 } },
+        { x: gross.map((_, i) => `P${i+1}`), y: projected, type: 'scatter', mode: 'lines+markers', name: 'Projected OH', line: { color: '#4a9f6e', width: 2 } },
+        { x: gross.map((_, i) => `P${i+1}`), y: Array(n).fill(ss), type: 'scatter', mode: 'lines', name: 'Safety Stock', line: { color: '#e74c3c', dash: 'dash', width: 1 } }
+    ], {
+        margin: { t: 20, b: 50, l: 50, r: 20 },
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: { color: '#9aaa9a' },
+        yaxis: { title: 'Units', gridcolor: 'rgba(255,255,255,0.1)', zeroline: false },
+        legend: { orientation: 'h', y: -0.35, x: 0.5, xanchor: 'center' },
+        hovermode: 'x unified',
+        barmode: 'overlay'
+    }, { responsive: true, displayModeBar: false });
+
+    SvendOps.publish('mrpPlannedOrders', orderCount, 'orders', 'MRP Netting');
+
+    renderNextSteps('mrp-next-steps', [
+        { title: 'EOQ (lot sizing)', calcId: 'eoq' },
+        { title: 'Kanban Sizing', calcId: 'kanban' }
+    ]);
+}
+
 // Init new calculators on page load
 document.addEventListener('DOMContentLoaded', () => {
     calcMTBF();
     calcErlang();
     riskRenderTable();
     riskUpdate();
+    loadSampleABCItems();
+    loadSampleDPPeriods();
+    calcServiceLevel();
+    loadSampleMRPPeriods();
 });
 </script>
 {% endblock %}

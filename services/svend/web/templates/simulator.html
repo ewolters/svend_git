@@ -4,6 +4,10 @@
 
 {% block extra_head %}
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script src="/static/js/svend-math.js"></script>
+<script src="/static/js/svend-charts.js"></script>
+<script src="/static/js/svend-spc.js"></script>
+<script src="/static/js/svend-sim-core.js"></script>
 <style>
     main { padding: 0 !important; }
     main > .container { max-width: 100% !important; padding: 0 !important; }
@@ -1197,46 +1201,7 @@ const TRANSPORT_TYPES = {
     agv:        { label: 'AGV (automated)', speed: 2.0,     needsOperator: false, breakdownRate: 0.005, icon: 'M4 6h16v12H4zM9 9h6v6H9zM9 3v3M15 3v3M3 10h1M3 14h1M20 10h1M20 14h1', maxContainerKg: 1500 },
 };
 
-// =============================================================================
-// MinHeap — Event Priority Queue
-// =============================================================================
-
-class MinHeap {
-    constructor() { this.data = []; }
-    get size() { return this.data.length; }
-    peek() { return this.data[0]; }
-    clear() { this.data = []; }
-
-    push(item) {
-        this.data.push(item);
-        let i = this.data.length - 1;
-        while (i > 0) {
-            const parent = (i - 1) >> 1;
-            if (this.data[parent].time <= this.data[i].time) break;
-            [this.data[parent], this.data[i]] = [this.data[i], this.data[parent]];
-            i = parent;
-        }
-    }
-
-    pop() {
-        const top = this.data[0];
-        const last = this.data.pop();
-        if (this.data.length > 0) {
-            this.data[0] = last;
-            let i = 0;
-            while (true) {
-                let smallest = i;
-                const l = 2 * i + 1, r = 2 * i + 2;
-                if (l < this.data.length && this.data[l].time < this.data[smallest].time) smallest = l;
-                if (r < this.data.length && this.data[r].time < this.data[smallest].time) smallest = r;
-                if (smallest === i) break;
-                [this.data[smallest], this.data[i]] = [this.data[i], this.data[smallest]];
-                i = smallest;
-            }
-        }
-        return top;
-    }
-}
+// MinHeap provided by svend-sim-core.js
 
 // =============================================================================
 // DES Engine
@@ -1775,23 +1740,15 @@ class PlantDES {
     }
 
     _sampleExponential(mean) {
-        return -mean * Math.log(1 - Math.random());
+        return SvendMath.sampleExponential(mean);
     }
 
     _sampleNormal(mean, cv) {
-        if (cv <= 0) return mean;
-        const u1 = Math.random(), u2 = Math.random();
-        const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-        return Math.max(0.1, mean * (1 + cv * z));
+        return SvendMath.sampleNormal(mean, cv);
     }
 
-    // Weibull distribution: models increasing failure rate (beta > 1) or bathtub curve
-    // beta=1 is exponential, beta=2 is Rayleigh (wear-out), beta=3.5 approximates normal
     _sampleWeibull(eta, beta) {
-        // eta = scale (characteristic life), beta = shape
-        if (beta <= 0 || eta <= 0) return Infinity;
-        const u = Math.random();
-        return eta * Math.pow(-Math.log(1 - u), 1 / beta);
+        return SvendMath.sampleWeibull(eta, beta);
     }
 
     _sampleInterarrival(src) {
@@ -7730,12 +7687,7 @@ let activeMission = null;
 let missionStartTime = null;
 
 function formatSimTime(seconds) {
-    if (seconds < 0) seconds = 0;
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    return h > 0 ? `T+${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-                  : `T+${m}:${String(s).padStart(2,'0')}`;
+    return SvendMath.formatSimTime(seconds);
 }
 
 // --- Alert Bar ---
@@ -8015,17 +7967,7 @@ let liveUpdateCounter = 0;
 let liveThroughputObs = [];  // observation buffer for SPC
 let liveYieldObs = [];
 
-const PLOTLY_LIVE_LAYOUT = {
-    paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-    font: { color: '#9aaa9a', size: 9 },
-    margin: { t: 28, b: 24, l: 36, r: 8 },
-    xaxis: { title: '', gridcolor: 'rgba(255,255,255,0.05)' },
-    yaxis: { gridcolor: 'rgba(255,255,255,0.05)' },
-    legend: { orientation: 'h', y: -0.15, font: { size: 8 } },
-    showlegend: false,
-    height: 230,
-    autosize: true,
-};
+const PLOTLY_LIVE_LAYOUT = SvendCharts.LIVE_LAYOUT;
 
 function initLiveCharts() {
     if (liveChartsInitialized) return;
@@ -8188,48 +8130,7 @@ function updateSQDC(state) {
 }
 
 function updateSPCChart(chartId, obs) {
-    if (obs.length < 3) return;
-
-    // Compute I-chart control limits from first 20 observations (baseline)
-    const baseline = obs.slice(0, Math.min(20, obs.length));
-    const mean = baseline.reduce((s, v) => s + v, 0) / baseline.length;
-
-    // Moving range for sigma estimate
-    let mrSum = 0;
-    for (let i = 1; i < baseline.length; i++) mrSum += Math.abs(baseline[i] - baseline[i - 1]);
-    const avgMR = baseline.length > 1 ? mrSum / (baseline.length - 1) : 0;
-    const sigma = avgMR / 1.128; // d2 for n=2
-
-    const ucl = mean + 3 * sigma;
-    const lcl = mean - 3 * sigma;
-
-    // Detect Western Electric Rule 1 violations (beyond 3σ)
-    const signalX = [], signalY = [];
-    for (let i = 0; i < obs.length; i++) {
-        if (obs[i] > ucl || obs[i] < lcl) {
-            signalX.push(i);
-            signalY.push(obs[i]);
-        }
-    }
-
-    // Rule 4: 8 consecutive on one side of center
-    if (obs.length >= 8) {
-        const last8 = obs.slice(-8);
-        if (last8.every(v => v > mean) || last8.every(v => v < mean)) {
-            const idx = obs.length - 1;
-            if (!signalX.includes(idx)) { signalX.push(idx); signalY.push(obs[idx]); }
-        }
-    }
-
-    const n = obs.length;
-    const uclLine = Array(n).fill(ucl);
-    const clLine = Array(n).fill(mean);
-    const lclLine = Array(n).fill(lcl);
-
-    Plotly.update(chartId, {
-        y: [obs, uclLine, clLine, lclLine, signalY],
-        x: [undefined, undefined, undefined, undefined, signalX],
-    }, {}, [0, 1, 2, 3, 4]);
+    SvendSPC.updateIChart(chartId, obs);
 }
 
 function updateEvidencePanel(state) {
@@ -8943,17 +8844,11 @@ async function executeVSMImport() {
 // =============================================================================
 
 function getCsrf() {
-    const cookie = document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='));
-    return cookie ? cookie.split('=')[1] : '';
+    return svendGetCsrf();
 }
 
 function showToast(msg) {
-    // Simple toast notification
-    const toast = document.createElement('div');
-    toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg-tertiary);border:1px solid var(--border);padding:8px 16px;border-radius:6px;color:var(--text-primary);font-size:0.85rem;z-index:999;';
-    toast.textContent = msg;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2500);
+    svendToast(msg, 2500);
 }
 
 // Speed slider label
