@@ -1340,44 +1340,6 @@ div:hover > .aw-copy-btn { opacity: 1; }
 .workbench-list-item h4 { margin: 0; font-size: 12px; color: var(--aw-text); }
 .workbench-list-meta { font-size: 10px; color: var(--aw-text-muted); margin-top: 2px; }
 
-/* Modal for analysis dialogs */
-.aw-modal-overlay {
-    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center;
-}
-.aw-modal-overlay.active { display: flex; }
-.aw-modal-box {
-    background: var(--aw-panel-bg); border: 1px solid var(--aw-border); border-radius: 6px;
-    min-width: 380px; max-width: 520px; max-height: 80vh; overflow-y: auto;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-}
-.aw-modal-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 16px; border-bottom: 1px solid var(--aw-border);
-    background: var(--aw-panel-header); font-size: 13px; font-weight: 600; color: var(--aw-text);
-}
-.aw-modal-header button {
-    background: none; border: none; color: var(--aw-text-dim); font-size: 18px; cursor: pointer;
-}
-.aw-modal-body { padding: 16px; }
-.aw-modal-body .form-row { margin-bottom: 10px; }
-.aw-modal-body .form-row label { display: block; font-size: 11px; color: var(--aw-text-dim); margin-bottom: 3px; }
-.aw-modal-body .form-row input, .aw-modal-body .form-row select {
-    width: 100%; padding: 5px 8px; font-size: 12px; background: var(--aw-bg-dark);
-    border: 1px solid var(--aw-border); color: var(--aw-text); border-radius: 3px;
-}
-.aw-modal-body .form-row small { display: block; font-size: 10px; color: var(--aw-text-muted); margin-top: 2px; }
-.aw-modal-body .slider-row { display: flex; align-items: center; gap: 8px; }
-.aw-modal-body .slider-val { font-size: 11px; color: var(--aw-accent); min-width: 30px; }
-.aw-modal-footer {
-    display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px;
-    border-top: 1px solid var(--aw-border);
-}
-.aw-modal-footer button {
-    padding: 5px 16px; border-radius: 3px; font-size: 12px; cursor: pointer; border: 1px solid var(--aw-border);
-}
-.aw-modal-footer .aw-modal-cancel { background: transparent; color: var(--aw-text-dim); }
-.aw-modal-footer .aw-modal-submit { background: var(--aw-accent); color: #fff; border-color: var(--aw-accent); }
 </style>
 {% endblock %}
 
@@ -1549,21 +1511,6 @@ div:hover > .aw-copy-btn { opacity: 1; }
                 </svg>
             </button>
 
-        </div>
-    </div>
-
-    <!-- Modal for analysis dialogs -->
-    <div class="aw-modal-overlay" id="aw-modal-overlay">
-        <div class="aw-modal-box">
-            <div class="aw-modal-header">
-                <span id="aw-modal-title">Dialog</span>
-                <button onclick="closeModal()">&times;</button>
-            </div>
-            <div class="aw-modal-body" id="aw-modal-body"></div>
-            <div class="aw-modal-footer">
-                <button class="aw-modal-cancel" onclick="closeModal()">Cancel</button>
-                <button class="aw-modal-submit" id="aw-modal-submit" onclick="submitModal()">Run</button>
-            </div>
         </div>
     </div>
 
@@ -7170,27 +7117,59 @@ function generateConfigForm(type, id) {
                 </div>` : ''}
             `;
         }
-        // PBS analyses need measurement column
+        // PBS analyses — mode-specific config matching backend pbs_engine.py
         if (id.startsWith('pbs_')) {
+            const mode = id.replace('pbs_', '');
+            const needsSpec = ['full','predictive','cpk','cpk_traj','health','edetector'].includes(mode);
+            const needsTarget = ['full','belief','evidence','adaptive','edetector'].includes(mode);
+            const needsHazard = ['full','belief','health'].includes(mode);
+            const needsBeta = ['full','belief','health'].includes(mode);
+            const descs = {
+                full: 'All charts: belief, e-detector, evidence, adaptive limits, predictive, Cpk, health gauge.',
+                belief: 'BOCPD — posterior probability of process shift at each time step.',
+                edetector: 'CUSUM e-detector — distribution-free changepoint detection with guaranteed ARL.',
+                evidence: 'Anytime-valid e-values accumulate evidence against the in-control hypothesis.',
+                predictive: 'Bayesian linear trend on rolling window with prediction fan.',
+                adaptive: 'Control limits from posterior predictive Student-t. Narrows as data arrives.',
+                cpk: 'Full posterior of Cpk via ancestral sampling from Normal-Gamma.',
+                cpk_traj: 'Rolling Bayesian Cpk over time with trend detection.',
+                health: 'Log-linear opinion pool fusing stability, capability, and trend.'
+            };
             return `
+                <p style="color:var(--aw-text-muted);font-size:10px;margin-bottom:8px;">${descs[mode] || ''}</p>
                 <div class="aw-form-group">
                     <label>Measurement column:</label>
-                    <select id="cfg-measurement">${numCols}</select>
+                    <select id="cfg-column">${numCols}</select>
                 </div>
-                <div class="aw-form-group">
-                    <label>Time/sequence column (optional):</label>
-                    <select id="cfg-time"><option value="">Row index</option>${colOptions}</select>
-                </div>
-                <div class="aw-form-row">
-                    <div class="aw-form-group">
-                        <label>LSL:</label>
-                        <input type="number" id="cfg-lsl" step="any" placeholder="Lower spec">
-                    </div>
-                    <div class="aw-form-group">
-                        <label>USL:</label>
-                        <input type="number" id="cfg-usl" step="any" placeholder="Upper spec">
-                    </div>
-                </div>
+                ${needsSpec ? `<div class="aw-form-row">
+                    <div class="aw-form-group"><label>LSL:</label><input type="number" id="cfg-LSL" step="any" placeholder="Lower spec"></div>
+                    <div class="aw-form-group"><label>USL:</label><input type="number" id="cfg-USL" step="any" placeholder="Upper spec"></div>
+                </div>` : ''}
+                ${needsTarget ? `<div class="aw-form-group">
+                    <label>Target (optional):</label>
+                    <input type="number" id="cfg-target" step="any" placeholder="Process target">
+                </div>` : ''}
+                ${needsHazard ? `<div class="aw-form-group">
+                    <label>Hazard \u03bb:</label>
+                    <input type="number" id="cfg-hazard_lambda" step="1" placeholder="Auto (n/4)" min="10" max="10000">
+                    <small style="color:var(--aw-text-muted);font-size:9px;">Expected regime length — leave blank for auto</small>
+                </div>` : ''}
+                ${needsBeta ? `<div class="aw-form-group">
+                    <label>Robustness \u03b2: <span id="pbs-beta-val">0.0</span></label>
+                    <input type="range" id="cfg-beta_robustness" min="0" max="0.5" step="0.05" value="0" oninput="document.getElementById('pbs-beta-val').textContent=this.value">
+                    <small style="color:var(--aw-text-muted);font-size:9px;">0 = standard BOCPD, 0.1–0.3 = robust</small>
+                </div>` : ''}
+                ${mode === 'full' ? `<div class="aw-form-group">
+                    <label>Taguchi k (optional):</label>
+                    <input type="number" id="cfg-taguchi_k" step="any" min="0" placeholder="Auto from specs">
+                    <small style="color:var(--aw-text-muted);font-size:9px;">Defaults to 1/\u0394\u2080\u00b2 when specs set</small>
+                </div>` : ''}
+                ${mode === 'edetector' ? `<div class="aw-form-group">
+                    <label>\u03b1 (false alarm rate):</label>
+                    <input type="number" id="cfg-edetector_alpha" step="0.01" value="0.05" min="0.001" max="0.5">
+                    <small style="color:var(--aw-text-muted);font-size:9px;">Guaranteed: ARL \u2265 1/\u03b1</small>
+                </div>` : ''}
+                ${['cpk','cpk_traj'].includes(mode) ? `<p style="color:var(--aw-warning);font-size:9px;margin-top:4px;">Both USL and LSL required for Cpk</p>` : ''}
             `;
         }
         // Conformal, drift, anytime, causal
@@ -9285,47 +9264,8 @@ function createNewWorkbench() {
 // Ribbon removed — analysis access via menu bar
 
 // ============================================================================
-// MODAL SYSTEM (for analysis dialogs: PBS, Copula, etc.)
+// BRIDGE FUNCTIONS (menu bar routes through configureAnalysis/executeAnalysis)
 // ============================================================================
-let _awModalCallback = null;
-
-function openModal(title, bodyHtml, submitLabel, callback) {
-    document.getElementById('aw-modal-title').textContent = title;
-    document.getElementById('aw-modal-body').innerHTML = bodyHtml;
-    document.getElementById('aw-modal-submit').textContent = submitLabel || 'Run';
-    document.getElementById('aw-modal-overlay').classList.add('active');
-    _awModalCallback = callback;
-}
-
-function closeModal() {
-    document.getElementById('aw-modal-overlay').classList.remove('active');
-    _awModalCallback = null;
-}
-
-function submitModal() {
-    if (_awModalCallback) _awModalCallback();
-}
-
-// ============================================================================
-// RIBBON BRIDGE FUNCTIONS
-// These functions are called by ribbon buttons and bridge to the analysis
-// workbench's existing infrastructure or to the DSW API directly.
-// ============================================================================
-
-// Data state bridge — the ribbon uses uploadedData/dswDataId from workbench_new.
-// Map to analysis workbench equivalents.
-function _ribbonEnsureData() {
-    if (!currentData || !currentData.id) {
-        alert('Please load data first');
-        return false;
-    }
-    return true;
-}
-
-// Bridge: get numeric column names from analysis workbench's columns array
-function getNumericColumns() {
-    return columns.filter(c => c.dtype === 'numeric').map(c => c.name);
-}
 
 // Bridge: importFile -> trigger the existing file upload
 function importFile(accept) {
@@ -9492,159 +9432,7 @@ function synaraAddHypothesis() { alert('Use the Synara panel in the investigatio
 function synaraRefresh() { /* No-op in analysis workbench */ }
 function autoRunProfile(id) { configureAnalysis('prepare', 'profile'); }
 
-// ============================================================================
-// PBS: Process Belief System Dialog
-// ============================================================================
-function openPBSDialog(mode) {
-    if (!_ribbonEnsureData()) return;
-    const numCols = getNumericColumns();
-    if (numCols.length === 0) { alert('No numeric columns available'); return; }
-    const numOpts = numCols.map(c => '<option value="' + c + '">' + c + '</option>').join('');
-
-    const titles = {
-        full: 'Process Belief System \u2014 Full Analysis',
-        belief: 'Belief Chart \u2014 Shift Detection',
-        edetector: 'E-Detector \u2014 Distribution-Free Changepoint',
-        evidence: 'Evidence Accumulation \u2014 E-values',
-        predictive: 'Predictive Chart \u2014 Trend Projection',
-        adaptive: 'Adaptive Control Limits',
-        cpk: 'Bayesian Cpk',
-        cpk_traj: 'Cpk Trajectory',
-        health: 'Multi-Stream Health'
-    };
-    const descs = {
-        full: 'All charts: belief, e-detector, evidence, adaptive limits, predictive, Cpk, health gauge, and narrative.',
-        belief: 'BOCPD (Adams & MacKay 2007) \u2014 posterior probability of process shift at each time step.',
-        edetector: 'CUSUM e-detector (Shin, Ramdas & Rinaldo 2024) \u2014 distribution-free changepoint detection with guaranteed ARL control.',
-        evidence: 'Anytime-valid e-values accumulate evidence against the in-control hypothesis. Peek freely.',
-        predictive: 'Bayesian linear trend on rolling window with prediction fan and spec exceedance probability.',
-        adaptive: 'Control limits derived from the posterior predictive Student-t. Narrows as data arrives.',
-        cpk: 'Full posterior distribution of Cpk via ancestral sampling from Normal-Gamma.',
-        cpk_traj: 'Rolling Bayesian Cpk over time with trend detection and threshold crossing estimate.',
-        health: 'Log-linear opinion pool fusing SPC stability, capability, and trend into a single health score.'
-    };
-
-    let specFields = '';
-    if (['full', 'predictive', 'cpk', 'cpk_traj', 'health', 'edetector'].includes(mode)) {
-        specFields = '<div class="form-row"><label>USL</label><input type="number" id="dlg-pbs-usl" step="any" placeholder="Upper spec limit"></div>' +
-            '<div class="form-row"><label>LSL</label><input type="number" id="dlg-pbs-lsl" step="any" placeholder="Lower spec limit"></div>';
-    }
-    let targetField = '';
-    if (['full', 'belief', 'evidence', 'adaptive', 'edetector'].includes(mode)) {
-        targetField = '<div class="form-row"><label>Target (optional)</label><input type="number" id="dlg-pbs-target" step="any" placeholder="Process target"></div>';
-    }
-    let taguchiField = '';
-    if (mode === 'full') {
-        taguchiField = '<div class="form-row"><label>Taguchi k (override, optional)</label><input type="number" id="dlg-pbs-taguchi-k" step="any" min="0" placeholder="Auto from specs: 1/\u0394\u2080\u00b2"><small>Defaults to 1/\u0394\u2080\u00b2 when USL/LSL set. Override with A\u2080/\u0394\u2080\u00b2 for dollar amounts.</small></div>';
-    }
-    let hazardField = '';
-    if (['full', 'belief', 'health'].includes(mode)) {
-        hazardField = '<div class="form-row"><label>Hazard \u03bb</label><input type="number" id="dlg-pbs-hazard" step="1" placeholder="Auto (n/4)" min="10" max="10000"><small>Expected regime length \u2014 leave blank for auto-tuning (n/4, typically 20\u2013200)</small></div>';
-    }
-    let betaField = '';
-    if (['full', 'belief', 'health'].includes(mode)) {
-        betaField = '<div class="form-row"><label>Robustness \u03b2</label>' +
-            '<div class="slider-row"><input type="range" id="dlg-pbs-beta" min="0" max="0.5" step="0.05" value="0.0">' +
-            '<span class="slider-val" id="dlg-pbs-beta-val">0.0</span></div>' +
-            '<small>Outlier robustness (0 = standard BOCPD, 0.1\u20130.3 = robust). Higher = more outlier resistance but slower detection.</small></div>';
-    }
-    let edAlphaField = '';
-    if (mode === 'edetector') {
-        edAlphaField = '<div class="form-row"><label>\u03b1 (false alarm)</label><input type="number" id="dlg-pbs-ed-alpha" step="0.01" value="0.05" min="0.001" max="0.5"><small>Guaranteed: ARL \u2265 1/\u03b1 under any pre-change distribution.</small></div>';
-    }
-
-    const html = '<p style="margin-bottom:10px;color:var(--aw-text-muted);font-size:11px;">' + (descs[mode] || '') + '</p>' +
-        '<div class="form-row"><label>Measurement Column</label><select id="dlg-pbs-col">' + numOpts + '</select></div>' +
-        specFields + targetField + taguchiField + hazardField + betaField + edAlphaField;
-
-    openModal(titles[mode] || 'PBS Analysis', html, 'Analyze', function() {
-        const config = { column: document.getElementById('dlg-pbs-col').value };
-        const uslEl = document.getElementById('dlg-pbs-usl');
-        const lslEl = document.getElementById('dlg-pbs-lsl');
-        const tgtEl = document.getElementById('dlg-pbs-target');
-        const hazEl = document.getElementById('dlg-pbs-hazard');
-        const betaEl = document.getElementById('dlg-pbs-beta');
-        const edAlphaEl = document.getElementById('dlg-pbs-ed-alpha');
-        if (uslEl && uslEl.value) config.USL = parseFloat(uslEl.value);
-        if (lslEl && lslEl.value) config.LSL = parseFloat(lslEl.value);
-        if (tgtEl && tgtEl.value) config.target = parseFloat(tgtEl.value);
-        if (hazEl && hazEl.value) config.hazard_lambda = parseFloat(hazEl.value);
-        if (betaEl) config.beta_robustness = parseFloat(betaEl.value);
-        if (edAlphaEl && edAlphaEl.value) config.edetector_alpha = parseFloat(edAlphaEl.value);
-        const taguchiEl = document.getElementById('dlg-pbs-taguchi-k');
-        if (taguchiEl && taguchiEl.value) config.taguchi_k = parseFloat(taguchiEl.value);
-        if (['cpk', 'cpk_traj'].includes(mode) && (!config.USL || !config.LSL)) {
-            alert('Both USL and LSL are required for Cpk analysis'); return;
-        }
-        closeModal();
-        // Route through analysis workbench's executeAnalysis path
-        currentAnalysis = { type: 'pbs', id: 'pbs_' + mode };
-        const body = { type: 'pbs', analysis: 'pbs_' + mode, data_id: currentData.id, config: config };
-        fetch('/api/dsw/analysis/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-            body: JSON.stringify(body)
-        }).then(r => r.json()).then(result => {
-            if (result.error) { appendSession('error', 'PBS Error: ' + safeStr(result.error, 'Unknown error')); return; }
-            appendSession('cmd', (titles[mode] || 'PBS') + ' \u2014 ' + config.column);
-            if (result.summary) {
-                if (result.summary.includes('<<COLOR:')) {
-                    appendSession('summary', formatColoredOutput(result.summary), true);
-                } else {
-                    appendSession('summary', result.summary);
-                }
-            }
-            if (result.plots && result.plots.length > 0) displayGraphs(result.plots);
-        }).catch(e => appendSession('error', 'PBS request failed: ' + safeStr(e, 'Unknown error')));
-    });
-
-    // Wire beta slider
-    const betaSlider = document.getElementById('dlg-pbs-beta');
-    if (betaSlider) {
-        betaSlider.addEventListener('input', function() {
-            document.getElementById('dlg-pbs-beta-val').textContent = parseFloat(betaSlider.value).toFixed(2);
-        });
-    }
-}
-
-// ============================================================================
-// COPULA DIALOG
-// ============================================================================
-function openCopulaDialog() {
-    if (!_ribbonEnsureData()) return;
-    const numCols = getNumericColumns();
-    if (numCols.length < 2) { alert('Need at least 2 numeric columns for copula analysis'); return; }
-    const opts = numCols.map(c => '<option value="' + c + '">' + c + '</option>').join('');
-    const html = '<div class="form-row"><label>Variable 1</label><select id="dlg-cop-v1">' + opts + '</select></div>' +
-        '<div class="form-row"><label>Variable 2</label><select id="dlg-cop-v2">' + opts + '</select></div>' +
-        '<p style="font-size:10px;color:var(--aw-text-muted);margin-top:8px;">Fits Gaussian, Clayton, and Frank copulas. Identifies tail dependence and non-linear dependency structure beyond simple correlation.</p>';
-    openModal('Copula Dependency Modeling', html, 'Run', function() {
-        const v1 = document.getElementById('dlg-cop-v1').value;
-        const v2 = document.getElementById('dlg-cop-v2').value;
-        if (v1 === v2) { alert('Select two different variables'); return; }
-        closeModal();
-        currentAnalysis = { type: 'stats', id: 'copula' };
-        const body = { type: 'stats', analysis: 'copula', data_id: currentData.id, config: { var1: v1, var2: v2 } };
-        fetch('/api/dsw/analysis/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-            body: JSON.stringify(body)
-        }).then(r => r.json()).then(result => {
-            if (result.error) { appendSession('error', 'Copula Error: ' + safeStr(result.error, 'Unknown error')); return; }
-            appendSession('cmd', 'Copula Analysis \u2014 ' + v1 + ' vs ' + v2);
-            if (result.summary) {
-                if (result.summary.includes('<<COLOR:')) {
-                    appendSession('summary', formatColoredOutput(result.summary), true);
-                } else {
-                    appendSession('summary', result.summary);
-                }
-            }
-            if (result.plots && result.plots.length > 0) displayGraphs(result.plots);
-        }).catch(e => appendSession('error', 'Copula request failed: ' + safeStr(e, 'Unknown error')));
-    });
-    // Pre-select second variable
-    const v2sel = document.getElementById('dlg-cop-v2');
-    if (v2sel && v2sel.options.length > 1) v2sel.selectedIndex = 1;
-}
+// Legacy PBS/Copula dialogs removed — now handled via menu system
+// (configureAnalysis → generateConfigForm → executeAnalysis)
 </script>
 {% endblock %}
