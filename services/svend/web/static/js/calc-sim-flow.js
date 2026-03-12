@@ -1115,9 +1115,8 @@ function loadVSMIntoCellSim(effectiveStations) {
     closeVSMImport();
 }
 
-// Initialize on first show
-(function initCellDesign() {
-    // Render initial diagram when this calc is first shown
+// Initialize on first show (deferred — showCalc defined in inline script)
+document.addEventListener('DOMContentLoaded', function initCellDesign() {
     const origShowCalc = window._origShowCalcForCell;
     if (!origShowCalc) {
         window._origShowCalcForCell = true;
@@ -1130,7 +1129,7 @@ function loadVSMIntoCellSim(effectiveStations) {
             }
         };
     }
-})();
+});
 
 // ============================================================================
 // Kanban Pull System Simulator
@@ -1545,8 +1544,10 @@ function updateKanbanInsights() {
     `;
 }
 
-// Init kanban station inputs
-if (document.getElementById('ks-stations')) renderKanbanStations();
+// Init kanban station inputs (deferred — DOM not ready in head)
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('ks-stations')) renderKanbanStations();
+});
 
 // ============================================================================
 // Beer Game — Bullwhip Effect Simulator
@@ -2411,5 +2412,7 @@ function updateTocInsights() {
     `;
 }
 
-// Init TOC station inputs
-if (document.getElementById('toc-stations')) renderTocStations();
+// Init TOC station inputs (deferred — DOM not ready in head)
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('toc-stations')) renderTocStations();
+});
