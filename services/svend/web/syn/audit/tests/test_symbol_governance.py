@@ -882,12 +882,9 @@ class SchedulerCoreSymbolsTest(SimpleTestCase):
 # ---------------------------------------------------------------------------
 
 WORKBENCH_MODELS = [
-    ("Hypothesis", None, []),
-    ("Evidence", None, []),
     ("Artifact", None, []),
     ("KnowledgeGraph", None, []),
     ("EpistemicLog", None, []),
-    ("Conversation", None, []),
     ("Workbench", None, []),
 ]
 
@@ -912,19 +909,12 @@ class WorkbenchModelSymbolsTest(SimpleTestCase):
 
     def test_models_are_classes(self):
         """Workbench models are Django Model subclasses with _meta."""
-        from workbench.models import Artifact, KnowledgeGraph, Project
+        from workbench.models import Artifact, KnowledgeGraph, Workbench
 
-        for cls in [Project, Artifact, KnowledgeGraph]:
+        for cls in [Workbench, Artifact, KnowledgeGraph]:
             with self.subTest(model=cls.__name__):
                 self.assertTrue(issubclass(cls, models.Model))
                 self.assertIsNotNone(cls._meta)
-
-    def test_project_has_uuid_pk(self):
-        """Project model has UUID primary key."""
-        from workbench.models import Project
-
-        pk_field = Project._meta.pk
-        self.assertEqual(pk_field.get_internal_type(), "UUIDField")
 
     def test_workbench_models_are_django_models(self):
         """All workbench models are Django Model subclasses."""

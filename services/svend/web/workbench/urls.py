@@ -8,104 +8,6 @@ app_name = "workbench"
 
 urlpatterns = [
     # ==========================================================================
-    # Projects
-    # ==========================================================================
-    path("projects/", views.list_projects, name="list_projects"),
-    path("projects/create/", views.create_project, name="create_project"),
-    path("projects/<uuid:project_id>/", views.get_project, name="get_project"),
-    path("projects/<uuid:project_id>/update/", views.update_project, name="update_project"),
-    path("projects/<uuid:project_id>/delete/", views.delete_project, name="delete_project"),
-    path(
-        "projects/<uuid:project_id>/workbenches/add/", views.add_workbench_to_project, name="add_workbench_to_project"
-    ),
-    path(
-        "projects/<uuid:project_id>/workbenches/<uuid:workbench_id>/remove/",
-        views.remove_workbench_from_project,
-        name="remove_workbench_from_project",
-    ),
-    # ==========================================================================
-    # Hypotheses
-    # ==========================================================================
-    path("projects/<uuid:project_id>/hypotheses/", views.list_hypotheses, name="list_hypotheses"),
-    path("projects/<uuid:project_id>/hypotheses/create/", views.create_hypothesis, name="create_hypothesis"),
-    path("projects/<uuid:project_id>/hypotheses/<uuid:hypothesis_id>/", views.get_hypothesis, name="get_hypothesis"),
-    path(
-        "projects/<uuid:project_id>/hypotheses/<uuid:hypothesis_id>/update/",
-        views.update_hypothesis,
-        name="update_hypothesis",
-    ),
-    path(
-        "projects/<uuid:project_id>/hypotheses/<uuid:hypothesis_id>/delete/",
-        views.delete_hypothesis,
-        name="delete_hypothesis",
-    ),
-    path(
-        "projects/<uuid:project_id>/hypotheses/<uuid:hypothesis_id>/probability/",
-        views.update_hypothesis_probability,
-        name="update_hypothesis_probability",
-    ),
-    # ==========================================================================
-    # Evidence
-    # ==========================================================================
-    path(
-        "projects/<uuid:project_id>/hypotheses/<uuid:hypothesis_id>/evidence/",
-        views.list_evidence,
-        name="list_evidence",
-    ),
-    path(
-        "projects/<uuid:project_id>/hypotheses/<uuid:hypothesis_id>/evidence/create/",
-        views.create_evidence,
-        name="create_evidence",
-    ),
-    path(
-        "projects/<uuid:project_id>/hypotheses/<uuid:hypothesis_id>/evidence/<uuid:evidence_id>/",
-        views.get_evidence,
-        name="get_evidence",
-    ),
-    path(
-        "projects/<uuid:project_id>/hypotheses/<uuid:hypothesis_id>/evidence/<uuid:evidence_id>/delete/",
-        views.delete_evidence,
-        name="delete_evidence",
-    ),
-    # ==========================================================================
-    # Conversations
-    # ==========================================================================
-    path(
-        "projects/<uuid:project_id>/hypotheses/<uuid:hypothesis_id>/conversations/",
-        views.list_conversations,
-        name="list_conversations",
-    ),
-    path(
-        "projects/<uuid:project_id>/hypotheses/<uuid:hypothesis_id>/conversations/create/",
-        views.create_conversation,
-        name="create_conversation",
-    ),
-    path(
-        "projects/<uuid:project_id>/hypotheses/<uuid:hypothesis_id>/conversations/<uuid:conversation_id>/",
-        views.get_conversation,
-        name="get_conversation",
-    ),
-    path(
-        "projects/<uuid:project_id>/hypotheses/<uuid:hypothesis_id>/conversations/<uuid:conversation_id>/update/",
-        views.update_conversation,
-        name="update_conversation",
-    ),
-    path(
-        "projects/<uuid:project_id>/hypotheses/<uuid:hypothesis_id>/conversations/<uuid:conversation_id>/message/",
-        views.add_message,
-        name="add_message",
-    ),
-    path(
-        "projects/<uuid:project_id>/hypotheses/<uuid:hypothesis_id>/conversations/<uuid:conversation_id>/delete/",
-        views.delete_conversation,
-        name="delete_conversation",
-    ),
-    path(
-        "projects/<uuid:project_id>/hypotheses/<uuid:hypothesis_id>/conversations/<uuid:conversation_id>/refresh-context/",
-        views.refresh_conversation_context,
-        name="refresh_conversation_context",
-    ),
-    # ==========================================================================
     # Workbenches
     # ==========================================================================
     path("", views.list_workbenches, name="list"),
@@ -133,21 +35,6 @@ urlpatterns = [
         views.acknowledge_observation,
         name="acknowledge_observation",
     ),
-    # ==========================================================================
-    # Project Knowledge Graph (for connecting hypotheses)
-    # ==========================================================================
-    path("projects/<uuid:project_id>/graph/", graph_views.get_project_graph, name="get_project_graph"),
-    path(
-        "projects/<uuid:project_id>/graph/hypotheses/<uuid:hypothesis_id>/add/",
-        graph_views.add_hypothesis_to_graph,
-        name="add_hypothesis_to_graph",
-    ),
-    path(
-        "projects/<uuid:project_id>/graph/hypotheses/<uuid:hypothesis_id>/connections/",
-        graph_views.get_hypothesis_connections,
-        name="get_hypothesis_connections",
-    ),
-    path("projects/<uuid:project_id>/graph/connect/", graph_views.connect_hypotheses, name="connect_hypotheses"),
     # ==========================================================================
     # Workbench Knowledge Graph
     # ==========================================================================

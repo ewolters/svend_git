@@ -1,21 +1,13 @@
 """
 Workbench models for the unified inquiry workspace.
 
-MIGRATION NOTE:
-- Project, Hypothesis, Evidence models here are being consolidated to core.models
-- core.Project, core.Hypothesis, core.Evidence are the canonical models
-- All probability updates now use core.bayesian.BayesianUpdater
-- See MIGRATION_PLAN.md for consolidation roadmap
-
-KEEP: Workbench, Artifact, KnowledgeGraph (UI state, not hypothesis data)
-DEPRECATE: Project, Hypothesis, Evidence (use core.models instead)
-
-Hierarchy:
-- Project: A hypothesis being investigated (e.g., "Temperature causes defects")
-- Workbench: An individual analysis/experiment within a project
+Kept models:
+- Workbench: An individual analysis/experiment workspace
 - Artifact: A unit of work (data, analysis, note, evidence)
 - KnowledgeGraph: Causal model linking evidence to hypothesis
+- EpistemicLog: Bayesian update audit trail
 
+Hypothesis/evidence data lives in core.models (Project, Hypothesis, Evidence).
 Workbenches serialize to JSON for agent context on load.
 """
 
@@ -24,331 +16,6 @@ from datetime import datetime
 
 from django.conf import settings
 from django.db import models
-
-
-class Project(models.Model):
-    """
-    A Project represents a hypothesis under investigation.
-
-    Projects contain multiple Workbenches (analyses, experiments) that
-    gather evidence supporting or refuting the hypothesis.
-    """
-
-    class Status(models.TextChoices):
-        ACTIVE = "active", "Active"
-        COMPLETED = "completed", "Completed"
-        ARCHIVED = "archived", "Archived"
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="projects",
-    )
-
-    # The hypothesis being investigated
-    title = models.CharField(max_length=255, help_text="Short title for the project")
-    hypothesis = models.TextField(help_text="The hypothesis being investigated")
-    description = models.TextField(blank=True, help_text="Additional context, background, or scope")
-
-    # Domain for context
-    domain = models.CharField(
-        max_length=50, blank=True, help_text="Domain area (manufacturing, software, healthcare, etc.)"
-    )
-
-    # Status tracking
-    status = models.CharField(
-        max_length=20,
-        choices=Status.choices,
-        default=Status.ACTIVE,
-    )
-
-    # Conclusion when project is completed
-    conclusion = models.TextField(blank=True, help_text="Final conclusion about the hypothesis")
-    conclusion_status = models.CharField(
-        max_length=20,
-        blank=True,
-        choices=[
-            ("supported", "Hypothesis Supported"),
-            ("refuted", "Hypothesis Refuted"),
-            ("inconclusive", "Inconclusive"),
-            ("modified", "Hypothesis Modified"),
-        ],
-        help_text="Outcome of the investigation",
-    )
-
-    # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = "projects"
-        ordering = ["-updated_at"]
-        indexes = [
-            models.Index(fields=["user", "status"]),
-            models.Index(fields=["user", "-updated_at"]),
-        ]
-
-    def __str__(self):
-        return self.title
-
-    def to_dict(self) -> dict:
-        """Serialize for API."""
-        return {
-            "id": str(self.id),
-            "title": self.title,
-            "hypothesis": self.hypothesis,
-            "description": self.description,
-            "domain": self.domain,
-            "status": self.status,
-            "conclusion": self.conclusion,
-            "conclusion_status": self.conclusion_status,
-            "workbench_count": self.workbenches.count(),
-            "hypothesis_count": self.hypotheses.count() if hasattr(self, "hypotheses") else 0,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
-        }
-
-
-class Hypothesis(models.Model):
-    """
-    A testable hypothesis within a project.
-
-    Hypotheses can be linked to each other via the KnowledgeGraph
-    and weighted by evidence from analyses.
-    """
-
-    class Status(models.TextChoices):
-        INVESTIGATING = "investigating", "Investigating"
-        SUPPORTED = "supported", "Supported"
-        REFUTED = "refuted", "Refuted"
-        INCONCLUSIVE = "inconclusive", "Inconclusive"
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    project = models.ForeignKey(
-        Project,
-        on_delete=models.CASCADE,
-        related_name="hypotheses",
-    )
-
-    # The hypothesis statement
-    statement = models.TextField(help_text="The hypothesis being tested (e.g., 'High temperature causes defects')")
-    mechanism = models.TextField(blank=True, help_text="How this cause produces the effect")
-
-    # Probability tracking (Bayesian)
-    prior_probability = models.FloatField(default=0.5, help_text="Initial probability estimate (0-1)")
-    current_probability = models.FloatField(default=0.5, help_text="Current probability after evidence updates")
-
-    # Status
-    status = models.CharField(
-        max_length=20,
-        choices=Status.choices,
-        default=Status.INVESTIGATING,
-    )
-
-    # Conclusion notes
-    conclusion_notes = models.TextField(blank=True, help_text="Notes on why this hypothesis was supported/refuted")
-
-    # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = "hypotheses"
-        ordering = ["-current_probability", "-created_at"]
-        verbose_name_plural = "hypotheses"
-
-    def __str__(self):
-        return f"{self.statement[:50]}... ({self.current_probability:.0%})"
-
-    def to_dict(self) -> dict:
-        return {
-            "id": str(self.id),
-            "project_id": str(self.project_id),
-            "statement": self.statement,
-            "mechanism": self.mechanism,
-            "prior_probability": self.prior_probability,
-            "current_probability": self.current_probability,
-            "status": self.status,
-            "conclusion_notes": self.conclusion_notes,
-            "evidence_count": self.evidence.count() if hasattr(self, "evidence") else 0,
-            "conversation_count": self.conversations.count() if hasattr(self, "conversations") else 0,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
-        }
-
-    def update_probability(self, likelihood_ratio: float, confidence: float = 1.0):
-        """
-        Update probability using Bayes' theorem via core.bayesian.BayesianUpdater.
-        likelihood_ratio = P(evidence|H) / P(evidence|not H)
-        """
-        from core.bayesian import get_updater
-
-        updater = get_updater()
-        result = updater.update(
-            prior=self.current_probability,
-            likelihood_ratio=likelihood_ratio,
-            confidence=confidence,
-        )
-        self.current_probability = result.posterior_probability
-        self.save(update_fields=["current_probability", "updated_at"])
-
-
-class Evidence(models.Model):
-    """
-    Evidence linked to a hypothesis.
-
-    Evidence can support or weaken a hypothesis and comes from
-    various sources (DSW analysis, simulation, observation, etc.)
-    """
-
-    class EvidenceType(models.TextChoices):
-        STATISTICAL = "statistical", "Statistical Analysis"
-        SIMULATION = "simulation", "Simulation Result"
-        OBSERVATION = "observation", "Observation"
-        EXPERIMENT = "experiment", "Experiment"
-        RESEARCH = "research", "Research/Literature"
-        EXPERT = "expert", "Expert Opinion"
-
-    class Direction(models.TextChoices):
-        SUPPORTS = "supports", "Supports"
-        WEAKENS = "weakens", "Weakens"
-        NEUTRAL = "neutral", "Neutral"
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    hypothesis = models.ForeignKey(
-        Hypothesis,
-        on_delete=models.CASCADE,
-        related_name="evidence",
-    )
-
-    # Evidence details
-    summary = models.TextField(help_text="Summary of the evidence")
-    evidence_type = models.CharField(
-        max_length=20,
-        choices=EvidenceType.choices,
-        default=EvidenceType.OBSERVATION,
-    )
-    direction = models.CharField(
-        max_length=10,
-        choices=Direction.choices,
-        default=Direction.SUPPORTS,
-    )
-    strength = models.FloatField(default=0.5, help_text="Strength of evidence (0-1)")
-
-    # Source tracking
-    source = models.CharField(
-        max_length=100, blank=True, help_text="Where this evidence came from (e.g., 'DSW regression', 'Simulator')"
-    )
-    source_artifact_id = models.UUIDField(
-        null=True, blank=True, help_text="Link to source artifact if from a workbench"
-    )
-
-    # Raw data/details (JSON)
-    details = models.JSONField(default=dict, blank=True, help_text="Detailed data (statistics, parameters, etc.)")
-
-    # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = "evidence"
-        ordering = ["-created_at"]
-        verbose_name_plural = "evidence"
-
-    def __str__(self):
-        return f"{self.direction}: {self.summary[:50]}..."
-
-    def to_dict(self) -> dict:
-        return {
-            "id": str(self.id),
-            "hypothesis_id": str(self.hypothesis_id),
-            "summary": self.summary,
-            "evidence_type": self.evidence_type,
-            "direction": self.direction,
-            "strength": self.strength,
-            "source": self.source,
-            "details": self.details,
-            "created_at": self.created_at.isoformat(),
-        }
-
-
-class Conversation(models.Model):
-    """
-    A saved conversation thread for a hypothesis.
-
-    Users can have multiple conversations per hypothesis,
-    exploring different aspects or approaches.
-    """
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    hypothesis = models.ForeignKey(
-        Hypothesis,
-        on_delete=models.CASCADE,
-        related_name="conversations",
-    )
-
-    # Conversation metadata
-    title = models.CharField(max_length=255, default="New Conversation", help_text="Title for this conversation thread")
-
-    # Messages stored as JSON array
-    # [{role: "user"|"assistant", content: "...", timestamp: "..."}]
-    messages = models.JSONField(default=list, help_text="Conversation messages")
-
-    # Context pulled into this conversation
-    context = models.JSONField(
-        default=dict, blank=True, help_text="Context snapshot (hypothesis state, evidence summary, etc.)"
-    )
-
-    # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = "hypothesis_conversations"
-        ordering = ["-updated_at"]
-
-    def __str__(self):
-        return f"{self.title} ({len(self.messages)} messages)"
-
-    def to_dict(self) -> dict:
-        return {
-            "id": str(self.id),
-            "hypothesis_id": str(self.hypothesis_id),
-            "title": self.title,
-            "message_count": len(self.messages),
-            "messages": self.messages,
-            "context": self.context,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
-        }
-
-    def add_message(self, role: str, content: str):
-        """Add a message to the conversation."""
-        self.messages.append(
-            {
-                "role": role,
-                "content": content,
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-        self.save(update_fields=["messages", "updated_at"])
-
-    def build_context(self) -> dict:
-        """Build context snapshot from hypothesis and evidence."""
-        hypothesis = self.hypothesis
-        return {
-            "hypothesis": {
-                "statement": hypothesis.statement,
-                "mechanism": hypothesis.mechanism,
-                "probability": hypothesis.current_probability,
-                "status": hypothesis.status,
-            },
-            "evidence": [e.to_dict() for e in hypothesis.evidence.all()[:10]],
-            "project": {
-                "title": hypothesis.project.title,
-                "domain": hypothesis.project.domain,
-            },
-        }
 
 
 class Workbench(models.Model):
@@ -377,15 +44,6 @@ class Workbench(models.Model):
         on_delete=models.CASCADE,
         related_name="workbenches",
     )
-    project = models.ForeignKey(
-        Project,
-        on_delete=models.CASCADE,
-        related_name="workbenches",
-        null=True,
-        blank=True,
-        help_text="Project this workbench belongs to (optional)",
-    )
-
     # Basic info
     title = models.CharField(max_length=255, help_text="The inquiry or question being investigated")
     description = models.TextField(blank=True, help_text="Additional context about the inquiry")
@@ -828,14 +486,6 @@ class KnowledgeGraph(models.Model):
         on_delete=models.CASCADE,
         related_name="knowledge_graphs",
     )
-    project = models.OneToOneField(
-        Project,
-        on_delete=models.CASCADE,
-        related_name="knowledge_graph",
-        null=True,
-        blank=True,
-        help_text="Project this graph belongs to",
-    )
     workbench = models.ForeignKey(
         Workbench,
         on_delete=models.SET_NULL,
@@ -1087,7 +737,6 @@ class KnowledgeGraph(models.Model):
             "nodes": self.nodes,
             "edges": self.edges,
             "expansion_signals": self.expansion_signals,
-            "project_id": str(self.project_id) if self.project_id else None,
             "workbench_id": str(self.workbench_id) if self.workbench_id else None,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
@@ -1147,13 +796,6 @@ class EpistemicLog(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="epistemic_logs",
-    )
-    project = models.ForeignKey(
-        Project,
-        on_delete=models.CASCADE,
-        related_name="epistemic_logs",
-        null=True,
-        blank=True,
     )
     workbench = models.ForeignKey(
         Workbench,
