@@ -1281,7 +1281,7 @@ function investigateWith(agent) {
     const routes = {
         researcher: '/app/',  // Chat with research intent
         analyst: '/app/',     // Chat with analysis intent
-        dsw: '/app/dsw/',
+        dsw: '/app/analysis/',
     };
 
     window.location.href = routes[agent] || '/app/';
@@ -1653,7 +1653,7 @@ function followRecommendation() {
     closeInterviewCompleteModal();
 
     const routes = {
-        dsw: '/app/dsw/',
+        dsw: '/app/analysis/',
         researcher: '/app/',
         analyst: '/app/',
         none: null,

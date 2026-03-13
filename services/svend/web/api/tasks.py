@@ -53,7 +53,7 @@ def _email_welcome(user, survey):
 
 <p><strong>Your first 3 things to try:</strong></p>
 <ol>
-<li><a href="https://svend.ai/app/dsw/" style="color:#4a9f6e;">Run a quick analysis</a> in the Decision Science Workbench</li>
+<li><a href="https://svend.ai/app/analysis/" style="color:#4a9f6e;">Run a quick analysis</a> in the Analysis Workbench</li>
 <li>Check out the <a href="https://svend.ai/app/learn/" style="color:#4a9f6e;">Learning Center</a> for guided tutorials</li>
 <li>Try an <a href="https://svend.ai/app/spc/" style="color:#4a9f6e;">SPC control chart</a> with your own data</li>
 </ol>
@@ -76,13 +76,13 @@ def _email_getting_started(user, survey):
     elif goal == "doe":
         tip = """<p><strong>Since you're interested in DOE:</strong> The <a href="https://svend.ai/app/experimenter/" style="color:#4a9f6e;">Experimenter</a> can design full factorial, fractional factorial, and response surface experiments. Describe your factors and it handles the rest.</p>"""
     elif goal == "analysis":
-        tip = """<p><strong>Since you want to analyze data:</strong> The <a href="https://svend.ai/app/dsw/" style="color:#4a9f6e;">DSW</a> supports 60+ statistical tests. Paste your data, describe what you're looking for, and the AI picks the right test.</p>"""
+        tip = """<p><strong>Since you want to analyze data:</strong> The <a href="https://svend.ai/app/analysis/" style="color:#4a9f6e;">Analysis Workbench</a> supports 60+ statistical tests. Paste your data, describe what you're looking for, and the AI picks the right test.</p>"""
     elif goal == "replace_tool":
-        tip = """<p><strong>Switching from another tool?</strong> Svend handles most of what Minitab and JMP do at a fraction of the cost. The <a href="https://svend.ai/app/dsw/" style="color:#4a9f6e;">DSW</a> covers hypothesis tests, regression, ANOVA, capability studies, and more.</p>"""
+        tip = """<p><strong>Switching from another tool?</strong> Svend handles most of what Minitab and JMP do at a fraction of the cost. The <a href="https://svend.ai/app/analysis/" style="color:#4a9f6e;">Analysis Workbench</a> covers hypothesis tests, regression, ANOVA, capability studies, and more.</p>"""
     elif goal == "reporting":
         tip = """<p><strong>For reports:</strong> Every analysis in Svend can be exported as a PDF. Run your analysis, then hit the export button. Clean formatting, ready for management review.</p>"""
     else:
-        tip = """<p>Start with the <a href="https://svend.ai/app/dsw/" style="color:#4a9f6e;">Decision Science Workbench</a> and describe what you're working on. The AI agent will pick the right tools for you.</p>"""
+        tip = """<p>Start with the <a href="https://svend.ai/app/analysis/" style="color:#4a9f6e;">Analysis Workbench</a> and describe what you're working on. The AI agent will pick the right tools for you.</p>"""
 
     return (
         f"Getting started, {name}",
@@ -145,24 +145,24 @@ def _email_learning_path(user, survey):
                     "/app/spc/",
                     "Monitor process stability with X-bar/R, I-MR, and attribute charts",
                 ),
-                ("Capability Analysis", "/app/dsw/", "Calculate Cpk, Ppk, and process performance indices"),
-                ("Gage R&R", "/app/dsw/", "Validate your measurement systems"),
+                ("Capability Analysis", "/app/analysis/", "Calculate Cpk, Ppk, and process performance indices"),
+                ("Gage R&R", "/app/analysis/", "Validate your measurement systems"),
                 ("DOE", "/app/experimenter/", "Optimize processes with designed experiments"),
             ],
         },
         "manager": {
             "title": "Your Management Dashboard Path",
             "items": [
-                ("Quick Analysis", "/app/dsw/", "Get answers from data without needing to pick the right test"),
+                ("Quick Analysis", "/app/analysis/", "Get answers from data without needing to pick the right test"),
                 ("SPC Dashboards", "/app/spc/", "Monitor key process metrics at a glance"),
                 ("A3 Reports", "/app/a3/", "Structure problem-solving for your team"),
-                ("PDF Export", "/app/dsw/", "Generate clean reports for stakeholders"),
+                ("PDF Export", "/app/analysis/", "Generate clean reports for stakeholders"),
             ],
         },
         "researcher": {
             "title": "Your Research Path",
             "items": [
-                ("Advanced Analysis", "/app/dsw/", "60+ statistical tests including nonparametric methods"),
+                ("Advanced Analysis", "/app/analysis/", "60+ statistical tests including nonparametric methods"),
                 ("DOE", "/app/experimenter/", "Full factorial, fractional factorial, RSM, and optimal designs"),
                 ("Hypothesis Engine", "/app/projects/", "Link evidence to hypotheses with Bayesian updating"),
                 ("Forecast", "/app/forecast/", "Time series analysis and forecasting"),
@@ -171,8 +171,8 @@ def _email_learning_path(user, survey):
         "analyst": {
             "title": "Your Data Analysis Path",
             "items": [
-                ("Statistical Testing", "/app/dsw/", "Run the right test automatically based on your data"),
-                ("Visualization", "/app/dsw/", "Interactive charts and distribution plots"),
+                ("Statistical Testing", "/app/analysis/", "Run the right test automatically based on your data"),
+                ("Visualization", "/app/analysis/", "Interactive charts and distribution plots"),
                 ("Process Monitoring", "/app/spc/", "Set up ongoing control charts"),
                 (
                     "Calculators",
@@ -185,7 +185,7 @@ def _email_learning_path(user, survey):
             "title": "Your Learning Path",
             "items": [
                 ("Learning Center", "/app/learn/", "Guided modules on core statistical concepts"),
-                ("Practice Analysis", "/app/dsw/", "Try analyses with example datasets"),
+                ("Practice Analysis", "/app/analysis/", "Try analyses with example datasets"),
                 ("Blog", "/blog/", "Practical articles on statistics in industry"),
                 ("Calculators", "/app/calculators/", "Build intuition with interactive tools"),
             ],
@@ -219,7 +219,7 @@ def _email_checkin(user, survey):
     if queries == 0:
         content = f"""<h2>Hey {name},</h2>
 <p>I noticed you haven't run any analyses yet. No pressure, but I wanted to make sure everything's working for you.</p>
-<p>If you're not sure where to start, just go to the <a href="https://svend.ai/app/dsw/" style="color:#4a9f6e;">workbench</a> and describe what you're trying to figure out. Something like:</p>
+<p>If you're not sure where to start, just go to the <a href="https://svend.ai/app/analysis/" style="color:#4a9f6e;">workbench</a> and describe what you're trying to figure out. Something like:</p>
 <ul>
 <li>"I have yield data from two production lines and want to know if they're different"</li>
 <li>"Check if my process is in control"</li>
@@ -367,7 +367,7 @@ def _lifecycle_activation(user):
         f"""<h2>Hey {name},</h2>
 <p>You signed up a few days ago but haven't run an analysis yet. No worries — here's how to get started in under a minute:</p>
 <ol>
-<li>Go to the <a href="https://svend.ai/app/dsw/" style="color:#4a9f6e;">Decision Science Workbench</a></li>
+<li>Go to the <a href="https://svend.ai/app/analysis/" style="color:#4a9f6e;">Analysis Workbench</a></li>
 <li>Describe your problem in plain English, or paste some data</li>
 <li>Svend picks the right statistical test and runs it for you</li>
 </ol>
@@ -385,7 +385,7 @@ def _lifecycle_inactive_nudge(user):
         f"""<h2>Hey {name},</h2>
 <p>It's been a little while since you've been on Svend. We've been shipping improvements:</p>
 <ul>
-<li><strong>60+ statistical analyses</strong> in the Decision Science Workbench</li>
+<li><strong>60+ statistical analyses</strong> in the Analysis Workbench</li>
 <li><strong>SPC control charts</strong> with automatic out-of-control detection</li>
 <li><strong>DOE</strong> for designing experiments with optimal factor combinations</li>
 <li><strong>Learning Center</strong> with guided tutorials</li>
