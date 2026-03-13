@@ -388,6 +388,24 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     color: var(--aw-text-muted);
 }
 
+#command-history {
+    white-space: pre-wrap;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+}
+#command-history .cmd {
+    color: var(--aw-accent);
+    font-weight: 500;
+}
+#command-history .result {
+    color: var(--aw-text);
+}
+#command-history .error {
+    color: var(--aw-danger);
+}
+#command-history .note {
+    color: var(--aw-text-muted);
+}
+
 .session-separator {
     margin: 16px 0;
     padding: 0;
@@ -9530,23 +9548,33 @@ function runCommand() {
 
     switch (command) {
         case 'help':
-            appendCommand('result', `Available commands:
-  help              - Show this help
-  info              - Dataset info
-  columns           - List all columns
-  head [n]          - Show first n rows (default: 5)
-  tail [n]          - Show last n rows (default: 5)
-  describe          - Summary statistics
-  corr [col1] [col2]- Correlation (all or between two columns)
-  unique <col>      - Unique values in column
-  count [col]       - Row count or value counts
-  missing           - Show missing value counts
-  hist <col>        - Histogram (opens chart)
-  plot <x> <y>      - Scatter plot (opens chart)
-  export            - Download current data
-  clear             - Clear session history
+            appendCommand('result', `── Data ─────────────────────────────────
+  info                Dataset name, rows, columns
+  columns             List all columns with types
+  head [n]            First n rows (default: 5)
+  tail [n]            Last n rows (default: 5)
 
-Keyboard: Ctrl+K focus command, Ctrl+/ shortcuts, Esc close dialogs`);
+── Statistics ───────────────────────────
+  describe            Summary stats (min, max, mean)
+  corr                Full correlation matrix
+  corr <x> <y>        Correlation between two columns
+  unique <col>        Unique values in column
+  count [col]         Row count or value counts
+  missing             Missing value report
+
+── Visualization ────────────────────────
+  hist <col>          Histogram
+  plot <x> <y>        Scatter plot
+
+── Session ──────────────────────────────
+  export              Download current data
+  clear               Clear command history
+  help                Show this reference
+
+── Keyboard ─────────────────────────────
+  Ctrl+K              Focus command input
+  Ctrl+/              Show shortcuts
+  Esc                 Close dialogs`);
             break;
 
         case 'info':
