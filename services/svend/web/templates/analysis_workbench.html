@@ -8263,7 +8263,7 @@ async function executeAnalysis() {
             return;
         }
 
-        const response = await fetch('/api/dsw/analysis/', {
+        const response = await fetch('/api/analysis/run/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

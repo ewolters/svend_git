@@ -284,6 +284,7 @@ urlpatterns = [
     path("api/agents/", include("agents_api.urls")),
     path("api/workflows/", include("agents_api.workflow_urls")),
     path("api/dsw/", include("agents_api.dsw_urls")),
+    path("api/analysis/", include("agents_api.analysis_urls")),
     path("api/triage/", include("agents_api.triage_urls")),
     path("api/forecast/", include("agents_api.forecast_urls")),
     path("api/experimenter/", include("agents_api.experimenter_urls")),
