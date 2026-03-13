@@ -415,14 +415,14 @@
             </div>
         </div>
 
-        <!-- DSW Analyses Section -->
+        <!-- Analyses Section -->
         <div class="section">
             <div class="section-header">
-                <h2>DSW Analyses</h2>
-                <button class="btn btn-primary btn-sm" onclick="window.location.href='/app/dsw/?project=' + currentProject.id">+ New Analysis</button>
+                <h2>Analyses</h2>
+                <button class="btn btn-primary btn-sm" onclick="window.location.href='/app/analysis/?project=' + currentProject.id">+ New Analysis</button>
             </div>
             <div id="dsw-list" class="tool-list">
-                <p class="empty-text">No analyses yet. Run analyses in DSW to build evidence.</p>
+                <p class="empty-text">No analyses yet. Run analyses in the Analysis Workbench to build evidence.</p>
             </div>
         </div>
 
@@ -2537,7 +2537,7 @@ async function renderProjectDetail() {
                 </div>
             </div>
             <div style="display: flex; gap: 0.5rem;">
-                <button class="btn btn-secondary btn-sm" onclick="window.location.href='/app/dsw/?project=${p.id}'">Open in DSW</button>
+                <button class="btn btn-secondary btn-sm" onclick="window.location.href='/app/analysis/?project=${p.id}'">Open in Workbench</button>
                 <button class="btn btn-secondary btn-sm" onclick="advancePhase()">Advance Phase</button>
             </div>
         </div>
@@ -3148,7 +3148,7 @@ function renderHypothesisDetail() {
     const convList = document.getElementById('conversations-list');
     convList.innerHTML = `
         <div style="display: flex; gap: 0.5rem;">
-            <button class="btn btn-secondary btn-sm" onclick="window.location.href='/app/dsw/?project=${currentProject.id}'">Analyze in DSW</button>
+            <button class="btn btn-secondary btn-sm" onclick="window.location.href='/app/analysis/?project=${currentProject.id}'">Analyze in Workbench</button>
         </div>
     `;
 }
@@ -3369,14 +3369,14 @@ function closeWorkbenchModal() {
 
 async function addWorkbench(e) {
     e.preventDefault();
-    // Navigate to DSW with project context - workbenches are now sessions in DSW
+    // Navigate to Analysis Workbench with project context
     closeWorkbenchModal();
-    window.location.href = `/app/dsw/?project=${currentProject.id}`;
+    window.location.href = `/app/analysis/?project=${currentProject.id}`;
 }
 
 function openWorkbench(id) {
-    // Navigate to DSW with workbench context
-    window.location.href = `/app/dsw/?workbench=${id}`;
+    // Navigate to Analysis Workbench with workbench context
+    window.location.href = `/app/analysis/?wb=${id}`;
 }
 
 function openKnowledgeGraph() {
@@ -3656,7 +3656,7 @@ function closeDatasetDetailModal() {
 }
 
 function openDatasetInDSW(datasetId) {
-    window.location.href = `/app/dsw/?project=${currentProject.id}&dataset=${datasetId}`;
+    window.location.href = `/app/analysis/?project=${currentProject.id}&dataset=${datasetId}`;
 }
 
 async function deleteDataset(id) {
@@ -3900,7 +3900,7 @@ function renderDSWAnalyses(analyses) {
     }
 
     list.innerHTML = analyses.map(a => `
-        <div class="tool-card" onclick="window.location.href='/app/dsw/?result=${a.id}&project=${currentProject.id}'">
+        <div class="tool-card" onclick="window.location.href='/app/analysis/?result=${a.id}&project=${currentProject.id}'">
             <div class="tool-info">
                 <h4>${a.title || a.type || 'Analysis'}</h4>
                 <div class="meta">
