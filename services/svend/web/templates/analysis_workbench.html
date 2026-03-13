@@ -1545,7 +1545,7 @@ div:hover > .aw-copy-btn { opacity: 1; }
 
             <div class="aw-toolbar-sep"></div>
 
-            <span class="aw-toolbar-label">Study:</span>
+            <span class="aw-toolbar-label">Investigation:</span>
             <select id="project-selector" style="padding:1px 4px;font-size:9px;border:1px solid var(--aw-border);background:var(--aw-bg-dark);color:var(--aw-text);max-width:120px;">
                 <option value="">None</option>
             </select>
@@ -2376,51 +2376,52 @@ async function deleteModel(modelId) {
 setTimeout(loadModels, 100);
 
 // ============================================================================
-// PROJECT/INQUIRY INTEGRATION
+// INVESTIGATION INTEGRATION (CANON-002)
 // ============================================================================
+let currentInvestigation = null;
 let currentProject = null;
 let projectHypotheses = [];
 
-async function loadProjects() {
+async function loadInvestigations() {
     const selector = document.getElementById('project-selector');
     if (!selector) return;
 
     try {
-        const response = await fetch('/api/core/projects/', {
+        const response = await fetch('/api/investigations/', {
             credentials: 'include',
             headers: { 'X-CSRFToken': getCSRFToken() }
         });
 
         if (!response.ok) return;
 
-        const projects = await response.json();
+        const data = await response.json();
+        const investigations = data.investigations || [];
 
         selector.innerHTML = '<option value="">None</option>' +
-            projects.map(p => `<option value="${p.id}">${p.title}</option>`).join('');
+            investigations.map(inv => `<option value="${inv.id}">${inv.title}</option>`).join('');
 
         // Restore selection if any
-        if (currentProject) {
-            selector.value = currentProject;
+        if (currentInvestigation) {
+            selector.value = currentInvestigation;
         }
 
     } catch (err) {
-        console.error('Failed to load projects:', err);
+        console.error('Failed to load investigations:', err);
     }
 }
 
-// Load projects on page load, then check for URL param
+// Load investigations on page load, then check for URL param
 setTimeout(async () => {
-    await loadProjects();
+    await loadInvestigations();
 
-    // Auto-select project from URL param
+    // Auto-select investigation from URL param
     const urlParams = new URLSearchParams(window.location.search);
-    const projectId = urlParams.get('project');
-    if (projectId) {
+    const investigationId = urlParams.get('investigation') || urlParams.get('project');
+    if (investigationId) {
         const selector = document.getElementById('project-selector');
         if (selector) {
-            selector.value = projectId;
-            // Load hypotheses for this project
-            await onProjectChange(projectId);
+            selector.value = investigationId;
+            await onInvestigationChange(investigationId);
         }
     }
 }, 150);
@@ -2438,24 +2439,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (e) {}
 });
 
-// Handle project selection change
-async function onProjectChange(projectId) {
-    currentProject = projectId || null;
+// Handle investigation selection change
+async function onInvestigationChange(investigationId) {
+    currentInvestigation = investigationId || null;
+    currentProject = investigationId || null;  // Backward compat for evidence paths
     projectHypotheses = [];
 
-    if (currentProject) {
-        // Load hypotheses for this project from core API
+    if (currentInvestigation) {
+        // Load graph hypotheses from investigation API
         try {
-            const response = await fetch(`/api/core/projects/${currentProject}/hypotheses/`, {
+            const response = await fetch(`/api/investigations/${currentInvestigation}/graph/`, {
                 credentials: 'include',
                 headers: { 'X-CSRFToken': getCSRFToken() }
             });
             if (response.ok) {
-                projectHypotheses = await response.json();
-                console.log(`Loaded ${projectHypotheses.length} hypotheses for project`);
+                const data = await response.json();
+                const hypotheses = data.graph?.hypotheses || {};
+                projectHypotheses = Object.entries(hypotheses).map(([id, h]) => ({
+                    id: id,
+                    text: h.label || h.text || id,
+                    prior_probability: h.prior,
+                    current_probability: h.posterior || h.prior,
+                }));
+                console.log(`Loaded ${projectHypotheses.length} hypotheses for investigation`);
             }
         } catch (err) {
-            console.error('Failed to load hypotheses:', err);
+            console.error('Failed to load investigation graph:', err);
         }
     }
 }
@@ -2463,7 +2472,7 @@ async function onProjectChange(projectId) {
 document.addEventListener('DOMContentLoaded', () => {
     const selector = document.getElementById('project-selector');
     if (selector) {
-        selector.addEventListener('change', (e) => onProjectChange(e.target.value));
+        selector.addEventListener('change', (e) => onInvestigationChange(e.target.value));
     }
 });
 
@@ -8358,7 +8367,10 @@ async function executeAnalysis() {
                 type: backendType,
                 analysis: backendId,
                 config: config,
-                data_id: currentData?.id
+                data_id: currentData?.id,
+                investigation_id: currentInvestigation || undefined,
+                project_id: currentProject || undefined,
+                save_result: !!currentInvestigation,
             })
         });
 
@@ -10251,7 +10263,7 @@ awContainer.addEventListener('drop', async (e) => {
         }
     }
 
-    // Update on change (supplements existing onProjectChange handler)
+    // Update on change (supplements existing onInvestigationChange handler)
     selector.addEventListener('change', updateLink);
     // Set initial state
     setTimeout(updateLink, 200);
@@ -10282,7 +10294,7 @@ function collectSessionState() {
         data_id: currentData?.id || null,
         data_file: currentData?.filename || null,
         cache_key: null,
-        project_id: currentProject || null,
+        project_id: currentInvestigation || null,
         output_html: chartHtml,
     };
 }
@@ -10386,7 +10398,7 @@ async function loadWorkbenchById(id) {
             const selector = document.getElementById('project-selector');
             if (selector) {
                 selector.value = layout.project_id;
-                onProjectChange(layout.project_id);
+                onInvestigationChange(layout.project_id);
             }
         }
 
