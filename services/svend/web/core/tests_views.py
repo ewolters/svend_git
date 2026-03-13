@@ -788,6 +788,8 @@ class OrgManagementScenarioTest(TestCase):
         self.client = APIClient()
         self.owner = _make_user("owner@example.com", Tier.TEAM)
         self.invitee = _make_user("invitee@example.com", Tier.TEAM)
+        self.invitee.is_email_verified = True
+        self.invitee.save(update_fields=["is_email_verified"])
 
     def test_full_org_lifecycle(self):
         """End-to-end org management workflow."""
@@ -957,6 +959,8 @@ class OrgInvitationEdgeCasesTest(TestCase):
             invited_by=self.owner,
         )
         wrong_user = _make_user("wrong@example.com", Tier.TEAM)
+        wrong_user.is_email_verified = True
+        wrong_user.save(update_fields=["is_email_verified"])
         self.client.force_authenticate(wrong_user)
         res = self.client.post(
             "/api/core/org/accept-invite/",

@@ -516,6 +516,8 @@ class AcceptInvitationTest(TestCase):
 
     def test_accept_valid_invitation(self):
         invitee = _make_user("invitee@example.com", Tier.TEAM)
+        invitee.is_email_verified = True
+        invitee.save(update_fields=["is_email_verified"])
         self.client.force_authenticate(invitee)
         res = self.client.post(
             "/api/core/org/accept-invite/",
@@ -538,6 +540,8 @@ class AcceptInvitationTest(TestCase):
 
     def test_wrong_email_rejected(self):
         wrong_user = _make_user("wrong@example.com", Tier.TEAM)
+        wrong_user.is_email_verified = True
+        wrong_user.save(update_fields=["is_email_verified"])
         self.client.force_authenticate(wrong_user)
         res = self.client.post(
             "/api/core/org/accept-invite/",
@@ -596,6 +600,8 @@ class AcceptInvitationTest(TestCase):
 
     def test_already_member_returns_400(self):
         invitee = _make_user("invitee@example.com", Tier.TEAM)
+        invitee.is_email_verified = True
+        invitee.save(update_fields=["is_email_verified"])
         _make_membership(self.tenant, invitee)
         self.client.force_authenticate(invitee)
         res = self.client.post(
@@ -615,6 +621,8 @@ class AcceptInvitationTest(TestCase):
             invited_by=self.owner,
         )
         invitee = _make_user("newadmin@example.com", Tier.TEAM)
+        invitee.is_email_verified = True
+        invitee.save(update_fields=["is_email_verified"])
         self.client.force_authenticate(invitee)
         res = self.client.post(
             "/api/core/org/accept-invite/",
@@ -967,6 +975,8 @@ class OrgLifecycleTest(TestCase):
 
         # 5. Colleague accepts
         colleague = _make_user("colleague@example.com", Tier.TEAM)
+        colleague.is_email_verified = True
+        colleague.save(update_fields=["is_email_verified"])
         self.client.force_authenticate(colleague)
         res = self.client.post(
             "/api/core/org/accept-invite/",
