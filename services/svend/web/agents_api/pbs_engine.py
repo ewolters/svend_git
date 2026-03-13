@@ -1584,22 +1584,26 @@ def run_pbs(df, analysis_id, config):
         result["summary"] = "Error: Need at least 5 observations."
         return result
 
-    USL = config.get("USL")
-    LSL = config.get("LSL")
-    target = config.get("target")
-    if USL is not None:
-        USL = float(USL)
-    if LSL is not None:
-        LSL = float(LSL)
-    if target is not None:
-        target = float(target)
+    def _safe_float(val):
+        """Convert to float, returning None for empty/invalid values."""
+        if val is None or val == "" or val == "null":
+            return None
+        try:
+            return float(val)
+        except (ValueError, TypeError):
+            return None
+
+    USL = _safe_float(config.get("USL"))
+    LSL = _safe_float(config.get("LSL"))
+    target = _safe_float(config.get("target"))
 
     hazard_lambda_raw = config.get("hazard_lambda")
-    if hazard_lambda_raw not in (None, "", "null", "auto"):
-        hazard_lambda = float(hazard_lambda_raw)
+    hazard_lambda_val = _safe_float(hazard_lambda_raw)
+    if hazard_lambda_val is not None and hazard_lambda_raw != "auto":
+        hazard_lambda = hazard_lambda_val
     else:
         hazard_lambda = max(20.0, min(200.0, n / 4.0))
-    beta_robustness = float(config.get("beta_robustness", 0.0))
+    beta_robustness = _safe_float(config.get("beta_robustness")) or 0.0
 
     # Extract metadata columns (lot, operator, machine) aligned to valid rows
     metadata = {}
