@@ -3847,6 +3847,42 @@ function toggleFavorite(analysisId, menuType) {
     filterAnalysisMenu(menuType);
 }
 
+function twoSampleLayout(numCols, colOptions, opts = {}) {
+    const label1 = opts.label1 || 'Sample 1';
+    const label2 = opts.label2 || 'Sample 2';
+    const uid = opts.uid || 'ts';
+    const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+    return `
+        <div class="aw-form-group">
+            <label>Data layout:</label>
+            <select id="cfg-data_format" onchange="document.getElementById('${uid}-twocol').style.display = this.value === 'columns' ? '' : 'none'; document.getElementById('${uid}-factor').style.display = this.value === 'factor' ? '' : 'none';">
+                <option value="columns">Two separate columns</option>
+                <option value="factor">One column + factor</option>
+            </select>
+        </div>
+        <div id="${uid}-twocol">
+            <div class="aw-form-group">
+                <label>${label1}:</label>
+                <select id="cfg-var1">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>${label2}:</label>
+                <select id="cfg-var2">${numCols}</select>
+            </div>
+        </div>
+        <div id="${uid}-factor" style="display:none;">
+            <div class="aw-form-group">
+                <label>Response (measurement):</label>
+                <select id="cfg-response">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Factor (2 groups):</label>
+                <select id="cfg-group_var">${catCols || colOptions}</select>
+            </div>
+        </div>
+    `;
+}
+
 function configureAnalysis(type, id) {
     closeDialog('analysis-dialog');
     currentAnalysis = { type, id };
@@ -3930,23 +3966,29 @@ function generateConfigForm(type, id) {
                 </div>
             `;
         }
-        if (id === 'ttest' || id === 'ttest2') {
+        if (id === 'ttest') {
             return `
                 <div class="aw-form-group">
                     <label>Sample:</label>
                     <select id="cfg-var1">${numCols}</select>
                 </div>
-                ${id === 'ttest2' ? `
-                <div class="aw-form-group">
-                    <label>Sample 2:</label>
-                    <select id="cfg-var2">${numCols}</select>
-                </div>
-                ` : `
                 <div class="aw-form-group">
                     <label>Test mean:</label>
                     <input type="number" id="cfg-mu" value="0" step="any">
                 </div>
-                `}
+                <div class="aw-form-group">
+                    <label>Confidence level:</label>
+                    <select id="cfg-conf">
+                        <option value="95">95%</option>
+                        <option value="99">99%</option>
+                        <option value="90">90%</option>
+                    </select>
+                </div>
+            `;
+        }
+        if (id === 'ttest2') {
+            return `
+                ${twoSampleLayout(numCols, colOptions, {label1: 'Sample 1', label2: 'Sample 2', uid: 'tt2'})}
                 <div class="aw-form-group">
                     <label>Confidence level:</label>
                     <select id="cfg-conf">
@@ -3959,14 +4001,7 @@ function generateConfigForm(type, id) {
         }
         if (id === 'paired_t') {
             return `
-                <div class="aw-form-group">
-                    <label>Sample 1 (Before):</label>
-                    <select id="cfg-var1">${numCols}</select>
-                </div>
-                <div class="aw-form-group">
-                    <label>Sample 2 (After):</label>
-                    <select id="cfg-var2">${numCols}</select>
-                </div>
+                ${twoSampleLayout(numCols, colOptions, {label1: 'Before / Sample 1', label2: 'After / Sample 2', uid: 'pt'})}
                 <div class="aw-form-group">
                     <label>Confidence level:</label>
                     <select id="cfg-conf">
@@ -4302,14 +4337,7 @@ function generateConfigForm(type, id) {
         }
         if (id === 'wilcoxon') {
             return `
-                <div class="aw-form-group">
-                    <label>Before / Sample 1:</label>
-                    <select id="cfg-var1">${numCols}</select>
-                </div>
-                <div class="aw-form-group">
-                    <label>After / Sample 2:</label>
-                    <select id="cfg-var2">${numCols}</select>
-                </div>
+                ${twoSampleLayout(numCols, colOptions, {label1: 'Before / Sample 1', label2: 'After / Sample 2', uid: 'wlx'})}
                 <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
                     <strong style="color:var(--aw-accent);">Non-parametric paired test:</strong> Use when paired differences aren't normally distributed. Tests if the median difference is zero.
                 </div>
@@ -6265,35 +6293,8 @@ function generateConfigForm(type, id) {
             `;
         }
         if (id === 'bayes_ttest') {
-            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
             return `
-                <div class="aw-form-group">
-                    <label>Data layout:</label>
-                    <select id="cfg-mode" onchange="document.getElementById('bt-twocol').style.display = this.value === 'two_columns' ? '' : 'none'; document.getElementById('bt-factor').style.display = this.value === 'factor' ? '' : 'none';">
-                        <option value="two_columns">Two separate columns</option>
-                        <option value="factor">Split by factor column</option>
-                    </select>
-                </div>
-                <div id="bt-twocol">
-                    <div class="aw-form-group">
-                        <label>Sample 1:</label>
-                        <select id="cfg-var1">${numCols}</select>
-                    </div>
-                    <div class="aw-form-group">
-                        <label>Sample 2:</label>
-                        <select id="cfg-var2">${numCols}</select>
-                    </div>
-                </div>
-                <div id="bt-factor" style="display:none;">
-                    <div class="aw-form-group">
-                        <label>Response (measurement):</label>
-                        <select id="cfg-response">${numCols}</select>
-                    </div>
-                    <div class="aw-form-group">
-                        <label>Factor (groups):</label>
-                        <select id="cfg-factor">${catCols || colOptions}</select>
-                    </div>
-                </div>
+                ${twoSampleLayout(numCols, colOptions, {label1: 'Sample 1', label2: 'Sample 2', uid: 'bt'})}
                 <div class="aw-form-group">
                     <label>Prior effect size (Cohen's d):</label>
                     <select id="cfg-prior_scale">
