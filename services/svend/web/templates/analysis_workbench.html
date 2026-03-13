@@ -1286,6 +1286,31 @@ div:hover > .aw-copy-btn { opacity: 1; }
 .dsw-inspect-panel th { color: #7A8F7A; font-weight: 500; text-transform: uppercase; letter-spacing: 0.03em; }
 .dsw-inspect-panel .dsw-inspect-scatter { width: 100%; min-height: 250px; margin-top: 0.5rem; }
 
+/* ── Fullscreen chart expand ── */
+.aw-expand-btn {
+    position: absolute; top: 6px; right: 6px; z-index: 10;
+    background: rgba(30,30,30,0.7); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 4px; padding: 4px 6px; cursor: pointer;
+    color: #7A8F7A; font-size: 0.75rem; line-height: 1;
+    opacity: 0; transition: opacity 0.15s;
+}
+.aw-output-plot:hover .aw-expand-btn { opacity: 1; }
+.aw-expand-btn:hover { background: rgba(74,159,110,0.25); color: #ccc; border-color: rgba(74,159,110,0.4); }
+.aw-chart-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.85); z-index: 9999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.aw-chart-overlay-close {
+    position: absolute; top: 16px; right: 24px;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 4px; padding: 6px 14px; cursor: pointer;
+    color: #ccc; font-size: 0.85rem;
+}
+.aw-chart-overlay-close:hover { background: rgba(255,255,255,0.2); }
+.aw-chart-overlay-title { color: #aaa; font-size: 0.85rem; margin-bottom: 8px; letter-spacing: 0.02em; }
+.aw-chart-overlay-plot { width: 90vw; height: 82vh; }
+
 /* ── Selection toolbar ── */
 .dsw-selection-toolbar {
     display: flex; align-items: center; gap: 0.5rem;
@@ -7937,8 +7962,67 @@ function generateConfigForm(type, id) {
                 ${['cpk','cpk_traj'].includes(mode) ? `<p style="color:var(--aw-warning);font-size:9px;margin-top:4px;">Both USL and LSL required for Cpk</p>` : ''}
             `;
         }
-        // Conformal, drift, anytime, causal
-        if (id.startsWith('conformal_') || id === 'drift' || id.startsWith('anytime_')) {
+        // Conformal control chart
+        if (id === 'conformal_control') {
+            return `
+                <div class="aw-form-group">
+                    <label>Measurement Column:</label>
+                    <select id="cfg-measurement">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Chart Type:</label>
+                    <select id="cfg-chart_type">
+                        <option value="individuals">Individual Values</option>
+                        <option value="subgroup_mean">Subgroup Mean</option>
+                        <option value="subgroup_range">Subgroup Range</option>
+                    </select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Subgroup Size:</label>
+                    <input type="number" id="cfg-subgroup_size" value="5" min="2" max="25">
+                </div>
+                <div class="aw-form-group">
+                    <label>False Alarm Rate (\u03b1):</label>
+                    <input type="number" id="cfg-alpha" step="0.01" value="0.05" min="0.001" max="0.5">
+                </div>
+                <div class="aw-form-group">
+                    <label>Calibration Fraction (Phase I split):</label>
+                    <input type="number" id="cfg-calibration_fraction" step="0.05" value="0.5" min="0.1" max="0.9">
+                </div>
+                <div class="aw-form-group">
+                    <label>Spike Threshold (\u00d7 median width):</label>
+                    <input type="number" id="cfg-spike_threshold" step="0.5" value="2.0" min="1" max="5">
+                </div>
+                <p style="color:var(--aw-text-muted);font-size:9px;margin-top:4px;">Distribution-free control chart with guaranteed false alarm rate. No normality assumption. <em>Burger et al. (2025)</em></p>
+            `;
+        }
+        // Conformal monitor (multivariate)
+        if (id === 'conformal_monitor') {
+            return `
+                <div class="aw-form-group">
+                    <label>Variables (select 2+):</label>
+                    <select id="cfg-variables" multiple size="5" style="min-height:100px;">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Anomaly Model:</label>
+                    <select id="cfg-model">
+                        <option value="isolation_forest">Isolation Forest (default)</option>
+                        <option value="mahalanobis">Mahalanobis Distance</option>
+                    </select>
+                </div>
+                <div class="aw-form-group">
+                    <label>False Alarm Rate (\u03b1):</label>
+                    <input type="number" id="cfg-alpha" step="0.01" value="0.05" min="0.001" max="0.5">
+                </div>
+                <div class="aw-form-group">
+                    <label>Calibration Fraction (Phase I split):</label>
+                    <input type="number" id="cfg-calibration_fraction" step="0.05" value="0.5" min="0.1" max="0.9">
+                </div>
+                <p style="color:var(--aw-text-muted);font-size:9px;margin-top:4px;">Multivariate anomaly detection with conformal p-values. Guaranteed false alarm rate. <em>Burger et al. (2025)</em></p>
+            `;
+        }
+        // Drift, anytime
+        if (id === 'drift' || id.startsWith('anytime_')) {
             return `
                 <div class="aw-form-group">
                     <label>Variable:</label>
@@ -9126,6 +9210,49 @@ document.addEventListener('click', (e) => {
     }
 });
 
+function _addExpandBtn(el, plot) {
+    if (!el || el.querySelector('.aw-expand-btn')) return;
+    const container = el.closest('.aw-output-plot') || el.parentElement;
+    container.style.position = 'relative';
+    const btn = document.createElement('button');
+    btn.className = 'aw-expand-btn';
+    btn.title = 'Expand chart';
+    btn.innerHTML = '&#x26F6;';
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        expandChart(plot);
+    });
+    container.appendChild(btn);
+}
+
+function expandChart(plot) {
+    const overlay = document.createElement('div');
+    overlay.className = 'aw-chart-overlay';
+    overlay.innerHTML = `
+        <button class="aw-chart-overlay-close">Close &times;</button>
+        <div class="aw-chart-overlay-title">${plot.title || ''}</div>
+        <div class="aw-chart-overlay-plot" id="aw-expanded-chart"></div>`;
+    document.body.appendChild(overlay);
+
+    const plotEl = overlay.querySelector('#aw-expanded-chart');
+    const plotData = JSON.parse(JSON.stringify(plot.data));
+    const layout = {
+        ...(plot.layout || {}),
+        width: undefined, height: undefined,
+        paper_bgcolor: '#0d120d', plot_bgcolor: '#0a0f0a',
+        font: { color: '#e8efe8', size: 13 },
+        margin: { t: 50, r: 30, b: 60, l: 70 },
+        xaxis: { color: '#9aaa9a', gridcolor: 'rgba(74,159,110,0.2)', linecolor: '#4a9f6e', ...(plot.layout?.xaxis || {}), rangeslider: undefined },
+        yaxis: { color: '#9aaa9a', gridcolor: 'rgba(74,159,110,0.2)', linecolor: '#4a9f6e', ...(plot.layout?.yaxis || {}) },
+    };
+    Plotly.newPlot(plotEl, plotData, layout, { responsive: true, displayModeBar: true });
+
+    const close = () => { Plotly.purge(plotEl); overlay.remove(); };
+    overlay.querySelector('.aw-chart-overlay-close').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); } });
+}
+
 function getChartColors() {
     const theme = chartThemes[chartSettings.theme] || chartThemes.green;
     const alpha = chartSettings.alpha / 100;
@@ -9235,6 +9362,9 @@ function renderPlot(plot, elementId, chartWidth, chartHeight) {
 
     // Attach click-to-inspect interactivity
     attachChartInteractivity(el, plot);
+
+    // Attach fullscreen expand button
+    _addExpandBtn(el, plot);
 }
 
 // =============================================================================

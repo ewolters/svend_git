@@ -56,9 +56,10 @@ python3 manage.py test --parallel
 
 | Deprecated Model | Canonical Model | Rows | Status |
 |-----------------|----------------|------|--------|
-| workbench.Project | core.Project | 0 | IN PROGRESS |
-| workbench.Hypothesis | core.Hypothesis | 0 | IN PROGRESS |
-| workbench.Evidence | core.Evidence | 0 | IN PROGRESS |
-| GageStudy | (none — unused) | 0 | PENDING |
-| StudyAction | (none — unused) | 0 | PENDING |
+| workbench.Project | core.Project | 0 | REMOVED |
+| workbench.Hypothesis | core.Hypothesis | 0 | REMOVED |
+| workbench.Evidence | core.Evidence | 0 | REMOVED |
+| workbench.Conversation | (none) | 0 | REMOVED |
+| GageStudy | — | 0 | KEEP — wired into MeasurementSystem, evidence_weights |
+| StudyAction | — | 0 | KEEP — wired into iso_views (5 endpoints), iso_tests, projects.html |
 | agents_api.dsw/* | agents_api.analysis/* | active | MIGRATING (CR-3c0d0e53) |

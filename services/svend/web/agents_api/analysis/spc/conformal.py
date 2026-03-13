@@ -11,7 +11,7 @@ def run_conformal_control(df, config):
     """Conformal-Enhanced Control Chart -- distribution-free alternative to Shewhart."""
     result = {"plots": [], "summary": "", "guide_observation": ""}
 
-    measurement = config.get("measurement")
+    measurement = config.get("measurement") or config.get("var") or config.get("column")
     if measurement and measurement in df.columns:
         data = df[measurement].dropna().values
     else:
@@ -442,6 +442,7 @@ def run_conformal_monitor(df, config):
     # Get numeric columns
     variables = config.get("variables", [])
     if not variables:
+        # Fallback: if single var provided, use all numeric columns
         variables = df.select_dtypes(include="number").columns.tolist()
     if len(variables) < 2:
         result["summary"] = "Conformal monitoring requires at least 2 numeric variables for multivariate analysis."
@@ -495,7 +496,6 @@ def run_conformal_monitor(df, config):
     all_scores = np.concatenate([cal_scores, mon_scores])
 
     # Conformal p-values for monitoring observations
-    np.sort(cal_scores)
     cal_p_values = np.array([(np.sum(cal_scores >= s) + 1) / (n_cal + 1) for s in cal_scores])
     mon_p_values = (
         np.array([(np.sum(cal_scores >= s) + 1) / (n_cal + 1) for s in mon_scores]) if n_mon > 0 else np.array([])
