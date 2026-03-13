@@ -9192,6 +9192,227 @@ function renderPlot(plot, elementId, chartWidth, chartHeight) {
         modeBarButtonsToRemove: ['select2d', 'lasso2d', 'autoScale2d'],
         toImageButtonOptions: { format: 'png', height: 800, width: 1200, filename: (plot.title || 'chart').replace(/[^a-zA-Z0-9]/g, '_') }
     });
+
+    // Attach click-to-inspect interactivity
+    attachChartInteractivity(el, plot);
+}
+
+// =============================================================================
+// CHART INTERACTIVITY — Click-to-inspect & SPC→RCA linkage
+// =============================================================================
+
+function attachChartInteractivity(el, plot) {
+    try {
+        const type = plot.interactive && plot.interactive.type;
+        if (!type) return;
+        if (type === 'spc_inspect') attachSPCInspect(el, plot);
+        else if (type === 'correlation_heatmap') attachCorrelationClick(el, plot);
+        else if (type === 'regression_diagnostic') attachRegressionInspect(el, plot);
+        else if (type === 'cluster_inspect') attachClusterInspect(el, plot);
+    } catch (e) {
+        console.error('Chart interactivity failed:', e);
+    }
+}
+
+function showInspectPanel(el, html) {
+    const container = el.closest('.aw-output-plot') || el.parentElement;
+    const existing = container.querySelector('.dsw-inspect-panel');
+    if (existing) existing.remove();
+    const panel = document.createElement('div');
+    panel.className = 'dsw-inspect-panel';
+    panel.innerHTML = `<button class="dsw-inspect-close" title="Close">&times;</button>${html}`;
+    container.appendChild(panel);
+    panel.querySelector('.dsw-inspect-close').addEventListener('click', () => panel.remove());
+}
+
+function attachSPCInspect(el, plot) {
+    el.on('plotly_click', function(eventData) {
+        const pt = eventData.points[0];
+        if (!pt || !pt.customdata) return;
+        const cd = pt.customdata;
+        const obsIdx = cd[0];
+        const rules = cd[1] || '';
+        const isOOC = rules || (pt.data && pt.data.name && (pt.data.name === 'Out of Control' || pt.data.name.startsWith('Signal')));
+        let html = `<strong>Observation #${obsIdx}</strong> &mdash; Value: ${pt.y != null ? pt.y.toFixed(4) : 'N/A'}`;
+        if (isOOC) {
+            html += '<div style="margin-top:0.3rem;font-size:0.8rem;color:#d94a4a;font-weight:600;">Out of Control</div>';
+        }
+        if (rules) {
+            html += '<div style="margin-top:0.3rem;color:#E8A838;">';
+            rules.split('; ').forEach(r => { html += `<div>${r}</div>`; });
+            html += '</div>';
+        }
+        if (typeof currentData !== 'undefined' && currentData && currentData.preview) {
+            const preview = currentData.preview;
+            const cols = currentData.columns.map(c => c.name);
+            const rowIdx = typeof obsIdx === 'number' ? obsIdx : parseInt(obsIdx);
+            if (rowIdx >= 0) {
+                let rowHtml = '<table><tr>';
+                const showCols = cols.slice(0, 8);
+                showCols.forEach(c => { rowHtml += `<th>${c}</th>`; });
+                if (cols.length > 8) rowHtml += '<th>...</th>';
+                rowHtml += '</tr><tr>';
+                showCols.forEach(c => {
+                    const colData = Array.isArray(preview) ? (preview[rowIdx] ? preview[rowIdx][c] : '') : (preview[c] ? preview[c][rowIdx] : '');
+                    const val = colData != null ? colData : '';
+                    rowHtml += `<td>${typeof val === 'number' ? val.toFixed(4) : val}</td>`;
+                });
+                if (cols.length > 8) rowHtml += '<td>...</td>';
+                rowHtml += '</tr></table>';
+                html += rowHtml;
+            }
+        }
+        if (isOOC) {
+            const ruleDesc = rules || 'Point exceeds control limits';
+            html += `<button class="aw-btn aw-btn-primary" style="margin-top:0.4rem;font-size:0.75rem;"
+                      data-obs="${obsIdx}" data-rules="${encodeURIComponent(ruleDesc)}"
+                      data-value="${pt.y != null ? pt.y.toFixed(4) : ''}"
+                      onclick="investigateOOC(this)">Investigate &rarr; Root Cause Analysis</button>`;
+        }
+        showInspectPanel(el, html);
+    });
+}
+
+async function investigateOOC(btn) {
+    const obs = btn.dataset.obs;
+    const rulesText = decodeURIComponent(btn.dataset.rules);
+    const val = btn.dataset.value;
+    btn.disabled = true;
+    btn.textContent = 'Creating\u2026';
+    try {
+        const resp = await fetch('/api/rca/sessions/create/', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+            body: JSON.stringify({
+                event: `Out-of-control point at observation #${obs} (value: ${val}). Rules violated: ${rulesText}`,
+                title: `Investigate OOC #${obs}`,
+            })
+        });
+        const data = await resp.json();
+        if (data.session && data.session.id) {
+            window.open(`/app/rca/?session=${data.session.id}`, '_blank');
+            btn.textContent = '\u2713 RCA opened';
+        } else {
+            appendSession('error', data.error || 'Could not create RCA session');
+            btn.disabled = false;
+            btn.textContent = 'Investigate';
+        }
+    } catch (e) {
+        appendSession('error', 'Could not create RCA session');
+        btn.disabled = false;
+        btn.textContent = 'Investigate';
+    }
+}
+
+function attachCorrelationClick(el, plot) {
+    el.on('plotly_click', function(eventData) {
+        const pt = eventData.points[0];
+        if (!pt) return;
+        const xVar = pt.x;
+        const yVar = pt.y;
+        if (!xVar || !yVar || xVar === yVar) return;
+
+        if (typeof currentData === 'undefined' || !currentData || !currentData.preview) {
+            showInspectPanel(el, `<strong>${xVar} vs ${yVar}</strong><br>r = ${pt.z != null ? pt.z.toFixed(4) : pt.text || 'N/A'}<br><em>No data available for scatter</em>`);
+            return;
+        }
+        const preview = currentData.preview;
+        const getCol = (name) => Array.isArray(preview) ? preview.map(r => r[name]) : (preview[name] || []);
+        const xVals = getCol(xVar).map(Number).filter(v => !isNaN(v));
+        const yVals = getCol(yVar).map(Number).filter(v => !isNaN(v));
+        const n = Math.min(xVals.length, yVals.length);
+
+        const rVal = pt.z != null ? pt.z.toFixed(4) : (pt.text || 'N/A');
+        const scatterId = `corr-scatter-${Date.now()}`;
+        let html = `<strong>${xVar} vs ${yVar}</strong> &mdash; r = ${rVal}`;
+        html += `<div class="dsw-inspect-scatter" id="${scatterId}"></div>`;
+        showInspectPanel(el, html);
+
+        const scatterEl = document.getElementById(scatterId);
+        if (scatterEl && n > 0) {
+            Plotly.newPlot(scatterEl, [{
+                x: xVals.slice(0, n), y: yVals.slice(0, n),
+                type: 'scatter', mode: 'markers',
+                marker: { color: '#4A9F6E', size: 5, opacity: 0.7 },
+            }], {
+                paper_bgcolor: '#0d120d', plot_bgcolor: '#0a0f0a',
+                font: { color: '#e8efe8', size: 10 },
+                height: 250,
+                margin: { t: 10, r: 10, b: 35, l: 45 },
+                xaxis: { color: '#9aaa9a', gridcolor: 'rgba(74,159,110,0.2)', title: { text: xVar, font: { size: 11, color: '#C0D0C0' } } },
+                yaxis: { color: '#9aaa9a', gridcolor: 'rgba(74,159,110,0.2)', title: { text: yVar, font: { size: 11, color: '#C0D0C0' } } },
+            }, { responsive: true, displayModeBar: false });
+        }
+    });
+}
+
+function attachRegressionInspect(el, plot) {
+    el.on('plotly_click', function(eventData) {
+        const pt = eventData.points[0];
+        if (!pt || !pt.customdata) return;
+        const cd = pt.customdata;
+        const obsIdx = cd[0];
+        const cooksD = cd[1];
+        let html = `<strong>Observation #${obsIdx}</strong>`;
+        if (cooksD != null) html += ` &mdash; Cook's D: ${cooksD.toFixed(4)}`;
+        html += `<br>x: ${pt.x != null ? (typeof pt.x === 'number' ? pt.x.toFixed(4) : pt.x) : 'N/A'}, y: ${pt.y != null ? pt.y.toFixed(4) : 'N/A'}`;
+
+        if (typeof currentData !== 'undefined' && currentData && currentData.preview) {
+            const preview = currentData.preview;
+            const cols = currentData.columns.map(c => c.name);
+            const rowIdx = typeof obsIdx === 'number' ? obsIdx : parseInt(obsIdx);
+            if (rowIdx >= 0) {
+                let rowHtml = '<table><tr>';
+                const showCols = cols.slice(0, 8);
+                showCols.forEach(c => { rowHtml += `<th>${c}</th>`; });
+                if (cols.length > 8) rowHtml += '<th>...</th>';
+                rowHtml += '</tr><tr>';
+                showCols.forEach(c => {
+                    const colData = Array.isArray(preview) ? (preview[rowIdx] ? preview[rowIdx][c] : '') : (preview[c] ? preview[c][rowIdx] : '');
+                    const val = colData != null ? colData : '';
+                    rowHtml += `<td>${typeof val === 'number' ? val.toFixed(4) : val}</td>`;
+                });
+                if (cols.length > 8) rowHtml += '<td>...</td>';
+                rowHtml += '</tr></table>';
+                html += rowHtml;
+            }
+        }
+        showInspectPanel(el, html);
+    });
+}
+
+function attachClusterInspect(el, plot) {
+    el.on('plotly_click', function(eventData) {
+        const pt = eventData.points[0];
+        if (!pt || !pt.customdata) return;
+        const cd = pt.customdata;
+        const clusterId = cd[0];
+        const obsIdx = cd[1];
+        let html = `<strong>Cluster ${clusterId}</strong> &mdash; Observation #${obsIdx}`;
+        html += `<br>x: ${pt.x != null ? pt.x.toFixed(4) : 'N/A'}, y: ${pt.y != null ? pt.y.toFixed(4) : 'N/A'}`;
+
+        const features = plot.interactive && plot.interactive.features;
+        if (features && typeof currentData !== 'undefined' && currentData && currentData.preview) {
+            const preview = currentData.preview;
+            const rowIdx = typeof obsIdx === 'number' ? obsIdx : parseInt(obsIdx);
+            if (rowIdx >= 0) {
+                let rowHtml = '<table><tr>';
+                features.slice(0, 10).forEach(f => { rowHtml += `<th>${f}</th>`; });
+                if (features.length > 10) rowHtml += '<th>...</th>';
+                rowHtml += '</tr><tr>';
+                features.slice(0, 10).forEach(f => {
+                    const colData = Array.isArray(preview) ? (preview[rowIdx] ? preview[rowIdx][f] : '') : (preview[f] ? preview[f][rowIdx] : '');
+                    const val = colData != null ? colData : '';
+                    rowHtml += `<td>${typeof val === 'number' ? val.toFixed(4) : val}</td>`;
+                });
+                if (features.length > 10) rowHtml += '<td>...</td>';
+                rowHtml += '</tr></table>';
+                html += rowHtml;
+            }
+        }
+        showInspectPanel(el, html);
+    });
 }
 
 function addToHistory(analysis, name, summary = '', plots = []) {
