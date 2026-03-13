@@ -1572,6 +1572,10 @@ def run_pbs(df, analysis_id, config):
         result["summary"] = "Error: Select a measurement column."
         return result
 
+    # Coerce non-numeric values (empty strings, text) to NaN before filtering
+    import pandas as pd
+
+    df[col] = pd.to_numeric(df[col], errors="coerce")
     valid_mask = df[col].notna()
     df_valid = df.loc[valid_mask].reset_index(drop=True)
     y = df_valid[col].values.astype(float)
