@@ -48,7 +48,7 @@ class QualityEconomicsScenarioTest(TestCase):
 
     def test_taguchi_loss(self):
         """Taguchi loss function — nominal-is-best with correct API."""
-        from agents_api.quality_economics import TaguchiLoss
+        from agents_api.analysis.quality_econ import TaguchiLoss
 
         loss = TaguchiLoss(loss_type="nib", target=100.0, delta0=5.0, cost_at_limit=250.0)
         # Verify the object was created with correct attributes
@@ -84,7 +84,7 @@ class QualityEconomicsScenarioTest(TestCase):
 
     def test_process_decision(self):
         """Process decision analysis — instantiation with correct cost args."""
-        from agents_api.quality_economics import ProcessDecision
+        from agents_api.analysis.quality_econ import ProcessDecision
 
         pd_obj = ProcessDecision(
             c_miss=500.0,
@@ -98,7 +98,7 @@ class QualityEconomicsScenarioTest(TestCase):
 
     def test_cost_of_quality(self):
         """Cost of Quality analysis → categorizes prevention/appraisal/failure."""
-        from agents_api.quality_economics import CostOfQuality
+        from agents_api.analysis.quality_econ import CostOfQuality
 
         coq = CostOfQuality(
             prevention=1000,
@@ -220,7 +220,7 @@ class DriftDetectionScenarioTest(TestCase):
 
     def test_psi_calculation(self):
         """Population Stability Index detects distribution shift."""
-        from agents_api.drift_detection import _compute_psi
+        from agents_api.analysis.drift import _compute_psi
 
         rng = np.random.RandomState(42)
         ref = rng.normal(0, 1, 500)
@@ -248,7 +248,7 @@ class AnytimeValidScenarioTest(TestCase):
 
     def test_gaussian_e_process(self):
         """Gaussian mean e-process accumulates evidence over time."""
-        from agents_api.anytime_valid import GaussianMeanEProcess
+        from agents_api.analysis.anytime import GaussianMeanEProcess
 
         proc = GaussianMeanEProcess(mu0=0.0, sigma=1.0)
         rng = np.random.RandomState(42)
@@ -370,7 +370,7 @@ class PBSEngineTest(TestCase):
 
     def test_normal_gamma_posterior(self):
         """NormalGammaPosterior updates with observations."""
-        from agents_api.pbs_engine import NormalGammaPosterior
+        from agents_api.analysis.pbs import NormalGammaPosterior
 
         posterior = NormalGammaPosterior(mu=0, kappa=1, alpha=1, beta=1)
 
@@ -382,7 +382,7 @@ class PBSEngineTest(TestCase):
 
     def test_belief_chart(self):
         """BeliefChart processes observations and tracks run lengths."""
-        from agents_api.pbs_engine import BeliefChart
+        from agents_api.analysis.pbs import BeliefChart
 
         chart = BeliefChart()
 
@@ -397,7 +397,7 @@ class PBSEngineTest(TestCase):
 
     def test_e_detector(self):
         """EDetector raises alarm on process shift."""
-        from agents_api.pbs_engine import EDetector
+        from agents_api.analysis.pbs import EDetector
 
         detector = EDetector(mu_0=100.0, bounds=(90.0, 110.0))
 

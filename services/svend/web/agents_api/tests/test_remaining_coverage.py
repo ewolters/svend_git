@@ -38,7 +38,7 @@ class QualityEconCoverageTest(TestCase):
     """Quality economics analyses."""
 
     def _run(self, analysis_id, config, data_dict):
-        from agents_api.quality_economics import run_quality_econ
+        from agents_api.analysis.quality_econ import run_quality_econ
 
         df = pd.DataFrame(data_dict)
         return run_quality_econ(df, analysis_id, config)
@@ -177,7 +177,7 @@ class CausalDiscoveryCoverageTest(TestCase):
     """Causal discovery — PC and LiNGAM algorithms."""
 
     def _run(self, analysis_id, config, data_dict):
-        from agents_api.causal_discovery import run_causal_discovery
+        from agents_api.analysis.causal import run_causal_discovery
 
         df = pd.DataFrame(data_dict)
         return run_causal_discovery(df, analysis_id, config)
@@ -267,7 +267,7 @@ class AnytimeValidCoverageTest(TestCase):
     """Anytime-valid inference — e-processes and confidence sequences."""
 
     def _run(self, analysis_id, config, data_dict):
-        from agents_api.anytime_valid import run_anytime_valid
+        from agents_api.analysis.anytime import run_anytime_valid
 
         df = pd.DataFrame(data_dict)
         return run_anytime_valid(df, analysis_id, config)
@@ -302,7 +302,7 @@ class DriftDetectionCoverageTest(TestCase):
     """Drift detection — 3-lane diagnostic."""
 
     def _run(self, analysis_id, config, data_dict):
-        from agents_api.drift_detection import run_drift_detection
+        from agents_api.analysis.drift import run_drift_detection
 
         df = pd.DataFrame(data_dict)
         return run_drift_detection(df, analysis_id, config)
@@ -328,7 +328,7 @@ class BayesMSACoverageTest(TestCase):
     """Bayesian Measurement System Analysis."""
 
     def _run(self, analysis_id, config, data_dict):
-        from agents_api.msa_bayes import run_bayes_msa
+        from agents_api.analysis.msa import run_bayes_msa
 
         df = pd.DataFrame(data_dict)
         return run_bayes_msa(df, analysis_id, config)
@@ -355,7 +355,7 @@ class InterventionalSHAPCoverageTest(TestCase):
     """Interventional SHAP — feature attribution under do-calculus."""
 
     def _run(self, analysis_id, config, data_dict, model=None, model_features=None):
-        from agents_api.interventional_shap import run_interventional_shap
+        from agents_api.analysis.ishap import run_interventional_shap
 
         df = pd.DataFrame(data_dict)
         return run_interventional_shap(df, analysis_id, config, model=model, model_features=model_features)

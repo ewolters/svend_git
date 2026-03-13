@@ -159,14 +159,13 @@ _ROUTE_TABLE = {
     "simulation": ("agents_api.analysis.simulation", "run_simulation", "user"),
     "d_type": ("agents_api.analysis.d_type", "run_d_type", None),
     "siop": ("agents_api.analysis.siop", "run_siop", None),
-    # Not yet migrated to analysis/ — import from agents_api top-level
-    "causal": ("agents_api.causal_discovery", "run_causal_discovery", None),
-    "drift": ("agents_api.drift_detection", "run_drift_detection", None),
-    "anytime": ("agents_api.anytime_valid", "run_anytime_valid", None),
-    "bayes_msa": ("agents_api.msa_bayes", "run_bayes_msa", None),
-    "quality_econ": ("agents_api.quality_economics", "run_quality_econ", None),
-    "pbs": ("agents_api.pbs_engine", "run_pbs", None),
-    "ishap": ("agents_api.interventional_shap", "run_interventional_shap", "model"),
+    "causal": ("agents_api.analysis.causal", "run_causal_discovery", None),
+    "drift": ("agents_api.analysis.drift", "run_drift_detection", None),
+    "anytime": ("agents_api.analysis.anytime", "run_anytime_valid", None),
+    "bayes_msa": ("agents_api.analysis.msa", "run_bayes_msa", None),
+    "quality_econ": ("agents_api.analysis.quality_econ", "run_quality_econ", None),
+    "pbs": ("agents_api.analysis.pbs", "run_pbs", None),
+    "ishap": ("agents_api.analysis.ishap", "run_interventional_shap", "model"),
 }
 
 

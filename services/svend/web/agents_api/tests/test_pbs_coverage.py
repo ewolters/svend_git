@@ -15,7 +15,7 @@ NORMAL_60 = list(np.random.RandomState(42).normal(50, 5, 60))
 
 def _run(analysis_id, config, data_dict):
     """Run PBS analysis — no exception masking (TST-001 §11.6)."""
-    from agents_api.pbs_engine import run_pbs
+    from agents_api.analysis.pbs import run_pbs
 
     df = pd.DataFrame(data_dict)
     return run_pbs(df, analysis_id, config)
