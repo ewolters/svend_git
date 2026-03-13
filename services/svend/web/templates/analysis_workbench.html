@@ -2060,9 +2060,9 @@ function renderDataTabs() {
 // DATA LOADING - Connect to Triage
 // ============================================================================
 async function openFile() {
-    // Show data selection dialog
+    // Always reset dialog to clean state (may still show triage from prior upload)
+    resetDataDialog();
     document.getElementById('data-dialog').classList.add('active');
-    await loadTriageDatasets();
 }
 
 async function loadTriageDatasets() {
