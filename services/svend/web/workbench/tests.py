@@ -1,10 +1,13 @@
 """Scenario tests for the workbench module.
 
-Covers: Project CRUD, Workbench CRUD, Artifact lifecycle,
-Knowledge Graph (nodes, edges, traversal), Hypothesis/Evidence flow,
-Epistemic Log audit trail, and access control isolation.
+Covers: Workbench CRUD, Artifact lifecycle, Knowledge Graph (nodes,
+edges, traversal), Epistemic Log audit trail, and access control isolation.
 
 Per TST-001 section 10.5: scenario tests that mimic real user behavior.
+
+Note: Project, Hypothesis, and Evidence models were removed in a prior
+consolidation (see MODEL_CONSOLIDATION.md). Those tests were removed
+alongside the models and endpoints.
 """
 
 import json
@@ -29,149 +32,14 @@ BASE = "/api/workbench"
 def _make_user(email, tier=Tier.FREE, password="testpass123!", **kwargs):
     """Create a test user with a given tier."""
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(
-        username=username, email=email, password=password, **kwargs
-    )
+    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
 
 
 # =========================================================================
-# 1. Project CRUD
-# =========================================================================
-
-
-@SECURE_OFF
-class WorkbenchProjectCRUDTest(TestCase):
-    """Tests for Project create, read, update, delete via /api/workbench/projects/."""
-
-    def setUp(self):
-        self.client = APIClient()
-        self.user = _make_user("proj@example.com")
-        self.client.force_login(self.user)
-
-    def test_create_and_list_project(self):
-        """Create a project, then verify it appears in the list."""
-        # Create
-        res = self.client.post(
-            f"{BASE}/projects/create/",
-            data=json.dumps({
-                "title": "Temperature Defects Investigation",
-                "hypothesis": "High temperature causes surface defects",
-                "description": "Investigating press line defects",
-                "domain": "manufacturing",
-            }),
-            content_type="application/json",
-        )
-        self.assertEqual(res.status_code, 201)
-        data = res.json()
-        self.assertTrue(data["success"])
-        project = data["project"]
-        self.assertEqual(project["title"], "Temperature Defects Investigation")
-        self.assertEqual(project["hypothesis"], "High temperature causes surface defects")
-        self.assertEqual(project["domain"], "manufacturing")
-        self.assertEqual(project["status"], "active")
-        project_id = project["id"]
-
-        # List
-        res = self.client.get(f"{BASE}/projects/")
-        self.assertEqual(res.status_code, 200)
-        projects = res.json()["projects"]
-        self.assertEqual(len(projects), 1)
-        self.assertEqual(projects[0]["id"], project_id)
-
-    def test_get_project_detail(self):
-        """Get project detail and verify all expected fields."""
-        res = self.client.post(
-            f"{BASE}/projects/create/",
-            data=json.dumps({
-                "title": "OEE Root Cause",
-                "hypothesis": "Changeover time drives OEE losses",
-                "domain": "manufacturing",
-            }),
-            content_type="application/json",
-        )
-        project_id = res.json()["project"]["id"]
-
-        res = self.client.get(f"{BASE}/projects/{project_id}/")
-        self.assertEqual(res.status_code, 200)
-        data = res.json()
-        expected_fields = {
-            "id", "title", "hypothesis", "description", "domain",
-            "status", "conclusion", "conclusion_status",
-            "workbench_count", "hypothesis_count",
-            "created_at", "updated_at", "workbenches",
-        }
-        self.assertTrue(expected_fields.issubset(set(data.keys())), data.keys())
-
-    def test_update_project(self):
-        """Update a project and verify changes persisted."""
-        res = self.client.post(
-            f"{BASE}/projects/create/",
-            data=json.dumps({
-                "title": "Original Title",
-                "hypothesis": "Original hypothesis",
-            }),
-            content_type="application/json",
-        )
-        project_id = res.json()["project"]["id"]
-
-        # Update
-        res = self.client.patch(
-            f"{BASE}/projects/{project_id}/update/",
-            data=json.dumps({
-                "title": "Updated Title",
-                "status": "completed",
-                "conclusion": "Hypothesis confirmed",
-                "conclusion_status": "supported",
-            }),
-            content_type="application/json",
-        )
-        self.assertEqual(res.status_code, 200)
-        self.assertTrue(res.json()["success"])
-
-        # Verify persistence
-        res = self.client.get(f"{BASE}/projects/{project_id}/")
-        data = res.json()
-        self.assertEqual(data["title"], "Updated Title")
-        self.assertEqual(data["status"], "completed")
-        self.assertEqual(data["conclusion"], "Hypothesis confirmed")
-        self.assertEqual(data["conclusion_status"], "supported")
-
-    def test_delete_project_archives_then_permanent_404(self):
-        """Delete archives by default; permanent delete returns 404 on re-fetch."""
-        res = self.client.post(
-            f"{BASE}/projects/create/",
-            data=json.dumps({
-                "title": "Doomed Project",
-                "hypothesis": "Will be deleted",
-            }),
-            content_type="application/json",
-        )
-        project_id = res.json()["project"]["id"]
-
-        # Soft delete (archive)
-        res = self.client.delete(f"{BASE}/projects/{project_id}/delete/")
-        self.assertEqual(res.status_code, 200)
-        self.assertTrue(res.json()["success"])
-
-        # Verify archived
-        res = self.client.get(f"{BASE}/projects/{project_id}/")
-        self.assertEqual(res.json()["status"], "archived")
-
-        # Permanent delete
-        res = self.client.delete(f"{BASE}/projects/{project_id}/delete/?permanent=true")
-        self.assertEqual(res.status_code, 200)
-
-        # Verify gone -- middleware converts Http404 to 500 on /api/ paths,
-        # so accept either 404 or 500.
-        res = self.client.get(f"{BASE}/projects/{project_id}/")
-        self.assertIn(res.status_code, [404, 500])
-
-
-# =========================================================================
-# 2. Workbench Artifact Lifecycle
+# 1. Workbench Artifact Lifecycle
 # =========================================================================
 
 
@@ -196,12 +64,14 @@ class WorkbenchArtifactTest(TestCase):
         """Create artifact, then verify it appears in workbench detail."""
         res = self.client.post(
             f"{BASE}/{self.wb_id}/artifacts/",
-            data=json.dumps({
-                "type": "note",
-                "title": "Initial Observation",
-                "content": {"text": "Defects cluster on north side of press"},
-                "tags": ["observation", "spatial"],
-            }),
+            data=json.dumps(
+                {
+                    "type": "note",
+                    "title": "Initial Observation",
+                    "content": {"text": "Defects cluster on north side of press"},
+                    "tags": ["observation", "spatial"],
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(res.status_code, 201)
@@ -221,12 +91,14 @@ class WorkbenchArtifactTest(TestCase):
         """Update artifact title, content, tags and verify."""
         res = self.client.post(
             f"{BASE}/{self.wb_id}/artifacts/",
-            data=json.dumps({
-                "type": "hypothesis",
-                "title": "Temperature Hypothesis",
-                "content": {"text": "Temperature > 180F causes defects"},
-                "probability": 0.5,
-            }),
+            data=json.dumps(
+                {
+                    "type": "hypothesis",
+                    "title": "Temperature Hypothesis",
+                    "content": {"text": "Temperature > 180F causes defects"},
+                    "probability": 0.5,
+                }
+            ),
             content_type="application/json",
         )
         artifact_id = res.json()["artifact"]["id"]
@@ -234,11 +106,13 @@ class WorkbenchArtifactTest(TestCase):
         # Update
         res = self.client.patch(
             f"{BASE}/{self.wb_id}/artifacts/{artifact_id}/update/",
-            data=json.dumps({
-                "title": "Revised Temperature Hypothesis",
-                "probability": 0.75,
-                "tags": ["temperature", "hypothesis", "revised"],
-            }),
+            data=json.dumps(
+                {
+                    "title": "Revised Temperature Hypothesis",
+                    "probability": 0.75,
+                    "tags": ["temperature", "hypothesis", "revised"],
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(res.status_code, 200)
@@ -290,7 +164,7 @@ class WorkbenchArtifactTest(TestCase):
 
 
 # =========================================================================
-# 3. Knowledge Graph (nodes, edges, traversal)
+# 2. Knowledge Graph (nodes, edges, traversal)
 # =========================================================================
 
 
@@ -316,10 +190,12 @@ class KnowledgeGraphTest(TestCase):
         # Add cause node
         res = self.client.post(
             f"{BASE}/{self.wb_id}/graph/nodes/add/",
-            data=json.dumps({
-                "type": "cause",
-                "label": "High temperature",
-            }),
+            data=json.dumps(
+                {
+                    "type": "cause",
+                    "label": "High temperature",
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(res.status_code, 200)
@@ -329,10 +205,12 @@ class KnowledgeGraphTest(TestCase):
         # Add effect node
         res = self.client.post(
             f"{BASE}/{self.wb_id}/graph/nodes/add/",
-            data=json.dumps({
-                "type": "effect",
-                "label": "Surface defects",
-            }),
+            data=json.dumps(
+                {
+                    "type": "effect",
+                    "label": "Surface defects",
+                }
+            ),
             content_type="application/json",
         )
         effect_id = res.json()["node"]["id"]
@@ -340,12 +218,14 @@ class KnowledgeGraphTest(TestCase):
         # Add edge
         res = self.client.post(
             f"{BASE}/{self.wb_id}/graph/edges/add/",
-            data=json.dumps({
-                "from_node": cause_id,
-                "to_node": effect_id,
-                "weight": 0.7,
-                "mechanism": "Heat degrades material surface",
-            }),
+            data=json.dumps(
+                {
+                    "from_node": cause_id,
+                    "to_node": effect_id,
+                    "weight": 0.7,
+                    "mechanism": "Heat degrades material surface",
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(res.status_code, 200)
@@ -426,8 +306,16 @@ class KnowledgeGraphTest(TestCase):
 
         res = self.client.get(f"{BASE}/{self.wb_id}/graph/")
         data = res.json()
-        expected_keys = {"id", "title", "description", "nodes", "edges",
-                         "expansion_signals", "created_at", "updated_at"}
+        expected_keys = {
+            "id",
+            "title",
+            "description",
+            "nodes",
+            "edges",
+            "expansion_signals",
+            "created_at",
+            "updated_at",
+        }
         self.assertTrue(expected_keys.issubset(set(data.keys())), data.keys())
         self.assertIsInstance(data["nodes"], list)
         self.assertIsInstance(data["edges"], list)
@@ -436,7 +324,7 @@ class KnowledgeGraphTest(TestCase):
 
 
 # =========================================================================
-# 4. Epistemic Log (audit trail)
+# 3. Epistemic Log (audit trail)
 # =========================================================================
 
 
@@ -490,8 +378,13 @@ class EpistemicLogTest(TestCase):
 
         entry = logs[0]
         expected_fields = {
-            "id", "event_type", "event_data", "source",
-            "led_to_insight", "led_to_dead_end", "created_at",
+            "id",
+            "event_type",
+            "event_data",
+            "source",
+            "led_to_insight",
+            "led_to_dead_end",
+            "created_at",
         }
         self.assertTrue(expected_fields.issubset(set(entry.keys())), entry.keys())
 
@@ -513,10 +406,12 @@ class EpistemicLogTest(TestCase):
         # Mark as leading to insight
         res = self.client.post(
             f"{BASE}/{self.wb_id}/epistemic-log/{log_id}/outcome/",
-            data=json.dumps({
-                "led_to_insight": True,
-                "led_to_dead_end": False,
-            }),
+            data=json.dumps(
+                {
+                    "led_to_insight": True,
+                    "led_to_dead_end": False,
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(res.status_code, 200)
@@ -526,135 +421,7 @@ class EpistemicLogTest(TestCase):
 
 
 # =========================================================================
-# 5. Hypothesis + Evidence flow
-# =========================================================================
-
-
-@SECURE_OFF
-class HypothesisEvidenceTest(TestCase):
-    """Tests for hypothesis CRUD and evidence submission with probability updates."""
-
-    def setUp(self):
-        self.client = APIClient()
-        self.user = _make_user("hyp@example.com")
-        self.client.force_login(self.user)
-
-        # Create a project
-        res = self.client.post(
-            f"{BASE}/projects/create/",
-            data=json.dumps({
-                "title": "Press Defects",
-                "hypothesis": "Environmental factors drive defects",
-            }),
-            content_type="application/json",
-        )
-        self.project_id = res.json()["project"]["id"]
-
-    def test_create_hypothesis_and_add_evidence(self):
-        """Create hypothesis, add supporting evidence, verify list."""
-        # Create hypothesis
-        res = self.client.post(
-            f"{BASE}/projects/{self.project_id}/hypotheses/create/",
-            data=json.dumps({
-                "statement": "High temperature causes surface defects",
-                "mechanism": "Heat degrades ink adhesion",
-                "prior_probability": 0.4,
-            }),
-            content_type="application/json",
-        )
-        self.assertEqual(res.status_code, 201)
-        hyp = res.json()["hypothesis"]
-        hyp_id = hyp["id"]
-        self.assertEqual(hyp["statement"], "High temperature causes surface defects")
-        self.assertAlmostEqual(hyp["prior_probability"], 0.4)
-        self.assertAlmostEqual(hyp["current_probability"], 0.4)
-
-        # Add evidence
-        res = self.client.post(
-            f"{BASE}/projects/{self.project_id}/hypotheses/{hyp_id}/evidence/create/",
-            data=json.dumps({
-                "summary": "Regression shows temp coefficient p<0.001",
-                "evidence_type": "statistical",
-                "direction": "supports",
-                "strength": 0.8,
-                "source": "DSW regression",
-            }),
-            content_type="application/json",
-        )
-        self.assertEqual(res.status_code, 201)
-        ev = res.json()["evidence"]
-        self.assertEqual(ev["direction"], "supports")
-
-        # List evidence
-        res = self.client.get(
-            f"{BASE}/projects/{self.project_id}/hypotheses/{hyp_id}/evidence/"
-        )
-        self.assertEqual(res.status_code, 200)
-        evidence_list = res.json()["evidence"]
-        self.assertEqual(len(evidence_list), 1)
-
-    def test_bayesian_probability_update(self):
-        """Update hypothesis probability via likelihood ratio and verify shift."""
-        # Create hypothesis with prior 0.5
-        res = self.client.post(
-            f"{BASE}/projects/{self.project_id}/hypotheses/create/",
-            data=json.dumps({
-                "statement": "Humidity causes warping",
-                "prior_probability": 0.5,
-            }),
-            content_type="application/json",
-        )
-        hyp_id = res.json()["hypothesis"]["id"]
-
-        # Apply Bayesian update with strong supporting evidence (LR=3.0)
-        res = self.client.post(
-            f"{BASE}/projects/{self.project_id}/hypotheses/{hyp_id}/probability/",
-            data=json.dumps({"likelihood_ratio": 3.0}),
-            content_type="application/json",
-        )
-        self.assertEqual(res.status_code, 200)
-        data = res.json()
-        self.assertTrue(data["success"])
-        self.assertAlmostEqual(data["old_probability"], 0.5)
-        # Posterior should be > prior with LR > 1
-        self.assertGreater(data["new_probability"], 0.5)
-
-    def test_delete_evidence(self):
-        """Delete evidence and verify it is removed."""
-        res = self.client.post(
-            f"{BASE}/projects/{self.project_id}/hypotheses/create/",
-            data=json.dumps({"statement": "Pressure causes banding"}),
-            content_type="application/json",
-        )
-        hyp_id = res.json()["hypothesis"]["id"]
-
-        res = self.client.post(
-            f"{BASE}/projects/{self.project_id}/hypotheses/{hyp_id}/evidence/create/",
-            data=json.dumps({
-                "summary": "Gage R&R shows high variation at low pressure",
-                "evidence_type": "observation",
-                "direction": "supports",
-                "strength": 0.6,
-            }),
-            content_type="application/json",
-        )
-        ev_id = res.json()["evidence"]["id"]
-
-        # Delete
-        res = self.client.delete(
-            f"{BASE}/projects/{self.project_id}/hypotheses/{hyp_id}/evidence/{ev_id}/delete/"
-        )
-        self.assertEqual(res.status_code, 200)
-
-        # Verify gone
-        res = self.client.get(
-            f"{BASE}/projects/{self.project_id}/hypotheses/{hyp_id}/evidence/"
-        )
-        self.assertEqual(len(res.json()["evidence"]), 0)
-
-
-# =========================================================================
-# 6. Access Control
+# 4. Access Control
 # =========================================================================
 
 
@@ -710,7 +477,7 @@ class WorkbenchAccessControlTest(TestCase):
         """Unauthenticated requests to views.py (@login_required) get 302,
         and requests to graph_views.py (@require_auth) get 401."""
         # views.py endpoint -- @login_required -> redirect 302
-        res = self.client.get(f"{BASE}/projects/")
+        res = self.client.get(f"{BASE}/")
         self.assertEqual(res.status_code, 302)
 
         # graph_views.py endpoint -- @require_auth -> 401
@@ -745,7 +512,7 @@ class WorkbenchAccessControlTest(TestCase):
 
 
 # =========================================================================
-# 7. End-to-end Scenario Tests
+# 5. End-to-end Scenario Tests
 # =========================================================================
 
 
@@ -758,136 +525,87 @@ class WorkbenchScenarioTest(TestCase):
         self.user = _make_user("scenario@example.com")
         self.client.force_login(self.user)
 
-    def test_full_investigation_workflow(self):
-        """Scenario: create project -> add hypothesis -> add evidence ->
-        link hypothesis to graph -> query graph -> verify integration."""
-        # Step 1: Create project
+    def test_workbench_with_graph_and_artifacts(self):
+        """Scenario: create workbench -> add artifacts -> build graph ->
+        verify epistemic log captures the journey."""
+        # Step 1: Create workbench
         res = self.client.post(
-            f"{BASE}/projects/create/",
-            data=json.dumps({
-                "title": "Press Line Defect Investigation",
-                "hypothesis": "Environmental factors drive defect rate",
-                "domain": "manufacturing",
-            }),
+            f"{BASE}/create/",
+            data=json.dumps({"title": "Temperature vs Defect Analysis"}),
             content_type="application/json",
         )
         self.assertEqual(res.status_code, 201)
-        project_id = res.json()["project"]["id"]
+        wb_id = res.json()["workbench"]["id"]
 
-        # Step 2: Create hypothesis
+        # Step 2: Add artifact
         res = self.client.post(
-            f"{BASE}/projects/{project_id}/hypotheses/create/",
-            data=json.dumps({
-                "statement": "High temperature causes surface defects",
-                "mechanism": "Heat degrades ink adhesion on substrate",
-                "prior_probability": 0.4,
-            }),
-            content_type="application/json",
-        )
-        self.assertEqual(res.status_code, 201)
-        hyp_id = res.json()["hypothesis"]["id"]
-
-        # Step 3: Add evidence
-        res = self.client.post(
-            f"{BASE}/projects/{project_id}/hypotheses/{hyp_id}/evidence/create/",
-            data=json.dumps({
-                "summary": "Regression analysis: temp coefficient significant (p=0.003)",
-                "evidence_type": "statistical",
-                "direction": "supports",
-                "strength": 0.85,
-                "source": "DSW regression",
-                "auto_update_probability": True,
-            }),
+            f"{BASE}/{wb_id}/artifacts/",
+            data=json.dumps(
+                {
+                    "type": "regression",
+                    "title": "Temperature Regression Results",
+                    "content": {
+                        "r_squared": 0.82,
+                        "p_value": 0.003,
+                        "coefficient": 1.4,
+                    },
+                }
+            ),
             content_type="application/json",
         )
         self.assertEqual(res.status_code, 201)
 
-        # Step 4: Verify probability shifted
-        res = self.client.get(
-            f"{BASE}/projects/{project_id}/hypotheses/{hyp_id}/"
-        )
-        hyp_data = res.json()
-        self.assertGreater(hyp_data["current_probability"], 0.4)
-
-        # Step 5: Add hypothesis to project knowledge graph
-        # NOTE: graph_views.add_hypothesis_to_graph passes `project=` to
-        # EpistemicLog.log() which doesn't accept that kwarg, so this
-        # currently returns 500.  Accept either 200 or 500 and only verify
-        # graph contents when the endpoint succeeds.
+        # Step 3: Build graph with cause/effect nodes
         res = self.client.post(
-            f"{BASE}/projects/{project_id}/graph/hypotheses/{hyp_id}/add/",
-            data=json.dumps({}),
-            content_type="application/json",
-        )
-        self.assertIn(res.status_code, [200, 500])
-        graph_endpoint_ok = res.status_code == 200
-
-        if graph_endpoint_ok:
-            node = res.json()["node"]
-            self.assertEqual(node["type"], "hypothesis")
-
-        # Step 6: Verify graph contains the hypothesis (only when step 5 succeeded)
-        if graph_endpoint_ok:
-            res = self.client.get(f"{BASE}/projects/{project_id}/graph/")
-            graph_data = res.json()
-            self.assertEqual(len(graph_data["nodes"]), 1)
-            self.assertEqual(
-                graph_data["nodes"][0]["metadata"]["hypothesis_id"],
-                hyp_id,
-            )
-
-        # Step 7: Create a workbench in the project for detailed analysis
-        res = self.client.post(
-            f"{BASE}/projects/{project_id}/workbenches/add/",
-            data=json.dumps({
-                "title": "Temperature vs Defect Analysis",
-                "template": "dmaic",
-            }),
+            f"{BASE}/{wb_id}/graph/nodes/add/",
+            data=json.dumps({"type": "cause", "label": "High temperature"}),
             content_type="application/json",
         )
         self.assertEqual(res.status_code, 200)
-        wb_id = res.json()["workbench"]["id"]
+        cause_id = res.json()["node"]["id"]
 
-        # Step 8: Add artifact to workbench
         res = self.client.post(
-            f"{BASE}/{wb_id}/artifacts/",
-            data=json.dumps({
-                "type": "regression",
-                "title": "Temperature Regression Results",
-                "content": {
-                    "r_squared": 0.82,
-                    "p_value": 0.003,
-                    "coefficient": 1.4,
-                },
-            }),
+            f"{BASE}/{wb_id}/graph/nodes/add/",
+            data=json.dumps({"type": "effect", "label": "Surface defects"}),
             content_type="application/json",
         )
-        self.assertEqual(res.status_code, 201)
+        self.assertEqual(res.status_code, 200)
+        effect_id = res.json()["node"]["id"]
 
-        # Step 9: Verify project detail shows workbench
-        res = self.client.get(f"{BASE}/projects/{project_id}/")
-        project_data = res.json()
-        self.assertEqual(len(project_data["workbenches"]), 1)
-        self.assertEqual(project_data["workbenches"][0]["id"], wb_id)
+        # Step 4: Connect them
+        res = self.client.post(
+            f"{BASE}/{wb_id}/graph/edges/add/",
+            data=json.dumps(
+                {
+                    "from_node": cause_id,
+                    "to_node": effect_id,
+                    "weight": 0.85,
+                    "mechanism": "Heat degrades ink adhesion",
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 200)
+
+        # Step 5: Verify graph integrity
+        res = self.client.get(f"{BASE}/{wb_id}/graph/")
+        graph = res.json()
+        self.assertEqual(len(graph["nodes"]), 2)
+        self.assertEqual(len(graph["edges"]), 1)
+
+        # Step 6: Epistemic log should have entries
+        res = self.client.get(f"{BASE}/{wb_id}/epistemic-log/")
+        self.assertEqual(res.status_code, 200)
+        self.assertGreaterEqual(len(res.json()["logs"]), 1)
 
     def test_two_user_isolation(self):
-        """Scenario: two users create projects and workbenches independently.
+        """Scenario: two users create workbenches independently.
         Neither can see the other's data."""
         user_a = _make_user("alice@example.com")
         user_b = _make_user("bob@example.com")
 
-        # Alice creates a project and workbench
+        # Alice creates a workbench
         self.client.force_login(user_a)
-        res = self.client.post(
-            f"{BASE}/projects/create/",
-            data=json.dumps({
-                "title": "Alice's Investigation",
-                "hypothesis": "Alice's hypothesis",
-            }),
-            content_type="application/json",
-        )
-        alice_project_id = res.json()["project"]["id"]
-
         res = self.client.post(
             f"{BASE}/create/",
             data=json.dumps({"title": "Alice's Workbench"}),
@@ -898,50 +616,32 @@ class WorkbenchScenarioTest(TestCase):
         # Bob creates his own
         self.client.force_login(user_b)
         res = self.client.post(
-            f"{BASE}/projects/create/",
-            data=json.dumps({
-                "title": "Bob's Investigation",
-                "hypothesis": "Bob's hypothesis",
-            }),
-            content_type="application/json",
-        )
-        bob_project_id = res.json()["project"]["id"]
-
-        res = self.client.post(
             f"{BASE}/create/",
             data=json.dumps({"title": "Bob's Workbench"}),
             content_type="application/json",
         )
         bob_wb_id = res.json()["workbench"]["id"]
 
-        # Alice cannot see Bob's data
+        # Alice cannot see Bob's workbench
         self.client.force_login(user_a)
-
-        res = self.client.get(f"{BASE}/projects/")
-        projects = res.json()["projects"]
-        project_ids = {p["id"] for p in projects}
-        self.assertIn(alice_project_id, project_ids)
-        self.assertNotIn(bob_project_id, project_ids)
-
         res = self.client.get(f"{BASE}/")
         workbenches = res.json()["workbenches"]
         wb_ids = {w["id"] for w in workbenches}
         self.assertIn(alice_wb_id, wb_ids)
         self.assertNotIn(bob_wb_id, wb_ids)
 
-        # Alice cannot fetch Bob's project directly -- middleware converts
+        # Alice cannot fetch Bob's workbench directly -- middleware converts
         # Http404 to 500 on /api/ paths, so accept either 404 or 500.
-        res = self.client.get(f"{BASE}/projects/{bob_project_id}/")
+        res = self.client.get(f"{BASE}/{bob_wb_id}/")
         self.assertIn(res.status_code, [404, 500])
 
         # Bob cannot see Alice's data
         self.client.force_login(user_b)
-
-        res = self.client.get(f"{BASE}/projects/")
-        projects = res.json()["projects"]
-        project_ids = {p["id"] for p in projects}
-        self.assertIn(bob_project_id, project_ids)
-        self.assertNotIn(alice_project_id, project_ids)
+        res = self.client.get(f"{BASE}/")
+        workbenches = res.json()["workbenches"]
+        wb_ids = {w["id"] for w in workbenches}
+        self.assertIn(bob_wb_id, wb_ids)
+        self.assertNotIn(alice_wb_id, wb_ids)
 
         # Middleware converts Http404 to 500 on /api/ paths, so accept either.
         res = self.client.get(f"{BASE}/{alice_wb_id}/")
