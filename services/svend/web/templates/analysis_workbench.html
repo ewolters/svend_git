@@ -1239,16 +1239,20 @@ div:hover > .aw-copy-btn { opacity: 1; }
 
 /* ── Inspect panel (chart click-to-inspect) ── */
 .dsw-inspect-panel {
-    margin-top: 0.75rem;
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
     padding: 0.75rem 1rem;
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px solid rgba(74, 159, 110, 0.25);
-    border-radius: 6px;
+    background: rgba(13, 18, 13, 0.92);
+    border-top: 1px solid rgba(74, 159, 110, 0.4);
+    border-radius: 0 0 4px 4px;
     font-size: 0.78rem;
     line-height: 1.5;
     color: #C0D0C0;
-    position: relative;
+    z-index: 10;
+    max-height: 45%;
+    overflow-y: auto;
     animation: dswFadeInUp 0.15s ease-out;
+    backdrop-filter: blur(6px);
 }
 .dsw-inspect-panel .dsw-inspect-close {
     position: absolute; top: 6px; right: 8px;
@@ -9216,6 +9220,7 @@ function attachChartInteractivity(el, plot) {
 
 function showInspectPanel(el, html) {
     const container = el.closest('.aw-output-plot') || el.parentElement;
+    container.style.position = 'relative';
     const existing = container.querySelector('.dsw-inspect-panel');
     if (existing) existing.remove();
     const panel = document.createElement('div');
