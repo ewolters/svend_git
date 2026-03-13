@@ -1684,15 +1684,10 @@ div:hover > .aw-copy-btn { opacity: 1; }
                     </div>
                     <div class="aw-pane-content" style="display:flex;flex-direction:column;">
                         <div class="aw-session" id="session-output" style="flex:1;overflow-y:auto;">
-<span class="note"># Welcome to Analysis Workbench</span>
-<span class="note"># Type commands or use the menus above</span>
+<span class="note"># Analysis Workbench</span>
+<span class="note"># Run analyses from the menus above or use the Command tab</span>
 
 </div>
-                        <div class="aw-cmdline">
-                            <span class="aw-cmdline-label">MTB &gt;</span>
-                            <input type="text" id="cmd-input" placeholder="Enter command...">
-                            <button onclick="runCommand()">Submit</button>
-                        </div>
                     </div>
                 </div>
 
@@ -1708,30 +1703,51 @@ div:hover > .aw-copy-btn { opacity: 1; }
                             Assistant
                         </span>
                         <div class="aw-pane-tabs">
-                            <button class="aw-pane-tab active">Chat</button>
-                            <button class="aw-pane-tab">Guide</button>
+                            <button class="aw-pane-tab active" onclick="switchAssistantTab('chat')">Chat</button>
+                            <button class="aw-pane-tab" onclick="switchAssistantTab('command')">Command</button>
+                            <button class="aw-pane-tab" onclick="switchAssistantTab('guide')">Guide</button>
                         </div>
                     </div>
                     <div class="aw-pane-content" style="display:flex;flex-direction:column;">
-                        <div id="assistant-messages" style="flex:1;overflow-y:auto;padding:8px;">
-                            <div style="padding:8px;background:var(--aw-accent-dim);border-left:2px solid var(--aw-accent);margin-bottom:8px;font-size:11px;border-radius:3px;">
-                                <strong style="color:var(--aw-accent);">Assistant:</strong> <span style="color:var(--aw-text-dim);">Load data to begin. I can help with statistical analysis, visualizations, and interpreting results.</span>
+                        <!-- Chat tab -->
+                        <div id="assistant-tab-chat" style="flex:1;display:flex;flex-direction:column;">
+                            <div id="assistant-messages" style="flex:1;overflow-y:auto;padding:8px;">
+                                <div style="padding:8px;background:var(--aw-accent-dim);border-left:2px solid var(--aw-accent);margin-bottom:8px;font-size:11px;border-radius:3px;">
+                                    <strong style="color:var(--aw-accent);">Assistant:</strong> <span style="color:var(--aw-text-dim);">Load data to begin. I can help with statistical analysis, visualizations, and interpreting results.</span>
+                                </div>
+                            </div>
+                            <div class="aw-cmdline" style="gap:4px;">
+                                <select id="agent-type" style="width:90px;font-size:10px;padding:4px;background:#1a261a;border:1px solid rgba(74,159,110,0.3);color:var(--aw-text);border-radius:3px;">
+                                    <option value="analyst">Analyst</option>
+                                    <option value="researcher">Researcher</option>
+                                    <option value="writer">Writer</option>
+                                </select>
+                                <select id="dsw-model-selector" style="width:80px;font-size:10px;padding:4px;background:#1a261a;border:1px solid rgba(74,159,110,0.3);color:var(--aw-text);border-radius:3px;">
+                                    <option value="default">Default</option>
+                                    <option value="haiku">Haiku</option>
+                                    <option value="sonnet">Sonnet</option>
+                                    <option value="opus">Opus</option>
+                                </select>
+                                <input type="text" id="assistant-input" placeholder="Ask a question..." style="flex:1;">
+                                <button onclick="askAssistant()">Ask</button>
                             </div>
                         </div>
-                        <div class="aw-cmdline" style="gap:4px;">
-                            <select id="agent-type" style="width:90px;font-size:10px;padding:4px;background:#1a261a;border:1px solid rgba(74,159,110,0.3);color:var(--aw-text);border-radius:3px;">
-                                <option value="analyst">Analyst</option>
-                                <option value="researcher">Researcher</option>
-                                <option value="writer">Writer</option>
-                            </select>
-                            <select id="dsw-model-selector" style="width:80px;font-size:10px;padding:4px;background:#1a261a;border:1px solid rgba(74,159,110,0.3);color:var(--aw-text);border-radius:3px;">
-                                <option value="default">Default</option>
-                                <option value="haiku">Haiku</option>
-                                <option value="sonnet">Sonnet</option>
-                                <option value="opus">Opus</option>
-                            </select>
-                            <input type="text" id="assistant-input" placeholder="Ask a question..." style="flex:1;">
-                            <button onclick="askAssistant()">Ask</button>
+                        <!-- Command tab -->
+                        <div id="assistant-tab-command" style="flex:1;display:none;flex-direction:column;">
+                            <div id="command-history" style="flex:1;overflow-y:auto;padding:8px;font-family:monospace;font-size:11px;color:var(--aw-text-dim);">
+                                <div style="color:var(--aw-text-muted);font-size:10px;">Type <strong style="color:var(--aw-accent);">help</strong> for available commands</div>
+                            </div>
+                            <div class="aw-cmdline">
+                                <span class="aw-cmdline-label">MTB &gt;</span>
+                                <input type="text" id="cmd-input" placeholder="Enter command...">
+                                <button onclick="runCommand()">Submit</button>
+                            </div>
+                        </div>
+                        <!-- Guide tab -->
+                        <div id="assistant-tab-guide" style="flex:1;display:none;flex-direction:column;">
+                            <div style="flex:1;overflow-y:auto;padding:8px;">
+                                <div style="padding:8px;color:var(--aw-text-muted);font-size:11px;">Decision guide — coming soon</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -3265,6 +3281,7 @@ function updateColumnsPanel(cols) {
 }
 
 function insertColumn(name) {
+    switchAssistantTab('command');
     const input = document.getElementById('cmd-input');
     input.value += `'${name}' `;
     input.focus();
@@ -9488,13 +9505,23 @@ function pearsonCorr(pairs) {
     return den === 0 ? 0 : num / den;
 }
 
+function appendCommand(type, text) {
+    const hist = document.getElementById('command-history');
+    if (!hist) return;
+    const line = document.createElement('div');
+    line.className = type;
+    line.textContent = text;
+    hist.appendChild(line);
+    hist.scrollTop = hist.scrollHeight;
+}
+
 function runCommand() {
     const input = document.getElementById('cmd-input');
     const cmd = input.value.trim();
     if (!cmd) return;
 
     input.value = '';
-    appendSession('cmd', cmd);
+    appendCommand('cmd', cmd);
 
     // Parse command
     const parts = cmd.toLowerCase().split(/\s+/);
@@ -9503,7 +9530,7 @@ function runCommand() {
 
     switch (command) {
         case 'help':
-            appendSession('result', `Available commands:
+            appendCommand('result', `Available commands:
   help              - Show this help
   info              - Dataset info
   columns           - List all columns
@@ -9524,9 +9551,9 @@ Keyboard: Ctrl+K focus command, Ctrl+/ shortcuts, Esc close dialogs`);
 
         case 'info':
             if (!currentData) {
-                appendSession('error', 'No data loaded. Load a dataset first.');
+                appendCommand('error', 'No data loaded. Load a dataset first.');
             } else {
-                appendSession('result', `Dataset: ${currentData.filename || 'Untitled'}
+                appendCommand('result', `Dataset: ${currentData.filename || 'Untitled'}
 Rows: ${currentData.rows?.toLocaleString() || '?'}
 Columns: ${columns.length}
 ID: ${currentData.id}`);
@@ -9536,33 +9563,33 @@ ID: ${currentData.id}`);
         case 'columns':
         case 'cols':
             if (!columns.length) {
-                appendSession('error', 'No data loaded.');
+                appendCommand('error', 'No data loaded.');
             } else {
                 const colList = columns.map((c, i) => `  ${i + 1}. ${c.name} (${c.dtype || 'unknown'})`).join('\n');
-                appendSession('result', `Columns (${columns.length}):\n${colList}`);
+                appendCommand('result', `Columns (${columns.length}):\n${colList}`);
             }
             break;
 
         case 'head':
             if (!currentData?.preview) {
-                appendSession('error', 'No data loaded.');
+                appendCommand('error', 'No data loaded.');
             } else {
                 const n = parseInt(args[0]) || 5;
                 const rows = currentData.preview.slice(0, n);
                 const headers = columns.map(c => c.name).join('\t');
                 const rowStrs = rows.map(r => columns.map(c => r[c.name] ?? '').join('\t')).join('\n');
-                appendSession('result', `${headers}\n${rowStrs}`);
+                appendCommand('result', `${headers}\n${rowStrs}`);
             }
             break;
 
         case 'describe':
         case 'summary':
             if (!currentData?.preview) {
-                appendSession('error', 'No data loaded.');
+                appendCommand('error', 'No data loaded.');
             } else {
                 const numericCols = columns.filter(c => c.dtype === 'numeric');
                 if (!numericCols.length) {
-                    appendSession('result', 'No numeric columns found.');
+                    appendCommand('result', 'No numeric columns found.');
                 } else {
                     let stats = 'Column\t\tMin\tMax\tMean\n';
                     numericCols.slice(0, 8).forEach(col => {
@@ -9574,56 +9601,56 @@ ID: ${currentData.id}`);
                             stats += `${col.name.substring(0, 12)}\t\t${min}\t${max}\t${mean}\n`;
                         }
                     });
-                    appendSession('result', stats);
+                    appendCommand('result', stats);
                 }
             }
             break;
 
         case 'unique':
             if (!args[0]) {
-                appendSession('error', 'Usage: unique <column_name>');
+                appendCommand('error', 'Usage: unique <column_name>');
             } else if (!currentData?.preview) {
-                appendSession('error', 'No data loaded.');
+                appendCommand('error', 'No data loaded.');
             } else {
                 const colName = columns.find(c => c.name.toLowerCase() === args[0])?.name;
                 if (!colName) {
-                    appendSession('error', `Column "${args[0]}" not found.`);
+                    appendCommand('error', `Column "${args[0]}" not found.`);
                 } else {
                     const vals = [...new Set(currentData.preview.map(r => r[colName]))].slice(0, 20);
-                    appendSession('result', `Unique values in "${colName}" (first 20):\n${vals.join(', ')}`);
+                    appendCommand('result', `Unique values in "${colName}" (first 20):\n${vals.join(', ')}`);
                 }
             }
             break;
 
         case 'tail':
             if (!currentData?.preview) {
-                appendSession('error', 'No data loaded.');
+                appendCommand('error', 'No data loaded.');
             } else {
                 const n = parseInt(args[0]) || 5;
                 const rows = currentData.preview.slice(-n);
                 const headers = columns.map(c => c.name).join('\t');
                 const rowStrs = rows.map(r => columns.map(c => r[c.name] ?? '').join('\t')).join('\n');
-                appendSession('result', `${headers}\n${rowStrs}`);
+                appendCommand('result', `${headers}\n${rowStrs}`);
             }
             break;
 
         case 'corr':
             if (!currentData?.preview) {
-                appendSession('error', 'No data loaded.');
+                appendCommand('error', 'No data loaded.');
             } else {
                 const numCols = columns.filter(c => c.dtype === 'numeric');
                 if (numCols.length < 2) {
-                    appendSession('error', 'Need at least 2 numeric columns for correlation.');
+                    appendCommand('error', 'Need at least 2 numeric columns for correlation.');
                 } else if (args.length >= 2) {
                     // Correlation between two specific columns
                     const col1 = columns.find(c => c.name.toLowerCase() === args[0])?.name;
                     const col2 = columns.find(c => c.name.toLowerCase() === args[1])?.name;
                     if (!col1 || !col2) {
-                        appendSession('error', 'Column not found.');
+                        appendCommand('error', 'Column not found.');
                     } else {
                         const pairs = currentData.preview.map(r => [parseFloat(r[col1]), parseFloat(r[col2])]).filter(p => !isNaN(p[0]) && !isNaN(p[1]));
                         const r = pearsonCorr(pairs);
-                        appendSession('result', `Correlation(${col1}, ${col2}) = ${r.toFixed(4)}`);
+                        appendCommand('result', `Correlation(${col1}, ${col2}) = ${r.toFixed(4)}`);
                     }
                 } else {
                     // Full correlation matrix
@@ -9637,18 +9664,18 @@ ID: ${currentData.id}`);
                         });
                         matrix += '\n';
                     });
-                    appendSession('result', matrix);
+                    appendCommand('result', matrix);
                 }
             }
             break;
 
         case 'count':
             if (!currentData?.preview) {
-                appendSession('error', 'No data loaded.');
+                appendCommand('error', 'No data loaded.');
             } else if (args[0]) {
                 const colName = columns.find(c => c.name.toLowerCase() === args[0])?.name;
                 if (!colName) {
-                    appendSession('error', `Column "${args[0]}" not found.`);
+                    appendCommand('error', `Column "${args[0]}" not found.`);
                 } else {
                     const counts = {};
                     currentData.preview.forEach(r => {
@@ -9656,16 +9683,16 @@ ID: ${currentData.id}`);
                         counts[v] = (counts[v] || 0) + 1;
                     });
                     const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 15);
-                    appendSession('result', `Value counts for "${colName}":\n` + sorted.map(([v, c]) => `  ${v}: ${c}`).join('\n'));
+                    appendCommand('result', `Value counts for "${colName}":\n` + sorted.map(([v, c]) => `  ${v}: ${c}`).join('\n'));
                 }
             } else {
-                appendSession('result', `Total rows: ${currentData.preview.length}`);
+                appendCommand('result', `Total rows: ${currentData.preview.length}`);
             }
             break;
 
         case 'missing':
             if (!currentData?.preview) {
-                appendSession('error', 'No data loaded.');
+                appendCommand('error', 'No data loaded.');
             } else {
                 let missing = 'Missing values:\n';
                 columns.forEach(col => {
@@ -9674,28 +9701,28 @@ ID: ${currentData.id}`);
                         missing += `  ${col.name}: ${nullCount} (${(nullCount/currentData.preview.length*100).toFixed(1)}%)\n`;
                     }
                 });
-                appendSession('result', missing || 'No missing values found.');
+                appendCommand('result', missing || 'No missing values found.');
             }
             break;
 
         case 'hist':
             if (!args[0]) {
-                appendSession('error', 'Usage: hist <column_name>');
+                appendCommand('error', 'Usage: hist <column_name>');
             } else if (!currentData?.preview) {
-                appendSession('error', 'No data loaded.');
+                appendCommand('error', 'No data loaded.');
             } else {
                 const colName = columns.find(c => c.name.toLowerCase() === args[0])?.name;
                 if (!colName) {
-                    appendSession('error', `Column "${args[0]}" not found.`);
+                    appendCommand('error', `Column "${args[0]}" not found.`);
                 } else {
                     const vals = currentData.preview.map(r => parseFloat(r[colName])).filter(v => !isNaN(v));
                     const plotDiv = document.createElement('div');
                     plotDiv.style.cssText = 'width:100%;height:300px;margin:8px 0;';
-                    document.getElementById('session-output').appendChild(plotDiv);
+                    document.getElementById('command-history').appendChild(plotDiv);
                     Plotly.newPlot(plotDiv, [{x: vals, type: 'histogram', marker: {color: '#4a9f6e'}}],
                         {title: `Histogram: ${colName}`, paper_bgcolor: '#0a0f0a', plot_bgcolor: '#0d120d', font: {color: '#9aaa9a'}, margin: {t:40,b:40,l:50,r:20}},
                         {responsive: true});
-                    appendSession('result', `Histogram for "${colName}" displayed.`);
+                    appendCommand('result', `Histogram for "${colName}" displayed.`);
                 }
             }
             break;
@@ -9703,24 +9730,24 @@ ID: ${currentData.id}`);
         case 'plot':
         case 'scatter':
             if (args.length < 2) {
-                appendSession('error', 'Usage: plot <x_column> <y_column>');
+                appendCommand('error', 'Usage: plot <x_column> <y_column>');
             } else if (!currentData?.preview) {
-                appendSession('error', 'No data loaded.');
+                appendCommand('error', 'No data loaded.');
             } else {
                 const xCol = columns.find(c => c.name.toLowerCase() === args[0])?.name;
                 const yCol = columns.find(c => c.name.toLowerCase() === args[1])?.name;
                 if (!xCol || !yCol) {
-                    appendSession('error', 'Column not found.');
+                    appendCommand('error', 'Column not found.');
                 } else {
                     const x = currentData.preview.map(r => parseFloat(r[xCol]));
                     const y = currentData.preview.map(r => parseFloat(r[yCol]));
                     const plotDiv = document.createElement('div');
                     plotDiv.style.cssText = 'width:100%;height:300px;margin:8px 0;';
-                    document.getElementById('session-output').appendChild(plotDiv);
+                    document.getElementById('command-history').appendChild(plotDiv);
                     Plotly.newPlot(plotDiv, [{x, y, mode: 'markers', type: 'scatter', marker: {color: '#4a9f6e'}}],
                         {title: `${xCol} vs ${yCol}`, xaxis: {title: xCol}, yaxis: {title: yCol}, paper_bgcolor: '#0a0f0a', plot_bgcolor: '#0d120d', font: {color: '#9aaa9a'}, margin: {t:40,b:40,l:50,r:20}},
                         {responsive: true});
-                    appendSession('result', `Scatter plot displayed.`);
+                    appendCommand('result', `Scatter plot displayed.`);
                 }
             }
             break;
@@ -9732,12 +9759,12 @@ ID: ${currentData.id}`);
 
         case 'clear':
             sessionHistory = [];
-            document.getElementById('session-output').innerHTML = '';
-            appendSession('note', 'Session cleared.');
+            document.getElementById('command-history').innerHTML = '';
+            appendCommand('note', 'Session cleared.');
             break;
 
         default:
-            appendSession('error', `Unknown command: ${command}. Type "help" for available commands.`);
+            appendCommand('error', `Unknown command: ${command}. Type "help" for available commands.`);
     }
 }
 
@@ -9907,10 +9934,10 @@ document.addEventListener('keydown', (e) => {
         runCode();
     }
 
-    // Ctrl/Cmd + K: Focus command input
+    // Ctrl/Cmd + K: Switch to command tab and focus input
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
-        document.getElementById('cmd-input').focus();
+        switchAssistantTab('command');
     }
 
     // Ctrl/Cmd + /: Show keyboard shortcuts help
@@ -9928,11 +9955,12 @@ document.addEventListener('keydown', (e) => {
 function showKeyboardShortcuts() {
     const shortcuts = [
         ['Ctrl + Enter', 'Run code'],
-        ['Ctrl + K', 'Focus console'],
+        ['Ctrl + K', 'Focus command'],
         ['Ctrl + /', 'Show shortcuts'],
         ['Escape', 'Close dialogs'],
     ];
-    const container = document.getElementById('session-output');
+    const container = document.getElementById('command-history');
+    if (!container) return;
     container.innerHTML += `
         <div style="color:#6aaa8a;font-size:10px;margin-top:4px;">
             <strong>Keyboard Shortcuts:</strong><br>
@@ -9940,6 +9968,29 @@ function showKeyboardShortcuts() {
         </div>
     `;
     container.scrollTop = container.scrollHeight;
+}
+
+function switchAssistantTab(tab) {
+    // Toggle tab content
+    ['chat', 'command', 'guide'].forEach(t => {
+        const el = document.getElementById('assistant-tab-' + t);
+        if (el) el.style.display = t === tab ? 'flex' : 'none';
+    });
+    // Toggle tab buttons
+    const header = document.querySelector('.aw-pane-tabs');
+    // Find the assistant pane tabs (the one with Chat/Command/Guide)
+    document.querySelectorAll('.aw-pane-tabs').forEach(tabBar => {
+        const buttons = tabBar.querySelectorAll('.aw-pane-tab');
+        const labels = Array.from(buttons).map(b => b.textContent.trim().toLowerCase());
+        if (labels.includes('command')) {
+            buttons.forEach(b => {
+                b.classList.toggle('active', b.textContent.trim().toLowerCase() === tab);
+            });
+        }
+    });
+    // Focus the input in the active tab
+    if (tab === 'command') document.getElementById('cmd-input')?.focus();
+    if (tab === 'chat') document.getElementById('assistant-input')?.focus();
 }
 
 document.getElementById('cmd-input').addEventListener('keydown', (e) => {
