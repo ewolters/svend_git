@@ -26,7 +26,7 @@ def run_d_sig(df, config):
     """
     result = {"plots": [], "summary": "", "guide_observation": ""}
 
-    variable = config.get("variable") or config.get("profile")
+    variable = config.get("variable") or config.get("measurement") or config.get("profile")
     time_col = config.get("time_col") or config.get("time")
     group_col = config.get("group") or config.get("factor")
 

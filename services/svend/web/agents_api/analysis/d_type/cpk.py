@@ -46,7 +46,7 @@ def run_d_cpk(df, config):
     """
     result = {"plots": [], "summary": "", "guide_observation": ""}
 
-    variable = config.get("variable")
+    variable = config.get("variable") or config.get("measurement")
     factor = config.get("factor")
     lsl = config.get("lsl")
     usl = config.get("usl")

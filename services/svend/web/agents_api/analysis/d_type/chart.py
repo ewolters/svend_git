@@ -27,7 +27,7 @@ def run_d_chart(df, config):
 
     result = {"plots": [], "summary": "", "guide_observation": ""}
 
-    variable = config.get("variable")
+    variable = config.get("variable") or config.get("measurement")
     factor = config.get("factor")
     time_col = config.get("time_col")
     window_size = int(config.get("window_size", 50))
