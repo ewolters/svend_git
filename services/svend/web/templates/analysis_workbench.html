@@ -9061,7 +9061,7 @@ function displayPlotPage(plots) {
     pane.innerHTML = `
         <div style="display:grid;grid-template-columns:repeat(${cols}, 1fr);grid-template-rows:repeat(${rows}, 1fr);gap:8px;padding:8px;height:100%;box-sizing:border-box;">
             ${plots.slice(0, PLOTS_PER_PAGE).map((plot, i) => `
-                <div style="background:#0d120d;border:1px solid #4a9f6e;border-radius:4px;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
+                <div class="aw-output-plot" style="position:relative;background:#0d120d;border:1px solid #4a9f6e;border-radius:4px;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
                     <div style="padding:4px 10px;background:#1a261a;border-bottom:1px solid rgba(74,159,110,0.3);font-size:10px;font-weight:500;color:#e8efe8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${plot.title || 'Graph ' + (i+1)}</div>
                     <div id="graph-${i}" style="flex:1;min-height:0;"></div>
                 </div>
@@ -9127,7 +9127,7 @@ function displayPlotPageWithNav(pageIndex) {
                     <span class="aw-chart-count">${currentPlots.length} chart${currentPlots.length !== 1 ? 's' : ''}</span>
                 </div>
                 <div style="flex:1;padding:4px;min-height:0;background:#1a261a;overflow:hidden;">
-                    <div style="background:#0d120d;border:1px solid #4a9f6e;border-radius:4px;display:flex;flex-direction:column;height:100%;overflow:hidden;">
+                    <div class="aw-output-plot" style="position:relative;background:#0d120d;border:1px solid #4a9f6e;border-radius:4px;display:flex;flex-direction:column;height:100%;overflow:hidden;">
                         <div style="padding:4px 10px;background:#1a261a;border-bottom:1px solid rgba(74,159,110,0.3);font-size:10px;font-weight:500;color:#e8efe8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${plot.title || 'Graph 1'}</div>
                         <div id="graph-0" style="flex:1;min-height:0;overflow:hidden;"></div>
                     </div>
@@ -9160,7 +9160,7 @@ function displayPlotPageWithNav(pageIndex) {
             <!-- Charts grid -->
             <div style="flex:1;display:grid;grid-template-columns:repeat(${cols}, 1fr);grid-template-rows:repeat(${rows}, 1fr);gap:${gap}px;padding:${padding}px;min-height:0;background:#1a261a;">
                 ${pagePlots.map((plot, i) => `
-                    <div style="background:#0d120d;border:1px solid #4a9f6e;border-radius:4px;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
+                    <div class="aw-output-plot" style="position:relative;background:#0d120d;border:1px solid #4a9f6e;border-radius:4px;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
                         <div style="padding:4px 10px;background:#1a261a;border-bottom:1px solid rgba(74,159,110,0.3);font-size:10px;font-weight:500;color:#e8efe8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${plot.title || 'Graph ' + (startIdx + i + 1)}</div>
                         <div id="graph-${i}" style="flex:1;min-height:0;"></div>
                     </div>
