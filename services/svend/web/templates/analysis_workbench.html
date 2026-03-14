@@ -1545,11 +1545,14 @@ div:hover > .aw-copy-btn { opacity: 1; }
 
             <div class="aw-toolbar-sep"></div>
 
-            <span class="aw-toolbar-label">Investigation:</span>
-            <select id="project-selector" style="padding:1px 4px;font-size:9px;border:1px solid var(--aw-border);background:var(--aw-bg-dark);color:var(--aw-text);max-width:120px;">
+            <span class="aw-toolbar-label">Notebook:</span>
+            <select id="notebook-selector" style="padding:1px 4px;font-size:9px;border:1px solid var(--aw-border);background:var(--aw-bg-dark);color:var(--aw-text);max-width:120px;">
                 <option value="">None</option>
             </select>
-            <a href="#" id="project-link" style="display:none;align-items:center;color:var(--aw-accent);margin-left:2px;" title="Open investigation">
+            <select id="trial-selector" style="padding:1px 4px;font-size:9px;border:1px solid var(--aw-border);background:var(--aw-bg-dark);color:var(--aw-text);max-width:100px;display:none;">
+                <option value="">No trial</option>
+            </select>
+            <a href="#" id="notebook-link" style="display:none;align-items:center;color:var(--aw-accent);margin-left:2px;" title="Open notebook">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
                     <polyline points="15 3 21 3 21 9"/>
@@ -2376,18 +2379,19 @@ async function deleteModel(modelId) {
 setTimeout(loadModels, 100);
 
 // ============================================================================
-// INVESTIGATION INTEGRATION (CANON-002)
+// NOTEBOOK INTEGRATION (NB-001)
 // ============================================================================
-let currentInvestigation = null;
+let currentNotebook = null;
+let currentTrial = null;
 let currentProject = null;
 let projectHypotheses = [];
 
-async function loadInvestigations() {
-    const selector = document.getElementById('project-selector');
+async function loadNotebooks() {
+    const selector = document.getElementById('notebook-selector');
     if (!selector) return;
 
     try {
-        const response = await fetch('/api/investigations/', {
+        const response = await fetch('/api/notebooks/', {
             credentials: 'include',
             headers: { 'X-CSRFToken': getCSRFToken() }
         });
@@ -2395,33 +2399,75 @@ async function loadInvestigations() {
         if (!response.ok) return;
 
         const data = await response.json();
-        const investigations = data.investigations || [];
+        const notebooks = data.notebooks || [];
 
         selector.innerHTML = '<option value="">None</option>' +
-            investigations.map(inv => `<option value="${inv.id}">${inv.title}</option>`).join('');
+            notebooks.map(nb => `<option value="${nb.id}">${nb.title} (${nb.status})</option>`).join('');
 
-        // Restore selection if any
-        if (currentInvestigation) {
-            selector.value = currentInvestigation;
+        if (currentNotebook) {
+            selector.value = currentNotebook;
         }
-
     } catch (err) {
-        console.error('Failed to load investigations:', err);
+        console.error('Failed to load notebooks:', err);
     }
 }
 
-// Load investigations on page load, then check for URL param
-setTimeout(async () => {
-    await loadInvestigations();
+async function loadTrials(notebookId) {
+    const selector = document.getElementById('trial-selector');
+    if (!selector) return;
 
-    // Auto-select investigation from URL param
+    if (!notebookId) {
+        selector.style.display = 'none';
+        selector.innerHTML = '<option value="">No trial</option>';
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/notebooks/${notebookId}/trials/`, {
+            credentials: 'include',
+            headers: { 'X-CSRFToken': getCSRFToken() }
+        });
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const trials = data.trials || [];
+
+        const pending = trials.filter(t => t.verdict === 'pending');
+        if (pending.length > 0 || trials.length > 0) {
+            selector.innerHTML = '<option value="">No trial</option>' +
+                trials.map(t => {
+                    const label = `Trial ${t.sequence}: ${t.title}${t.verdict === 'pending' ? ' ●' : ''}`;
+                    return `<option value="${t.id}"${t.verdict === 'pending' ? ' selected' : ''}>${label}</option>`;
+                }).join('');
+            selector.style.display = '';
+
+            // Auto-select pending trial
+            const activeTrial = pending[0];
+            if (activeTrial) {
+                currentTrial = activeTrial.id;
+                selector.value = activeTrial.id;
+            }
+        } else {
+            selector.innerHTML = '<option value="">No trial</option>';
+            selector.style.display = '';
+        }
+    } catch (err) {
+        console.error('Failed to load trials:', err);
+    }
+}
+
+// Load notebooks on page load, then check for URL param
+setTimeout(async () => {
+    await loadNotebooks();
+
     const urlParams = new URLSearchParams(window.location.search);
-    const investigationId = urlParams.get('investigation') || urlParams.get('project');
-    if (investigationId) {
-        const selector = document.getElementById('project-selector');
+    const notebookId = urlParams.get('notebook') || urlParams.get('project');
+    if (notebookId) {
+        const selector = document.getElementById('notebook-selector');
         if (selector) {
-            selector.value = investigationId;
-            await onInvestigationChange(investigationId);
+            selector.value = notebookId;
+            await onNotebookChange(notebookId);
         }
     }
 }, 150);
@@ -2439,40 +2485,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (e) {}
 });
 
-// Handle investigation selection change
-async function onInvestigationChange(investigationId) {
-    currentInvestigation = investigationId || null;
-    currentProject = investigationId || null;  // Backward compat for evidence paths
+// Handle notebook selection change
+async function onNotebookChange(notebookId) {
+    currentNotebook = notebookId || null;
+    currentTrial = null;
+    currentProject = null;
     projectHypotheses = [];
 
-    if (currentInvestigation) {
-        // Load graph hypotheses from investigation API
-        try {
-            const response = await fetch(`/api/investigations/${currentInvestigation}/graph/`, {
-                credentials: 'include',
-                headers: { 'X-CSRFToken': getCSRFToken() }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                const hypotheses = data.graph?.hypotheses || {};
-                projectHypotheses = Object.entries(hypotheses).map(([id, h]) => ({
-                    id: id,
-                    text: h.label || h.text || id,
-                    prior_probability: h.prior,
-                    current_probability: h.posterior || h.prior,
-                }));
-                console.log(`Loaded ${projectHypotheses.length} hypotheses for investigation`);
-            }
-        } catch (err) {
-            console.error('Failed to load investigation graph:', err);
-        }
+    if (currentNotebook) {
+        await loadTrials(currentNotebook);
+    } else {
+        const trialSelector = document.getElementById('trial-selector');
+        if (trialSelector) trialSelector.style.display = 'none';
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const selector = document.getElementById('project-selector');
-    if (selector) {
-        selector.addEventListener('change', (e) => onInvestigationChange(e.target.value));
+    const nbSelector = document.getElementById('notebook-selector');
+    if (nbSelector) {
+        nbSelector.addEventListener('change', (e) => onNotebookChange(e.target.value));
+    }
+    const trialSelector = document.getElementById('trial-selector');
+    if (trialSelector) {
+        trialSelector.addEventListener('change', (e) => { currentTrial = e.target.value || null; });
     }
 });
 
@@ -8368,9 +8403,9 @@ async function executeAnalysis() {
                 analysis: backendId,
                 config: config,
                 data_id: currentData?.id,
-                investigation_id: currentInvestigation || undefined,
-                project_id: currentProject || undefined,
-                save_result: !!currentInvestigation,
+                notebook_id: currentNotebook || undefined,
+                trial_id: currentTrial || undefined,
+                save_result: !!currentNotebook,
             })
         });
 
@@ -10246,26 +10281,24 @@ awContainer.addEventListener('drop', async (e) => {
 })();
 
 // ============================================================================
-// INVESTIGATION LINK
+// NOTEBOOK LINK
 // ============================================================================
-(function setupInvestigationLink() {
-    const selector = document.getElementById('project-selector');
-    const link = document.getElementById('project-link');
+(function setupNotebookLink() {
+    const selector = document.getElementById('notebook-selector');
+    const link = document.getElementById('notebook-link');
     if (!selector || !link) return;
 
     function updateLink() {
         const val = selector.value;
         if (val) {
-            link.href = '/app/investigations/?id=' + val;
+            link.href = '/app/notebooks/?id=' + val;
             link.style.display = 'flex';
         } else {
             link.style.display = 'none';
         }
     }
 
-    // Update on change (supplements existing onInvestigationChange handler)
     selector.addEventListener('change', updateLink);
-    // Set initial state
     setTimeout(updateLink, 200);
 })();
 
@@ -10294,7 +10327,7 @@ function collectSessionState() {
         data_id: currentData?.id || null,
         data_file: currentData?.filename || null,
         cache_key: null,
-        project_id: currentInvestigation || null,
+        project_id: currentNotebook || null,
         output_html: chartHtml,
     };
 }
@@ -10395,10 +10428,10 @@ async function loadWorkbenchById(id) {
         }
 
         if (layout.project_id) {
-            const selector = document.getElementById('project-selector');
+            const selector = document.getElementById('notebook-selector');
             if (selector) {
                 selector.value = layout.project_id;
-                onInvestigationChange(layout.project_id);
+                onNotebookChange(layout.project_id);
             }
         }
 

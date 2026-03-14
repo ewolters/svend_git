@@ -327,6 +327,56 @@ def _connect_investigation(request, investigation_id, result, analysis_type, ana
 
 
 # =============================================================================
+# NOTEBOOK INTEGRATION (NB-001 §3.1)
+# =============================================================================
+
+
+def _create_notebook_page(request, notebook_id, trial_id, result, analysis_type, analysis_id, config):
+    """Create a frozen NotebookPage from an analysis result."""
+    try:
+        from core.models import Notebook, NotebookPage, Trial
+
+        nb = Notebook.objects.get(id=notebook_id, owner=request.user)
+
+        trial = None
+        trial_role = ""
+        if trial_id:
+            try:
+                trial = Trial.objects.get(id=trial_id, notebook=nb)
+                # If trial has no before analysis, this is the before; otherwise after
+                trial_role = "before" if trial.before_analysis is None else "after"
+            except Trial.DoesNotExist:
+                trial = None
+
+        label = analysis_id.replace("_", " ").title()
+        title = f"{analysis_type.upper()} — {label}"
+
+        NotebookPage.objects.create(
+            notebook=nb,
+            page_type="analysis",
+            title=title,
+            source_tool=f"dsw_{analysis_type}",
+            inputs={
+                "analysis_type": analysis_type,
+                "analysis_id": analysis_id,
+                "config": config,
+            },
+            outputs={
+                "summary": result.get("summary", "")[:2000],
+                "statistics": result.get("statistics", {}),
+                "plots_count": len(result.get("plots", [])),
+            },
+            narrative=result.get("summary", "")[:500],
+            trial=trial,
+            trial_role=trial_role,
+            created_by=request.user,
+        )
+        logger.info(f"NotebookPage created for notebook {notebook_id}")
+    except Exception:
+        logger.warning("Failed to create notebook page", exc_info=True)
+
+
+# =============================================================================
 # MAIN ENDPOINT
 # =============================================================================
 
@@ -361,6 +411,8 @@ def run_analysis(request):
     config = body.get("config", {})
     project_id = body.get("project_id")
     investigation_id = body.get("investigation_id")
+    notebook_id = body.get("notebook_id")
+    trial_id = body.get("trial_id")
     result_title = body.get("title", "")
     save_result = body.get("save_result", False)
 
@@ -395,7 +447,7 @@ def run_analysis(request):
 
         result = standardize_output(result, analysis_type, analysis_id)
 
-        # Investigation bridge (CANON-002 §12)
+        # Investigation bridge (CANON-002 §12) — legacy, kept for backward compat
         if investigation_id:
             bridge_result = _connect_investigation(
                 request=request,
@@ -407,6 +459,18 @@ def run_analysis(request):
             )
             if bridge_result:
                 result["investigation_bridge"] = bridge_result
+
+        # Notebook integration (NB-001 §3.1)
+        if notebook_id:
+            _create_notebook_page(
+                request=request,
+                notebook_id=notebook_id,
+                trial_id=trial_id,
+                result=result,
+                analysis_type=analysis_type,
+                analysis_id=analysis_id,
+                config=config,
+            )
 
         return safe_json_response(result)
 
