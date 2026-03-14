@@ -2,6 +2,7 @@
 {% block title %}Notebooks - SVEND{% endblock %}
 
 {% block extra_head %}
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
 <style>
 /* ============================================================================
    NOTEBOOKS — NB-001 Notebook & Trial UI
@@ -535,6 +536,12 @@ function renderDetail(nb) {
         </div>
         ` : ''}
     `;
+
+    // Render Plotly charts after DOM update
+    const allPages = (nb.pages || []);
+    if (allPages.some(p => (p.outputs?.plots || []).length > 0)) {
+        setTimeout(() => renderPageCharts(allPages), 50);
+    }
 }
 
 function renderTrial(t) {
@@ -564,19 +571,70 @@ function renderTrial(t) {
     `;
 }
 
+let _chartCounter = 0;
+
 function renderPage(p) {
-    const outputStr = Object.entries(p.outputs || {}).slice(0, 3).map(([k, v]) => `${k}: ${v}`).join(', ');
+    const plots = (p.outputs?.plots || []);
+    const narrative = p.narrative || p.outputs?.summary || '';
+    const stats = p.outputs?.statistics || {};
+    const statsKeys = Object.keys(stats);
+    const statsSummary = statsKeys.slice(0, 5).map(k => {
+        const v = stats[k];
+        return `${k}: ${typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(4)) : v}`;
+    }).join(' | ');
+
+    // Generate unique IDs for chart divs
+    const chartDivs = plots.map(() => `nb-chart-${++_chartCounter}`);
+
     return `
         <div class="nb-timeline-item">
             <div class="nb-timeline-dot page"></div>
             <div class="nb-page-card">
                 <div class="nb-page-tool">${esc(p.source_tool || p.page_type)}</div>
                 <div class="nb-page-title">${esc(p.title)}</div>
-                ${outputStr ? `<div class="nb-page-output">${esc(outputStr)}</div>` : ''}
-                ${p.trial_role ? `<div style="font-size:10px;color:var(--accent-primary);margin-top:2px;">Trial evidence: ${p.trial_role}</div>` : ''}
+                ${narrative ? `<div class="nb-page-output">${esc(narrative)}</div>` : ''}
+                ${statsSummary ? `<div style="font-size:10px;color:var(--text-dim);margin-top:4px;font-family:var(--font-mono,'JetBrains Mono',monospace);">${esc(statsSummary)}</div>` : ''}
+                ${plots.length > 0 ? `
+                    <div style="margin-top:8px;">
+                        ${chartDivs.map((id, i) => `
+                            <div style="margin-bottom:4px;font-size:10px;color:var(--text-dim);">${esc(plots[i].title || '')}</div>
+                            <div id="${id}" style="width:100%;height:220px;"></div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                ${p.trial_role ? `<div style="font-size:10px;color:var(--accent-primary);margin-top:4px;">Trial evidence: ${p.trial_role}</div>` : ''}
             </div>
         </div>
     `;
+}
+
+function renderPageCharts(pages) {
+    // Called after DOM is updated to render Plotly charts
+    _chartCounter = 0; // Reset counter to match
+    let idx = 0;
+    for (const p of pages) {
+        const plots = p.outputs?.plots || [];
+        for (const plot of plots) {
+            idx++;
+            const divId = `nb-chart-${idx}`;
+            const el = document.getElementById(divId);
+            if (!el || !plot.data) continue;
+
+            const layout = Object.assign({}, plot.layout || {}, {
+                paper_bgcolor: 'transparent',
+                plot_bgcolor: 'transparent',
+                font: { color: getComputedStyle(document.body).getPropertyValue('--text-primary') || '#ccc', size: 10 },
+                margin: { t: 30, r: 10, b: 30, l: 40 },
+                height: 220,
+            });
+
+            try {
+                Plotly.newPlot(divId, plot.data, layout, { displayModeBar: false, responsive: true });
+            } catch (e) {
+                console.warn('Chart render failed:', e);
+            }
+        }
+    }
 }
 
 // --- Modals ---

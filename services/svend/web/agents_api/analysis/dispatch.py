@@ -393,6 +393,7 @@ def _create_notebook_page(request, notebook_id, trial_id, result, analysis_type,
             outputs={
                 "summary": plain_summary[:2000],
                 "statistics": stats,
+                "plots": _sanitize_json(result.get("plots", []))[:6],
                 "plots_count": len(result.get("plots", [])),
             },
             narrative=plain_summary[:500],
