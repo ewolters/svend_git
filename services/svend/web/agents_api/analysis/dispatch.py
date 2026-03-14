@@ -331,6 +331,19 @@ def _connect_investigation(request, investigation_id, result, analysis_type, ana
 # =============================================================================
 
 
+def _sanitize_json(obj):
+    """Replace Infinity/NaN with None for JSON/JSONB compatibility."""
+    if isinstance(obj, float):
+        if math.isinf(obj) or math.isnan(obj):
+            return None
+        return obj
+    if isinstance(obj, dict):
+        return {k: _sanitize_json(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sanitize_json(v) for v in obj]
+    return obj
+
+
 def _create_notebook_page(request, notebook_id, trial_id, result, analysis_type, analysis_id, config):
     """Create a frozen NotebookPage from an analysis result."""
     try:
@@ -351,6 +364,9 @@ def _create_notebook_page(request, notebook_id, trial_id, result, analysis_type,
         label = analysis_id.replace("_", " ").title()
         title = f"{analysis_type.upper()} — {label}"
 
+        stats = _sanitize_json(result.get("statistics", {}))
+        sanitized_config = _sanitize_json(config)
+
         NotebookPage.objects.create(
             notebook=nb,
             page_type="analysis",
@@ -359,11 +375,11 @@ def _create_notebook_page(request, notebook_id, trial_id, result, analysis_type,
             inputs={
                 "analysis_type": analysis_type,
                 "analysis_id": analysis_id,
-                "config": config,
+                "config": sanitized_config,
             },
             outputs={
                 "summary": result.get("summary", "")[:2000],
-                "statistics": result.get("statistics", {}),
+                "statistics": stats,
                 "plots_count": len(result.get("plots", [])),
             },
             narrative=result.get("summary", "")[:500],
