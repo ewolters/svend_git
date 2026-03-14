@@ -8430,6 +8430,9 @@ async function executeAnalysis() {
                 div.style.whiteSpace = 'pre';
                 div.style.lineHeight = '1.4';
                 div.innerHTML = formatted;
+            } else if (result.summary.includes('<') || result.summary.includes('&')) {
+                // Summary contains HTML markup (e.g., <strong>, &mdash;)
+                div.innerHTML = result.summary;
             } else {
                 div.textContent = result.summary;
             }
@@ -8542,25 +8545,25 @@ function renderDSWBlocks(result) {
         if (n.verdict) {
             const v = document.createElement('div');
             v.className = 'dsw-verdict';
-            v.textContent = n.verdict;
+            v.innerHTML = n.verdict;
             div.appendChild(v);
         }
         if (n.body) {
             const b = document.createElement('div');
             b.className = 'dsw-narrative-body';
-            b.textContent = n.body;
+            b.innerHTML = n.body;
             div.appendChild(b);
         }
         if (n.chart_guidance) {
             const cg = document.createElement('div');
             cg.className = 'dsw-chart-guidance';
-            cg.textContent = n.chart_guidance;
+            cg.innerHTML = n.chart_guidance;
             div.appendChild(cg);
         }
         if (n.next_steps) {
             const ns = document.createElement('div');
             ns.className = 'dsw-next';
-            ns.textContent = n.next_steps;
+            ns.innerHTML = n.next_steps;
             div.appendChild(ns);
         }
         session.appendChild(div);
