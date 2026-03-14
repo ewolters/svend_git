@@ -54,7 +54,12 @@ def run_capability(df, config):
         ppm_above = float(sp_stats.norm.cdf(-z_upper) * 1e6)
         ppm_total = ppm_below + ppm_above
         yield_pct = (1 - ppm_total / 1e6) * 100
-        sigma_level = float(sp_stats.norm.ppf(1 - ppm_total / 1e6) + 1.5) if ppm_total < 1e6 else 0
+        if ppm_total > 0 and ppm_total < 1e6:
+            sigma_level = float(sp_stats.norm.ppf(1 - ppm_total / 1e6) + 1.5)
+        elif ppm_total == 0:
+            sigma_level = 6.0  # Cap at 6 sigma when zero defects predicted
+        else:
+            sigma_level = 0.0
 
     elif lsl is not None and std > 0:
         cpk = (mean - lsl) / (3 * std)
@@ -465,10 +470,10 @@ def run_capability(df, config):
             _cap_next = "Process is not capable. Run a Gage R&R to confirm measurement isn't inflating variation, then investigate root causes with multi-vari or DOE."
         _cap_body = f"Cpk = {cpk:.3f}"
         if _tol_pct is not None:
-            _cap_body += f" &mdash; the process uses {_tol_pct:.0f}% of the tolerance"
-        _cap_body += f". Estimated <strong>{ppm_total:,.0f}</strong> defects per million ({yield_pct:.2f}% yield)."
+            _cap_body += f" -- the process uses {_tol_pct:.0f}% of the tolerance"
+        _cap_body += f". Estimated {ppm_total:,.0f} defects per million ({yield_pct:.2f}% yield)."
         if cp is not None and ppk is not None and cpk < ppk - 0.05:
-            _cap_body += " Short-term capability exceeds long-term &mdash; the process has shifts or drifts not captured in subgroups."
+            _cap_body += " Short-term capability exceeds long-term -- the process has shifts or drifts not captured in subgroups."
         result["narrative"] = _narrative(
             _cap_verdict,
             _cap_body,
