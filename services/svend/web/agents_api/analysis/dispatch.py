@@ -361,8 +361,21 @@ def _create_notebook_page(request, notebook_id, trial_id, result, analysis_type,
             except Trial.DoesNotExist:
                 trial = None
 
+        import re
+        from html import unescape
+
+        def _strip_html(text):
+            """Strip HTML tags and decode entities for plain-text storage."""
+            if not text:
+                return ""
+            text = re.sub(r"<[^>]+>", "", text)
+            return unescape(text)
+
         label = analysis_id.replace("_", " ").title()
         title = f"{analysis_type.upper()} — {label}"
+
+        raw_summary = result.get("summary", "")
+        plain_summary = _strip_html(raw_summary)
 
         stats = _sanitize_json(result.get("statistics", {}))
         sanitized_config = _sanitize_json(config)
@@ -378,11 +391,11 @@ def _create_notebook_page(request, notebook_id, trial_id, result, analysis_type,
                 "config": sanitized_config,
             },
             outputs={
-                "summary": result.get("summary", "")[:2000],
+                "summary": plain_summary[:2000],
                 "statistics": stats,
                 "plots_count": len(result.get("plots", [])),
             },
-            narrative=result.get("summary", "")[:500],
+            narrative=plain_summary[:500],
             trial=trial,
             trial_role=trial_role,
             created_by=request.user,
