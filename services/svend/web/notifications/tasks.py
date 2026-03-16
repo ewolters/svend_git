@@ -16,15 +16,15 @@ _RATE_LIMIT_PER_HOUR = 20
 _DIGEST_BATCH_CAP = 100
 
 
-def send_notification_email_task(task):
+def send_notification_email_task(payload, context=None):
     """Send a single notification email (immediate mode).
 
-    Expected task args: notification_id, token_id
+    Expected payload args: notification_id, token_id
     """
     from notifications.email import build_notification_email, send_notification_email
     from notifications.tokens import NotificationToken
 
-    args = task.get("args", {}) if isinstance(task, dict) else getattr(task, "args", {}) or {}
+    args = payload.get("args", {}) if isinstance(payload, dict) else getattr(payload, "args", {}) or {}
     notification_id = args.get("notification_id")
     token_id = args.get("token_id")
 
@@ -59,7 +59,7 @@ def send_notification_email_task(task):
         return {"sent": False, "notification_id": str(notification_id)}
 
 
-def send_daily_digest(task):
+def send_daily_digest(payload, context=None):
     """Send daily digest emails to users with email_mode='daily'.
 
     Runs daily at 08:00 UTC via cron.
@@ -67,7 +67,7 @@ def send_daily_digest(task):
     return _send_digest("daily", timedelta(hours=24))
 
 
-def send_weekly_digest(task):
+def send_weekly_digest(payload, context=None):
     """Send weekly digest emails to users with email_mode='weekly'.
 
     Runs weekly Monday 08:00 UTC via cron.
@@ -139,7 +139,7 @@ def _send_digest(period, lookback):
     return {"period": period, "users_emailed": sent_count}
 
 
-def cleanup_expired_tokens(task):
+def cleanup_expired_tokens(payload=None, context=None):
     """Delete expired, unused notification tokens older than 7 days.
 
     Runs weekly Sunday 04:00 UTC.

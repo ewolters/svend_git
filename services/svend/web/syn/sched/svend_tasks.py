@@ -99,11 +99,11 @@ def register_svend_tasks():
 
     # ---- forge/tasks.py handler ----
 
-    from forge.tasks import generate_data_task
+    from forge.tasks import generate_data_task_async
 
     TaskRegistry.register(
         task_name="forge.tasks.generate_data_task",
-        handler=generate_data_task,
+        handler=generate_data_task_async,
         queue=QueueType.BATCH,
         priority=TaskPriority.NORMAL,
         timeout_seconds=300,
@@ -112,7 +112,7 @@ def register_svend_tasks():
 
     # ---- Compliance checks (syn.audit) ----
 
-    def compliance_daily_handler(task):
+    def compliance_daily_handler(payload, context):
         from syn.audit.compliance import run_daily_checks
 
         results = run_daily_checks()
@@ -121,13 +121,13 @@ def register_svend_tasks():
             "passed": sum(1 for r in results if r.status == "pass"),
         }
 
-    def compliance_monthly_report_handler(task):
+    def compliance_monthly_report_handler(payload, context):
         from syn.audit.compliance import generate_monthly_report
 
         report = generate_monthly_report()
         return {"report_id": str(report.id), "pass_rate": report.pass_rate}
 
-    def audit_cleanup_violations_handler(task):
+    def audit_cleanup_violations_handler(payload, context):
         """Clean up resolved violations older than 90 days + expired health pings."""
         from datetime import timedelta
 
@@ -140,7 +140,7 @@ def register_svend_tasks():
         deleted_pings, _ = HealthPing.objects.filter(timestamp__lt=cutoff).delete()
         return {"deleted_violations": deleted_violations, "deleted_pings": deleted_pings}
 
-    def health_ping_handler(task):
+    def health_ping_handler(payload, context):
         """Ping /api/health/ and record result. Fires andon on 3+ consecutive failures."""
         import time
 

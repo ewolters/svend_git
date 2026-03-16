@@ -18,7 +18,7 @@ EXPORTS_DIR = os.path.join(settings.MEDIA_ROOT, "exports")
 EXPORT_EXPIRY_DAYS = 7
 
 
-def generate_export(task):
+def generate_export(payload, context=None):
     """Generate a JSON data export for a user (PRIV-001 §5.2).
 
     Collects all PII-bearing data for the user, writes a JSON file,
@@ -26,7 +26,9 @@ def generate_export(task):
     """
     from accounts.models import DataExportRequest
 
-    export_id = task.get("export_id") if isinstance(task, dict) else getattr(task, "payload", {}).get("export_id")
+    export_id = (
+        payload.get("export_id") if isinstance(payload, dict) else getattr(payload, "payload", {}).get("export_id")
+    )
     if not export_id:
         logger.error("[privacy] generate_export called without export_id")
         return {"error": "missing export_id"}
@@ -108,7 +110,7 @@ def generate_export(task):
         return {"error": str(e)}
 
 
-def cleanup_expired_exports(task=None):
+def cleanup_expired_exports(payload=None, context=None):
     """Delete expired export files and update status (PRIV-001 §5.4).
 
     Runs weekly via syn.sched. Finds completed exports past their
