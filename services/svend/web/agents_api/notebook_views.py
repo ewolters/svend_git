@@ -36,6 +36,111 @@ logger = logging.getLogger("svend.notebook")
 
 
 # ---------------------------------------------------------------------------
+# Verdict narrative generation — NB-001 §2.2.2
+# ---------------------------------------------------------------------------
+
+
+def generate_verdict_narrative(trial):
+    """
+    Auto-generate a verdict narrative from trial data and linked page statistics.
+
+    NB-001 §2.2.2: When before and after data exist, compute statistical
+    significance and effect size, then generate a human-readable narrative.
+    The user can accept, modify, or override.
+
+    Returns a narrative string or empty string if insufficient data.
+    """
+    if trial.before_value is None or trial.after_value is None:
+        return ""
+
+    nb = trial.notebook
+    metric = nb.baseline_metric or "metric"
+    unit = nb.baseline_unit or ""
+    delta = trial.delta
+    delta_pct = trial.delta_pct
+
+    # Determine improvement direction from charter goal
+    improving = True  # default: positive delta = improvement
+    try:
+        goal_target = float(nb.project.goal_target) if nb.project.goal_target else None
+        goal_baseline = float(nb.project.goal_baseline) if nb.project.goal_baseline else None
+        if goal_target is not None and goal_baseline is not None:
+            improving = (goal_target > goal_baseline and delta > 0) or (goal_target < goal_baseline and delta < 0)
+    except (ValueError, TypeError, AttributeError):
+        # Fall back to: negative delta on a "rate" metric = improvement
+        improving = delta < 0 if "rate" in metric.lower() or "defect" in metric.lower() else delta > 0
+
+    # Try to extract p-value and effect size from linked after-analysis page
+    p_value = None
+    effect_mag = None
+    ci_low = None
+    ci_high = None
+
+    after_pages = NotebookPage.objects.filter(trial=trial, trial_role="after").order_by("-created_at")
+    for page in after_pages[:1]:
+        outputs = page.outputs or {}
+        # Extract from page outputs using same patterns as standardize.py
+        from agents_api.analysis.standardize import _classify_effect, _extract_p_value
+
+        p_value = _extract_p_value(outputs)
+        effect_mag = _classify_effect(outputs)
+        stats = outputs.get("statistics", {})
+        if isinstance(stats, dict):
+            ci = stats.get("confidence_interval") or stats.get("ci")
+            if isinstance(ci, (list, tuple)) and len(ci) == 2:
+                ci_low, ci_high = ci
+
+    # Build narrative parts
+    parts = []
+
+    # Delta description
+    abs_delta = abs(delta) if delta else 0
+    direction = "decreased" if delta < 0 else "increased"
+    delta_str = f"{metric.replace('_', ' ')} {direction} {abs_delta:.1f}{unit}"
+    if delta_pct is not None:
+        delta_str += f" ({abs(delta_pct):.1f}%)"
+    before_after = f"{trial.before_value:.1f}{unit} → {trial.after_value:.1f}{unit}"
+    parts.append(f"{delta_str} ({before_after}).")
+
+    # Statistical significance
+    if p_value is not None:
+        if p_value < 0.001:
+            sig_label = "Highly significant"
+            parts.append(f"{sig_label} (p<0.001).")
+        elif p_value < 0.01:
+            sig_label = "Significant"
+            parts.append(f"{sig_label} (p={p_value:.3f}).")
+        elif p_value < 0.05:
+            sig_label = "Statistically significant"
+            parts.append(f"{sig_label} (p={p_value:.3f}).")
+        else:
+            parts.append(f"Not statistically significant (p={p_value:.2f}).")
+
+    # Effect size
+    if effect_mag:
+        parts.append(f"Effect size is {effect_mag}.")
+
+    # Confidence interval
+    if ci_low is not None and ci_high is not None:
+        parts.append(f"95% CI: [{ci_low:.2f}, {ci_high:.2f}].")
+
+    # Verdict summary
+    if trial.verdict == "improved":
+        if improving:
+            parts.append("Change moved the metric toward the goal — recommend adoption.")
+        else:
+            parts.append("Change moved the metric, but away from the goal direction.")
+    elif trial.verdict == "no_effect":
+        parts.append("No meaningful change observed.")
+    elif trial.verdict == "degraded":
+        parts.append("Metric moved in the wrong direction.")
+    elif trial.verdict == "inconclusive":
+        parts.append("Insufficient data to determine effect.")
+
+    return " ".join(parts)
+
+
+# ---------------------------------------------------------------------------
 # Serializers
 # ---------------------------------------------------------------------------
 
@@ -331,10 +436,18 @@ def complete_trial(request, notebook_id, trial_id):
             status=400,
         )
 
+    # User-provided narrative takes priority; otherwise auto-generate (NB-001 §2.2.2)
     if data.get("verdict_narrative"):
         trial.verdict_narrative = data["verdict_narrative"]
 
     trial.complete(verdict=verdict, adopted=data.get("adopted", False))
+
+    # Auto-generate narrative if user didn't provide one
+    if not trial.verdict_narrative:
+        narrative = generate_verdict_narrative(trial)
+        if narrative:
+            trial.verdict_narrative = narrative
+            trial.save(update_fields=["verdict_narrative"])
 
     # Clear active trial if this was it
     nb = trial.notebook

@@ -594,6 +594,201 @@ class YokotenAdoptionTest(TestCase):
 
 
 # ===========================================================================
+# Verdict narrative auto-generation — NB-001 §2.2.2
+# ===========================================================================
+
+
+@SECURE_OFF
+class VerdictNarrativeTest(TestCase):
+    """
+    Verdict narrative auto-generation from trial data and linked page statistics.
+
+    NB-001 §2.2.2: System computes significance and generates narrative.
+    User can accept, modify, or override.
+    <!-- test: agents_api.tests.test_notebook.VerdictNarrativeTest -->
+    """
+
+    def setUp(self):
+        self.user = _make_user("narrative@test.com")
+        self.client = _authed_client(self.user)
+        self.charter = _make_charter(self.user)  # goal: 4.7% → 2.0% (reducing)
+        self.nb = Notebook.objects.create(
+            project=self.charter,
+            title="Narrative NB",
+            owner=self.user,
+            baseline_value=4.7,
+            baseline_metric="scrap_rate",
+            baseline_unit="%",
+        )
+
+    def test_auto_generates_from_values(self):
+        """Narrative auto-generated when before/after values exist and user provides none."""
+        trial = Trial(
+            notebook=self.nb,
+            title="Feed rate change",
+            before_value=4.7,
+            after_value=3.1,
+            created_by=self.user,
+        )
+        trial.save()
+
+        res = _post_json(
+            self.client,
+            f"/api/notebooks/{self.nb.id}/trials/{trial.id}/complete/",
+            {"verdict": "improved", "adopted": True},
+        )
+        self.assertEqual(res.status_code, 200)
+        narrative = res.json()["verdict_narrative"]
+        self.assertTrue(len(narrative) > 0, "Expected auto-generated narrative")
+        # Should mention the delta
+        self.assertIn("1.6", narrative)
+        # Should mention before/after values
+        self.assertIn("4.7", narrative)
+        self.assertIn("3.1", narrative)
+
+    def test_user_narrative_takes_priority(self):
+        """User-provided narrative is not overwritten by auto-generation."""
+        trial = Trial(
+            notebook=self.nb,
+            title="Manual narrative",
+            before_value=4.7,
+            after_value=3.1,
+            created_by=self.user,
+        )
+        trial.save()
+
+        user_narrative = "My custom narrative — the change worked great."
+        res = _post_json(
+            self.client,
+            f"/api/notebooks/{self.nb.id}/trials/{trial.id}/complete/",
+            {
+                "verdict": "improved",
+                "adopted": True,
+                "verdict_narrative": user_narrative,
+            },
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["verdict_narrative"], user_narrative)
+
+    def test_includes_stats_from_after_page(self):
+        """Narrative includes p-value and effect size from linked after page."""
+        trial = Trial(
+            notebook=self.nb,
+            title="With stats",
+            before_value=4.7,
+            after_value=3.1,
+            created_by=self.user,
+        )
+        trial.save()
+
+        # Create an after-role page with statistical outputs
+        NotebookPage.objects.create(
+            notebook=self.nb,
+            page_type="analysis",
+            title="After analysis",
+            source_tool="dsw",
+            inputs={"test": "t_test"},
+            outputs={
+                "p_value": 0.003,
+                "statistics": {
+                    "cohens_d": 0.84,
+                    "confidence_interval": [-2.1, -0.9],
+                },
+            },
+            trial=trial,
+            trial_role="after",
+            created_by=self.user,
+        )
+
+        res = _post_json(
+            self.client,
+            f"/api/notebooks/{self.nb.id}/trials/{trial.id}/complete/",
+            {"verdict": "improved", "adopted": True},
+        )
+        self.assertEqual(res.status_code, 200)
+        narrative = res.json()["verdict_narrative"]
+        self.assertIn("0.003", narrative)
+        self.assertIn("large", narrative.lower())
+        self.assertIn("CI", narrative)
+
+    def test_no_narrative_without_values(self):
+        """No narrative generated when before/after values are missing."""
+        trial = Trial(
+            notebook=self.nb,
+            title="No values",
+            created_by=self.user,
+        )
+        trial.save()
+
+        res = _post_json(
+            self.client,
+            f"/api/notebooks/{self.nb.id}/trials/{trial.id}/complete/",
+            {"verdict": "inconclusive"},
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["verdict_narrative"], "")
+
+    def test_no_effect_narrative(self):
+        """Narrative for no_effect verdict communicates correctly."""
+        trial = Trial(
+            notebook=self.nb,
+            title="No effect trial",
+            before_value=3.1,
+            after_value=3.3,
+            created_by=self.user,
+        )
+        trial.save()
+
+        res = _post_json(
+            self.client,
+            f"/api/notebooks/{self.nb.id}/trials/{trial.id}/complete/",
+            {"verdict": "no_effect", "adopted": False},
+        )
+        self.assertEqual(res.status_code, 200)
+        narrative = res.json()["verdict_narrative"]
+        self.assertIn("No meaningful change", narrative)
+
+    def test_narrative_respects_goal_direction(self):
+        """Narrative correctly identifies improvement direction from charter goal."""
+        # Charter goal: 4.7 → 2.0 (decreasing = improving)
+        # Delta: 4.7 → 3.1 = -1.6 (decrease = improvement)
+        trial = Trial(
+            notebook=self.nb,
+            title="Goal direction",
+            before_value=4.7,
+            after_value=3.1,
+            created_by=self.user,
+        )
+        trial.save()
+
+        res = _post_json(
+            self.client,
+            f"/api/notebooks/{self.nb.id}/trials/{trial.id}/complete/",
+            {"verdict": "improved", "adopted": True},
+        )
+        narrative = res.json()["verdict_narrative"]
+        self.assertIn("toward the goal", narrative)
+
+    def test_generate_verdict_narrative_direct(self):
+        """Direct unit test of generate_verdict_narrative function."""
+        from agents_api.notebook_views import generate_verdict_narrative
+
+        trial = Trial(
+            notebook=self.nb,
+            title="Direct test",
+            before_value=4.7,
+            after_value=3.1,
+            created_by=self.user,
+        )
+        trial.save()
+        trial.verdict = "improved"
+        narrative = generate_verdict_narrative(trial)
+        self.assertIn("decreased", narrative)
+        self.assertIn("1.6", narrative)
+        self.assertIn("toward the goal", narrative)
+
+
+# ===========================================================================
 # Full workflow scenario
 # ===========================================================================
 
