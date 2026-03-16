@@ -1462,6 +1462,14 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                     <line x1="9" y1="15" x2="15" y2="15"/>
                 </svg>
             </button>
+            <button class="wb-tool-btn" onclick="saveToNotebook()" title="Save to Notebook" style="color:#5b9bd5;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                    <line x1="12" y1="8" x2="12" y2="14"/>
+                    <line x1="9" y1="11" x2="15" y2="11"/>
+                </svg>
+            </button>
             <input type="file" id="import-file" accept=".json" style="display:none" onchange="importBoardJSON(event)">
             <button class="wb-tool-btn" onclick="document.getElementById('import-file').click()" title="Import JSON">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -5153,6 +5161,118 @@ function copyGuestLink(url) {
     navigator.clipboard.writeText(fullUrl).then(() => {
         // Could show brief toast here
     });
+}
+
+// ============================================================================
+// Save to Notebook — NB-001 §2.3
+// ============================================================================
+
+async function saveToNotebook() {
+    if (elements.length === 0) {
+        alert('Nothing to save. Add some elements first.');
+        return;
+    }
+    if (!currentRoomCode) {
+        alert('Save the board first (Ctrl+S) before adding to a notebook.');
+        return;
+    }
+
+    // Fetch notebooks
+    let notebooks = [];
+    try {
+        const res = await fetch('/api/notebooks/', { credentials: 'include', headers: { 'X-CSRFToken': getCSRFToken() } });
+        if (res.ok) notebooks = (await res.json()).notebooks || [];
+    } catch (e) { /* ignore */ }
+
+    if (notebooks.length === 0) {
+        alert('No notebooks found. Create a notebook first from the Notebooks page.');
+        return;
+    }
+
+    // Build quick selector
+    const opts = notebooks.map(nb => `<option value="${nb.id}">${nb.title} (${nb.status})</option>`).join('');
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;';
+    modal.innerHTML = `
+        <div style="background:var(--bg-card,#1e1e1e);border:1px solid var(--border,#333);border-radius:8px;padding:24px;width:340px;">
+            <h3 style="margin:0 0 16px;font-size:15px;">Save to Notebook</h3>
+            <label style="font-size:12px;color:var(--text-dim,#aaa);display:block;margin-bottom:4px;">Notebook</label>
+            <select id="nb-save-select" style="width:100%;padding:6px 8px;font-size:13px;background:var(--bg-primary,#111);color:var(--text,#eee);border:1px solid var(--border,#333);border-radius:4px;margin-bottom:16px;">
+                ${opts}
+            </select>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button onclick="this.closest('div[style*=fixed]').remove()" style="padding:6px 14px;font-size:12px;background:transparent;color:var(--text,#eee);border:1px solid var(--border,#333);border-radius:4px;cursor:pointer;">Cancel</button>
+                <button id="nb-save-confirm" style="padding:6px 14px;font-size:12px;background:#5b9bd5;color:#fff;border:none;border-radius:4px;cursor:pointer;">Save</button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+    document.getElementById('nb-save-confirm').onclick = async () => {
+        const notebookId = document.getElementById('nb-save-select').value;
+        const btn = document.getElementById('nb-save-confirm');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        try {
+            // Get SVG from server (uses existing _generate_svg)
+            const svgRes = await fetch(`/api/whiteboard/boards/${currentRoomCode}/svg/?theme=dark`, {
+                credentials: 'include', headers: { 'X-CSRFToken': getCSRFToken() }
+            });
+            let svgHtml = '';
+            if (svgRes.ok) {
+                const svgData = await svgRes.json();
+                svgHtml = svgData.svg || '';
+            }
+
+            // Collect element summary
+            const elTypes = {};
+            elements.forEach(el => { elTypes[el.type] = (elTypes[el.type] || 0) + 1; });
+
+            const boardTitle = document.getElementById('board-title')?.value || 'Whiteboard';
+            const payload = {
+                page_type: 'note',
+                title: `Whiteboard — ${boardTitle}`,
+                source_tool: 'whiteboard',
+                inputs: {
+                    room_code: currentRoomCode,
+                    elements_count: elements.length,
+                    connections_count: connections.length,
+                    element_types: elTypes,
+                },
+                outputs: {
+                    board_name: boardTitle,
+                    causal_links: connections.filter(c => c.type === 'causal').length,
+                },
+                rendered_html: svgHtml,
+                narrative: `Whiteboard snapshot: ${elements.length} elements, ${connections.length} connections` +
+                    (connections.filter(c => c.type === 'causal').length > 0
+                        ? `, ${connections.filter(c => c.type === 'causal').length} causal (If-Then) links` : '') + '.',
+            };
+
+            const res = await fetch(`/api/notebooks/${notebookId}/pages/`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                body: JSON.stringify(payload),
+            });
+
+            if (res.ok) {
+                btn.textContent = 'Saved!';
+                btn.style.background = '#4a9f6e';
+                setTimeout(() => modal.remove(), 800);
+            } else {
+                const err = await res.json().catch(() => ({}));
+                alert('Failed to save: ' + (err.error || res.statusText));
+                btn.disabled = false;
+                btn.textContent = 'Save';
+            }
+        } catch (e) {
+            alert('Failed to save: ' + e.message);
+            btn.disabled = false;
+            btn.textContent = 'Save';
+        }
+    };
 }
 
 // ============================================================================

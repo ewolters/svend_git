@@ -395,6 +395,64 @@ class NotebookPageTest(TestCase):
         )
         self.assertEqual(res.status_code, 201)
 
+    def test_whiteboard_page(self):
+        """Whiteboard snapshot saved as notebook page with SVG rendered_html."""
+        res = _post_json(
+            self.client,
+            f"/api/notebooks/{self.nb.id}/pages/",
+            {
+                "page_type": "note",
+                "title": "Whiteboard — Causal Diagram",
+                "source_tool": "whiteboard",
+                "inputs": {
+                    "room_code": "ABC123",
+                    "elements_count": 5,
+                    "connections_count": 3,
+                    "element_types": {"postit": 3, "text": 2},
+                },
+                "outputs": {
+                    "board_name": "Causal Diagram",
+                    "causal_links": 2,
+                },
+                "rendered_html": '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect/></svg>',
+                "narrative": "Whiteboard snapshot: 5 elements, 3 connections, 2 causal links.",
+            },
+        )
+        self.assertEqual(res.status_code, 201)
+        data = res.json()
+        self.assertEqual(data["source_tool"], "whiteboard")
+        self.assertIn("svg", data["rendered_html"])
+        self.assertEqual(data["inputs"]["elements_count"], 5)
+        self.assertEqual(data["outputs"]["causal_links"], 2)
+
+    def test_ishikawa_page(self):
+        """Ishikawa fishbone diagram saved as notebook page."""
+        res = _post_json(
+            self.client,
+            f"/api/notebooks/{self.nb.id}/pages/",
+            {
+                "page_type": "note",
+                "title": "Ishikawa — High Scrap Rate",
+                "source_tool": "ishikawa",
+                "inputs": {
+                    "effect": "High scrap rate on Line 3",
+                    "categories": ["Man", "Machine", "Method", "Material", "Measurement", "Mother Nature"],
+                    "total_causes": 12,
+                },
+                "outputs": {
+                    "root_causes": ["Feed rate too high", "No operator refresher training"],
+                    "status": "complete",
+                    "branch_count": 6,
+                },
+                "narrative": 'Fishbone analysis for "High scrap rate on Line 3": 6 categories, 12 causes. Root causes: Feed rate too high; No operator refresher training.',
+            },
+        )
+        self.assertEqual(res.status_code, 201)
+        data = res.json()
+        self.assertEqual(data["source_tool"], "ishikawa")
+        self.assertEqual(data["inputs"]["effect"], "High scrap rate on Line 3")
+        self.assertEqual(len(data["outputs"]["root_causes"]), 2)
+
     def test_page_requires_title_and_type(self):
         res = _post_json(
             self.client,

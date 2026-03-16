@@ -261,6 +261,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                 <option value="complete">Complete</option>
             </select>
             <span class="ishi-save-indicator" id="save-indicator"></span>
+            <button class="ishi-btn ishi-btn-sm" onclick="saveToNotebook()" title="Save to Notebook" style="color:#5b9bd5;border-color:#5b9bd5;">&#x1F4D3; Notebook</button>
             <button class="ishi-btn ishi-btn-sm ishi-btn-ghost" onclick="deleteDiagram()" title="Delete">&#x1f5d1;</button>
         </div>
 
@@ -738,6 +739,119 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     // Handle Enter key in modals
     document.getElementById('new-effect').addEventListener('keydown', e => { if (e.key === 'Enter') createDiagram(); });
     document.getElementById('cause-text').addEventListener('keydown', e => { if (e.key === 'Enter') submitCause(); });
+
+    // --- Save to Notebook — NB-001 §2.3 ---
+    window.saveToNotebook = async function() {
+        if (!currentDiagram || !currentDiagramId) {
+            alert('Load or create a diagram first.');
+            return;
+        }
+
+        // Fetch notebooks
+        let notebooks = [];
+        try {
+            const res = await fetch('/api/notebooks/', { credentials: 'include', headers: { 'X-CSRFToken': CSRF } });
+            if (res.ok) notebooks = (await res.json()).notebooks || [];
+        } catch (e) { /* ignore */ }
+
+        if (notebooks.length === 0) {
+            alert('No notebooks found. Create a notebook first from the Notebooks page.');
+            return;
+        }
+
+        const opts = notebooks.map(nb => `<option value="${nb.id}">${esc(nb.title)} (${nb.status})</option>`).join('');
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;';
+        modal.innerHTML = `
+            <div style="background:var(--bg-card,#1e1e1e);border:1px solid var(--border,#333);border-radius:8px;padding:24px;width:340px;">
+                <h3 style="margin:0 0 16px;font-size:15px;">Save Fishbone to Notebook</h3>
+                <label style="font-size:12px;color:var(--text-secondary,#aaa);display:block;margin-bottom:4px;">Notebook</label>
+                <select id="nb-save-select" style="width:100%;padding:6px 8px;font-size:13px;background:var(--bg-primary,#111);color:var(--text,#eee);border:1px solid var(--border,#333);border-radius:4px;margin-bottom:16px;">
+                    ${opts}
+                </select>
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                    <button onclick="this.closest('div[style*=fixed]').remove()" style="padding:6px 14px;font-size:12px;background:transparent;color:var(--text,#eee);border:1px solid var(--border,#333);border-radius:4px;cursor:pointer;">Cancel</button>
+                    <button id="nb-save-confirm" style="padding:6px 14px;font-size:12px;background:#5b9bd5;color:#fff;border:none;border-radius:4px;cursor:pointer;">Save</button>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+        document.getElementById('nb-save-confirm').onclick = async () => {
+            const notebookId = document.getElementById('nb-save-select').value;
+            const btn = document.getElementById('nb-save-confirm');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+
+            try {
+                // Collect branch data
+                const branches = currentDiagram.branches || [];
+                const totalCauses = branches.reduce((sum, b) => {
+                    const countAll = (causes) => causes.reduce((s, c) => s + 1 + (c.children ? countAll(c.children) : 0), 0);
+                    return sum + countAll(b.causes || []);
+                }, 0);
+                const rootCauses = branches.reduce((arr, b) => {
+                    const findRoots = (causes) => causes.forEach(c => {
+                        if (c.root_cause) arr.push(c.text);
+                        if (c.children) findRoots(c.children);
+                    });
+                    findRoots(b.causes || []);
+                    return arr;
+                }, []);
+
+                // Capture the rendered fishbone as SVG from the canvas
+                const canvas = document.getElementById('ishi-canvas-wrap');
+                let renderedHtml = '';
+                if (canvas) {
+                    const svg = canvas.querySelector('svg');
+                    if (svg) renderedHtml = svg.outerHTML;
+                }
+
+                const title = currentDiagram.title || currentDiagram.effect || 'Untitled';
+                const payload = {
+                    page_type: 'note',
+                    title: `Ishikawa — ${title}`,
+                    source_tool: 'ishikawa',
+                    inputs: {
+                        effect: currentDiagram.effect,
+                        categories: branches.map(b => b.category),
+                        total_causes: totalCauses,
+                        diagram_id: currentDiagramId,
+                    },
+                    outputs: {
+                        root_causes: rootCauses,
+                        status: currentDiagram.status,
+                        branch_count: branches.length,
+                    },
+                    rendered_html: renderedHtml,
+                    narrative: `Fishbone analysis for "${currentDiagram.effect}": ${branches.length} categories, ${totalCauses} causes identified` +
+                        (rootCauses.length > 0 ? `. Root causes: ${rootCauses.join('; ')}` : '') + '.',
+                };
+
+                const res = await fetch(`/api/notebooks/${notebookId}/pages/`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+                    body: JSON.stringify(payload),
+                });
+
+                if (res.ok) {
+                    btn.textContent = 'Saved!';
+                    btn.style.background = '#4a9f6e';
+                    setTimeout(() => modal.remove(), 800);
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    alert('Failed to save: ' + (err.error || 'Unknown error'));
+                    btn.disabled = false;
+                    btn.textContent = 'Save';
+                }
+            } catch (e) {
+                alert('Failed to save: ' + e.message);
+                btn.disabled = false;
+                btn.textContent = 'Save';
+            }
+        };
+    };
 
     // Auto-load from URL
     const pathMatch = window.location.pathname.match(/\/app\/ishikawa\/([0-9a-f-]+)\//);
