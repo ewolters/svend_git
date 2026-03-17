@@ -14,6 +14,7 @@ from .hypothesis import Evidence, EvidenceLink, Hypothesis
 from .investigation import Investigation, InvestigationMembership, InvestigationToolLink
 from .measurement import GageStudy, MeasurementSystem
 from .notebook import (
+    FrontPageDigest,
     HanseiKai,
     Notebook,
     NotebookPage,
@@ -65,4 +66,5 @@ __all__ = [
     "HanseiKai",
     "Yokoten",
     "YokotenAdoption",
+    "FrontPageDigest",
 ]

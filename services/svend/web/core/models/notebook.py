@@ -618,3 +618,53 @@ class YokotenAdoption(models.Model):
 
     def __str__(self):
         return f"{self.target_notebook.title} adopted: {self.yokoten.learning[:50]}"
+
+
+# =============================================================================
+# FRONT PAGE DIGEST (LLM-generated theme analysis)
+# =============================================================================
+
+
+class FrontPageDigest(models.Model):
+    """Cached LLM analysis of a user's accumulated learnings.
+
+    Generated async by Qwen 14B via Tempora. Extracts themes,
+    contradictions, and a digest from all notebooks' front matter,
+    Hansei Kai reflections, yokoten, and anti-patterns.
+
+    Regenerated when source_hash changes (new learnings added).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="front_page_digest",
+    )
+
+    # LLM output
+    themes = models.JSONField(
+        default=list,
+        help_text='[{"name": str, "items": [int], "summary": str}]',
+    )
+    contradictions = models.JSONField(
+        default=list,
+        help_text='[{"items": [int], "note": str}]',
+    )
+    digest = models.TextField(blank=True, default="", help_text="One-paragraph summary")
+
+    # Source tracking — hash of input learnings to detect when regeneration needed
+    source_hash = models.CharField(max_length=64, blank=True, default="")
+    source_items = models.JSONField(
+        default=list,
+        help_text="The learning strings fed to the LLM (for reference linking)",
+    )
+
+    generated_at = models.DateTimeField(null=True, blank=True)
+    generation_time_ms = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        db_table = "core_front_page_digest"
+
+    def __str__(self):
+        return f"Digest for {self.user.email} ({len(self.themes)} themes)"

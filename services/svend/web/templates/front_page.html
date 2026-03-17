@@ -137,6 +137,50 @@ function render(data) {
     const el = document.getElementById('fp-content');
     const sections = [];
 
+    // LLM Digest (themes + contradictions + summary)
+    const digest = data.digest;
+    if (digest && (digest.themes?.length > 0 || digest.digest)) {
+        let digestHtml = '';
+
+        if (digest.digest) {
+            digestHtml += `<div class="fp-card" style="border-color:var(--accent-primary);margin-bottom:16px;">
+                <div class="fp-card-body" style="font-size:0.9rem;line-height:1.7;color:var(--text-primary);">${esc(digest.digest)}</div>
+                ${digest.generated_at ? `<div class="fp-card-meta">Last analyzed ${timeAgo(digest.generated_at)}</div>` : ''}
+            </div>`;
+        }
+
+        if (digest.themes?.length > 0) {
+            digestHtml += digest.themes.map(t => `
+                <div class="fp-card">
+                    <div class="fp-card-header">
+                        <span class="fp-card-type" style="background:rgba(74,159,110,0.1);color:var(--accent-primary);">Theme</span>
+                        <span class="fp-card-title">${esc(t.name)}</span>
+                    </div>
+                    <div class="fp-card-body">${esc(t.summary)}</div>
+                    ${t.items?.length ? `<div class="fp-card-meta">Based on ${t.items.length} learning${t.items.length !== 1 ? 's' : ''}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        if (digest.contradictions?.length > 0) {
+            digestHtml += digest.contradictions.map(c => `
+                <div class="fp-card" style="border-color:#e07060;">
+                    <div class="fp-card-header">
+                        <span class="fp-card-type anti-pattern">Contradiction</span>
+                        <span class="fp-card-title">${esc(c.note)}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        sections.push(`
+            <div class="fp-section">
+                <div class="fp-section-label">Insights</div>
+                ${digestHtml}
+            </div>
+        `);
+    }
+
     // Key Learnings (Hansei Kai)
     const reflections = data.reflections || [];
     if (reflections.length > 0) {

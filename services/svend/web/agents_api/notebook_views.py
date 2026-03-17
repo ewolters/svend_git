@@ -36,6 +36,42 @@ logger = logging.getLogger("svend.notebook")
 
 
 # ---------------------------------------------------------------------------
+# Digest trigger — submit async Qwen analysis on learning changes
+# ---------------------------------------------------------------------------
+
+
+def _trigger_digest(user):
+    """Submit a front page digest generation task via Tempora."""
+    import uuid as _uuid
+
+    try:
+        from syn.sched.models import CognitiveTask
+
+        SYSTEM_TENANT = _uuid.UUID("00000000-0000-0000-0000-000000000000")
+
+        # Avoid duplicate tasks — check if one is already pending/running
+        existing = CognitiveTask.objects.filter(
+            task_name="api.generate_front_page_digest",
+            state__in=["PENDING", "SCHEDULED", "RUNNING"],
+            payload__user_id=user.id,
+        ).exists()
+        if existing:
+            return
+
+        CognitiveTask.objects.create(
+            task_name="api.generate_front_page_digest",
+            payload={"user_id": user.id},
+            state="PENDING",
+            queue="batch",
+            priority=0,  # LOW
+            tenant_id=SYSTEM_TENANT,
+        )
+        logger.info("Front page digest task submitted for user %s", user.email)
+    except Exception:
+        logger.warning("Failed to submit digest task for user %s", user.email, exc_info=True)
+
+
+# ---------------------------------------------------------------------------
 # Verdict narrative generation — NB-001 §2.2.2
 # ---------------------------------------------------------------------------
 
@@ -705,6 +741,7 @@ def conclude_notebook(request, notebook_id):
         result["yokoten"] = _serialize_yokoten(yokoten)
 
     logger.info(f"Notebook {nb.id} concluded with Hansei Kai (is_carry_forward={hk.is_carry_forward})")
+    _trigger_digest(request.user)
     return JsonResponse(result)
 
 
@@ -762,8 +799,25 @@ def front_page(request):
         .order_by("-adopted_at")
     )
 
+    # Cached LLM digest (if available)
+    from core.models import FrontPageDigest
+
+    digest_data = None
+    try:
+        digest = FrontPageDigest.objects.get(user=user)
+        digest_data = {
+            "themes": digest.themes,
+            "contradictions": digest.contradictions,
+            "digest": digest.digest,
+            "generated_at": digest.generated_at.isoformat() if digest.generated_at else None,
+            "source_items": digest.source_items,
+        }
+    except FrontPageDigest.DoesNotExist:
+        pass
+
     return JsonResponse(
         {
+            "digest": digest_data,
             "front_matter": [
                 {
                     **_serialize_page(p),
@@ -848,6 +902,7 @@ def add_front_matter(request, notebook_id):
     )
 
     logger.info(f"Front matter added to notebook {nb.id}: {title}")
+    _trigger_digest(request.user)
     return JsonResponse(_serialize_page(page), status=201)
 
 

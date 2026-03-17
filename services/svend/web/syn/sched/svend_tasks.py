@@ -265,6 +265,19 @@ def register_svend_tasks():
         max_attempts=1,
     )
 
+    # ---- Front page digest (Qwen 14B theme extraction) ----
+
+    from agents_api.front_page_tasks import generate_front_page_digest
+
+    TaskRegistry.register(
+        task_name="api.generate_front_page_digest",
+        handler=generate_front_page_digest,
+        queue=QueueType.BATCH,
+        priority=TaskPriority.LOW,
+        timeout_seconds=600,
+        max_attempts=2,
+    )
+
     # ---- Privacy export tasks (PRIV-001) ----
 
     from accounts.privacy_tasks import cleanup_expired_exports, generate_export
