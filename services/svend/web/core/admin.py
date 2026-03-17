@@ -9,9 +9,16 @@ from .models import (
     ExperimentDesign,
     Hypothesis,
     Membership,
+    Notebook,
+    NotebookPage,
     OrgInvitation,
     Project,
+    StudentEnrollment,
     Tenant,
+    TrainingCenter,
+    TrainingProgram,
+    Trial,
+    Yokoten,
 )
 
 
@@ -107,3 +114,103 @@ class ExperimentDesignAdmin(admin.ModelAdmin):
     list_filter = ["design_type", "status"]
     search_fields = ["name"]
     readonly_fields = ["id", "created_at", "updated_at"]
+
+
+# ---------------------------------------------------------------------------
+# Notebook models (NB-001)
+# ---------------------------------------------------------------------------
+
+
+class TrialInline(admin.TabularInline):
+    model = Trial
+    extra = 0
+    fields = ["sequence", "title", "verdict", "before_value", "after_value", "is_adopted"]
+    readonly_fields = ["sequence", "started_at"]
+
+
+class NotebookPageInline(admin.TabularInline):
+    model = NotebookPage
+    extra = 0
+    fields = ["sequence", "title", "page_type", "source_tool", "trial_role"]
+    readonly_fields = ["created_at"]
+
+
+@admin.register(Notebook)
+class NotebookAdmin(admin.ModelAdmin):
+    list_display = ["title", "project", "owner", "status", "baseline_value", "current_value", "created_at"]
+    list_filter = ["status", "created_at"]
+    search_fields = ["title", "owner__email"]
+    readonly_fields = ["id", "created_at", "updated_at", "concluded_at"]
+    inlines = [TrialInline, NotebookPageInline]
+
+
+@admin.register(Trial)
+class TrialAdmin(admin.ModelAdmin):
+    list_display = ["title", "notebook", "sequence", "verdict", "before_value", "after_value", "is_adopted"]
+    list_filter = ["verdict", "is_adopted"]
+    search_fields = ["title", "notebook__title"]
+    readonly_fields = ["id", "started_at", "completed_at"]
+
+
+@admin.register(NotebookPage)
+class NotebookPageAdmin(admin.ModelAdmin):
+    list_display = ["title", "notebook", "page_type", "source_tool", "trial_role", "sequence", "created_at"]
+    list_filter = ["page_type", "source_tool", "trial_role"]
+    search_fields = ["title", "notebook__title"]
+    readonly_fields = ["id", "created_at"]
+
+
+@admin.register(Yokoten)
+class YokotenAdmin(admin.ModelAdmin):
+    list_display = ["learning_preview", "source_notebook", "created_by", "created_at"]
+    search_fields = ["learning", "source_notebook__title"]
+    readonly_fields = ["id", "created_at"]
+
+    def learning_preview(self, obj):
+        return obj.learning[:60] + "..." if len(obj.learning) > 60 else obj.learning
+
+    learning_preview.short_description = "Learning"
+
+
+# ---------------------------------------------------------------------------
+# Training center models
+# ---------------------------------------------------------------------------
+
+
+class TrainingProgramInline(admin.TabularInline):
+    model = TrainingProgram
+    extra = 0
+    fields = ["title", "status", "region", "start_date", "end_date"]
+
+
+class StudentEnrollmentInline(admin.TabularInline):
+    model = StudentEnrollment
+    extra = 0
+    fields = ["user", "status", "enrolled_at", "graduated_at", "conversion_deadline"]
+    readonly_fields = ["enrolled_at"]
+
+
+@admin.register(TrainingCenter)
+class TrainingCenterAdmin(admin.ModelAdmin):
+    list_display = ["name", "country", "contact_name", "is_ilssi_partner", "is_ngo", "created_at"]
+    list_filter = ["is_ilssi_partner", "is_ngo", "country"]
+    search_fields = ["name", "contact_name", "contact_email"]
+    readonly_fields = ["id", "created_at", "updated_at"]
+    inlines = [TrainingProgramInline]
+
+
+@admin.register(TrainingProgram)
+class TrainingProgramAdmin(admin.ModelAdmin):
+    list_display = ["title", "center", "status", "region", "start_date", "end_date"]
+    list_filter = ["status", "region"]
+    search_fields = ["title", "center__name"]
+    readonly_fields = ["id", "created_at", "updated_at"]
+    inlines = [StudentEnrollmentInline]
+
+
+@admin.register(StudentEnrollment)
+class StudentEnrollmentAdmin(admin.ModelAdmin):
+    list_display = ["user", "program", "status", "enrolled_at", "graduated_at", "conversion_deadline"]
+    list_filter = ["status"]
+    search_fields = ["user__email", "program__title"]
+    readonly_fields = ["id", "enrolled_at"]
