@@ -90,8 +90,13 @@ def _get_days(request):
 
 
 def _customers():
-    """Real customers — excludes staff/internal/complimentary accounts."""
-    return User.objects.filter(is_staff=False, is_complimentary=False).exclude(username__in=INTERNAL_USERNAMES)
+    """Real customers — excludes staff/internal accounts (includes comp users)."""
+    return User.objects.filter(is_staff=False).exclude(username__in=INTERNAL_USERNAMES)
+
+
+def _paying_customers():
+    """Paying customers only — excludes comp users for MRR calculations."""
+    return _customers().filter(is_complimentary=False)
 
 
 def _resolve_recipients(target):
@@ -321,7 +326,8 @@ def api_overview(request):
         .aggregate(avg=Avg("total_time_ms"))["avg"]
     )
 
-    mrr = sum(customers.filter(tier=t).count() * p for t, p in TIER_PRICES.items())
+    paying = _paying_customers()
+    mrr = sum(paying.filter(tier=t).count() * p for t, p in TIER_PRICES.items())
 
     paid = customers.filter(tier__in=PAID_TIERS).count()
     conversion = round(paid / total_users * 100, 1) if total_users else 0
@@ -844,10 +850,11 @@ def api_business(request):
     since = timezone.now().date() - timedelta(days=days)
     customers = _customers()
 
-    # Revenue by tier
+    # Revenue by tier (comp users excluded from MRR)
+    paying = _paying_customers()
     revenue = {}
     for tier, price in TIER_PRICES.items():
-        count = customers.filter(tier=tier).count()
+        count = paying.filter(tier=tier).count()
         revenue[tier] = {"count": count, "mrr": count * price}
 
     # Conversion funnel
@@ -2018,7 +2025,9 @@ def _build_data_snapshot(days=30):
 
     tier_dist = dict(customers.values_list("tier").annotate(c=Count("id")).values_list("tier", "c"))
 
-    mrr = sum(tier_dist.get(t, 0) * p for t, p in TIER_PRICES.items())
+    paying = _paying_customers()
+    paying_dist = dict(paying.values_list("tier").annotate(c=Count("id")).values_list("tier", "c"))
+    mrr = sum(paying_dist.get(t, 0) * p for t, p in TIER_PRICES.items())
 
     usage = (
         UsageLog.objects.filter(date__gte=since_date)
