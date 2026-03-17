@@ -3788,6 +3788,9 @@ _ARCH_KNOWN_LARGE_FILES = {
     "agents_api/dsw/bayesian.py",
     "agents_api/dsw/stats_exploratory.py",
     "agents_api/dsw/stats_advanced.py",
+    "agents_api/analysis/common.py",
+    "agents_api/analysis/pbs/__init__.py",
+    "agents_api/analysis/stats/advanced.py",
     "api/internal_views.py",
     "syn/audit/compliance.py",
 }
