@@ -8,13 +8,13 @@ from .models import DataExportRequest, InviteCode, Subscription, User
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ["username", "email", "tier", "queries_today", "is_active"]
-    list_filter = ["tier", "is_active", "is_staff"]
+    list_display = ["username", "email", "tier", "is_complimentary", "queries_today", "is_active"]
+    list_filter = ["tier", "is_complimentary", "is_active", "is_staff"]
     search_fields = ["username", "email"]
     ordering = ["-date_joined"]
 
     fieldsets = BaseUserAdmin.fieldsets + (
-        ("Subscription", {"fields": ("tier", "stripe_customer_id")}),
+        ("Subscription", {"fields": ("tier", "is_complimentary", "stripe_customer_id")}),
         ("Rate Limiting", {"fields": ("queries_today", "queries_reset_at")}),
         ("Profile", {"fields": ("display_name", "avatar_url", "bio", "current_theme")}),
         ("Referrals", {"fields": ("referral_code", "referred_by")}),

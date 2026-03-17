@@ -212,6 +212,13 @@ class User(AbstractUser):
     # Founder's rate lock - users who signed up at founder pricing keep it
     is_founder_locked = models.BooleanField(default=False)
 
+    # Complimentary access — partners, sponsors, ILSSI instructors, etc.
+    # Gets full tier features but excluded from MRR calculations.
+    is_complimentary = models.BooleanField(
+        default=False,
+        help_text="Partner/sponsor account — full tier access, excluded from MRR",
+    )
+
     # Stripe (encrypted at rest, hash column for lookups)
     stripe_customer_id = EncryptedCharField(blank=True)
     stripe_customer_id_hash = models.CharField(max_length=64, blank=True, db_index=True)

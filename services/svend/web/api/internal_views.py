@@ -90,8 +90,8 @@ def _get_days(request):
 
 
 def _customers():
-    """Real customers — excludes staff/internal accounts."""
-    return User.objects.filter(is_staff=False).exclude(username__in=INTERNAL_USERNAMES)
+    """Real customers — excludes staff/internal/complimentary accounts."""
+    return User.objects.filter(is_staff=False, is_complimentary=False).exclude(username__in=INTERNAL_USERNAMES)
 
 
 def _resolve_recipients(target):
