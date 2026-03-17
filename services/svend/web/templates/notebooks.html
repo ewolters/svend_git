@@ -775,17 +775,18 @@ async function addFrontMatter() {
     const narrative = document.getElementById('fm-narrative').value.trim();
     const source_tool = document.getElementById('fm-type').value;
     if (!title) { alert('Title is required'); return; }
+    if (!currentNb) { alert('No notebook selected'); return; }
 
-    const res = await fetch(`/api/notebooks/${currentNbId}/front-matter/`, {
+    const res = await fetch(`/api/notebooks/${currentNb.id}/front-matter/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
         body: JSON.stringify({ title, narrative, source_tool }),
     });
     if (res.ok) {
         closeModal('fm-modal');
         document.getElementById('fm-title').value = '';
         document.getElementById('fm-narrative').value = '';
-        loadNotebookDetail(currentNbId);
+        selectNotebook(currentNb.id);
     } else {
         const err = await res.json().catch(() => ({}));
         alert('Failed: ' + (err.error || res.statusText));
