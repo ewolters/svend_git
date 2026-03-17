@@ -72,9 +72,12 @@ PRICE_TO_TIER = {
     "price_1T44vSDQfJOZ4D24bVk265Bd": User.Tier.TEAM,  # 349 AED/month
     "price_1T44y3DQfJOZ4D24OKbqnHBn": User.Tier.ENTERPRISE,  # 999 AED/month
     # ZAR — South Africa
-    "price_1T44svDQfJOZ4D24McEo6CeA": User.Tier.PRO,  # 349 ZAR/month
-    "price_1T44viDQfJOZ4D24WlVGsr3r": User.Tier.TEAM,  # 799 ZAR/month
-    "price_1T44yBDQfJOZ4D24ozZt0Ys1": User.Tier.ENTERPRISE,  # 2,499 ZAR/month
+    "price_1T44svDQfJOZ4D24McEo6CeA": User.Tier.PRO,  # 201 ZAR/month
+    "price_1T44viDQfJOZ4D24WlVGsr3r": User.Tier.TEAM,  # 419 ZAR/month
+    "price_1T44yBDQfJOZ4D24ozZt0Ys1": User.Tier.ENTERPRISE,  # 1,256 ZAR/month
+    "price_1TC07QDQfJOZ4D248eS6wUBt": User.Tier.PRO,  # 101 ZAR/month (student/alumni 50%)
+    "price_1TC09zDQfJOZ4D24rpPEzQ3w": User.Tier.PRO,  # 84 ZAR/month (NGO)
+    "price_1TC0B8DQfJOZ4D247rpf18du": User.Tier.TEAM,  # 251 ZAR/month (NGO)
     # KES — Kenya
     "price_1T44tMDQfJOZ4D24gGM77q3d": User.Tier.PRO,  # 1,990 KES/month
     "price_1T44w2DQfJOZ4D242THxiHz5": User.Tier.TEAM,  # 4,490 KES/month
@@ -147,9 +150,12 @@ REGIONAL_PRICES = {
         "enterprise": "price_1T44y3DQfJOZ4D24OKbqnHBn",  # 999 AED/month
     },
     "za": {  # South Africa (ZAR)
-        "pro": "price_1T44svDQfJOZ4D24McEo6CeA",  # 349 ZAR/month
-        "team": "price_1T44viDQfJOZ4D24WlVGsr3r",  # 799 ZAR/month
-        "enterprise": "price_1T44yBDQfJOZ4D24ozZt0Ys1",  # 2,499 ZAR/month
+        "pro": "price_1T44svDQfJOZ4D24McEo6CeA",  # 201 ZAR/month
+        "team": "price_1T44viDQfJOZ4D24WlVGsr3r",  # 419 ZAR/month
+        "enterprise": "price_1T44yBDQfJOZ4D24ozZt0Ys1",  # 1,256 ZAR/month
+        "student_pro": "price_1TC07QDQfJOZ4D248eS6wUBt",  # 101 ZAR/month (50% alumni)
+        "ngo_pro": "price_1TC09zDQfJOZ4D24rpPEzQ3w",  # 84 ZAR/month (NGO)
+        "ngo_team": "price_1TC0B8DQfJOZ4D247rpf18du",  # 251 ZAR/month (NGO)
     },
     "ke": {  # Kenya (KES)
         "pro": "price_1T44tMDQfJOZ4D24gGM77q3d",  # 1,990 KES/month
