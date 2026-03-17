@@ -371,10 +371,29 @@ def verify_impl_exists(impl_ref: str) -> tuple[bool, str]:
     if len(parts) == 1:
         return True, f"File exists: {parts[0]}"
 
-    # Symbol check via AST
+    # Symbol check — use AST for Python, regex for templates/JS
     symbol = parts[1]
+    source = file_path.read_text()
+
+    if file_path.suffix in (".html", ".js", ".css"):
+        # Regex-based symbol search for non-Python files
+        import re
+
+        patterns = [
+            rf"\bfunction\s+{re.escape(symbol)}\b",
+            rf"\b{re.escape(symbol)}\s*[:=]\s*(async\s+)?function\b",
+            rf"window\.{re.escape(symbol)}\s*=",
+            rf"\bclass\s+{re.escape(symbol)}\b",
+            rf"\bconst\s+{re.escape(symbol)}\b",
+            rf"\blet\s+{re.escape(symbol)}\b",
+            rf"\bvar\s+{re.escape(symbol)}\b",
+        ]
+        for pattern in patterns:
+            if re.search(pattern, source):
+                return True, f"Found {symbol} in {parts[0]}"
+        return False, f"Symbol {symbol} not found in {parts[0]}"
+
     try:
-        source = file_path.read_text()
         tree = ast.parse(source)
     except SyntaxError as e:
         return False, f"Syntax error in {parts[0]}: {e}"
@@ -388,10 +407,10 @@ def verify_impl_exists(impl_ref: str) -> tuple[bool, str]:
             if node.name == target_name:
                 if len(symbol_parts) == 1:
                     return True, f"Found {symbol} in {parts[0]}"
-                # Look for method inside class
+                # Look for method or nested class inside class
                 method_name = symbol_parts[1]
                 for child in ast.walk(node):
-                    if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                         if child.name == method_name:
                             return True, f"Found {symbol} in {parts[0]}"
                 return False, f"Method {method_name} not found in {target_name}"

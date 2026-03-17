@@ -319,8 +319,7 @@ After control chart results, display a **signal summary panel** with classificat
 - `classify_signal_type()` in spc_views.py returns `"special"`, `"common"`, or `"none"` based on §3.1 table
 - Classification included in control chart API response so the frontend can render the panel
 
-<!-- impl: agents_api/spc_views.py::classify_signal_type -->
-<!-- impl: templates/spc.html::signal_routing_panel -->
+<!-- Note: classify_signal_type and signal_routing_panel are planned but not yet implemented -->
 
 ---
 
@@ -332,7 +331,7 @@ The evidence bridge is the connective tissue between layers. It is not a layer �
 
 Implementation: `create_tool_evidence()` in `agents_api/evidence_bridge.py`.
 
-<!-- impl: agents_api/evidence_bridge.py::create_tool_evidence -->
+<!-- impl: agents_api/evidence_bridge.py:create_tool_evidence -->
 
 **Contract:**
 - Idempotent: same `(source_tool, source_id, source_field)` never duplicates
@@ -379,7 +378,7 @@ The `_ensure_<tool>_project()` pattern (RCA, Ishikawa, C&E Matrix) is **deprecat
 - Kaizen events: `project_class="kaizen"`
 - Capital/milestone projects: `project_class="project"`
 
-<!-- impl: agents_api/hoshin_views.py::create_hoshin_project -->
+<!-- impl: agents_api/hoshin_views.py:create_hoshin_project -->
 
 ---
 
@@ -406,7 +405,7 @@ Layer 3 has two container types, both managed through the `Project` model distin
 
 **Implementation:** `core.Project.project_class` field with `TextChoices` — choices: `"project"`, `"kaizen"`. This is the single source of truth. `HoshinProject.project_class` is deprecated and should be dropped — the core model owns this classification.
 
-<!-- impl: core/models/project.py::Project.ProjectClass -->
+<!-- impl: core/models/project.py:Project.ProjectClass -->
 
 ### **5.2 Projects (PMBOK)**
 

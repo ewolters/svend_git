@@ -1207,20 +1207,33 @@ def _sync_drift_violations(assertions, results):
         for sig, (a, r) in current_signatures.items():
             if r["status"] not in DRIFT_SEVERITY_MAP:
                 continue  # pass — no violation needed
-            # Check if unresolved violation already exists
-            if DriftViolation.objects.filter(drift_signature=sig, resolved_at__isnull=True).exists():
-                continue  # idempotent — already tracked
             severity = DRIFT_SEVERITY_MAP[r["status"]]
             sla_hours = DRIFT_SLA_HOURS.get(severity)
-            DriftViolation.objects.create(
-                drift_signature=sig,
-                severity=severity,
-                enforcement_check="STD",
-                file_path=f"docs/standards/{a.standard}.md",
-                violation_message=f"[{a.check_id}] {a.text[:200]}",
-                detected_by="compliance_runner",
-                remediation_sla_hours=sla_hours,
-            )
+            existing = DriftViolation.objects.filter(drift_signature=sig).first()
+            if existing:
+                if existing.resolved_at is None:
+                    continue  # idempotent — already tracked as open
+                # Re-open: drift has recurred after prior resolution
+                existing.resolved_at = None
+                existing.resolved_by = ""
+                existing.resolution_notes = ""
+                existing.save(
+                    update_fields=[
+                        "resolved_at",
+                        "resolved_by",
+                        "resolution_notes",
+                    ]
+                )
+            else:
+                DriftViolation.objects.create(
+                    drift_signature=sig,
+                    severity=severity,
+                    enforcement_check="STD",
+                    file_path=f"docs/standards/{a.standard}.md",
+                    violation_message=f"[{a.check_id}] {a.text[:200]}",
+                    detected_by="compliance_runner",
+                    remediation_sla_hours=sla_hours,
+                )
 
         # 2. Auto-resolve violations for assertions that now pass
         passing_sigs = {sig for sig, (a, r) in current_signatures.items() if r["status"] == "pass"}
