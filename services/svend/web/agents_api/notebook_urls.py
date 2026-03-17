@@ -23,6 +23,8 @@ urlpatterns = [
     ),
     # Pages
     path("<uuid:notebook_id>/pages/", notebook_views.list_create_pages, name="page_list_create"),
+    # Front Matter
+    path("<uuid:notebook_id>/front-matter/", notebook_views.add_front_matter, name="front_matter_add"),
     # Yokoten
     path("yokoten/", notebook_views.list_yokoten, name="yokoten_list"),
     path("yokoten/<uuid:yokoten_id>/adopt/", notebook_views.adopt_yokoten, name="yokoten_adopt"),

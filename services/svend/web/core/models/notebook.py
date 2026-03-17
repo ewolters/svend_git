@@ -324,6 +324,7 @@ class NotebookPage(models.Model):
         BEFORE = "before", "Before"
         AFTER = "after", "After"
         SUPPORTING = "supporting", "Supporting"
+        FRONT_MATTER = "front_matter", "Front Matter"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     notebook = models.ForeignKey(
@@ -343,7 +344,7 @@ class NotebookPage(models.Model):
     outputs = models.JSONField(default=dict, blank=True, help_text="Frozen outputs")
     rendered_html = models.TextField(blank=True, default="", help_text="Frozen visual")
     narrative = models.TextField(blank=True, default="")
-    sequence = models.PositiveIntegerField(default=0)
+    sequence = models.IntegerField(default=0, help_text="Negative = front matter, positive = trial work")
 
     # Optional trial linkage
     trial = models.ForeignKey(
@@ -376,13 +377,23 @@ class NotebookPage(models.Model):
 
     def save(self, **kwargs):
         if self.sequence == 0:
-            max_seq = (
-                NotebookPage.objects.filter(notebook=self.notebook)
-                .aggregate(models.Max("sequence"))
-                .get("sequence__max")
-                or 0
-            )
-            self.sequence = max_seq + 1
+            if self.trial_role == self.TrialRole.FRONT_MATTER:
+                # Front matter gets negative sequence (sorts before trial work)
+                min_seq = (
+                    NotebookPage.objects.filter(notebook=self.notebook)
+                    .aggregate(models.Min("sequence"))
+                    .get("sequence__min")
+                    or 0
+                )
+                self.sequence = min(min_seq, 0) - 1
+            else:
+                max_seq = (
+                    NotebookPage.objects.filter(notebook=self.notebook)
+                    .aggregate(models.Max("sequence"))
+                    .get("sequence__max")
+                    or 0
+                )
+                self.sequence = max_seq + 1
         super().save(**kwargs)
         self.notebook.auto_activate()
 

@@ -402,7 +402,9 @@ def notebook_detail(request, notebook_id):
     if request.method == "GET":
         result = _serialize_notebook(nb)
         result["trials"] = [_serialize_trial(t) for t in nb.trials.all()]
-        result["pages"] = [_serialize_page(p) for p in nb.pages.all()]
+        all_pages = list(nb.pages.all())
+        result["front_matter"] = [_serialize_page(p) for p in all_pages if p.trial_role == "front_matter"]
+        result["pages"] = [_serialize_page(p) for p in all_pages if p.trial_role != "front_matter"]
         # Include hansei kai if concluded
         try:
             hk = nb.hansei_kai
@@ -707,6 +709,55 @@ def conclude_notebook(request, notebook_id):
 
 
 # ---------------------------------------------------------------------------
+# Front Matter — personal notes, anti-patterns, adopted yokoten
+# ---------------------------------------------------------------------------
+
+
+@require_http_methods(["POST"])
+@gated_paid
+def add_front_matter(request, notebook_id):
+    """
+    Add a front matter page to a notebook (personal note or anti-pattern).
+
+    POST body: {"title": str, "narrative": str, "source_tool": str?}
+
+    source_tool conventions:
+    - "note" — personal observation or prior
+    - "anti_pattern" — "never do this again" entry
+    - "yokoten" — auto-created on yokoten adoption (not manual)
+    """
+    try:
+        nb = Notebook.objects.get(id=notebook_id, owner=request.user)
+    except Notebook.DoesNotExist:
+        return JsonResponse({"error": "Notebook not found"}, status=404)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    title = data.get("title", "").strip()
+    narrative = data.get("narrative", "").strip()
+    if not title:
+        return JsonResponse({"error": "title is required"}, status=400)
+
+    page = NotebookPage.objects.create(
+        notebook=nb,
+        page_type="note",
+        title=title,
+        source_tool=data.get("source_tool", "note"),
+        trial_role="front_matter",
+        narrative=narrative,
+        inputs=data.get("inputs", {}),
+        outputs=data.get("outputs", {}),
+        created_by=request.user,
+    )
+
+    logger.info(f"Front matter added to notebook {nb.id}: {title}")
+    return JsonResponse(_serialize_page(page), status=201)
+
+
+# ---------------------------------------------------------------------------
 # Yokoten
 # ---------------------------------------------------------------------------
 
@@ -752,6 +803,29 @@ def adopt_yokoten(request, yokoten_id):
         target_notebook=target_nb,
         defaults={"adopted_by": request.user},
     )
+
+    # Create a front matter page so the learning is visible in the notebook timeline
+    if created:
+        source_nb = yokoten.source_notebook
+        source_title = source_nb.title if source_nb else "Unknown"
+        NotebookPage.objects.create(
+            notebook=target_nb,
+            page_type="note",
+            title=f"Yokoten — {yokoten.learning[:80]}",
+            source_tool="yokoten",
+            trial_role="front_matter",
+            inputs={
+                "source_notebook": source_title,
+                "source_notebook_id": str(source_nb.id) if source_nb else None,
+                "applicable_to": yokoten.applicable_to,
+            },
+            outputs={
+                "learning": yokoten.learning,
+                "context": yokoten.context,
+            },
+            narrative=yokoten.learning,
+            created_by=request.user,
+        )
 
     return JsonResponse(
         {

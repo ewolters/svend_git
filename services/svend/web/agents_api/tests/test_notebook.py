@@ -652,6 +652,119 @@ class YokotenAdoptionTest(TestCase):
 
 
 # ===========================================================================
+# Front Matter — personal notes, anti-patterns, adopted yokoten
+# ===========================================================================
+
+
+@SECURE_OFF
+class FrontMatterTest(TestCase):
+    """
+    Front matter pages sort before trial work in the notebook timeline.
+
+    NB-001: Field notebook inside cover — yokoten, personal notes, anti-patterns.
+    <!-- test: agents_api.tests.test_notebook.FrontMatterTest -->
+    """
+
+    def setUp(self):
+        self.user = _make_user("fm@test.com")
+        self.client = _authed_client(self.user)
+        self.charter = _make_charter(self.user)
+        self.nb = Notebook.objects.create(project=self.charter, title="Front Matter NB", owner=self.user)
+
+    def test_add_personal_note_as_front_matter(self):
+        """POST /api/notebooks/{id}/front-matter/ creates a front matter page."""
+        res = _post_json(
+            self.client,
+            f"/api/notebooks/{self.nb.id}/front-matter/",
+            {
+                "title": "Never change feed rate and material simultaneously",
+                "narrative": "Can't isolate the effect. Learned this the hard way on Line 3.",
+                "source_tool": "anti_pattern",
+            },
+        )
+        self.assertEqual(res.status_code, 201)
+        data = res.json()
+        self.assertEqual(data["trial_role"], "front_matter")
+        self.assertEqual(data["source_tool"], "anti_pattern")
+        self.assertTrue(data["sequence"] < 0, "Front matter should have negative sequence")
+
+    def test_front_matter_sorts_before_trial_pages(self):
+        """Front matter pages appear before regular pages in timeline."""
+        # Create a regular page first
+        NotebookPage.objects.create(
+            notebook=self.nb,
+            page_type="note",
+            title="Trial note",
+            created_by=self.user,
+        )
+        # Then add front matter
+        _post_json(
+            self.client,
+            f"/api/notebooks/{self.nb.id}/front-matter/",
+            {"title": "Prior knowledge", "narrative": "Important context."},
+        )
+
+        res = self.client.get(f"/api/notebooks/{self.nb.id}/")
+        data = res.json()
+        self.assertEqual(len(data["front_matter"]), 1)
+        self.assertEqual(len(data["pages"]), 1)
+        self.assertEqual(data["front_matter"][0]["title"], "Prior knowledge")
+
+    def test_yokoten_adoption_creates_front_matter(self):
+        """Adopting yokoten creates a front matter page in target notebook."""
+        # Source notebook with yokoten
+        source_nb = Notebook.objects.create(project=self.charter, title="Source NB", owner=self.user)
+        yokoten = Yokoten.objects.create(
+            source_notebook=source_nb,
+            learning="Alignment jigs reduce scrap on high-speed lines",
+            context="Heidelberg XL 106, feed rate 10mm/s",
+            applicable_to=["scrap_reduction"],
+            created_by=self.user,
+        )
+
+        # Adopt into our notebook
+        res = _post_json(
+            self.client,
+            f"/api/notebooks/yokoten/{yokoten.id}/adopt/",
+            {"target_notebook_id": str(self.nb.id)},
+        )
+        self.assertEqual(res.status_code, 201)
+
+        # Check front matter page was created
+        fm_pages = NotebookPage.objects.filter(notebook=self.nb, trial_role="front_matter", source_tool="yokoten")
+        self.assertEqual(fm_pages.count(), 1)
+        page = fm_pages.first()
+        self.assertIn("Alignment jigs", page.narrative)
+        self.assertIn("Source NB", page.inputs.get("source_notebook", ""))
+        self.assertTrue(page.sequence < 0)
+
+    def test_multiple_front_matter_stack(self):
+        """Multiple front matter pages get decreasing sequence numbers."""
+        _post_json(
+            self.client,
+            f"/api/notebooks/{self.nb.id}/front-matter/",
+            {"title": "Note 1", "narrative": "First"},
+        )
+        _post_json(
+            self.client,
+            f"/api/notebooks/{self.nb.id}/front-matter/",
+            {"title": "Note 2", "narrative": "Second"},
+        )
+        _post_json(
+            self.client,
+            f"/api/notebooks/{self.nb.id}/front-matter/",
+            {"title": "Note 3", "narrative": "Third"},
+        )
+
+        fm = NotebookPage.objects.filter(notebook=self.nb, trial_role="front_matter").order_by("sequence")
+        self.assertEqual(fm.count(), 3)
+        sequences = [p.sequence for p in fm]
+        # All negative, all unique, sorted ascending
+        self.assertTrue(all(s < 0 for s in sequences))
+        self.assertEqual(sequences, sorted(sequences))
+
+
+# ===========================================================================
 # Verdict narrative auto-generation — NB-001 §2.2.2
 # ===========================================================================
 
