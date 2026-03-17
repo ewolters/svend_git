@@ -44,8 +44,8 @@ def generate_verdict_narrative(trial):
     """
     Auto-generate a verdict narrative from trial data and linked page statistics.
 
-    NB-001 §2.2.2: When before and after data exist, compute statistical
-    significance and effect size, then generate a human-readable narrative.
+    NB-001 §2.2.2: Builds the full statistical picture — frequentist significance,
+    effect magnitude, capability indices, Bayesian evidence, and sample adequacy.
     The user can accept, modify, or override.
 
     Returns a narrative string or empty string if insufficient data.
@@ -60,40 +60,105 @@ def generate_verdict_narrative(trial):
     delta_pct = trial.delta_pct
 
     # Determine improvement direction from charter goal
-    improving = True  # default: positive delta = improvement
+    improving = True
     try:
         goal_target = float(nb.project.goal_target) if nb.project.goal_target else None
         goal_baseline = float(nb.project.goal_baseline) if nb.project.goal_baseline else None
         if goal_target is not None and goal_baseline is not None:
             improving = (goal_target > goal_baseline and delta > 0) or (goal_target < goal_baseline and delta < 0)
     except (ValueError, TypeError, AttributeError):
-        # Fall back to: negative delta on a "rate" metric = improvement
         improving = delta < 0 if "rate" in metric.lower() or "defect" in metric.lower() else delta > 0
 
-    # Try to extract p-value and effect size from linked after-analysis page
+    # Collect statistics from ALL linked pages (before + after + supporting)
+    all_pages = NotebookPage.objects.filter(trial=trial).order_by("-created_at")
+    after_pages = [p for p in all_pages if p.trial_role == "after"]
+    before_pages = [p for p in all_pages if p.trial_role == "before"]
+
+    # Extract from after page (primary evidence source)
     p_value = None
     effect_mag = None
-    ci_low = None
-    ci_high = None
+    ci_low = ci_high = None
+    cpk = cp = ppk = pp = None
+    sigma_level = None
+    sample_size = None
+    yield_pct = None
+    bf10 = None
+    posterior_prob = None
+    cohens_d = None
+    evidence_grade = None
 
-    after_pages = NotebookPage.objects.filter(trial=trial, trial_role="after").order_by("-created_at")
-    for page in after_pages[:1]:
+    def _extract_stats(page):
+        """Extract all available statistics from a page's outputs."""
         outputs = page.outputs or {}
-        # Extract from page outputs using same patterns as standardize.py
+        stats = outputs.get("statistics", {})
+        if not isinstance(stats, dict):
+            stats = {}
+        # Also check top-level (some analyses put stats at root)
+        merged = {**stats}
+        for k in (
+            "p_value",
+            "cpk",
+            "cp",
+            "ppk",
+            "pp",
+            "sigma_level",
+            "n",
+            "sample_size",
+            "yield_pct",
+            "bf10",
+            "bayes_factor",
+            "posterior_probability",
+            "cohens_d",
+            "effect_size_d",
+            "evidence_grade",
+        ):
+            if k in outputs and k not in merged:
+                merged[k] = outputs[k]
+        return merged, outputs
+
+    for page in after_pages[:1]:
         from agents_api.analysis.standardize import _classify_effect, _extract_p_value
 
+        outputs = page.outputs or {}
         p_value = _extract_p_value(outputs)
         effect_mag = _classify_effect(outputs)
-        stats = outputs.get("statistics", {})
-        if isinstance(stats, dict):
-            ci = stats.get("confidence_interval") or stats.get("ci")
-            if isinstance(ci, (list, tuple)) and len(ci) == 2:
-                ci_low, ci_high = ci
+        stats, raw = _extract_stats(page)
 
-    # Build narrative parts
+        ci = stats.get("confidence_interval") or stats.get("ci")
+        if isinstance(ci, (list, tuple)) and len(ci) == 2:
+            ci_low, ci_high = ci
+
+        cpk = stats.get("cpk")
+        cp = stats.get("cp")
+        ppk = stats.get("ppk")
+        pp = stats.get("pp")
+        sigma_level = stats.get("sigma_level")
+        sample_size = stats.get("n") or stats.get("sample_size")
+        yield_pct = stats.get("yield_pct")
+        bf10 = stats.get("bf10") or stats.get("bayes_factor")
+        posterior_prob = stats.get("posterior_probability")
+        cohens_d = stats.get("cohens_d") or stats.get("effect_size_d")
+        evidence_grade = raw.get("evidence_grade")
+
+        # Check bayesian_shadow for BF10 if not in stats
+        bs = raw.get("bayesian_shadow")
+        if isinstance(bs, dict):
+            if bf10 is None:
+                bf10 = bs.get("bf10") or bs.get("bayes_factor")
+            if posterior_prob is None:
+                posterior_prob = bs.get("posterior_probability") or bs.get("posterior_prob")
+
+    # Also check before pages for comparison capability values
+    cpk_before = None
+    for page in before_pages[:1]:
+        stats_b, _ = _extract_stats(page)
+        cpk_before = stats_b.get("cpk")
+
+    # ── Build narrative ──────────────────────────────────────────────────
+
     parts = []
 
-    # Delta description
+    # 1. Delta description (always present)
     abs_delta = abs(delta) if delta else 0
     direction = "decreased" if delta < 0 else "increased"
     delta_str = f"{metric.replace('_', ' ')} {direction} {abs_delta:.1f}{unit}"
@@ -102,29 +167,84 @@ def generate_verdict_narrative(trial):
     before_after = f"{trial.before_value:.1f}{unit} → {trial.after_value:.1f}{unit}"
     parts.append(f"{delta_str} ({before_after}).")
 
-    # Statistical significance
+    # 2. Frequentist significance
     if p_value is not None:
         if p_value < 0.001:
-            sig_label = "Highly significant"
-            parts.append(f"{sig_label} (p<0.001).")
+            parts.append("Highly significant (p<0.001).")
         elif p_value < 0.01:
-            sig_label = "Significant"
-            parts.append(f"{sig_label} (p={p_value:.3f}).")
+            parts.append(f"Significant (p={p_value:.3f}).")
         elif p_value < 0.05:
-            sig_label = "Statistically significant"
-            parts.append(f"{sig_label} (p={p_value:.3f}).")
+            parts.append(f"Statistically significant (p={p_value:.3f}).")
         else:
             parts.append(f"Not statistically significant (p={p_value:.2f}).")
 
-    # Effect size
-    if effect_mag:
-        parts.append(f"Effect size is {effect_mag}.")
+    # 3. Effect size (practical significance)
+    if cohens_d is not None:
+        import math
 
-    # Confidence interval
+        if math.isfinite(cohens_d):
+            parts.append(f"Cohen's d={abs(cohens_d):.2f} ({effect_mag or 'see below'} effect).")
+    elif effect_mag:
+        parts.append(f"Effect size: {effect_mag}.")
+
+    # 4. Confidence interval
     if ci_low is not None and ci_high is not None:
         parts.append(f"95% CI: [{ci_low:.2f}, {ci_high:.2f}].")
 
-    # Verdict summary
+    # 5. Capability indices (the precision manufacturing story)
+    cap_parts = []
+    if cpk is not None:
+        label = "capable" if cpk >= 1.33 else "marginal" if cpk >= 1.0 else "not capable"
+        cap_parts.append(f"Cpk={cpk:.2f} ({label})")
+    if cp is not None:
+        cap_parts.append(f"Cp={cp:.2f}")
+    if ppk is not None:
+        cap_parts.append(f"Ppk={ppk:.2f}")
+    if pp is not None:
+        cap_parts.append(f"Pp={pp:.2f}")
+    if cap_parts:
+        cap_str = ", ".join(cap_parts)
+        if cpk_before is not None and cpk is not None:
+            cap_str += f" (from Cpk={cpk_before:.2f})"
+        parts.append(f"Process capability: {cap_str}.")
+
+    # 6. Sigma level and yield
+    if sigma_level is not None:
+        sigma_str = f"Sigma level: {sigma_level:.1f}"
+        if yield_pct is not None:
+            sigma_str += f" ({yield_pct:.2f}% yield)"
+        parts.append(f"{sigma_str}.")
+
+    # 7. Bayesian evidence (the insurance policy)
+    if bf10 is not None:
+        import math
+
+        if math.isfinite(bf10):
+            if bf10 > 100:
+                strength = "decisive"
+            elif bf10 > 30:
+                strength = "very strong"
+            elif bf10 > 10:
+                strength = "strong"
+            elif bf10 > 3:
+                strength = "moderate"
+            elif bf10 > 1:
+                strength = "anecdotal"
+            else:
+                strength = "favors null"
+            parts.append(f"Bayes factor: BF10={bf10:.1f} ({strength} evidence).")
+    if posterior_prob is not None:
+        parts.append(f"Posterior probability: {posterior_prob:.1%}.")
+
+    # 8. Evidence grade (if available from standardize)
+    if evidence_grade:
+        parts.append(f"Evidence grade: {evidence_grade}.")
+
+    # 9. Sample size (context for reliability of estimates)
+    if sample_size is not None:
+        parts.append(f"n={sample_size}.")
+
+    # 10. Verdict summary
     if trial.verdict == "improved":
         if improving:
             parts.append("Change moved the metric toward the goal — recommend adoption.")
@@ -181,7 +301,7 @@ def _serialize_trial(t):
         "verdict_narrative": t.verdict_narrative,
         "delta": t.delta,
         "delta_pct": t.delta_pct,
-        "adopted": t.adopted,
+        "adopted": t.is_adopted,
         "started_at": t.started_at.isoformat() if t.started_at else None,
         "completed_at": t.completed_at.isoformat() if t.completed_at else None,
     }
@@ -291,7 +411,7 @@ def notebook_detail(request, notebook_id):
                 "what_didnt": hk.what_didnt,
                 "what_next": hk.what_next,
                 "key_learning": hk.key_learning,
-                "carry_forward": hk.carry_forward,
+                "carry_forward": hk.is_carry_forward,
             }
         except HanseiKai.DoesNotExist:
             result["hansei_kai"] = None
@@ -417,7 +537,7 @@ def complete_trial(request, notebook_id, trial_id):
     """
     Complete a trial with a verdict.
 
-    POST body: {"verdict": str, "adopted": bool?, "verdict_narrative": str?}
+    POST body: {"verdict": str, "adopted": bool? (maps to is_adopted), "verdict_narrative": str?}
     """
     try:
         trial = Trial.objects.get(id=trial_id, notebook_id=notebook_id, notebook__owner=request.user)
@@ -440,7 +560,7 @@ def complete_trial(request, notebook_id, trial_id):
     if data.get("verdict_narrative"):
         trial.verdict_narrative = data["verdict_narrative"]
 
-    trial.complete(verdict=verdict, adopted=data.get("adopted", False))
+    trial.complete(verdict=verdict, is_adopted=data.get("adopted", False))
 
     # Auto-generate narrative if user didn't provide one
     if not trial.verdict_narrative:
@@ -455,7 +575,7 @@ def complete_trial(request, notebook_id, trial_id):
         nb.active_trial = None
         nb.save(update_fields=["active_trial", "updated_at"])
 
-    logger.info(f"Trial {trial.sequence} completed: {verdict}, adopted={trial.adopted}")
+    logger.info(f"Trial {trial.sequence} completed: {verdict}, is_adopted={trial.is_adopted}")
     return JsonResponse(_serialize_trial(trial))
 
 
@@ -564,7 +684,7 @@ def conclude_notebook(request, notebook_id):
         what_didnt=data["what_didnt"],
         what_next=data["what_next"],
         key_learning=data["key_learning"],
-        carry_forward=data.get("carry_forward", False),
+        is_carry_forward=data.get("carry_forward", False),
         created_by=request.user,
     )
 
@@ -574,7 +694,7 @@ def conclude_notebook(request, notebook_id):
         "what_didnt": hk.what_didnt,
         "what_next": hk.what_next,
         "key_learning": hk.key_learning,
-        "carry_forward": hk.carry_forward,
+        "carry_forward": hk.is_carry_forward,
     }
 
     # Include yokoten if created
@@ -582,7 +702,7 @@ def conclude_notebook(request, notebook_id):
     if yokoten:
         result["yokoten"] = _serialize_yokoten(yokoten)
 
-    logger.info(f"Notebook {nb.id} concluded with Hansei Kai (carry_forward={hk.carry_forward})")
+    logger.info(f"Notebook {nb.id} concluded with Hansei Kai (is_carry_forward={hk.is_carry_forward})")
     return JsonResponse(result)
 
 

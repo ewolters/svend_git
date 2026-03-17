@@ -8,7 +8,7 @@ results, and any other artifact generated while improving a process.
 Hierarchy:
   Project (Charter) → Notebook[] → Trial[], NotebookPage[]
   Notebook → HanseiKai (on conclusion)
-  HanseiKai → Yokoten (if carry_forward=True)
+  HanseiKai → Yokoten (if is_carry_forward=True)
   Yokoten → YokotenAdoption[]
 
 Reference: docs/standards/NB-001.md
@@ -76,7 +76,7 @@ class Notebook(models.Model):
     )
     baseline_date = models.DateField(null=True, blank=True)
 
-    # Current state — updated after each adopted trial
+    # Current state — updated after each is_adopted trial
     current_value = models.FloatField(null=True, blank=True)
     current_analysis = models.ForeignKey(
         "agents_api.DSWResult",
@@ -147,8 +147,8 @@ class Notebook(models.Model):
             self.save(update_fields=["status", "updated_at"])
 
     def update_current_from_trial(self, trial):
-        """Update current state from an adopted trial's after values."""
-        if trial.adopted and trial.after_value is not None:
+        """Update current state from an is_adopted trial's after values."""
+        if trial.is_adopted and trial.after_value is not None:
             self.current_value = trial.after_value
             self.current_analysis = trial.after_analysis
             self.current_date = trial.after_date
@@ -246,7 +246,7 @@ class Trial(models.Model):
     )
     delta = models.FloatField(null=True, blank=True)
     delta_pct = models.FloatField(null=True, blank=True)
-    adopted = models.BooleanField(default=False)
+    is_adopted = models.BooleanField(default=False)
 
     # Evidence linkage
     evidence_links = models.ManyToManyField(
@@ -288,15 +288,15 @@ class Trial(models.Model):
         # Auto-activate notebook
         self.notebook.auto_activate()
 
-    def complete(self, verdict, adopted=False):
+    def complete(self, verdict, is_adopted=False):
         """Mark trial as completed with a verdict."""
         from django.utils import timezone
 
         self.verdict = verdict
-        self.adopted = adopted
+        self.is_adopted = is_adopted
         self.completed_at = timezone.now()
         self.save()
-        if adopted:
+        if is_adopted:
             self.notebook.update_current_from_trial(self)
 
 
@@ -477,7 +477,7 @@ class HanseiKai(models.Model):
     Reflection recorded when a Notebook is concluded.
 
     NB-001 §2.6. Three questions + key learning distillation.
-    If carry_forward=True, a Yokoten is auto-created.
+    If is_carry_forward=True, a Yokoten is auto-created.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -490,7 +490,7 @@ class HanseiKai(models.Model):
     what_didnt = models.TextField()
     what_next = models.TextField()
     key_learning = models.TextField(help_text="One sentence distillation — the yokoten seed")
-    carry_forward = models.BooleanField(default=False)
+    is_carry_forward = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
@@ -506,7 +506,7 @@ class HanseiKai(models.Model):
 
     def save(self, **kwargs):
         super().save(**kwargs)
-        if self.carry_forward:
+        if self.is_carry_forward:
             Yokoten.objects.get_or_create(
                 source_notebook=self.notebook,
                 defaults={

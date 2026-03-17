@@ -739,7 +739,6 @@ class VerdictNarrativeTest(TestCase):
         )
         trial.save()
 
-        # Create an after-role page with statistical outputs
         NotebookPage.objects.create(
             notebook=self.nb,
             page_type="analysis",
@@ -766,8 +765,110 @@ class VerdictNarrativeTest(TestCase):
         self.assertEqual(res.status_code, 200)
         narrative = res.json()["verdict_narrative"]
         self.assertIn("0.003", narrative)
-        self.assertIn("large", narrative.lower())
+        self.assertIn("0.84", narrative)  # Cohen's d value
         self.assertIn("CI", narrative)
+
+    def test_includes_capability_indices(self):
+        """Narrative includes Cpk, Cp, sigma level from SPC capability page."""
+        trial = Trial(
+            notebook=self.nb,
+            title="Capability trial",
+            before_value=4.7,
+            after_value=3.1,
+            created_by=self.user,
+        )
+        trial.save()
+
+        # Before page with old Cpk
+        NotebookPage.objects.create(
+            notebook=self.nb,
+            page_type="analysis",
+            title="Before capability",
+            source_tool="spc",
+            outputs={"statistics": {"cpk": 0.82, "cp": 0.95}},
+            trial=trial,
+            trial_role="before",
+            created_by=self.user,
+        )
+
+        # After page with improved Cpk
+        NotebookPage.objects.create(
+            notebook=self.nb,
+            page_type="analysis",
+            title="After capability",
+            source_tool="spc",
+            outputs={
+                "statistics": {
+                    "cpk": 1.45,
+                    "cp": 1.52,
+                    "ppk": 1.38,
+                    "pp": 1.50,
+                    "sigma_level": 4.35,
+                    "yield_pct": 99.9866,
+                    "n": 50,
+                },
+            },
+            trial=trial,
+            trial_role="after",
+            created_by=self.user,
+        )
+
+        res = _post_json(
+            self.client,
+            f"/api/notebooks/{self.nb.id}/trials/{trial.id}/complete/",
+            {"verdict": "improved", "adopted": True},
+        )
+        self.assertEqual(res.status_code, 200)
+        narrative = res.json()["verdict_narrative"]
+        self.assertIn("Cpk=1.45", narrative)
+        self.assertIn("capable", narrative)
+        self.assertIn("Cp=1.52", narrative)
+        self.assertIn("Ppk=1.38", narrative)
+        self.assertIn("Sigma level: 4.3", narrative)
+        self.assertIn("from Cpk=0.82", narrative)  # before comparison
+        self.assertIn("n=50", narrative)
+
+    def test_includes_bayesian_evidence(self):
+        """Narrative includes Bayes factor and posterior probability."""
+        trial = Trial(
+            notebook=self.nb,
+            title="Bayesian trial",
+            before_value=4.7,
+            after_value=3.1,
+            created_by=self.user,
+        )
+        trial.save()
+
+        NotebookPage.objects.create(
+            notebook=self.nb,
+            page_type="analysis",
+            title="Bayesian analysis",
+            source_tool="dsw",
+            outputs={
+                "p_value": 0.01,
+                "evidence_grade": "B+",
+                "bayesian_shadow": {
+                    "bf10": 42.5,
+                    "posterior_probability": 0.977,
+                },
+                "statistics": {"cohens_d": 0.65},
+            },
+            trial=trial,
+            trial_role="after",
+            created_by=self.user,
+        )
+
+        res = _post_json(
+            self.client,
+            f"/api/notebooks/{self.nb.id}/trials/{trial.id}/complete/",
+            {"verdict": "improved", "adopted": True},
+        )
+        self.assertEqual(res.status_code, 200)
+        narrative = res.json()["verdict_narrative"]
+        self.assertIn("BF10=42.5", narrative)
+        self.assertIn("very strong", narrative)
+        self.assertIn("97.7%", narrative)  # posterior
+        self.assertIn("B+", narrative)  # evidence grade
 
     def test_no_narrative_without_values(self):
         """No narrative generated when before/after values are missing."""
