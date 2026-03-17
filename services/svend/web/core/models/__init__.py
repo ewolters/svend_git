@@ -25,12 +25,17 @@ from .notebook import (
 )
 from .project import Dataset, ExperimentDesign, Project, StudyAction
 from .tenant import Membership, OrgInvitation, Tenant
+from .training import StudentEnrollment, TrainingCenter, TrainingProgram
 
 __all__ = [
     # Multi-tenancy
     "Tenant",
     "Membership",
     "OrgInvitation",
+    # Training (ILSSI partner infrastructure)
+    "TrainingCenter",
+    "TrainingProgram",
+    "StudentEnrollment",
     # Knowledge Graph
     "KnowledgeGraph",
     "Entity",

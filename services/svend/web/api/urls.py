@@ -2,7 +2,7 @@
 
 from django.urls import path
 
-from . import internal_views, views
+from . import internal_views, training_views, views
 
 app_name = "api"
 
@@ -164,6 +164,12 @@ urlpatterns = [
         internal_views.api_change_transition,
         name="internal_change_transition",
     ),
+    # Training Center Management (staff-only)
+    path("internal/training/centers/", training_views.list_create_centers, name="internal_training_centers"),
+    path("internal/training/programs/", training_views.list_create_programs, name="internal_training_programs"),
+    path("internal/training/enrollments/", training_views.list_enrollments, name="internal_training_enrollments"),
+    path("internal/training/enroll/", training_views.batch_enroll, name="internal_training_enroll"),
+    path("internal/training/graduate/", training_views.batch_graduate, name="internal_training_graduate"),
     # Calibration (staff-only, CAL-001)
     path("internal/calibration/", internal_views.api_calibration, name="internal_calibration"),
     path("internal/calibration/run/", internal_views.api_calibration_run, name="internal_calibration_run"),
