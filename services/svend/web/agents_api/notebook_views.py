@@ -709,6 +709,100 @@ def conclude_notebook(request, notebook_id):
 
 
 # ---------------------------------------------------------------------------
+# Front Page — aggregated personal knowledge base
+# ---------------------------------------------------------------------------
+
+
+@require_http_methods(["GET"])
+@gated_paid
+def front_page(request):
+    """
+    Aggregated view of all front matter, Hansei Kai reflections, and yokoten
+    across all of the user's notebooks. Personal knowledge base.
+    """
+    from core.models import HanseiKai
+
+    user = request.user
+
+    # Front matter pages across all notebooks
+    front_matter = (
+        NotebookPage.objects.filter(
+            notebook__owner=user,
+            trial_role="front_matter",
+        )
+        .select_related("notebook")
+        .order_by("-created_at")
+    )
+
+    # Hansei Kai reflections across all notebooks
+    reflections = (
+        HanseiKai.objects.filter(
+            notebook__owner=user,
+        )
+        .select_related("notebook")
+        .order_by("-created_at")
+    )
+
+    # Yokoten (own + adopted)
+    from core.models import YokotenAdoption
+
+    own_yokoten = (
+        Yokoten.objects.filter(
+            source_notebook__owner=user,
+        )
+        .select_related("source_notebook")
+        .order_by("-created_at")
+    )
+
+    adopted = (
+        YokotenAdoption.objects.filter(
+            adopted_by=user,
+        )
+        .select_related("yokoten", "yokoten__source_notebook", "target_notebook")
+        .order_by("-adopted_at")
+    )
+
+    return JsonResponse(
+        {
+            "front_matter": [
+                {
+                    **_serialize_page(p),
+                    "notebook_title": p.notebook.title,
+                }
+                for p in front_matter
+            ],
+            "reflections": [
+                {
+                    "id": str(r.id),
+                    "notebook_id": str(r.notebook_id),
+                    "notebook_title": r.notebook.title,
+                    "what_went_well": r.what_went_well,
+                    "what_didnt": r.what_didnt,
+                    "what_next": r.what_next,
+                    "key_learning": r.key_learning,
+                    "is_carry_forward": r.is_carry_forward,
+                    "created_at": r.created_at.isoformat(),
+                }
+                for r in reflections
+            ],
+            "yokoten": [_serialize_yokoten(y) for y in own_yokoten],
+            "adopted": [
+                {
+                    "id": str(a.id),
+                    "yokoten": _serialize_yokoten(a.yokoten),
+                    "target_notebook_id": str(a.target_notebook_id),
+                    "target_notebook_title": a.target_notebook.title,
+                    "adopted_at": a.adopted_at.isoformat(),
+                    "outcome": a.outcome,
+                    "notes": a.notes,
+                }
+                for a in adopted
+            ],
+        }
+    )
+
+
+# ---------------------------------------------------------------------------
 # Front Matter — personal notes, anti-patterns, adopted yokoten
 # ---------------------------------------------------------------------------
 

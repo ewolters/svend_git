@@ -23,7 +23,9 @@ urlpatterns = [
     ),
     # Pages
     path("<uuid:notebook_id>/pages/", notebook_views.list_create_pages, name="page_list_create"),
-    # Front Matter
+    # Front Page (aggregated knowledge base)
+    path("front-page/", notebook_views.front_page, name="front_page"),
+    # Front Matter (per-notebook)
     path("<uuid:notebook_id>/front-matter/", notebook_views.add_front_matter, name="front_matter_add"),
     # Yokoten
     path("yokoten/", notebook_views.list_yokoten, name="yokoten_list"),

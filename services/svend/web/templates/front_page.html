@@ -1,0 +1,262 @@
+{% extends "base_app.html" %}
+{% block title %}Front Page — SVEND{% endblock %}
+
+{% block extra_head %}
+<style>
+body > main { padding: 0 !important; }
+body > main > .container { max-width: none !important; padding: 0 !important; }
+
+.fp-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 32px 24px;
+}
+
+.fp-header {
+    margin-bottom: 32px;
+}
+.fp-header h1 {
+    font-size: 1.4rem; font-weight: 700; margin: 0 0 4px 0;
+}
+.fp-header p {
+    font-size: 0.85rem; color: var(--text-dim); margin: 0;
+}
+
+/* Section */
+.fp-section {
+    margin-bottom: 32px;
+}
+.fp-section-label {
+    font-size: 0.65rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--accent-primary);
+    margin-bottom: 12px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+}
+.fp-section-count {
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1px 8px; font-size: 0.6rem;
+    color: var(--text-dim); font-weight: 400;
+}
+
+/* Cards */
+.fp-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; margin-bottom: 8px;
+}
+.fp-card-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.fp-card-type {
+    font-size: 0.6rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; padding: 2px 8px; border-radius: 4px;
+}
+.fp-card-type.yokoten { background: rgba(74,159,110,0.15); color: var(--accent-primary); }
+.fp-card-type.anti-pattern { background: rgba(224,112,96,0.15); color: #e07060; }
+.fp-card-type.note { background: rgba(91,155,213,0.15); color: #5b9bd5; }
+.fp-card-type.reflection { background: rgba(180,160,220,0.15); color: #b4a0dc; }
+.fp-card-title {
+    font-size: 0.85rem; font-weight: 600; color: var(--text-primary);
+}
+.fp-card-body {
+    font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6;
+}
+.fp-card-meta {
+    font-size: 0.65rem; color: var(--text-dim); margin-top: 6px;
+}
+
+/* Reflection card */
+.fp-reflection-fields {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;
+}
+.fp-reflection-field label {
+    font-size: 0.65rem; font-weight: 600; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.05em; display: block;
+    margin-bottom: 2px;
+}
+.fp-reflection-field p {
+    font-size: 0.8rem; color: var(--text-secondary); margin: 0;
+    line-height: 1.5;
+}
+
+.fp-empty {
+    text-align: center; padding: 40px 20px;
+    color: var(--text-dim); font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+    .fp-reflection-fields { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fp-container">
+    <div class="fp-header">
+        <h1>Front Page</h1>
+        <p>Everything you've learned — yokoten, reflections, notes, and anti-patterns across all your notebooks.</p>
+    </div>
+
+    <div id="fp-content">
+        <div class="fp-empty">Loading...</div>
+    </div>
+</div>
+
+<script>
+const API = '/api/notebooks/front-page/';
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+function timeAgo(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const now = new Date();
+    const diff = Math.floor((now - d) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return Math.floor(diff / 86400) + 'd ago';
+}
+
+async function load() {
+    const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+    try {
+        const res = await fetch(API, {
+            credentials: 'include',
+            headers: { 'X-CSRFToken': csrf },
+        });
+        if (!res.ok) throw new Error(res.statusText);
+        const data = await res.json();
+        render(data);
+    } catch (e) {
+        document.getElementById('fp-content').innerHTML = `<div class="fp-empty">Failed to load: ${esc(e.message)}</div>`;
+    }
+}
+
+function render(data) {
+    const el = document.getElementById('fp-content');
+    const sections = [];
+
+    // Key Learnings (Hansei Kai)
+    const reflections = data.reflections || [];
+    if (reflections.length > 0) {
+        sections.push(`
+            <div class="fp-section">
+                <div class="fp-section-label">Key Learnings <span class="fp-section-count">${reflections.length}</span></div>
+                ${reflections.map(r => `
+                    <div class="fp-card">
+                        <div class="fp-card-header">
+                            <span class="fp-card-type reflection">Hansei Kai</span>
+                            <span class="fp-card-title">${esc(r.key_learning)}</span>
+                        </div>
+                        <div class="fp-reflection-fields">
+                            <div class="fp-reflection-field">
+                                <label>What went well</label>
+                                <p>${esc(r.what_went_well)}</p>
+                            </div>
+                            <div class="fp-reflection-field">
+                                <label>What didn't</label>
+                                <p>${esc(r.what_didnt)}</p>
+                            </div>
+                            <div class="fp-reflection-field">
+                                <label>What next</label>
+                                <p>${esc(r.what_next)}</p>
+                            </div>
+                            <div class="fp-reflection-field">
+                                <label>From</label>
+                                <p>${esc(r.notebook_title)}</p>
+                            </div>
+                        </div>
+                        ${r.is_carry_forward ? '<div class="fp-card-meta" style="color:var(--accent-primary);">Carried forward as Yokoten</div>' : ''}
+                    </div>
+                `).join('')}
+            </div>
+        `);
+    }
+
+    // Anti-Patterns
+    const antiPatterns = (data.front_matter || []).filter(p => p.source_tool === 'anti_pattern');
+    if (antiPatterns.length > 0) {
+        sections.push(`
+            <div class="fp-section">
+                <div class="fp-section-label">Anti-Patterns <span class="fp-section-count">${antiPatterns.length}</span></div>
+                ${antiPatterns.map(p => `
+                    <div class="fp-card">
+                        <div class="fp-card-header">
+                            <span class="fp-card-type anti-pattern">Anti-Pattern</span>
+                            <span class="fp-card-title">${esc(p.title)}</span>
+                        </div>
+                        ${p.narrative ? `<div class="fp-card-body">${esc(p.narrative)}</div>` : ''}
+                        <div class="fp-card-meta">${esc(p.notebook_title)} &middot; ${timeAgo(p.created_at)}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `);
+    }
+
+    // Yokoten (own + adopted)
+    const yokoten = data.yokoten || [];
+    const adopted = data.adopted || [];
+    if (yokoten.length > 0 || adopted.length > 0) {
+        sections.push(`
+            <div class="fp-section">
+                <div class="fp-section-label">Yokoten <span class="fp-section-count">${yokoten.length + adopted.length}</span></div>
+                ${yokoten.map(y => `
+                    <div class="fp-card">
+                        <div class="fp-card-header">
+                            <span class="fp-card-type yokoten">Created</span>
+                            <span class="fp-card-title">${esc(y.learning)}</span>
+                        </div>
+                        ${y.context ? `<div class="fp-card-body">${esc(y.context)}</div>` : ''}
+                        <div class="fp-card-meta">${y.adoption_count} adoption${y.adoption_count !== 1 ? 's' : ''} &middot; ${timeAgo(y.created_at)}</div>
+                    </div>
+                `).join('')}
+                ${adopted.map(a => `
+                    <div class="fp-card">
+                        <div class="fp-card-header">
+                            <span class="fp-card-type yokoten">Adopted</span>
+                            <span class="fp-card-title">${esc(a.yokoten.learning)}</span>
+                        </div>
+                        ${a.yokoten.context ? `<div class="fp-card-body">${esc(a.yokoten.context)}</div>` : ''}
+                        <div class="fp-card-meta">Into: ${esc(a.target_notebook_title)} &middot; ${timeAgo(a.adopted_at)}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `);
+    }
+
+    // Personal Notes
+    const notes = (data.front_matter || []).filter(p => p.source_tool !== 'anti_pattern' && p.source_tool !== 'yokoten');
+    if (notes.length > 0) {
+        sections.push(`
+            <div class="fp-section">
+                <div class="fp-section-label">Notes <span class="fp-section-count">${notes.length}</span></div>
+                ${notes.map(p => `
+                    <div class="fp-card">
+                        <div class="fp-card-header">
+                            <span class="fp-card-type note">Note</span>
+                            <span class="fp-card-title">${esc(p.title)}</span>
+                        </div>
+                        ${p.narrative ? `<div class="fp-card-body">${esc(p.narrative)}</div>` : ''}
+                        <div class="fp-card-meta">${esc(p.notebook_title)} &middot; ${timeAgo(p.created_at)}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `);
+    }
+
+    if (sections.length === 0) {
+        el.innerHTML = `
+            <div class="fp-empty">
+                <p>No learnings yet.</p>
+                <p style="font-size:0.75rem;margin-top:8px;">Complete a notebook with Hansei Kai, add anti-patterns, or adopt yokoten to build your front page.</p>
+            </div>
+        `;
+    } else {
+        el.innerHTML = sections.join('');
+    }
+}
+
+load();
+</script>
+{% endblock %}

@@ -177,6 +177,7 @@ urlpatterns = [
     path("app/hoshin/", TemplateView.as_view(template_name="hoshin.html"), name="hoshin"),
     path("app/investigations/", TemplateView.as_view(template_name="investigations.html"), name="investigations"),
     path("app/notebooks/", TemplateView.as_view(template_name="notebooks.html"), name="notebooks"),
+    path("app/front-page/", TemplateView.as_view(template_name="front_page.html"), name="front_page"),
     path("app/iso/", TemplateView.as_view(template_name="iso.html"), name="iso"),
     path("app/iso-docs/", TemplateView.as_view(template_name="iso_doc.html"), name="iso_doc"),
     path("app/iso-docs/<uuid:doc_id>/", TemplateView.as_view(template_name="iso_doc.html"), name="iso_doc_edit"),
