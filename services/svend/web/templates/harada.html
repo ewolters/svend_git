@@ -603,51 +603,129 @@ async function loadDiary() {
     } catch (e) {}
 
     const dims = ['overall', 'mental', 'body', 'work', 'relations', 'life', 'learning', 'routines'];
+    const tasks = diary?.top_tasks || [{},{},{},{},{}];
+    while (tasks.length < 5) tasks.push({});
+    const blocks = diary?.time_blocks || [];
+    const comments = diary?.score_comments || {};
     const el = document.getElementById('diary-content');
 
+    // Time blocks: 06:00 to 18:00 in 30-min increments
+    const hours = [];
+    for (let h = 6; h <= 18; h++) {
+        hours.push(`${String(h).padStart(2,'0')}:00`);
+        if (h < 18) hours.push(`${String(h).padStart(2,'0')}:30`);
+    }
+    const blockMap = {};
+    blocks.forEach(b => { blockMap[b.time] = b; });
+
     el.innerHTML = `
+        <!-- Daily Phrase -->
         <div class="hr-card">
             <label style="font-size:12px;color:var(--text-dim);">Daily Phrase</label>
             <input type="text" id="diary-phrase" value="${esc(diary?.daily_phrase || '')}" placeholder="What's your focus today?"
-                style="width:100%;padding:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);margin-bottom:12px;">
+                style="width:100%;padding:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);">
+        </div>
 
-            <label style="font-size:12px;color:var(--text-dim);">Self-Assessment (0-5)</label>
-            <div class="diary-scores">
+        <!-- Top 5 Tasks -->
+        <div class="hr-card">
+            <label style="font-size:12px;color:var(--text-dim);margin-bottom:8px;display:block;">Top Five Tasks for Today</label>
+            ${tasks.map((t, i) => `
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                    <input type="checkbox" class="routine-check" id="task-done-${i}" ${t.completed ? 'checked' : ''}>
+                    <input type="text" id="task-text-${i}" value="${esc(t.task || '')}" placeholder="Task ${i+1}..."
+                        style="flex:1;padding:6px 8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:12px;">
+                </div>
+            `).join('')}
+        </div>
+
+        <!-- Schedule -->
+        <div class="hr-card">
+            <label style="font-size:12px;color:var(--text-dim);margin-bottom:8px;display:block;">Schedule</label>
+            <div style="display:grid;grid-template-columns:60px 1fr 1fr;gap:2px;font-size:11px;">
+                <div style="font-weight:600;color:var(--text-dim);padding:4px;">Time</div>
+                <div style="font-weight:600;color:var(--text-dim);padding:4px;">Plan</div>
+                <div style="font-weight:600;color:var(--text-dim);padding:4px;">Reflection</div>
+                ${hours.map(h => {
+                    const b = blockMap[h] || {};
+                    return `
+                        <div style="padding:4px;color:var(--text-dim);border-top:1px solid var(--border);">${h}</div>
+                        <div style="border-top:1px solid var(--border);"><input type="text" data-time="${h}" data-field="plan" value="${esc(b.plan || '')}" style="width:100%;padding:3px 6px;background:transparent;border:none;color:var(--text-primary);font-size:11px;"></div>
+                        <div style="border-top:1px solid var(--border);"><input type="text" data-time="${h}" data-field="reflection" value="${esc(b.reflection || '')}" style="width:100%;padding:3px 6px;background:transparent;border:none;color:var(--text-secondary);font-size:11px;"></div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+
+        <!-- Self-Assessment -->
+        <div class="hr-card">
+            <label style="font-size:12px;color:var(--text-dim);margin-bottom:8px;display:block;">Self-Assessment (0-5)</label>
+            <div style="display:grid;grid-template-columns:auto 50px 1fr;gap:4px 8px;align-items:center;font-size:12px;">
                 ${dims.map(d => `
-                    <div class="diary-score-item">
-                        <label>${d.charAt(0).toUpperCase() + d.slice(1)}</label>
-                        <input type="number" min="0" max="5" id="score-${d}" value="${diary?.scores?.[d] ?? ''}">
-                    </div>
+                    <div style="color:var(--text-secondary);">${d.charAt(0).toUpperCase() + d.slice(1)}</div>
+                    <input type="number" min="0" max="5" id="score-${d}" value="${diary?.scores?.[d] ?? ''}"
+                        style="width:50px;text-align:center;padding:4px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:14px;font-weight:600;">
+                    <input type="text" id="comment-${d}" value="${esc(comments[d] || '')}" placeholder="Comment..."
+                        style="padding:4px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text-dim);font-size:11px;">
                 `).join('')}
             </div>
+            ${diary?.score_total != null ? `<div style="text-align:right;margin-top:8px;font-size:13px;font-weight:600;color:var(--accent-primary);">Total: ${diary.score_total}/40</div>` : ''}
+        </div>
 
+        <!-- Reflections -->
+        <div class="hr-card">
             <label style="font-size:12px;color:var(--text-dim);">Challenges & Positive Takeaways</label>
-            <textarea id="diary-challenges" rows="3" style="width:100%;padding:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);margin-bottom:8px;">${esc(diary?.challenges || '')}</textarea>
+            <textarea id="diary-challenges" rows="3" style="width:100%;padding:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);margin-bottom:8px;font-size:12px;">${esc(diary?.challenges || '')}</textarea>
 
             <label style="font-size:12px;color:var(--text-dim);">What would you have done differently?</label>
-            <textarea id="diary-differently" rows="2" style="width:100%;padding:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);margin-bottom:12px;">${esc(diary?.what_differently || '')}</textarea>
+            <textarea id="diary-differently" rows="2" style="width:100%;padding:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);margin-bottom:8px;font-size:12px;">${esc(diary?.what_differently || '')}</textarea>
 
-            <button onclick="saveDiary()" style="padding:8px 20px;background:var(--accent-primary);color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600;">Save</button>
-            ${diary?.score_total != null ? `<span style="margin-left:12px;font-size:13px;color:var(--text-dim);">Total: ${diary.score_total}/40</span>` : ''}
+            <label style="font-size:12px;color:var(--text-dim);">Additional Notes / Future Actions</label>
+            <textarea id="diary-notes" rows="2" style="width:100%;padding:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:12px;">${esc(diary?.notes || '')}</textarea>
         </div>
+
+        <button onclick="saveDiary()" style="padding:10px 24px;background:var(--accent-primary);color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600;">Save</button>
     `;
 }
 
 async function saveDiary() {
     const dims = ['overall', 'mental', 'body', 'work', 'relations', 'life', 'learning', 'routines'];
     const scores = {};
+    const score_comments = {};
     dims.forEach(d => {
         const v = document.getElementById('score-' + d).value;
         if (v !== '') scores[d] = parseInt(v);
+        const c = document.getElementById('comment-' + d).value.trim();
+        if (c) score_comments[d] = c;
+    });
+
+    // Top 5 tasks
+    const top_tasks = [];
+    for (let i = 0; i < 5; i++) {
+        const text = document.getElementById('task-text-' + i).value.trim();
+        if (text) top_tasks.push({ task: text, completed: document.getElementById('task-done-' + i).checked });
+    }
+
+    // Time blocks
+    const time_blocks = [];
+    document.querySelectorAll('[data-time][data-field="plan"]').forEach(input => {
+        const time = input.dataset.time;
+        const plan = input.value.trim();
+        const reflInput = document.querySelector(`[data-time="${time}"][data-field="reflection"]`);
+        const reflection = reflInput ? reflInput.value.trim() : '';
+        if (plan || reflection) time_blocks.push({ time, plan, reflection });
     });
 
     await api(API + 'diary/', 'POST', {
         daily_phrase: document.getElementById('diary-phrase').value,
         scores,
+        score_comments,
+        top_tasks,
+        time_blocks,
         challenges: document.getElementById('diary-challenges').value,
         what_differently: document.getElementById('diary-differently').value,
+        notes: document.getElementById('diary-notes').value,
     });
-    loadDiary();
+    showToast('Diary saved.');
 }
 
 // ============================================================================
