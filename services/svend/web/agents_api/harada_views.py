@@ -474,6 +474,10 @@ def goal_detail(request, goal_id):
 
     if data.get("status") == "achieved" and not goal.achieved_at:
         goal.achieved_at = timezone.now()
+        # Prompt for Hansei Kai reflection
+        from agents_api.harada_tasks import notify_hansei_due
+
+        notify_hansei_due(request.user, goal)
 
     goal.save()
     return JsonResponse(_serialize_goal(goal))
@@ -645,12 +649,20 @@ def check_routine(request):
         defaults={"is_completed": is_completed, "notes": data.get("notes", "")},
     )
 
+    # Streak notification on milestone
+    streak = None
+    if is_completed:
+        from agents_api.harada_tasks import check_streak_and_notify
+
+        streak = check_streak_and_notify(request.user, cell)
+
     return JsonResponse(
         {
             "window_cell_id": str(cell.id),
             "date": str(check.date),
             "is_completed": check.is_completed,
             "created": created,
+            "streak": streak,
         }
     )
 

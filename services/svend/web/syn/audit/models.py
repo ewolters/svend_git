@@ -1152,6 +1152,83 @@ class ChangeRequest(models.Model):
     def __str__(self):
         return f"[{self.change_type}] {self.title} ({self.status})"
 
+    # ========== Poka-Yoke: save()-level enforcement (CHG-001 §7.1.1) ==========
+
+    # Valid transitions — anything not listed is rejected
+    _VALID_TRANSITIONS = {
+        "draft": {"submitted", "cancelled"},
+        "submitted": {"risk_assessed", "approved", "rejected", "cancelled"},
+        "risk_assessed": {"approved", "rejected", "cancelled"},
+        "approved": {"in_progress", "cancelled"},
+        "in_progress": {"testing", "completed", "failed", "cancelled"},
+        "testing": {"completed", "failed", "rolled_back"},
+        "completed": set(),  # terminal
+        "failed": {"in_progress", "cancelled"},
+        "rolled_back": set(),  # terminal
+        "rejected": {"draft"},  # can reopen
+        "cancelled": set(),  # terminal
+    }
+
+    def save(self, *args, **kwargs):
+        # Skip enforcement for new objects (no pk in DB yet)
+        if not self._state.adding:
+            # Skip if update_fields doesn't include status
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None and "status" not in update_fields:
+                return super().save(*args, **kwargs)
+
+            # Detect status change by reading current DB value
+            try:
+                old = ChangeRequest.objects.filter(pk=self.pk).values_list("status", flat=True).first()
+            except Exception:
+                old = None
+
+            if old and old != self.status:
+                self._enforce_transition(old, self.status)
+
+        super().save(*args, **kwargs)
+
+    def _enforce_transition(self, old_status, new_status):
+        """Poka-yoke: block invalid or incomplete status transitions.
+
+        Raises ValidationError with actionable messages so callers know
+        exactly what fields/steps are missing.  CHG-001 §7.1.1.
+        """
+        # 1. Valid transition check
+        allowed = self._VALID_TRANSITIONS.get(old_status, set())
+        if new_status not in allowed:
+            raise ValidationError(
+                f"CHG-001 violation: cannot transition from '{old_status}' "
+                f"to '{new_status}'. Allowed: {sorted(allowed) or 'none (terminal state)'}. "
+                f"CR: {self.title}"
+            )
+
+        # 2. Field completeness check (reuse existing rules)
+        errors = self.validate_for_transition(new_status)
+        if errors:
+            raise ValidationError(
+                f"CHG-001 violation: cannot transition to '{new_status}' — " + "; ".join(errors) + f". CR: {self.title}"
+            )
+
+        # 3. ChangeLog chain check — key transitions must have preceding log entries
+        from syn.audit.models import ChangeLog
+
+        log_actions = set(ChangeLog.objects.filter(change_request=self).values_list("action", flat=True))
+
+        if new_status == "in_progress" and "approved" not in log_actions:
+            raise ValidationError(
+                f"CHG-001 violation: cannot move to 'in_progress' without "
+                f"an 'approved' ChangeLog entry. Create the log first. "
+                f"CR: {self.title}"
+            )
+
+        if new_status == "completed" and "in_progress" not in log_actions:
+            raise ValidationError(
+                f"CHG-001 violation: cannot move to 'completed' without "
+                f"an 'in_progress' ChangeLog entry. Follow the full lifecycle. "
+                f"CR: {self.title}"
+            )
+
     # ========== Validation (CHG-001 §7.1.1) ==========
 
     # Types exempt from most field requirements

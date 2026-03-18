@@ -265,6 +265,19 @@ def register_svend_tasks():
         max_attempts=1,
     )
 
+    # ---- Harada daily reminders ----
+
+    from agents_api.harada_tasks import harada_daily_reminders
+
+    TaskRegistry.register(
+        task_name="api.harada_daily_reminders",
+        handler=harada_daily_reminders,
+        queue=QueueType.BATCH,
+        priority=TaskPriority.NORMAL,
+        timeout_seconds=120,
+        max_attempts=1,
+    )
+
     # ---- CI Readiness clustering (k-prototypes) ----
 
     from agents_api.clustering import run_clustering
@@ -431,6 +444,14 @@ SVEND_SCHEDULES = [
         "task_name": "privacy.cleanup_expired_exports",
         "cron": "0 3 * * 0",  # Sunday 03:00 UTC
         "priority": TaskPriority.LOW,
+        "queue": "batch",
+    },
+    # ---- Harada daily reminders ----
+    {
+        "schedule_id": "harada-daily-reminders",
+        "task_name": "api.harada_daily_reminders",
+        "cron": "0 8 * * *",  # Daily 08:00 UTC
+        "priority": TaskPriority.NORMAL,
         "queue": "batch",
     },
 ]
