@@ -527,8 +527,8 @@ def list_create_window(request):
     if goal_number is None or position is None or not text:
         return JsonResponse({"error": "goal_number, position, and text required"}, status=400)
 
-    if not (1 <= goal_number <= 8) or not (0 <= position <= 8):
-        return JsonResponse({"error": "goal_number 1-8, position 0-8"}, status=400)
+    if not (0 <= goal_number <= 8) or not (0 <= position <= 8):
+        return JsonResponse({"error": "goal_number 0-8, position 0-8"}, status=400)
 
     cell_type = "goal" if position == 0 else data.get("cell_type", "task")
 

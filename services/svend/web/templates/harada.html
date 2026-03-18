@@ -417,9 +417,12 @@ function renderMandala(grid) {
     }
 
     // Center of mandala (4,4) — the "purpose" or big goal
+    // Center of mandala (4,4) — the "purpose" / big goal
     const centerGoal = (grid[0] || grid['0'] || []).find(c => c.position === 0);
     if (centerGoal) {
         setCell(4, 4, { text: centerGoal.text, type: 'goal', completed: false, id: centerGoal.id, isCenter: true });
+    } else {
+        setCell(4, 4, { text: '', type: 'empty', completed: false, isCenter: true });
     }
 
     // Render
@@ -433,9 +436,10 @@ function renderMandala(grid) {
         if (c.completed) classes.push('completed');
         if (c.isCenter) classes.push('mandala-center');
 
-        const text = c.text || (c.type === 'empty' ? '+' : '');
-        const onclick = c.id ? `onclick="editCell('${c.id}')"` : (c.type === 'empty' ? `onclick="addCell(${Math.floor(i/9)}, ${i%9})"` : '');
-        return `<div class="${classes.join(' ')}" ${onclick} title="${esc(c.text)}">${esc(text)}</div>`;
+        let text = c.text || (c.type === 'empty' ? '+' : '');
+        if (c.isCenter && !c.text) text = 'Purpose';
+        const onclick = c.id ? `onclick="editCell('${c.id}')"` : `onclick="addCell(${Math.floor(i/9)}, ${i%9})"`;
+        return `<div class="${classes.join(' ')}" ${onclick} title="${esc(c.text || 'Click to add')}">${esc(text)}</div>`;
     }).join('');
 }
 
@@ -459,20 +463,26 @@ async function addCell(row, col) {
     let goalNum = null;
     let position = null;
 
-    for (let g = 1; g <= 8; g++) {
-        const [br, bc] = blockPositions[g];
-        if (row >= br && row < br + 3 && col >= bc && col < bc + 3) {
-            goalNum = g;
-            const lr = row - br;
-            const lc = col - bc;
-            if (lr === 1 && lc === 1) position = 0;
-            else {
-                const offsets = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
-                for (let i = 0; i < 8; i++) {
-                    if (offsets[i][0] === lr - 1 && offsets[i][1] === lc - 1) { position = i + 1; break; }
+    // Check center of mandala first (row 4, col 4)
+    if (row === 4 && col === 4) {
+        goalNum = 0;
+        position = 0;
+    } else {
+        for (let g = 1; g <= 8; g++) {
+            const [br, bc] = blockPositions[g];
+            if (row >= br && row < br + 3 && col >= bc && col < bc + 3) {
+                goalNum = g;
+                const lr = row - br;
+                const lc = col - bc;
+                if (lr === 1 && lc === 1) position = 0;
+                else {
+                    const offsets = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+                    for (let i = 0; i < 8; i++) {
+                        if (offsets[i][0] === lr - 1 && offsets[i][1] === lc - 1) { position = i + 1; break; }
+                    }
                 }
+                break;
             }
-            break;
         }
     }
 

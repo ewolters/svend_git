@@ -274,7 +274,7 @@ class Window64(models.Model):
         related_name="window64_cells",
     )
     goal_number = models.PositiveSmallIntegerField(
-        help_text="Which of the 8 goals this belongs to (1-8)",
+        help_text="0 = mandala center (purpose), 1-8 = the 8 goals",
     )
     position = models.PositiveSmallIntegerField(
         help_text="0 = center (goal), 1-8 = surrounding cells",
