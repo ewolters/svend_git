@@ -358,13 +358,22 @@ def update_row(request, fmea_id, row_id):
     if "detection" in data:
         row.detection = _clamp_score(data["detection"])
 
-    # Revised scores
+    # Revised scores — A2: validate all-three-or-none before save
     if "revised_severity" in data:
         row.revised_severity = _clamp_score(data["revised_severity"]) if data["revised_severity"] else None
     if "revised_occurrence" in data:
         row.revised_occurrence = _clamp_score(data["revised_occurrence"]) if data["revised_occurrence"] else None
     if "revised_detection" in data:
         row.revised_detection = _clamp_score(data["revised_detection"]) if data["revised_detection"] else None
+
+    revised = [row.revised_severity, row.revised_occurrence, row.revised_detection]
+    if any(r is not None for r in revised) and not all(r is not None for r in revised):
+        return JsonResponse(
+            {
+                "error": "Revised scores must be set together — provide all three (severity, occurrence, detection) or none"
+            },
+            status=400,
+        )
 
     row.save()  # auto-computes rpn and revised_rpn
 

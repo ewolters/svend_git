@@ -271,6 +271,18 @@ def iso_dashboard(request):
         if d:
             active_clauses.add(d.split(".")[0] if "." in d else d)
 
+    # A5: Major audit findings without linked NCRs — ISO 9001 §9.2.2 requires corrective action
+    major_findings_no_ncr = list(
+        AuditFinding.objects.filter(
+            audit__in=audits,
+            finding_type="nc_major",
+            ncr__isnull=True,
+            is_resolved=False,
+        ).values("id", "description", "iso_clause", "audit__title")[:10]
+    )
+    for f in major_findings_no_ncr:
+        f["id"] = str(f["id"])
+
     ISO_CLAUSES = [
         ("4", "Context of the Organization"),
         ("5", "Leadership"),
@@ -316,6 +328,9 @@ def iso_dashboard(request):
                 "total": suppliers_qs.count(),
                 "approved": suppliers_qs.filter(status="approved").count(),
                 "eval_overdue": eval_overdue_count,
+            },
+            "warnings": {
+                "major_findings_no_ncr": major_findings_no_ncr,
             },
         }
     )
@@ -1474,6 +1489,18 @@ def review_detail(request, review_id):
             setattr(review, field, data[field])
     if "meeting_date" in data:
         review.meeting_date = data["meeting_date"]
+
+    # A3: ISO 9001 §9.3 — completion requires attendees and outputs
+    if review.status == "complete":
+        if not review.attendees:
+            return JsonResponse(
+                {"error": "Attendees are required to complete a management review (ISO 9001 §9.3)"}, status=400
+            )
+        if not review.outputs:
+            return JsonResponse(
+                {"error": "Outputs are required to complete a management review (ISO 9001 §9.3.3)"}, status=400
+            )
+
     review.save()
     return JsonResponse(review.to_dict())
 

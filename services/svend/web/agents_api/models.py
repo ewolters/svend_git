@@ -3300,6 +3300,7 @@ class NonconformanceRecord(models.Model):
     TRANSITION_REQUIRES = {
         "investigation": ["assigned_to"],
         "capa": ["root_cause"],
+        "verification": ["_corrective_action_or_capa"],
         "closed": ["approved_by"],
     }
 
@@ -3316,6 +3317,13 @@ class NonconformanceRecord(models.Model):
         if new_status not in allowed:
             return False, f"Cannot transition from '{self.status}' to '{new_status}'"
         for field in self.TRANSITION_REQUIRES.get(new_status, []):
+            # A1: ISO 9001 §10.2.1(b) — verification requires documented corrective action
+            if field == "_corrective_action_or_capa":
+                has_ca = self.corrective_action and self.corrective_action.strip()
+                has_capa = self.capa_report_id is not None
+                if not has_ca and not has_capa:
+                    return False, "Corrective action or linked CAPA report is required before verification"
+                continue
             # Handle both text fields and FK fields safely (BUG-05)
             val = getattr(self, field, None)
             if val is None:
@@ -4477,9 +4485,10 @@ class SupplierRecord(models.Model):
         "preferred": {"suspended", "disqualified"},
         "conditional": {"approved", "disqualified"},
         "suspended": {"approved", "disqualified"},
-        "disqualified": set(),
+        "disqualified": {"pending"},
     }
     TRANSITION_REQUIRES = {
+        "pending": ["notes"],  # A4: re-qualification rationale required
         "approved": ["quality_rating"],
         "preferred": ["quality_rating"],
         "conditional": ["notes"],
