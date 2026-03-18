@@ -137,9 +137,14 @@ def qms_queryset(model, user):
     accessible_sites, is_admin = get_accessible_sites(user, tenant)
 
     if is_admin:
-        # Org admin: all site-scoped records in tenant + own unscoped records
+        # Org admin: all site-scoped records in tenant + unscoped records by tenant members
+        # Include owner__in fallback for legacy records where created_by is NULL
         tenant_user_ids = Membership.objects.filter(tenant=tenant, is_active=True).values_list("user_id", flat=True)
-        qs = model.objects.filter(Q(site__tenant=tenant) | Q(created_by__in=tenant_user_ids, site__isnull=True))
+        qs = model.objects.filter(
+            Q(site__tenant=tenant)
+            | Q(created_by__in=tenant_user_ids, site__isnull=True)
+            | Q(owner__in=tenant_user_ids, site__isnull=True)
+        )
     else:
         # Org member: own records + records at accessible sites
         qs = model.objects.filter(Q(created_by=user) | Q(site__in=accessible_sites))
