@@ -2065,6 +2065,119 @@ def study_raise_capa(request):
 
 @require_team
 @require_http_methods(["POST"])
+def study_raise_ncr(request):
+    """B1: Create an NCR from SPC out-of-control signal or Study findings.
+
+    Extracts key variables from SPC output (chart_type, OOC points, rule
+    violations, control limits) following the notebook variable extraction
+    pattern. Pre-populates NCR description with structured SPC context.
+
+    Request body:
+    {
+        "project_id": "uuid",
+        "title": "optional override",
+        "spc_data": {                        # Optional — from SPC chart result
+            "chart_type": "I-MR",
+            "out_of_control": [{"index": 5, "value": 16.2, "reason": "Above UCL"}],
+            "run_violations": [{"rule": "Rule 2", "indices": [...], "description": "..."}],
+            "limits": {"ucl": 15.42, "cl": 10.0, "lcl": 4.58},
+            "in_control": false,
+            "statistics": {"cpk": 0.85, "ppk": 0.78}
+        },
+        "severity": "minor|major|critical",
+        "site_id": "uuid"
+    }
+    """
+    project, data, err = _get_study_for_action(request)
+    if err:
+        return err
+
+    spc = data.get("spc_data", {})
+
+    # Extract key variables from SPC output (notebook-style hierarchical extraction)
+    chart_type = spc.get("chart_type", "")
+    ooc = spc.get("out_of_control", [])
+    run_viols = spc.get("run_violations", [])
+    limits = spc.get("limits", {})
+    stats = spc.get("statistics", {})
+
+    # Build structured description from SPC context
+    desc_parts = [f"SPC signal detected in Study: {project.title}"]
+    if chart_type:
+        desc_parts.append(f"\n**Chart type:** {chart_type}")
+    if limits:
+        desc_parts.append(
+            f"**Control limits:** UCL={limits.get('ucl', '—')}, "
+            f"CL={limits.get('cl', '—')}, LCL={limits.get('lcl', '—')}"
+        )
+    if ooc:
+        desc_parts.append(f"\n**Out-of-control points ({len(ooc)}):**")
+        for pt in ooc[:10]:
+            desc_parts.append(f"  • Index {pt.get('index')}: value={pt.get('value')} ({pt.get('reason')})")
+    if run_viols:
+        desc_parts.append(f"\n**Run rule violations ({len(run_viols)}):**")
+        for rv in run_viols[:5]:
+            desc_parts.append(f"  • {rv.get('rule', '')}: {rv.get('description', '')}")
+    # Key variables (following notebook _extract_stats pattern)
+    key_vars = []
+    for k in ["cpk", "ppk", "cp", "pp", "sigma_level", "yield_pct"]:
+        v = stats.get(k) or spc.get(k)
+        if v is not None:
+            key_vars.append(f"{k}={v}")
+    if key_vars:
+        desc_parts.append(f"\n**Key metrics:** {', '.join(key_vars)}")
+
+    description = "\n".join(desc_parts)
+
+    # Determine severity from data if not explicit
+    severity = data.get("severity", "minor")
+    if not data.get("severity"):
+        cpk = stats.get("cpk") or spc.get("cpk")
+        if cpk is not None and cpk < 1.0:
+            severity = "major"
+        if len(ooc) >= 3 or (cpk is not None and cpk < 0.67):
+            severity = "critical"
+
+    title = data.get("title", f"SPC Signal — {chart_type or 'Process'} — {project.title}"[:300])
+
+    ncr = NonconformanceRecord(
+        title=title,
+        description=description,
+        severity=severity,
+        source="process",
+        project=project,
+    )
+    qms_set_ownership(ncr, request.user)
+    if data.get("site_id"):
+        try:
+            ncr.site = Site.objects.get(id=data["site_id"])
+        except Site.DoesNotExist:
+            pass
+    ncr.save()
+
+    StudyAction.objects.create(
+        project=project,
+        action_type="raise_ncr",
+        target_type="ncr",
+        target_id=ncr.id,
+        notes=f"NCR raised from SPC signal: {chart_type or 'process'}, {len(ooc)} OOC points",
+        created_by=request.user,
+    )
+
+    project.log_event("ncr_raised", f"NCR created from SPC: {ncr.title}", user=request.user)
+    logger.info("Study %s: raised NCR %s from SPC", project.id, ncr.id)
+    return JsonResponse(
+        {
+            "ok": True,
+            "action": "raise_ncr",
+            "ncr": ncr.to_dict(),
+        },
+        status=201,
+    )
+
+
+@require_team
+@require_http_methods(["POST"])
 def study_schedule_audit(request):
     """Schedule a verification audit from a Study.
 

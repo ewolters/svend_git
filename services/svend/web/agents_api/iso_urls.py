@@ -50,6 +50,7 @@ urlpatterns = [
     path("signatures/<uuid:sig_id>/verify/", iso_views.signature_verify, name="iso_signature_verify"),
     path("signatures/verify-chain/", iso_views.signature_verify_chain, name="iso_signature_verify_chain"),
     # Study Output Actions (Phase 7) — QMS routing from Studies
+    path("study-actions/raise-ncr/", iso_views.study_raise_ncr, name="iso_study_raise_ncr"),
     path("study-actions/raise-capa/", iso_views.study_raise_capa, name="iso_study_raise_capa"),
     path("study-actions/schedule-audit/", iso_views.study_schedule_audit, name="iso_study_schedule_audit"),
     path("study-actions/request-doc-update/", iso_views.study_request_doc_update, name="iso_study_request_doc_update"),

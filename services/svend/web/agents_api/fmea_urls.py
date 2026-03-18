@@ -29,6 +29,7 @@ urlpatterns = [
     # Action items
     path("<uuid:fmea_id>/actions/", views.list_fmea_actions, name="fmea_actions"),
     path("<uuid:fmea_id>/rows/<uuid:row_id>/promote-action/", views.promote_fmea_action, name="fmea_promote_action"),
+    path("<uuid:fmea_id>/rows/<uuid:row_id>/promote-capa/", views.promote_fmea_capa, name="fmea_promote_capa"),
     # FMEA → RCA bridge (QMS-001 §5.1 closed loop)
     path("<uuid:fmea_id>/rows/<uuid:row_id>/investigate/", views.investigate_row, name="fmea_investigate"),
     # Intelligence Layer (Phase 3)

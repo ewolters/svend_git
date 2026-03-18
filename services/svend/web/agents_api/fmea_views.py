@@ -15,7 +15,7 @@ from accounts.permissions import gated_paid
 from core.models import Evidence, EvidenceLink, Hypothesis, Project
 
 from .evidence_bridge import create_tool_evidence
-from .models import FMEA, ActionItem, FMEARow, RCASession, Site
+from .models import FMEA, ActionItem, CAPAReport, FMEARow, RCASession, Site
 from .permissions import qms_can_edit, qms_queryset, qms_set_ownership
 
 logger = logging.getLogger(__name__)
@@ -1314,6 +1314,87 @@ def promote_fmea_action(request, fmea_id, row_id):
         source_id=row.id,
     )
     return JsonResponse({"success": True, "action_item": item.to_dict()}, status=201)
+
+
+# ── B2: FMEA → CAPA Promote ──────────────────────────────────────────
+
+
+@gated_paid
+@require_http_methods(["POST"])
+def promote_fmea_capa(request, fmea_id, row_id):
+    """B2: Promote a high-RPN FMEA row directly to a CAPA report.
+
+    For failure modes where S≥9 or RPN is critical, ISO/IATF expects
+    corrective action — not just an action item. Pre-populates CAPA with
+    failure mode details, root cause from FMEA cause field, and severity
+    mapping from S/O/D scores.
+    """
+    fmea = get_object_or_404(qms_queryset(FMEA, request.user)[0], id=fmea_id)
+    row = get_object_or_404(FMEARow, id=row_id, fmea=fmea)
+
+    if not fmea.project:
+        return JsonResponse({"error": "FMEA must be linked to a project first"}, status=400)
+
+    # Check if already promoted
+    existing = CAPAReport.objects.filter(source_type="fmea", source_id=row.id).first()
+    if existing:
+        return JsonResponse({"capa": existing.to_dict()})
+
+    data = {}
+    try:
+        data = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        pass
+
+    # Map FMEA severity to CAPA priority
+    if row.severity >= 9:
+        priority = "critical"
+    elif row.severity >= 7:
+        priority = "high"
+    elif row.severity >= 4:
+        priority = "medium"
+    else:
+        priority = "low"
+
+    title = data.get("title", "").strip() or f"CAPA — {row.failure_mode}"[:300]
+
+    description = (
+        f"Promoted from FMEA: {fmea.title}\n"
+        f"**Process step:** {row.process_step}\n"
+        f"**Failure mode:** {row.failure_mode}\n"
+        f"**Effect:** {row.effect}\n"
+        f"**Severity:** {row.severity}  **Occurrence:** {row.occurrence}  **Detection:** {row.detection}\n"
+        f"**RPN:** {row.rpn}"
+    )
+    if row.current_controls:
+        description += f"\n**Current controls:** {row.current_controls}"
+
+    capa = CAPAReport(
+        project=fmea.project,
+        title=title,
+        description=description,
+        root_cause=row.cause or "",
+        corrective_action=row.recommended_action or "",
+        priority=data.get("priority", priority),
+        source_type="fmea",
+        source_id=row.id,
+    )
+    qms_set_ownership(capa, request.user)
+    capa.save()
+
+    # Update FMEA row action status to reflect CAPA creation
+    row.action_status = "in_progress"
+    row.save(update_fields=["action_status"])
+
+    if fmea.project:
+        fmea.project.log_event(
+            "capa_raised",
+            f"CAPA promoted from FMEA row: {row.failure_mode} (RPN={row.rpn})",
+            user=request.user,
+        )
+
+    logger.info("FMEA %s row %s: promoted to CAPA %s (RPN=%s)", fmea.id, row.id, capa.id, row.rpn)
+    return JsonResponse({"success": True, "capa": capa.to_dict()}, status=201)
 
 
 # ── FMEA → RCA Bridge (QMS-001 §5.1 Closed Loop) ────────────────────
