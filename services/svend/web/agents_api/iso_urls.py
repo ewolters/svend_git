@@ -49,6 +49,8 @@ urlpatterns = [
     path("signatures/", iso_views.signature_list_or_sign, name="iso_signatures"),
     path("signatures/<uuid:sig_id>/verify/", iso_views.signature_verify, name="iso_signature_verify"),
     path("signatures/verify-chain/", iso_views.signature_verify_chain, name="iso_signature_verify_chain"),
+    # Audit Readiness (E4 — intelligence layer)
+    path("audit-readiness/", iso_views.audit_readiness, name="iso_audit_readiness"),
     # Customer Complaints (clause 9.1.2)
     path("complaints/", iso_views.complaint_list_create, name="iso_complaint_list"),
     path("complaints/<uuid:complaint_id>/", iso_views.complaint_detail, name="iso_complaint_detail"),

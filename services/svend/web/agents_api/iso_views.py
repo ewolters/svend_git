@@ -3109,3 +3109,376 @@ def equipment_detail(request, equipment_id):
 
     eq.save()
     return JsonResponse(eq.to_dict())
+
+
+# =========================================================================
+# E4: Audit Readiness Scoring — ISO 9001 Full Clause Coverage
+# =========================================================================
+
+# Scoring thresholds per check — returns (score 0-100, rag, detail)
+# green = 80-100, amber = 50-79, red = 0-49
+
+
+def _score_ncrs(user):
+    """§8.7 + §10.2 — NCR management health."""
+    qs = qms_queryset(NonconformanceRecord, user)[0]
+    total = qs.count()
+    if total == 0:
+        return 60, "amber", "No NCRs recorded — cannot demonstrate nonconformity management"
+
+    open_ncrs = qs.exclude(status="closed")
+    overdue = open_ncrs.filter(capa_due_date__lt=timezone.now().date()).count()
+    open_count = open_ncrs.count()
+
+    # Check for NCRs without corrective action
+    no_ca = open_ncrs.filter(corrective_action="").exclude(status="open").count()
+
+    findings = []
+    score = 100
+    if overdue > 0:
+        score -= min(40, overdue * 15)
+        findings.append(f"{overdue} NCR(s) past CAPA due date")
+    if open_count > 5:
+        score -= 10
+        findings.append(f"{open_count} open NCRs (consider prioritization)")
+    if no_ca > 0:
+        score -= min(20, no_ca * 10)
+        findings.append(f"{no_ca} NCR(s) in progress without corrective action documented")
+
+    rag = "green" if score >= 80 else "amber" if score >= 50 else "red"
+    return max(0, score), rag, "; ".join(findings) if findings else "NCR management is current"
+
+
+def _score_capas(user):
+    """§10.2 — CAPA effectiveness."""
+    qs = qms_queryset(CAPAReport, user)[0]
+    total = qs.count()
+    if total == 0:
+        # Also check legacy Report-based CAPAs
+        from .models import Report
+
+        legacy = Report.objects.filter(owner=user, report_type="capa").count()
+        if legacy > 0:
+            return 70, "amber", f"{legacy} CAPA(s) in legacy system — consider migrating"
+        return 50, "amber", "No CAPAs recorded — required by §10.2"
+
+    open_capas = qs.exclude(status="closed")
+    overdue = open_capas.filter(due_date__lt=timezone.now().date()).count()
+
+    findings = []
+    score = 100
+    if overdue > 0:
+        score -= min(40, overdue * 15)
+        findings.append(f"{overdue} CAPA(s) past due date")
+    if open_capas.count() > 3:
+        score -= 10
+        findings.append(f"{open_capas.count()} open CAPAs")
+
+    rag = "green" if score >= 80 else "amber" if score >= 50 else "red"
+    return max(0, score), rag, "; ".join(findings) if findings else "CAPA management is current"
+
+
+def _score_training(user):
+    """§7.2 — Competence and training."""
+    reqs = qms_queryset(TrainingRequirement, user)[0]
+    if reqs.count() == 0:
+        return 40, "red", "No training requirements defined — §7.2 requires documented competence"
+
+    records = TrainingRecord.objects.filter(requirement__in=reqs)
+    total = records.count()
+    if total == 0:
+        return 30, "red", "Training requirements exist but no records — no evidence of competence"
+
+    complete = records.filter(status="complete").count()
+    expired = records.filter(status="expired").count()
+    rate = round(complete / total * 100) if total else 0
+
+    findings = []
+    score = rate  # Compliance rate IS the score
+    if expired > 0:
+        score -= min(20, expired * 5)
+        findings.append(f"{expired} expired training record(s)")
+    if rate < 80:
+        findings.append(f"Training compliance at {rate}% — target ≥90%")
+
+    rag = "green" if score >= 80 else "amber" if score >= 50 else "red"
+    return max(0, score), rag, "; ".join(findings) if findings else f"Training compliance: {rate}%"
+
+
+def _score_documents(user):
+    """§7.5 — Documented information control."""
+    qs = qms_queryset(ControlledDocument, user)[0]
+    total = qs.count()
+    if total == 0:
+        return 30, "red", "No controlled documents — §7.5 requires documented QMS"
+
+    approved = qs.filter(status="approved").count()
+    today = timezone.now().date()
+    review_overdue = qs.filter(review_due_date__isnull=False, review_due_date__lt=today, status="approved").count()
+
+    findings = []
+    score = 100
+    if review_overdue > 0:
+        score -= min(30, review_overdue * 10)
+        findings.append(f"{review_overdue} document(s) past review due date")
+    draft_ratio = (total - approved) / total if total else 0
+    if draft_ratio > 0.3:
+        score -= 15
+        findings.append(f"{total - approved} of {total} documents not in approved status")
+
+    rag = "green" if score >= 80 else "amber" if score >= 50 else "red"
+    return max(0, score), rag, "; ".join(findings) if findings else f"{approved}/{total} documents approved"
+
+
+def _score_audits(user):
+    """§9.2 — Internal audit program."""
+    qs = qms_queryset(InternalAudit, user)[0]
+    total = qs.count()
+    if total == 0:
+        return 20, "red", "No internal audits scheduled — §9.2 requires an audit program"
+
+    complete = qs.filter(status__in=["complete", "report_issued"]).count()
+    findings_qs = AuditFinding.objects.filter(audit__in=qs)
+    open_major = findings_qs.filter(finding_type="nc_major", is_resolved=False).count()
+    open_findings_no_ncr = findings_qs.filter(finding_type="nc_major", ncr__isnull=True, is_resolved=False).count()
+
+    findings = []
+    score = 100
+    if complete == 0:
+        score -= 30
+        findings.append("No completed audits")
+    if open_major > 0:
+        score -= min(30, open_major * 15)
+        findings.append(f"{open_major} unresolved major finding(s)")
+    if open_findings_no_ncr > 0:
+        score -= 10
+        findings.append(f"{open_findings_no_ncr} major finding(s) without linked NCR")
+
+    rag = "green" if score >= 80 else "amber" if score >= 50 else "red"
+    return max(0, score), rag, "; ".join(findings) if findings else f"{complete}/{total} audits complete"
+
+
+def _score_management_review(user):
+    """§9.3 — Management review."""
+    qs = ManagementReview.objects.filter(owner=user)
+    complete = qs.filter(status="complete")
+    if complete.count() == 0:
+        if qs.count() > 0:
+            return 50, "amber", "Management review scheduled but not yet completed"
+        return 20, "red", "No management reviews — §9.3 requires periodic review"
+
+    latest = complete.order_by("-meeting_date").first()
+    days_ago = (timezone.now().date() - latest.meeting_date).days
+
+    findings = []
+    score = 100
+    if days_ago > 365:
+        score -= 40
+        findings.append(f"Last review was {days_ago} days ago — annual minimum required")
+    elif days_ago > 180:
+        score -= 15
+        findings.append(f"Last review was {days_ago} days ago")
+
+    # Check outputs
+    if not latest.outputs:
+        score -= 20
+        findings.append("Most recent review has no documented outputs")
+
+    rag = "green" if score >= 80 else "amber" if score >= 50 else "red"
+    return max(0, score), rag, "; ".join(findings) if findings else f"Last review: {days_ago} days ago"
+
+
+def _score_suppliers(user):
+    """§8.4 — External provider control."""
+    qs = qms_queryset(SupplierRecord, user)[0]
+    total = qs.count()
+    if total == 0:
+        return 60, "amber", "No suppliers registered — acceptable if no external providers"
+
+    today = timezone.now().date()
+    eval_overdue = qs.filter(
+        next_evaluation_date__isnull=False,
+        next_evaluation_date__lt=today,
+        status__in=["approved", "preferred", "conditional"],
+    ).count()
+    suspended = qs.filter(status="suspended").count()
+
+    findings = []
+    score = 100
+    if eval_overdue > 0:
+        score -= min(30, eval_overdue * 10)
+        findings.append(f"{eval_overdue} supplier(s) past evaluation due date")
+    if suspended > 0:
+        score -= 10
+        findings.append(f"{suspended} supplier(s) in suspended status")
+
+    rag = "green" if score >= 80 else "amber" if score >= 50 else "red"
+    return max(0, score), rag, "; ".join(findings) if findings else f"{total} suppliers managed"
+
+
+def _score_complaints(user):
+    """§9.1.2 — Customer satisfaction monitoring."""
+    qs = qms_queryset(CustomerComplaint, user)[0]
+    total = qs.count()
+    if total == 0:
+        return 60, "amber", "No complaints recorded — acceptable if process captures feedback elsewhere"
+
+    open_complaints = qs.exclude(status="closed").count()
+    unresolved_old = qs.filter(
+        status__in=["open", "acknowledged"],
+        created_at__lt=timezone.now() - timedelta(days=30),
+    ).count()
+
+    findings = []
+    score = 100
+    if unresolved_old > 0:
+        score -= min(30, unresolved_old * 15)
+        findings.append(f"{unresolved_old} complaint(s) open >30 days")
+    if open_complaints > 5:
+        score -= 10
+        findings.append(f"{open_complaints} open complaints")
+
+    rag = "green" if score >= 80 else "amber" if score >= 50 else "red"
+    return max(0, score), rag, "; ".join(findings) if findings else f"{total} complaints tracked"
+
+
+def _score_risks(user):
+    """§6.1 — Actions to address risks and opportunities."""
+    qs = qms_queryset(Risk, user)[0]
+    total = qs.count()
+    if total == 0:
+        return 30, "red", "No risks identified — §6.1 requires risk-based thinking"
+
+    active = qs.exclude(status="closed")
+    high = active.filter(risk_score__gte=12).count()
+    today = timezone.now().date()
+    review_overdue = active.filter(review_date__isnull=False, review_date__lt=today).count()
+    no_mitigation = active.filter(mitigation_actions=[]).exclude(status="accepted").count()
+
+    findings = []
+    score = 100
+    if high > 0 and no_mitigation > 0:
+        score -= min(30, no_mitigation * 10)
+        findings.append(f"{no_mitigation} risk(s) without mitigation actions")
+    if review_overdue > 0:
+        score -= min(20, review_overdue * 10)
+        findings.append(f"{review_overdue} risk(s) past review date")
+
+    rag = "green" if score >= 80 else "amber" if score >= 50 else "red"
+    return max(0, score), rag, "; ".join(findings) if findings else f"{total} risks registered"
+
+
+def _score_calibration(user):
+    """§7.1.5 — Monitoring and measurement resources."""
+    qs = qms_queryset(MeasurementEquipment, user)[0]
+    total = qs.count()
+    if total == 0:
+        return 60, "amber", "No equipment registered — acceptable for service organizations"
+
+    today = timezone.now().date()
+    overdue = qs.filter(
+        next_calibration_due__isnull=False,
+        next_calibration_due__lt=today,
+        status__in=["in_service", "due"],
+    ).count()
+    out_of_cal = qs.filter(status="out_of_calibration").count()
+
+    findings = []
+    score = 100
+    if overdue > 0:
+        score -= min(40, overdue * 15)
+        findings.append(f"{overdue} instrument(s) past calibration due date")
+    if out_of_cal > 0:
+        score -= min(30, out_of_cal * 10)
+        findings.append(f"{out_of_cal} instrument(s) out of calibration — impact assessment required")
+
+    rag = "green" if score >= 80 else "amber" if score >= 50 else "red"
+    return max(0, score), rag, "; ".join(findings) if findings else f"{total} instruments managed"
+
+
+# Clause → scoring functions + weights
+_CLAUSE_CHECKS = [
+    ("4", "Context of the Organization", None, 0),  # No automated check yet
+    ("5", "Leadership", None, 0),  # No automated check yet
+    ("6", "Planning", _score_risks, 10),
+    ("7.1.5", "Monitoring & Measurement", _score_calibration, 8),
+    ("7.2", "Competence", _score_training, 12),
+    ("7.5", "Documented Information", _score_documents, 12),
+    ("8.4", "External Providers", _score_suppliers, 8),
+    ("8.7", "Nonconforming Outputs", _score_ncrs, 12),
+    ("9.1.2", "Customer Satisfaction", _score_complaints, 10),
+    ("9.2", "Internal Audit", _score_audits, 12),
+    ("9.3", "Management Review", _score_management_review, 8),
+    ("10.2", "Corrective Action", _score_capas, 8),
+]
+
+
+@require_team
+@require_http_methods(["GET"])
+def audit_readiness(request):
+    """E4: ISO 9001 audit readiness score.
+
+    Returns per-clause RAG status and overall readiness score (0-100).
+    Deterministic — no LLM. All scoring from live QMS data.
+
+    Optional query param: ?narrative=1 triggers Claude interpretation
+    (future — not implemented in v1).
+    """
+    user = request.user
+    clauses = []
+    weighted_sum = 0
+    total_weight = 0
+
+    for clause_num, clause_name, score_fn, weight in _CLAUSE_CHECKS:
+        if score_fn is None:
+            clauses.append(
+                {
+                    "clause": clause_num,
+                    "name": clause_name,
+                    "score": None,
+                    "rag": "amber",
+                    "detail": "Not yet automated — manual assessment required",
+                    "weight": weight,
+                }
+            )
+            continue
+
+        score, rag, detail = score_fn(user)
+        clauses.append(
+            {
+                "clause": clause_num,
+                "name": clause_name,
+                "score": score,
+                "rag": rag,
+                "detail": detail,
+                "weight": weight,
+            }
+        )
+        weighted_sum += score * weight
+        total_weight += weight
+
+    overall_score = round(weighted_sum / total_weight) if total_weight else 0
+    overall_rag = "green" if overall_score >= 80 else "amber" if overall_score >= 50 else "red"
+
+    red_count = sum(1 for c in clauses if c["rag"] == "red")
+    amber_count = sum(1 for c in clauses if c["rag"] == "amber")
+    green_count = sum(1 for c in clauses if c["rag"] == "green")
+
+    # Top findings (red clauses first, then amber, sorted by score ascending)
+    scored = [c for c in clauses if c["score"] is not None]
+    top_findings = sorted(scored, key=lambda c: c["score"] or 0)[:5]
+
+    return JsonResponse(
+        {
+            "overall_score": overall_score,
+            "overall_rag": overall_rag,
+            "red": red_count,
+            "amber": amber_count,
+            "green": green_count,
+            "clauses": clauses,
+            "top_findings": [
+                {"clause": f["clause"], "name": f["name"], "score": f["score"], "detail": f["detail"]}
+                for f in top_findings
+            ],
+        }
+    )
