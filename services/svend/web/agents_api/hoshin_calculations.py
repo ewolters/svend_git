@@ -439,6 +439,7 @@ def estimate_savings_from_vsm_delta(
     method="time_reduction",
     annual_volume=1.0,
     cost_per_unit=1.0,
+    labor_rate=35.0,
 ):
     """Estimate savings from a VSM current vs future state step comparison.
 
@@ -450,7 +451,8 @@ def estimate_savings_from_vsm_delta(
         future_step: dict with same fields (improved values)
         method: calculation method to use
         annual_volume: annual production volume
-        cost_per_unit: cost per unit or labor rate
+        cost_per_unit: cost per unit (for material savings)
+        labor_rate: hourly labor rate in dollars (for time_reduction/headcount)
 
     Returns:
         dict with deltas, estimated_savings, and suggested_method
@@ -477,14 +479,14 @@ def estimate_savings_from_vsm_delta(
         suggested = "time_reduction"
 
     # Estimate savings using the dominant delta
+    # time_reduction and headcount use labor_rate; material methods use cost_per_unit
     if suggested == "headcount":
-        result = calculate_savings("headcount", ops_current, ops_future, 1, cost_per_unit)
+        annual_cost_per_employee = labor_rate * 2080  # 40hr/wk × 52wk
+        result = calculate_savings("headcount", ops_current, ops_future, 1, annual_cost_per_employee)
     elif suggested == "time_reduction":
         total_time_current = ct_current + (co_current / max(1, float(current_step.get("batch_size") or 1)))
         total_time_future = ct_future + (co_future / max(1, float(future_step.get("batch_size") or 1)))
-        result = calculate_savings(
-            "time_reduction", total_time_current, total_time_future, annual_volume, cost_per_unit
-        )
+        result = calculate_savings("time_reduction", total_time_current, total_time_future, annual_volume, labor_rate)
     else:
         result = calculate_savings(method, ct_current, ct_future, annual_volume, cost_per_unit)
 
@@ -505,6 +507,7 @@ def estimate_savings_monte_carlo(
     method="time_reduction",
     annual_volume=1.0,
     cost_per_unit=1.0,
+    labor_rate=35.0,
     n_simulations=1000,
 ):
     """Monte Carlo simulation for VSM savings with confidence intervals.
@@ -512,19 +515,20 @@ def estimate_savings_monte_carlo(
     Wraps the deterministic estimate_savings_from_vsm_delta() with three
     uncertainty sources:
       - Volume volatility (±15% std)
-      - Cost variation (±10% std)
+      - Cost/rate variation (±10% std)
       - Improvement realization risk (Beta(4,2), mean ~0.67)
 
     Returns percentile-based confidence intervals alongside the point estimate.
     """
     # Get deterministic baseline
-    det = estimate_savings_from_vsm_delta(current_step, future_step, method, annual_volume, cost_per_unit)
+    det = estimate_savings_from_vsm_delta(current_step, future_step, method, annual_volume, cost_per_unit, labor_rate)
 
     savings = np.empty(n_simulations)
     for i in range(n_simulations):
         # Perturb inputs
         vol = annual_volume * max(0, np.random.normal(1.0, 0.15))
         cpu = cost_per_unit * max(0, np.random.normal(1.0, 0.10))
+        lr = labor_rate * max(0, np.random.normal(1.0, 0.10))
 
         # Improvement realization: scale the deltas
         realization = np.random.beta(4, 2)
@@ -542,7 +546,7 @@ def estimate_savings_monte_carlo(
         perturbed_future["uptime"] = ut_cur + (ut_fut - ut_cur) * realization
         perturbed_future["batch_size"] = future_step.get("batch_size", 1)
 
-        sim = estimate_savings_from_vsm_delta(current_step, perturbed_future, method, vol, cpu)
+        sim = estimate_savings_from_vsm_delta(current_step, perturbed_future, method, vol, cpu, lr)
         savings[i] = sim["estimated_annual_savings"]
 
     return {

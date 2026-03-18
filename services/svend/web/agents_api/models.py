@@ -1604,7 +1604,7 @@ class ValueStreamMap(models.Model):
 
         if self.total_lead_time > 0:
             # PCE = value-add time / total lead time (changeover is NOT value-add)
-            self.pce = (total_ct / 86400 / self.total_lead_time) * 100
+            self.pce = round((total_ct / 86400 / self.total_lead_time) * 100, 4)
         else:
             self.pce = 0
 

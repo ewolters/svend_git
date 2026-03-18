@@ -752,6 +752,7 @@ def generate_proposals(request, vsm_id):
     data = json.loads(request.body) if request.body else {}
     annual_volume = float(data.get("annual_volume", 100000))
     cost_per_unit = float(data.get("cost_per_unit", 50.0))
+    labor_rate = float(data.get("labor_rate", 35.0))
 
     current_steps = {s.get("name", ""): s for s in (current.process_steps or [])}
     future_steps = future.process_steps or []
@@ -790,6 +791,7 @@ def generate_proposals(request, vsm_id):
                 nearest_step,
                 annual_volume=annual_volume,
                 cost_per_unit=cost_per_unit,
+                labor_rate=labor_rate,
             )
             estimate["estimated_annual_savings"] = estimate["median_savings"]
         else:
@@ -849,6 +851,7 @@ def generate_proposals(request, vsm_id):
             "defaults": {
                 "annual_volume": annual_volume,
                 "cost_per_unit": cost_per_unit,
+                "labor_rate": labor_rate,
             },
         }
     )
