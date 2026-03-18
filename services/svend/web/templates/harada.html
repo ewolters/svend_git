@@ -225,7 +225,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 </div>
 
 <!-- Modals -->
-<div class="hr-modal-overlay" id="modal-goal" style="display:none;">
+<div class="hr-modal-overlay" id="modal-goal">
     <div class="hr-modal">
         <h3>Add Goal</h3>
         <label>Title</label>
@@ -244,7 +244,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     </div>
 </div>
 
-<div class="hr-modal-overlay" id="modal-cell" style="display:none;">
+<div class="hr-modal-overlay" id="modal-cell">
     <div class="hr-modal">
         <h3 id="cell-modal-title">Add Cell</h3>
         <label>Text</label>
@@ -263,21 +263,22 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     </div>
 </div>
 
-<div class="hr-modal-overlay" id="modal-toast" style="display:none;">
-    <div class="hr-modal" style="max-width:340px;text-align:center;background:var(--bg-card, #1e1e1e);border:1px solid var(--border, #333);">
-        <p id="toast-message" style="margin:0;font-size:14px;color:var(--text-primary, #eee);"></p>
+<div class="hr-modal-overlay" id="modal-toast">
+    <div class="hr-modal" style="max-width:340px;text-align:center;">
+        <p id="toast-message" style="margin:0;font-size:14px;"></p>
         <button onclick="closeModal('modal-toast')" class="hr-modal-submit" style="margin-top:16px;">OK</button>
     </div>
 </div>
 
 <style>
 .hr-modal-overlay {
-    position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);
-    display:flex;align-items:center;justify-content:center;z-index:10000;
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6);
+    z-index:1000; align-items:center; justify-content:center;
 }
+.hr-modal-overlay.open { display:flex; }
 .hr-modal {
-    background:var(--bg-card);border:1px solid var(--border);border-radius:8px;
-    padding:24px;width:380px;max-width:90vw;
+    background:var(--bg-primary); border:1px solid var(--border); border-radius:12px;
+    padding:24px; width:480px; max-width:90vw; max-height:80vh; overflow-y:auto;
 }
 .hr-modal h3 { margin:0 0 16px; font-size:15px; }
 .hr-modal label { display:block;font-size:12px;color:var(--text-dim);margin:8px 0 4px; }
@@ -483,7 +484,7 @@ async function editCell(cellId) {
     document.getElementById('cell-modal-title').textContent = 'Edit Cell';
     document.getElementById('cell-text').value = '';
     document.getElementById('cell-text').placeholder = 'New text (leave empty to toggle completion)';
-    document.getElementById('modal-cell').style.display = 'flex';
+    document.getElementById('modal-cell').classList.add('open');
     document.getElementById('cell-text').focus();
 }
 
@@ -528,7 +529,7 @@ async function addCell(row, col) {
     document.getElementById('cell-text').value = '';
     document.getElementById('cell-text').placeholder = position === 0 ? 'Goal name...' : 'Action or routine...';
     document.getElementById('cell-type-wrap').style.display = position === 0 ? 'none' : '';
-    document.getElementById('modal-cell').style.display = 'flex';
+    document.getElementById('modal-cell').classList.add('open');
     document.getElementById('cell-text').focus();
 }
 
@@ -550,10 +551,10 @@ async function submitCell() {
     loadWindow();
 }
 
-function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function showToast(msg) {
     document.getElementById('toast-message').textContent = msg;
-    document.getElementById('modal-toast').style.display = 'flex';
+    document.getElementById('modal-toast').classList.add('open');
 }
 
 // ============================================================================
@@ -856,7 +857,7 @@ async function loadGoals() {
 function showGoalForm() {
     document.getElementById('goal-title').value = '';
     document.getElementById('goal-horizon').value = 'long_term';
-    document.getElementById('modal-goal').style.display = 'flex';
+    document.getElementById('modal-goal').classList.add('open');
     document.getElementById('goal-title').focus();
 }
 
