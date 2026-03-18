@@ -265,6 +265,19 @@ def register_svend_tasks():
         max_attempts=1,
     )
 
+    # ---- CI Readiness clustering (k-prototypes) ----
+
+    from agents_api.clustering import run_clustering
+
+    TaskRegistry.register(
+        task_name="api.run_ci_clustering",
+        handler=run_clustering,
+        queue=QueueType.BATCH,
+        priority=TaskPriority.LOW,
+        timeout_seconds=300,
+        max_attempts=2,
+    )
+
     # ---- Front page digest (Qwen 14B theme extraction) ----
 
     from agents_api.front_page_tasks import generate_front_page_digest

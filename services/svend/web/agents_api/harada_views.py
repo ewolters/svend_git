@@ -317,6 +317,55 @@ def get_response_history(request):
 
 
 # ---------------------------------------------------------------------------
+# Archetype
+# ---------------------------------------------------------------------------
+
+
+@require_http_methods(["GET"])
+@gated_paid
+def get_archetype(request):
+    """
+    Get the user's current archetype assignment from CI Readiness clustering.
+
+    GET /api/harada/archetype/
+    """
+    from core.models import ArchetypeAssignment
+
+    assignment = ArchetypeAssignment.objects.filter(user=request.user).order_by("-created_at").first()
+
+    if not assignment:
+        return JsonResponse(
+            {"archetype": None, "message": "No archetype assigned yet. Complete the CI Readiness questionnaire."}
+        )
+
+    # Get all assignments for trajectory
+    all_assignments = ArchetypeAssignment.objects.filter(user=request.user).order_by("created_at")
+
+    return JsonResponse(
+        {
+            "archetype": {
+                "cluster_id": assignment.cluster_id,
+                "cluster_label": assignment.cluster_label or f"Archetype {assignment.cluster_id + 1}",
+                "feature_vector": assignment.feature_vector,
+                "cluster_distances": assignment.cluster_distances,
+                "silhouette_score": assignment.silhouette_score,
+                "version": assignment.instrument_version,
+                "assigned_at": assignment.created_at.isoformat(),
+            },
+            "trajectory": [
+                {
+                    "cluster_id": a.cluster_id,
+                    "cluster_label": a.cluster_label or f"Archetype {a.cluster_id + 1}",
+                    "version": a.instrument_version,
+                    "assigned_at": a.created_at.isoformat(),
+                }
+                for a in all_assignments
+            ],
+        }
+    )
+
+
+# ---------------------------------------------------------------------------
 # Goals
 # ---------------------------------------------------------------------------
 

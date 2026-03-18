@@ -430,3 +430,62 @@ class DailyDiary(models.Model):
     def tasks_completed(self):
         """Count of completed top tasks."""
         return sum(1 for t in (self.top_tasks or []) if t.get("completed"))
+
+
+# =============================================================================
+# ARCHETYPE ASSIGNMENT (k-prototypes clustering result)
+# =============================================================================
+
+
+class ArchetypeAssignment(models.Model):
+    """A user's cluster assignment from k-prototypes on CI Readiness responses.
+
+    Stored per session so longitudinal cluster migration is trackable.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="archetype_assignments",
+    )
+    session_id = models.UUIDField(help_text="Which questionnaire session produced this assignment")
+    instrument_version = models.PositiveSmallIntegerField()
+
+    cluster_id = models.PositiveSmallIntegerField(help_text="Cluster number (0-indexed)")
+    cluster_label = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Human-readable archetype label (assigned after cluster analysis)",
+    )
+
+    # The feature vector used for clustering (for reproducibility)
+    feature_vector = models.JSONField(
+        default=dict,
+        help_text="{'likert': {dim: score}, 'categorical': {dim: label}}",
+    )
+
+    # Cluster metadata
+    cluster_distances = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Distance to each cluster centroid",
+    )
+    silhouette_score = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Individual silhouette score for this assignment",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "core_archetype_assignment"
+        indexes = [
+            models.Index(fields=["user", "-created_at"]),
+        ]
+
+    def __str__(self):
+        label = self.cluster_label or f"Cluster {self.cluster_id}"
+        return f"{self.user.email} → {label} (v{self.instrument_version})"

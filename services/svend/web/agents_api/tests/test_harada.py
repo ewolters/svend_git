@@ -8,12 +8,14 @@ No existence-only tests per TST-001 §10.6.
 """
 
 import json
+import uuid
 from datetime import date
 
 from django.test import Client, TestCase, override_settings
 
 from accounts.models import Tier, User
 from core.models import (
+    ArchetypeAssignment,
     DailyDiary,
     QuestionDimension,
     QuestionnaireResponse,
@@ -223,7 +225,7 @@ class QuestionnaireFlowTest(TestCase):
         self.user.save(update_fields=["experience_level"])
 
         # Add Q11 dimension
-        q11 = QuestionDimension.objects.create(
+        QuestionDimension.objects.create(
             instrument="ci_readiness",
             dimension_number=11,
             name="Measurement System Trust",
@@ -618,3 +620,163 @@ class DailyDiaryTest(TestCase):
         res = self.client.get("/api/harada/diary/")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(len(res.json()["entries"]), 1)
+
+
+# ===========================================================================
+# Clustering Pipeline
+# ===========================================================================
+
+
+@SECURE_OFF
+class ClusteringPipelineTest(TestCase):
+    """
+    K-prototypes clustering on CI Readiness responses.
+
+    Uses synthetic data to validate the pipeline since real user data
+    requires 10+ complete responses.
+    <!-- test: agents_api.tests.test_harada.ClusteringPipelineTest -->
+    """
+
+    def _seed_dimensions(self):
+        """Create all 12 CI Readiness dimensions."""
+        dims = {}
+        for n in [3, 4, 5, 6, 8, 10, 11]:
+            dims[n] = QuestionDimension.objects.create(
+                instrument="ci_readiness",
+                dimension_number=n,
+                name=f"Likert Dim {n}",
+                category="ci",
+                response_type="likert",
+                question_text=f"Test question {n}",
+            )
+        for n in [1, 2, 7, 9, 12]:
+            dims[n] = QuestionDimension.objects.create(
+                instrument="ci_readiness",
+                dimension_number=n,
+                name=f"FC Dim {n}",
+                category="ci",
+                response_type="forced_choice",
+                question_text=f"Test scenario {n}",
+            )
+        return dims
+
+    def _create_synthetic_user(self, email, dims, likert_scores, fc_choices):
+        """Create a user with complete CI Readiness responses."""
+        user = _make_user(email)
+        session = uuid.uuid4()
+
+        for dim_num, score in zip([3, 4, 5, 6, 8, 10, 11], likert_scores):
+            QuestionnaireResponse.objects.create(
+                user=user,
+                dimension=dims[dim_num],
+                session_id=session,
+                score=score,
+            )
+
+        for dim_num, choice in zip([1, 2, 7, 9, 12], fc_choices):
+            QuestionnaireResponse.objects.create(
+                user=user,
+                dimension=dims[dim_num],
+                session_id=session,
+                option_chosen=choice,
+            )
+
+        return user
+
+    def test_collect_response_matrix(self):
+        """collect_response_matrix builds correct feature matrices."""
+        from agents_api.clustering import collect_response_matrix
+
+        dims = self._seed_dimensions()
+        self._create_synthetic_user(
+            "u1@test.com",
+            dims,
+            [5, 4, 3, 4, 5, 4, 3],
+            ["system_thinker", "data_purist", "gemba_first", "coach", "fatigue_aware"],
+        )
+
+        users, likert, cat, fvs = collect_response_matrix()
+        self.assertEqual(len(users), 1)
+        self.assertEqual(likert.shape, (1, 7))
+        self.assertEqual(cat.shape, (1, 5))
+        self.assertEqual(likert[0, 0], 5.0)  # First Likert score
+        self.assertEqual(cat[0, 0], "system_thinker")  # First FC choice
+
+    def test_clustering_skips_insufficient_users(self):
+        """Clustering returns skip when fewer than MIN_USERS_FOR_CLUSTERING."""
+        from agents_api.clustering import run_clustering
+
+        result = run_clustering()
+        self.assertTrue(result["skipped"])
+        self.assertIn("insufficient_users", result["reason"])
+
+    def test_clustering_runs_with_enough_users(self):
+        """Clustering produces assignments with 10+ synthetic users."""
+        from agents_api.clustering import run_clustering
+
+        dims = self._seed_dimensions()
+
+        # Create two distinct "archetypes" in synthetic data
+        for i in range(6):
+            # Archetype A: high likert, system thinkers
+            self._create_synthetic_user(
+                f"archA_{i}@test.com",
+                dims,
+                [5, 5, 4, 5, 5, 4, 5],
+                ["system_thinker", "nuanced_thinker", "prepare_thoroughly", "coach", "fatigue_aware"],
+            )
+
+        for i in range(6):
+            # Archetype B: lower likert, person-focused fixers
+            self._create_synthetic_user(
+                f"archB_{i}@test.com",
+                dims,
+                [2, 2, 3, 2, 2, 3, 2],
+                ["person_focused", "data_purist", "momentum_first", "fixer", "driver"],
+            )
+
+        result = run_clustering()
+        self.assertFalse(result.get("skipped", False))
+        self.assertIn("k", result)
+        self.assertEqual(result["users"], 12)
+        self.assertEqual(result["assignments"], 12)
+
+        # Verify assignments stored
+        total = ArchetypeAssignment.objects.count()
+        self.assertEqual(total, 12)
+
+        # Check that the two archetypes got different clusters
+        a_clusters = set(
+            ArchetypeAssignment.objects.filter(user__email__startswith="archA_").values_list("cluster_id", flat=True)
+        )
+        b_clusters = set(
+            ArchetypeAssignment.objects.filter(user__email__startswith="archB_").values_list("cluster_id", flat=True)
+        )
+        # With clear separation, they should be in different clusters
+        self.assertNotEqual(a_clusters, b_clusters, "Distinct archetypes should cluster separately")
+
+    def test_archetype_api(self):
+        """GET /api/harada/archetype/ returns assignment."""
+        user = _make_user("arch_api@test.com")
+        client = _authed_client(user)
+
+        # No assignment yet
+        res = client.get("/api/harada/archetype/")
+        self.assertEqual(res.status_code, 200)
+        self.assertIsNone(res.json()["archetype"])
+
+        # Create assignment
+        ArchetypeAssignment.objects.create(
+            user=user,
+            session_id=uuid.uuid4(),
+            instrument_version=1,
+            cluster_id=0,
+            cluster_label="System Thinker",
+            feature_vector={"likert": {}, "categorical": {}},
+        )
+
+        res = client.get("/api/harada/archetype/")
+        data = res.json()
+        self.assertIsNotNone(data["archetype"])
+        self.assertEqual(data["archetype"]["cluster_label"], "System Thinker")
+        self.assertEqual(len(data["trajectory"]), 1)

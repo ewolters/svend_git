@@ -9,6 +9,8 @@ urlpatterns = [
     path("questionnaire/", harada_views.get_questionnaire, name="harada_questionnaire"),
     path("questionnaire/submit/", harada_views.submit_responses, name="harada_submit"),
     path("questionnaire/history/", harada_views.get_response_history, name="harada_history"),
+    # Archetype
+    path("archetype/", harada_views.get_archetype, name="harada_archetype"),
     # Goals
     path("goals/", harada_views.list_create_goals, name="harada_goals"),
     path("goals/<uuid:goal_id>/", harada_views.goal_detail, name="harada_goal_detail"),

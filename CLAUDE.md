@@ -372,7 +372,7 @@ Default view shows only features from **active** initiatives. To see everything,
 
 ## Standards Library
 
-`docs/standards/` contains 25 machine-readable standards with assertion hooks that the compliance system parses and verifies automatically:
+`docs/standards/` contains 42 machine-readable standards with assertion hooks that the compliance system parses and verifies automatically:
 
 | Standard | Scope | Assertions |
 |----------|-------|------------|
@@ -402,6 +402,22 @@ Default view shows only features from **active** initiatives. To see everything,
 | CACHE-001 | Caching patterns, HTTP cache control, CDN integrity | 6 |
 | QUAL-001 | Output quality assurance, calibration, bounds checking | 12 |
 | CAL-001 | Software calibration & verification, coverage ratchet, golden files | 12 |
+| NTF-001 | Notification system, SSE delivery, email tokens, preferences | 21 |
+| INC-001 | Incident response, severity classification, SLA targets | — |
+| PRIV-001 | Privacy & data protection, PII inventory, data subject rights | — |
+| VIS-001 | Data visualization, Plotly chart defaults, color palette | — |
+| FILE-001 | File storage, sharing, quota management | — |
+| JS-001 | JavaScript conventions, calculator architecture, workbench patterns | — |
+| RDM-001 | Product roadmap, quarterly cycles, lifecycle tracking | — |
+| STAT-001 | Statistical methodology, correctness requirements | — |
+| TRN-001 | Training competency management, TWI 4-level model | — |
+| CANON-001 | QMS canonical architecture | — |
+| CANON-002 | Investigation engine, evidence methodology | — |
+| RISK-001 | Persistent risk registry | — |
+| ORG-001 | Organization structure | — |
+| NB-001 | Notebook standard | — |
+| SYS-001 | System administration | — |
+| DSW-002 | Analysis output quality (SUPERSEDED by QUAL-001) | — |
 
 Standards support `<!-- test: module.Class.method -->` hooks that link assertions to executable tests. The compliance system verifies test existence and can run them:
 

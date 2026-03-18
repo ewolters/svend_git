@@ -11,6 +11,7 @@ This module contains the foundational models:
 
 from .graph import Entity, KnowledgeGraph, Relationship
 from .harada import (
+    ArchetypeAssignment,
     DailyDiary,
     HaradaGoal,
     QuestionDimension,
@@ -84,4 +85,5 @@ __all__ = [
     "Window64",
     "RoutineCheck",
     "DailyDiary",
+    "ArchetypeAssignment",
 ]
