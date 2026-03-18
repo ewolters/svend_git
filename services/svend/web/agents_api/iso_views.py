@@ -3480,5 +3480,84 @@ def audit_readiness(request):
                 {"clause": f["clause"], "name": f["name"], "score": f["score"], "detail": f["detail"]}
                 for f in top_findings
             ],
+            "interpretation": _build_interpretation(
+                overall_score, overall_rag, red_count, amber_count, clauses, top_findings
+            ),
         }
     )
+
+
+def _build_interpretation(score, rag, red_count, amber_count, clauses, top_findings):
+    """Build human-readable interpretation of the audit readiness score."""
+
+    # Overall assessment
+    if score >= 90:
+        headline = "Audit-ready"
+        summary = (
+            "Your QMS is well-maintained with strong evidence across ISO 9001 clauses. "
+            "A registrar would find a functioning system with current records. "
+            "Focus on maintaining this level \u2014 review the amber items below to close remaining gaps."
+        )
+    elif score >= 80:
+        headline = "Near audit-ready"
+        summary = (
+            "Your QMS covers most requirements with some gaps to close. "
+            "A registrar would likely find minor nonconformities but no systemic issues. "
+            "Address the findings below to reach full readiness."
+        )
+    elif score >= 65:
+        headline = "Progressing"
+        summary = (
+            "Your QMS has good foundation but significant gaps remain. "
+            "A registrar would likely raise several findings. "
+            "Prioritize the red clauses below \u2014 these represent the highest audit risk."
+        )
+    elif score >= 50:
+        headline = "Early stage"
+        summary = (
+            "Your QMS modules are in place but most need to be populated with records. "
+            "This is normal for a new system. "
+            "The score reflects what a registrar would see today \u2014 "
+            "start with the top findings below and the score will climb as you add records."
+        )
+    else:
+        headline = "Getting started"
+        summary = (
+            "Your QMS is set up but hasn\u2019t been populated yet. "
+            "This score is expected for a new deployment \u2014 it\u2019s not a failure, it\u2019s a starting point. "
+            "Each red clause below tells you exactly what to do next. "
+            "Most organizations reach 70+ within the first month of active use."
+        )
+
+    # Next actions from top findings
+    next_actions = []
+    for f in top_findings[:3]:
+        clause = f["clause"]
+        detail = f["detail"]
+        if "No " in detail and "recorded" in detail:
+            next_actions.append(f"Create your first record in {f['name']} (clause {clause})")
+        elif "No " in detail and "scheduled" in detail:
+            next_actions.append(f"Schedule your first activity in {f['name']} (clause {clause})")
+        elif "No " in detail and "defined" in detail:
+            next_actions.append(f"Define requirements for {f['name']} (clause {clause})")
+        elif "No " in detail and "identified" in detail:
+            next_actions.append(f"Identify and register items for {f['name']} (clause {clause})")
+        elif "overdue" in detail.lower() or "past due" in detail.lower():
+            next_actions.append(f"Address overdue items in {f['name']} (clause {clause})")
+        else:
+            next_actions.append(f"Review {f['name']} (clause {clause}): {detail}")
+
+    return {
+        "headline": headline,
+        "summary": summary,
+        "next_actions": next_actions,
+        "methodology": (
+            "This score is computed from live QMS data across 10 ISO 9001 clauses. "
+            "Each clause is scored 0\u2013100 based on record completeness, overdue items, "
+            "and compliance gaps. Clauses are weighted by audit importance. "
+            "Green (80\u2013100) means a registrar would find conforming evidence. "
+            "Amber (50\u201379) means partial evidence or minor gaps. "
+            "Red (0\u201349) means a registrar would likely raise a finding. "
+            "The score updates in real time as you create and manage QMS records."
+        ),
+    }
