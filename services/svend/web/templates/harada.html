@@ -1,0 +1,643 @@
+{% extends "base_app.html" %}
+{% block title %}My Practice — SVEND{% endblock %}
+
+{% block extra_head %}
+<style>
+body > main { padding: 0 !important; }
+body > main > .container { max-width: none !important; padding: 0 !important; }
+
+.hr-layout { display: flex; height: calc(100vh - 56px); }
+
+/* Sidebar */
+.hr-sidebar {
+    width: 220px; border-right: 1px solid var(--border);
+    background: var(--bg-secondary); display: flex; flex-direction: column; flex-shrink: 0;
+}
+.hr-sidebar-header { padding: 16px; border-bottom: 1px solid var(--border); }
+.hr-sidebar-header h2 { font-size: 14px; font-weight: 700; margin: 0; }
+.hr-sidebar-header p { font-size: 11px; color: var(--text-dim); margin: 4px 0 0 0; }
+.hr-tabs { padding: 8px 0; flex: 1; }
+.hr-tab {
+    display: block; padding: 8px 16px; font-size: 13px; color: var(--text-secondary);
+    cursor: pointer; border-left: 3px solid transparent; transition: all 0.15s;
+}
+.hr-tab:hover { background: var(--bg-card); color: var(--text-primary); }
+.hr-tab.active { border-left-color: var(--accent-primary); color: var(--text-primary); background: var(--bg-card); font-weight: 600; }
+.hr-tab-icon { display: inline-block; width: 18px; text-align: center; margin-right: 6px; font-size: 12px; }
+.hr-back { padding: 12px 16px; border-top: 1px solid var(--border); }
+.hr-back a { font-size: 12px; color: var(--text-dim); text-decoration: none; }
+.hr-back a:hover { color: var(--accent-primary); }
+
+/* Main content */
+.hr-main { flex: 1; overflow-y: auto; padding: 24px 32px; }
+.hr-section { display: none; }
+.hr-section.active { display: block; }
+.hr-section h2 { font-size: 1.2rem; font-weight: 700; margin: 0 0 16px 0; }
+
+/* Cards */
+.hr-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; margin-bottom: 12px;
+}
+
+/* 64-Window Mandala */
+.mandala-container { max-width: 720px; margin: 0 auto; }
+.mandala-grid {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    grid-template-rows: repeat(9, 1fr);
+    gap: 2px;
+    aspect-ratio: 1;
+}
+.mandala-cell {
+    display: flex; align-items: center; justify-content: center;
+    text-align: center; font-size: 9px; line-height: 1.2;
+    padding: 3px; border-radius: 4px; cursor: pointer;
+    overflow: hidden; word-break: break-word;
+    transition: all 0.15s; min-height: 0;
+}
+.mandala-cell:hover { transform: scale(1.05); z-index: 1; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+.mandala-cell.goal {
+    background: var(--accent-primary); color: #fff; font-weight: 700; font-size: 10px;
+}
+.mandala-cell.task {
+    background: var(--bg-secondary); border: 1px solid var(--border); color: var(--text-secondary);
+}
+.mandala-cell.task.completed {
+    background: rgba(74,159,110,0.15); border-color: var(--accent-primary); color: var(--accent-primary);
+    text-decoration: line-through;
+}
+.mandala-cell.routine {
+    background: rgba(91,155,213,0.1); border: 1px solid rgba(91,155,213,0.3); color: #5b9bd5;
+}
+.mandala-cell.routine.completed { background: rgba(91,155,213,0.25); }
+.mandala-cell.empty {
+    background: transparent; border: 1px dashed var(--border); color: var(--text-dim);
+    font-size: 14px; opacity: 0.4;
+}
+.mandala-center {
+    background: var(--bg-card); border: 2px solid var(--accent-primary);
+    color: var(--accent-primary); font-weight: 700; font-size: 11px;
+}
+
+/* Dashboard */
+.hr-dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.hr-kpi { text-align: center; }
+.hr-kpi-value { font-size: 1.8rem; font-weight: 700; color: var(--accent-primary); }
+.hr-kpi-label { font-size: 11px; color: var(--text-dim); }
+
+/* Diary scores */
+.diary-scores { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }
+.diary-score-item { text-align: center; }
+.diary-score-item label { display: block; font-size: 10px; color: var(--text-dim); margin-bottom: 2px; }
+.diary-score-item input {
+    width: 100%; text-align: center; padding: 6px; font-size: 16px; font-weight: 600;
+    background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text-primary);
+}
+
+/* Routine checklist */
+.routine-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+.routine-item:last-child { border-bottom: none; }
+.routine-check { width: 20px; height: 20px; cursor: pointer; accent-color: var(--accent-primary); }
+.routine-text { flex: 1; font-size: 13px; }
+.routine-text.done { text-decoration: line-through; color: var(--text-dim); }
+
+/* Questionnaire */
+.q-item { margin-bottom: 20px; }
+.q-item label { display: block; font-size: 13px; color: var(--text-primary); margin-bottom: 8px; line-height: 1.5; }
+.q-likert { display: flex; gap: 8px; }
+.q-likert label {
+    flex: 1; text-align: center; padding: 8px 4px; font-size: 11px;
+    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+    transition: all 0.15s;
+}
+.q-likert input { display: none; }
+.q-likert input:checked + span { background: var(--accent-primary); color: #fff; }
+.q-likert label:has(input:checked) { border-color: var(--accent-primary); background: rgba(74,159,110,0.1); }
+.q-scenario { margin: 12px 0; padding: 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 13px; line-height: 1.6; }
+.q-option {
+    display: block; padding: 10px 12px; margin: 6px 0; border: 1px solid var(--border);
+    border-radius: 6px; cursor: pointer; font-size: 12px; line-height: 1.5; transition: all 0.15s;
+}
+.q-option:hover { border-color: var(--accent-primary); background: rgba(74,159,110,0.05); }
+.q-option.selected { border-color: var(--accent-primary); background: rgba(74,159,110,0.15); }
+
+/* Goal cascade */
+.goal-tree { padding-left: 0; }
+.goal-node { margin-bottom: 8px; }
+.goal-horizon { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent-primary); }
+.goal-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.goal-children { padding-left: 20px; border-left: 2px solid var(--border); margin-top: 4px; }
+
+@media (max-width: 768px) {
+    .hr-sidebar { width: 60px; }
+    .hr-tab { padding: 8px; font-size: 0; }
+    .hr-tab-icon { margin: 0; font-size: 16px; }
+    .mandala-grid { gap: 1px; }
+    .mandala-cell { font-size: 7px; padding: 1px; }
+    .diary-scores { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hr-layout">
+    <div class="hr-sidebar">
+        <div class="hr-sidebar-header">
+            <h2>My Practice</h2>
+            <p>Harada Method</p>
+        </div>
+        <div class="hr-tabs">
+            <div class="hr-tab active" onclick="showTab('dashboard')"><span class="hr-tab-icon">&#9670;</span>Dashboard</div>
+            <div class="hr-tab" onclick="showTab('questionnaire')"><span class="hr-tab-icon">&#9998;</span>Questionnaire</div>
+            <div class="hr-tab" onclick="showTab('goals')"><span class="hr-tab-icon">&#9733;</span>Goals</div>
+            <div class="hr-tab" onclick="showTab('window')"><span class="hr-tab-icon">&#9638;</span>64-Window</div>
+            <div class="hr-tab" onclick="showTab('routines')"><span class="hr-tab-icon">&#10003;</span>Routines</div>
+            <div class="hr-tab" onclick="showTab('diary')"><span class="hr-tab-icon">&#9998;</span>Diary</div>
+        </div>
+        <div class="hr-back">
+            <a href="/app/notebooks/">&larr; Back to Notebooks</a>
+        </div>
+    </div>
+
+    <div class="hr-main">
+        <!-- Dashboard -->
+        <div class="hr-section active" id="sec-dashboard">
+            <h2>Dashboard</h2>
+            <div class="hr-dashboard-grid" id="dashboard-kpis"></div>
+            <div id="dashboard-archetype"></div>
+        </div>
+
+        <!-- Questionnaire -->
+        <div class="hr-section" id="sec-questionnaire">
+            <h2>CI Readiness Assessment</h2>
+            <div id="questionnaire-content"></div>
+        </div>
+
+        <!-- Goals -->
+        <div class="hr-section" id="sec-goals">
+            <h2>Goals</h2>
+            <div id="goals-content"></div>
+            <button class="hr-card" onclick="showGoalForm()" style="cursor:pointer;text-align:center;color:var(--accent-primary);border-style:dashed;">+ Add Goal</button>
+        </div>
+
+        <!-- 64-Window -->
+        <div class="hr-section" id="sec-window">
+            <h2>64-Window</h2>
+            <div class="mandala-container">
+                <div class="mandala-grid" id="mandala"></div>
+            </div>
+        </div>
+
+        <!-- Routines -->
+        <div class="hr-section" id="sec-routines">
+            <h2>Today's Routines</h2>
+            <div id="routines-content"></div>
+            <div id="routines-streak" style="margin-top:12px;"></div>
+        </div>
+
+        <!-- Diary -->
+        <div class="hr-section" id="sec-diary">
+            <h2>Daily Diary</h2>
+            <div id="diary-content"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = '/api/harada/';
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function getCSRF() { return (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || ''; }
+
+async function api(url, method = 'GET', body = null) {
+    const opts = { method, credentials: 'include', headers: { 'X-CSRFToken': getCSRF(), 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(url, opts);
+    return { status: res.status, data: await res.json() };
+}
+
+// Tab switching
+function showTab(tab) {
+    document.querySelectorAll('.hr-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.hr-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('sec-' + tab).classList.add('active');
+    document.querySelector(`.hr-tab[onclick="showTab('${tab}')"]`).classList.add('active');
+    loaders[tab]?.();
+}
+
+// ============================================================================
+// Dashboard
+// ============================================================================
+
+async function loadDashboard() {
+    // Archetype
+    const { data: arch } = await api(API + 'archetype/');
+    const archEl = document.getElementById('dashboard-archetype');
+    if (arch.archetype) {
+        archEl.innerHTML = `<div class="hr-card"><div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Your Archetype</div><div style="font-size:1.1rem;font-weight:600;">${esc(arch.archetype.cluster_label)}</div></div>`;
+    } else {
+        archEl.innerHTML = `<div class="hr-card" style="color:var(--text-dim);">Take the CI Readiness questionnaire to discover your archetype.</div>`;
+    }
+
+    // Routines streak
+    const { data: rh } = await api(API + 'routines/history/?days=7');
+    // Diary recent
+    const { data: diary } = await api(API + 'diary/?days=7');
+
+    const kpis = document.getElementById('dashboard-kpis');
+    const streak = rh.streak || 0;
+    const todayDiary = (diary.entries || []).find(e => e.date === new Date().toISOString().slice(0, 10));
+    const todayScore = todayDiary?.score_total ?? '—';
+
+    kpis.innerHTML = `
+        <div class="hr-card hr-kpi"><div class="hr-kpi-value">${streak}</div><div class="hr-kpi-label">Day Streak</div></div>
+        <div class="hr-card hr-kpi"><div class="hr-kpi-value">${rh.routines_count || 0}</div><div class="hr-kpi-label">Active Routines</div></div>
+        <div class="hr-card hr-kpi"><div class="hr-kpi-value">${todayScore}</div><div class="hr-kpi-label">Today's Score</div></div>
+        <div class="hr-card hr-kpi"><div class="hr-kpi-value">${(diary.entries || []).length}</div><div class="hr-kpi-label">Diary Entries (7d)</div></div>
+    `;
+}
+
+// ============================================================================
+// 64-Window Mandala
+// ============================================================================
+
+async function loadWindow() {
+    const { data } = await api(API + 'window/');
+    const grid = data.window || {};
+    renderMandala(grid);
+}
+
+function renderMandala(grid) {
+    // The mandala is a 9x9 grid. The center 3x3 is goal 0 (the "big picture").
+    // Surrounding it are 8 blocks of 3x3, each for goals 1-8.
+    // Block layout (goal numbers in their center position):
+    //   [1] [2] [3]
+    //   [4] [0] [5]
+    //   [6] [7] [8]
+    // Each block is 3x3: center = goal, surrounding 8 = actions
+
+    const blockPositions = [
+        // [row_start, col_start] for each goal's 3x3 block (0-indexed)
+        [3, 3], // Goal 0: center of mandala (not a real goal — could be "purpose")
+        [0, 0], // Goal 1: top-left
+        [0, 3], // Goal 2: top-center
+        [0, 6], // Goal 3: top-right
+        [3, 0], // Goal 4: middle-left
+        [3, 6], // Goal 5: middle-right
+        [6, 0], // Goal 6: bottom-left
+        [6, 3], // Goal 7: bottom-center
+        [6, 6], // Goal 8: bottom-right
+    ];
+
+    // Build a 9x9 array
+    const cells = Array.from({ length: 81 }, () => ({ text: '', type: 'empty', completed: false }));
+
+    function setCell(row, col, data) {
+        cells[row * 9 + col] = data;
+    }
+
+    // For each goal (1-8), place in mandala
+    for (let g = 1; g <= 8; g++) {
+        const [br, bc] = blockPositions[g];
+        const goalCells = (grid[g] || grid[String(g)] || []);
+
+        // Find center (position 0) and surrounding (positions 1-8)
+        const center = goalCells.find(c => c.position === 0);
+        const surround = goalCells.filter(c => c.position > 0).sort((a, b) => a.position - b.position);
+
+        // Center of this 3x3 block
+        if (center) {
+            setCell(br + 1, bc + 1, { text: center.text, type: 'goal', completed: center.is_completed, id: center.id });
+        }
+
+        // Surrounding 8 positions (clockwise from top-left)
+        const offsets = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+        for (let i = 0; i < 8; i++) {
+            const cell = surround[i];
+            if (cell) {
+                const [dr, dc] = offsets[i];
+                setCell(br + 1 + dr, bc + 1 + dc, {
+                    text: cell.text,
+                    type: cell.cell_type,
+                    completed: cell.is_completed,
+                    id: cell.id,
+                });
+            }
+        }
+    }
+
+    // Center of mandala (4,4) — the "purpose" or big goal
+    const centerGoal = (grid[0] || grid['0'] || []).find(c => c.position === 0);
+    if (centerGoal) {
+        setCell(4, 4, { text: centerGoal.text, type: 'goal', completed: false, id: centerGoal.id, isCenter: true });
+    }
+
+    // Render
+    const el = document.getElementById('mandala');
+    el.innerHTML = cells.map((c, i) => {
+        const classes = ['mandala-cell'];
+        if (c.type === 'goal') classes.push('goal');
+        else if (c.type === 'task') classes.push('task');
+        else if (c.type === 'routine') classes.push('routine');
+        else classes.push('empty');
+        if (c.completed) classes.push('completed');
+        if (c.isCenter) classes.push('mandala-center');
+
+        const text = c.text || (c.type === 'empty' ? '+' : '');
+        const onclick = c.id ? `onclick="editCell('${c.id}')"` : (c.type === 'empty' ? `onclick="addCell(${Math.floor(i/9)}, ${i%9})"` : '');
+        return `<div class="${classes.join(' ')}" ${onclick} title="${esc(c.text)}">${esc(text)}</div>`;
+    }).join('');
+}
+
+async function editCell(cellId) {
+    const text = prompt('Update text (or leave empty to toggle completion):');
+    if (text === null) return;
+    if (text === '') {
+        // Toggle completion
+        await api(API + 'window/' + cellId + '/', 'PATCH', { is_completed: true });
+    } else {
+        await api(API + 'window/' + cellId + '/', 'PATCH', { text });
+    }
+    loadWindow();
+}
+
+async function addCell(row, col) {
+    // Determine which goal block this belongs to
+    const blockPositions = [[3,3],[0,0],[0,3],[0,6],[3,0],[3,6],[6,0],[6,3],[6,6]];
+    let goalNum = null;
+    let position = null;
+
+    for (let g = 1; g <= 8; g++) {
+        const [br, bc] = blockPositions[g];
+        if (row >= br && row < br + 3 && col >= bc && col < bc + 3) {
+            goalNum = g;
+            const lr = row - br;
+            const lc = col - bc;
+            if (lr === 1 && lc === 1) position = 0; // center
+            else {
+                const offsets = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+                for (let i = 0; i < 8; i++) {
+                    if (offsets[i][0] === lr - 1 && offsets[i][1] === lc - 1) { position = i + 1; break; }
+                }
+            }
+            break;
+        }
+    }
+
+    if (goalNum === null) return;
+    const text = prompt('Enter text:');
+    if (!text) return;
+    const cellType = position === 0 ? 'goal' : (confirm('Is this a daily routine? (OK=routine, Cancel=one-time task)') ? 'routine' : 'task');
+
+    await api(API + 'window/', 'POST', { goal_number: goalNum, position, text, cell_type: cellType });
+    loadWindow();
+}
+
+// ============================================================================
+// Routines
+// ============================================================================
+
+async function loadRoutines() {
+    const { data } = await api(API + 'routines/');
+    const el = document.getElementById('routines-content');
+
+    if (!data.routines?.length) {
+        el.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">No routines yet. Add routine cells to your 64-Window to start tracking.</div>';
+        return;
+    }
+
+    el.innerHTML = data.routines.map(r => `
+        <div class="routine-item">
+            <input type="checkbox" class="routine-check" ${r.is_completed ? 'checked' : ''}
+                onchange="toggleRoutine('${r.window_cell_id}', this.checked)">
+            <span class="routine-text ${r.is_completed ? 'done' : ''}">${esc(r.text)}</span>
+        </div>
+    `).join('');
+
+    // Streak
+    const { data: hist } = await api(API + 'routines/history/?days=7');
+    document.getElementById('routines-streak').innerHTML = `
+        <div class="hr-card" style="text-align:center;">
+            <div style="font-size:2rem;font-weight:700;color:var(--accent-primary);">${hist.streak}</div>
+            <div style="font-size:11px;color:var(--text-dim);">day streak</div>
+        </div>
+    `;
+}
+
+async function toggleRoutine(cellId, completed) {
+    await api(API + 'routines/', 'POST', { window_cell_id: cellId, is_completed: completed });
+    loadRoutines();
+}
+
+// ============================================================================
+// Diary
+// ============================================================================
+
+async function loadDiary() {
+    const today = new Date().toISOString().slice(0, 10);
+    let diary = null;
+    try {
+        const { data, status } = await api(API + 'diary/' + today + '/');
+        if (status === 200) diary = data;
+    } catch (e) {}
+
+    const dims = ['overall', 'mental', 'body', 'work', 'relations', 'life', 'learning', 'routines'];
+    const el = document.getElementById('diary-content');
+
+    el.innerHTML = `
+        <div class="hr-card">
+            <label style="font-size:12px;color:var(--text-dim);">Daily Phrase</label>
+            <input type="text" id="diary-phrase" value="${esc(diary?.daily_phrase || '')}" placeholder="What's your focus today?"
+                style="width:100%;padding:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);margin-bottom:12px;">
+
+            <label style="font-size:12px;color:var(--text-dim);">Self-Assessment (0-5)</label>
+            <div class="diary-scores">
+                ${dims.map(d => `
+                    <div class="diary-score-item">
+                        <label>${d.charAt(0).toUpperCase() + d.slice(1)}</label>
+                        <input type="number" min="0" max="5" id="score-${d}" value="${diary?.scores?.[d] ?? ''}">
+                    </div>
+                `).join('')}
+            </div>
+
+            <label style="font-size:12px;color:var(--text-dim);">Challenges & Positive Takeaways</label>
+            <textarea id="diary-challenges" rows="3" style="width:100%;padding:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);margin-bottom:8px;">${esc(diary?.challenges || '')}</textarea>
+
+            <label style="font-size:12px;color:var(--text-dim);">What would you have done differently?</label>
+            <textarea id="diary-differently" rows="2" style="width:100%;padding:8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);margin-bottom:12px;">${esc(diary?.what_differently || '')}</textarea>
+
+            <button onclick="saveDiary()" style="padding:8px 20px;background:var(--accent-primary);color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600;">Save</button>
+            ${diary?.score_total != null ? `<span style="margin-left:12px;font-size:13px;color:var(--text-dim);">Total: ${diary.score_total}/40</span>` : ''}
+        </div>
+    `;
+}
+
+async function saveDiary() {
+    const dims = ['overall', 'mental', 'body', 'work', 'relations', 'life', 'learning', 'routines'];
+    const scores = {};
+    dims.forEach(d => {
+        const v = document.getElementById('score-' + d).value;
+        if (v !== '') scores[d] = parseInt(v);
+    });
+
+    await api(API + 'diary/', 'POST', {
+        daily_phrase: document.getElementById('diary-phrase').value,
+        scores,
+        challenges: document.getElementById('diary-challenges').value,
+        what_differently: document.getElementById('diary-differently').value,
+    });
+    loadDiary();
+}
+
+// ============================================================================
+// Questionnaire
+// ============================================================================
+
+let qData = null;
+
+async function loadQuestionnaire() {
+    const { data } = await api(API + 'questionnaire/?instrument=ci_readiness');
+    qData = data;
+    renderQuestionnaire(data);
+}
+
+function renderQuestionnaire(data) {
+    const el = document.getElementById('questionnaire-content');
+
+    if (data.retake_number > 1) {
+        el.innerHTML = `<div class="hr-card" style="margin-bottom:16px;"><span style="font-size:12px;color:var(--text-dim);">Retake #${data.retake_number}</span></div>`;
+    } else {
+        el.innerHTML = '';
+    }
+
+    el.innerHTML += data.dimensions.map((dim, i) => {
+        if (dim.response_type === 'likert') {
+            const lines = (dim.question_text || '').split('\n');
+            return `<div class="q-item" data-dim="${dim.dimension_id}" data-type="likert">
+                <label>${lines.map(l => esc(l)).join('<br>')}</label>
+                <div class="q-likert">
+                    ${[1,2,3,4,5].map(v => `
+                        <label onclick="this.querySelector('input').checked=true; this.parentElement.querySelectorAll('label').forEach(l=>l.style.borderColor=''); this.style.borderColor='var(--accent-primary)';">
+                            <input type="radio" name="q_${i}" value="${v}"><span>${v}</span>
+                            <div style="font-size:9px;margin-top:2px;">${dim.scale_labels?.[v-1] || ''}</div>
+                        </label>
+                    `).join('')}
+                </div>
+            </div>`;
+        } else {
+            return `<div class="q-item" data-dim="${dim.dimension_id}" data-type="forced_choice" data-scenario="${dim.scenario_id}">
+                <label><strong>${esc(dim.name)}</strong></label>
+                <div class="q-scenario">${esc(dim.situation)}</div>
+                ${dim.options.map(o => `
+                    <div class="q-option" data-label="${o.label}" onclick="selectOption(this)">
+                        ${esc(o.text)}
+                    </div>
+                `).join('')}
+            </div>`;
+        }
+    }).join('');
+
+    el.innerHTML += `<button onclick="submitQuestionnaire()" style="margin-top:16px;padding:10px 24px;background:var(--accent-primary);color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600;font-size:14px;">Submit</button>`;
+}
+
+function selectOption(el) {
+    el.parentElement.querySelectorAll('.q-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+}
+
+async function submitQuestionnaire() {
+    if (!qData) return;
+    const responses = [];
+
+    document.querySelectorAll('.q-item').forEach(item => {
+        const dimId = item.dataset.dim;
+        const type = item.dataset.type;
+
+        if (type === 'likert') {
+            const checked = item.querySelector('input[type=radio]:checked');
+            if (checked) responses.push({ dimension_id: dimId, score: parseInt(checked.value) });
+        } else {
+            const selected = item.querySelector('.q-option.selected');
+            if (selected) {
+                responses.push({
+                    dimension_id: dimId,
+                    scenario_id: item.dataset.scenario,
+                    option_chosen: selected.dataset.label,
+                });
+            }
+        }
+    });
+
+    if (responses.length === 0) { alert('Please answer at least one question.'); return; }
+
+    const { data } = await api(API + 'questionnaire/submit/', 'POST', {
+        instrument: 'ci_readiness',
+        session_id: qData.session_id,
+        responses,
+    });
+
+    alert(`Saved ${data.responses_saved} responses (version ${data.version}).`);
+    loadDashboard();
+}
+
+// ============================================================================
+// Goals
+// ============================================================================
+
+async function loadGoals() {
+    const { data } = await api(API + 'goals/');
+    const el = document.getElementById('goals-content');
+
+    if (!data.goals?.length) {
+        el.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">No goals yet. Start with your 3-5 year vision.</div>';
+        return;
+    }
+
+    function renderGoal(g, depth = 0) {
+        const horizonColors = { long_term: '#e89547', fiscal_year: '#5b9bd5', monthly: '#b4a0dc', immediate: 'var(--accent-primary)' };
+        return `
+            <div class="goal-node">
+                <div class="hr-card" style="border-left:3px solid ${horizonColors[g.horizon] || 'var(--border)'};">
+                    <div class="goal-horizon">${g.horizon.replace('_', ' ')}</div>
+                    <div class="goal-title">${esc(g.title)}</div>
+                    ${g.description ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">${esc(g.description)}</div>` : ''}
+                    ${g.target_date ? `<div style="font-size:10px;color:var(--text-dim);margin-top:4px;">Target: ${g.target_date}</div>` : ''}
+                    ${g.status === 'achieved' ? `<div style="font-size:10px;color:var(--accent-primary);margin-top:4px;">Achieved</div>` : ''}
+                </div>
+                ${g.children?.length ? `<div class="goal-children">${g.children.map(c => renderGoal(c, depth + 1)).join('')}</div>` : ''}
+            </div>
+        `;
+    }
+
+    el.innerHTML = data.goals.map(g => renderGoal(g)).join('');
+}
+
+async function showGoalForm() {
+    const title = prompt('Goal title:');
+    if (!title) return;
+    const horizon = prompt('Horizon (long_term, fiscal_year, monthly, immediate):', 'long_term');
+    if (!horizon) return;
+    await api(API + 'goals/', 'POST', { title, horizon });
+    loadGoals();
+}
+
+// ============================================================================
+// Init
+// ============================================================================
+
+const loaders = {
+    dashboard: loadDashboard,
+    questionnaire: loadQuestionnaire,
+    goals: loadGoals,
+    window: loadWindow,
+    routines: loadRoutines,
+    diary: loadDiary,
+};
+
+loadDashboard();
+</script>
+{% endblock %}

@@ -471,6 +471,10 @@ async function loadNotebooks() {
             <div class="nb-title" style="color:var(--accent-primary);">Front Page</div>
             <div class="nb-meta"><span style="font-size:10px;color:var(--text-dim);">Learnings &amp; themes</span></div>
         </div>
+        <a href="/app/practice/" class="nb-sidebar-item" style="text-decoration:none;border-bottom:1px solid var(--border);margin-bottom:4px;padding-bottom:8px;">
+            <div class="nb-title" style="color:#5b9bd5;">My Practice</div>
+            <div class="nb-meta"><span style="font-size:10px;color:var(--text-dim);">Harada Method</span></div>
+        </a>
     ` + notebooks.map(nb => `
         <div class="nb-sidebar-item ${currentNb?.id === nb.id ? 'active' : ''}" onclick="selectNotebook('${nb.id}')">
             <div class="nb-title">${esc(nb.title)}</div>
