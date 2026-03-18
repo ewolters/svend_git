@@ -30,17 +30,20 @@ from .models import (
     AuditFinding,
     CAPAReport,
     ControlledDocument,
+    CustomerComplaint,
     DocumentRevision,
     DocumentStatusChange,
     ElectronicSignature,
     InternalAudit,
     ManagementReview,
     ManagementReviewTemplate,
+    MeasurementEquipment,
     NCRStatusChange,
     NonconformanceRecord,
     QMSAttachment,
     QMSFieldChange,
     RCASession,
+    Risk,
     Site,
     SupplierRecord,
     SupplierStatusChange,
@@ -254,6 +257,30 @@ def iso_dashboard(request):
         status__in=["approved", "preferred", "conditional"],
     ).count()
 
+    # ---- Customer Complaint KPIs ----
+    complaints_qs = qms_queryset(CustomerComplaint, user)[0]
+    open_complaints = complaints_qs.exclude(status="closed").count()
+
+    # ---- Risk Register KPIs ----
+    risks_qs = qms_queryset(Risk, user)[0]
+    active_risks = risks_qs.exclude(status="closed")
+    high_risks = active_risks.filter(risk_score__gte=12).count()
+    risks_review_overdue = active_risks.filter(review_date__isnull=False, review_date__lt=today).count()
+
+    # ---- Calibration Equipment KPIs ----
+    equipment_qs = qms_queryset(MeasurementEquipment, user)[0]
+    cal_overdue = equipment_qs.filter(
+        next_calibration_due__isnull=False,
+        next_calibration_due__lt=today,
+        status__in=["in_service", "due"],
+    ).count()
+    cal_due_soon = equipment_qs.filter(
+        next_calibration_due__isnull=False,
+        next_calibration_due__gte=today,
+        next_calibration_due__lte=fourteen_days,
+        status="in_service",
+    ).count()
+
     # ---- Clause coverage ----
     # Determine which clauses have active records (NCRs, audits, training, docs, reviews)
     active_clauses = set()
@@ -328,6 +355,20 @@ def iso_dashboard(request):
                 "total": suppliers_qs.count(),
                 "approved": suppliers_qs.filter(status="approved").count(),
                 "eval_overdue": eval_overdue_count,
+            },
+            "complaints": {
+                "open": open_complaints,
+                "total": complaints_qs.count(),
+            },
+            "risks": {
+                "active": active_risks.count(),
+                "high_risks": high_risks,
+                "review_overdue": risks_review_overdue,
+            },
+            "calibration": {
+                "total": equipment_qs.count(),
+                "overdue": cal_overdue,
+                "due_soon": cal_due_soon,
             },
             "warnings": {
                 "major_findings_no_ncr": major_findings_no_ncr,
@@ -2673,3 +2714,326 @@ def qms_attachment_delete(request, attachment_id):
 
     attachment.delete()
     return JsonResponse({"ok": True})
+
+
+# =========================================================================
+# C1: Customer Complaints — ISO 9001 §9.1.2
+# =========================================================================
+
+
+@require_team
+@require_http_methods(["GET", "POST"])
+def complaint_list_create(request):
+    """List or create customer complaints."""
+    user = request.user
+    qs, tenant, is_admin = qms_queryset(CustomerComplaint, user)
+
+    if request.method == "GET":
+        complaints = qs.select_related("assigned_to")
+        status = request.GET.get("status")
+        if status:
+            complaints = complaints.filter(status=status)
+        severity = request.GET.get("severity")
+        if severity:
+            complaints = complaints.filter(severity=severity)
+        return JsonResponse([c.to_dict() for c in complaints[:50]], safe=False)
+
+    data = json.loads(request.body)
+    title = data.get("title", "").strip()
+    if not title:
+        return JsonResponse({"error": "Title is required"}, status=400)
+
+    complaint = CustomerComplaint(
+        title=title,
+        description=data.get("description", ""),
+        source=data.get("source", "other"),
+        severity=data.get("severity", "medium"),
+        product_service=data.get("product_service", ""),
+        customer_name=data.get("customer_name", ""),
+        customer_contact=data.get("customer_contact", ""),
+        date_received=data.get("date_received"),
+    )
+    qms_set_ownership(complaint, user)
+    if data.get("site_id"):
+        try:
+            complaint.site = Site.objects.get(id=data["site_id"])
+        except Site.DoesNotExist:
+            pass
+    complaint.save()
+    return JsonResponse(complaint.to_dict(), status=201)
+
+
+@require_team
+@require_http_methods(["GET", "PUT", "DELETE"])
+def complaint_detail(request, complaint_id):
+    """Get, update, or delete a customer complaint."""
+    qs, tenant, _is_admin = qms_queryset(CustomerComplaint, request.user)
+    try:
+        complaint = qs.get(id=complaint_id)
+    except CustomerComplaint.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    if request.method == "GET":
+        return JsonResponse(complaint.to_dict())
+
+    if not qms_can_edit(request.user, complaint, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
+
+    if request.method == "DELETE":
+        complaint.delete()
+        return JsonResponse({"ok": True})
+
+    data = json.loads(request.body)
+
+    # Status transitions with workflow enforcement
+    new_status = data.get("status")
+    if new_status and new_status != complaint.status:
+        # Pre-set fields that transitions require
+        for field in ["assigned_to", "resolution", "satisfaction_followup"]:
+            if field in data:
+                if field == "assigned_to" and data[field]:
+                    try:
+                        setattr(complaint, field, User.objects.get(id=data[field]))
+                    except User.DoesNotExist:
+                        pass
+                else:
+                    setattr(complaint, field, data[field])
+
+        ok, msg = complaint.can_transition(new_status)
+        if not ok:
+            return JsonResponse({"error": msg}, status=400)
+
+        if new_status == "acknowledged" and not complaint.date_acknowledged:
+            complaint.date_acknowledged = timezone.now().date()
+        complaint.status = new_status
+
+    # Update fields
+    for field in [
+        "title",
+        "description",
+        "source",
+        "severity",
+        "product_service",
+        "customer_name",
+        "customer_contact",
+        "root_cause",
+        "resolution",
+        "preventive_action",
+        "satisfaction_followup",
+    ]:
+        if field in data and field != "status":
+            setattr(complaint, field, data[field])
+    if "customer_satisfied" in data:
+        complaint.customer_satisfied = data["customer_satisfied"]
+    if "date_received" in data:
+        complaint.date_received = data["date_received"]
+
+    complaint.save()
+    return JsonResponse(complaint.to_dict())
+
+
+# =========================================================================
+# C2: Risk Register — ISO 9001 §6.1
+# =========================================================================
+
+
+@require_team
+@require_http_methods(["GET", "POST"])
+def risk_list_create(request):
+    """List or create risks/opportunities."""
+    user = request.user
+    qs, tenant, is_admin = qms_queryset(Risk, user)
+
+    if request.method == "GET":
+        risks = qs
+        status = request.GET.get("status")
+        if status:
+            risks = risks.filter(status=status)
+        category = request.GET.get("category")
+        if category:
+            risks = risks.filter(category=category)
+        risk_type = request.GET.get("risk_type")
+        if risk_type:
+            risks = risks.filter(risk_type=risk_type)
+        return JsonResponse([r.to_dict() for r in risks[:50]], safe=False)
+
+    data = json.loads(request.body)
+    title = data.get("title", "").strip()
+    if not title:
+        return JsonResponse({"error": "Title is required"}, status=400)
+
+    risk = Risk(
+        title=title,
+        description=data.get("description", ""),
+        risk_type=data.get("risk_type", "risk"),
+        category=data.get("category", "operational"),
+        likelihood=min(5, max(1, int(data.get("likelihood", 1)))),
+        impact=min(5, max(1, int(data.get("impact", 1)))),
+        review_frequency_months=data.get("review_frequency_months", 3),
+    )
+    qms_set_ownership(risk, user)
+    if data.get("site_id"):
+        try:
+            risk.site = Site.objects.get(id=data["site_id"])
+        except Site.DoesNotExist:
+            pass
+    if data.get("risk_owner"):
+        try:
+            risk.risk_owner = User.objects.get(id=data["risk_owner"])
+        except User.DoesNotExist:
+            pass
+    risk.save()  # auto-computes risk_score
+    return JsonResponse(risk.to_dict(), status=201)
+
+
+@require_team
+@require_http_methods(["GET", "PUT", "DELETE"])
+def risk_detail(request, risk_id):
+    """Get, update, or delete a risk."""
+    qs, tenant, _is_admin = qms_queryset(Risk, request.user)
+    try:
+        risk = qs.get(id=risk_id)
+    except Risk.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    if request.method == "GET":
+        return JsonResponse(risk.to_dict())
+
+    if not qms_can_edit(request.user, risk, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
+
+    if request.method == "DELETE":
+        risk.delete()
+        return JsonResponse({"ok": True})
+
+    data = json.loads(request.body)
+    for field in [
+        "title",
+        "description",
+        "risk_type",
+        "category",
+        "status",
+        "mitigation_actions",
+        "review_frequency_months",
+    ]:
+        if field in data:
+            setattr(risk, field, data[field])
+    for int_field in ["likelihood", "impact", "residual_likelihood", "residual_impact"]:
+        if int_field in data and data[int_field] is not None:
+            setattr(risk, int_field, min(5, max(1, int(data[int_field]))))
+    if "review_date" in data:
+        risk.review_date = data["review_date"]
+    if "risk_owner" in data:
+        try:
+            risk.risk_owner = User.objects.get(id=data["risk_owner"]) if data["risk_owner"] else None
+        except User.DoesNotExist:
+            pass
+
+    risk.save()  # auto-computes risk_score and residual_risk_score
+    return JsonResponse(risk.to_dict())
+
+
+# =========================================================================
+# C3: Calibration Equipment Register — ISO 9001 §7.1.5
+# =========================================================================
+
+
+@require_team
+@require_http_methods(["GET", "POST"])
+def equipment_list_create(request):
+    """List or create measurement equipment."""
+    user = request.user
+    qs, tenant, is_admin = qms_queryset(MeasurementEquipment, user)
+
+    if request.method == "GET":
+        equipment = qs
+        status = request.GET.get("status")
+        if status:
+            equipment = equipment.filter(status=status)
+        eq_type = request.GET.get("type")
+        if eq_type:
+            equipment = equipment.filter(equipment_type=eq_type)
+        return JsonResponse([e.to_dict() for e in equipment[:50]], safe=False)
+
+    data = json.loads(request.body)
+    name = data.get("name", "").strip()
+    if not name:
+        return JsonResponse({"error": "Name is required"}, status=400)
+
+    eq = MeasurementEquipment(
+        name=name,
+        asset_id=data.get("asset_id", ""),
+        serial_number=data.get("serial_number", ""),
+        manufacturer=data.get("manufacturer", ""),
+        model_number=data.get("model_number", ""),
+        equipment_type=data.get("equipment_type", "other"),
+        location=data.get("location", ""),
+        calibration_interval_months=data.get("calibration_interval_months", 12),
+        last_calibration_date=data.get("last_calibration_date"),
+        next_calibration_due=data.get("next_calibration_due"),
+        calibration_provider=data.get("calibration_provider", ""),
+        measurement_range=data.get("measurement_range", ""),
+        resolution=data.get("resolution", ""),
+        accuracy=data.get("accuracy", ""),
+        notes=data.get("notes", ""),
+    )
+    qms_set_ownership(eq, user)
+    if data.get("site_id"):
+        try:
+            eq.site = Site.objects.get(id=data["site_id"])
+        except Site.DoesNotExist:
+            pass
+    eq.save()
+    return JsonResponse(eq.to_dict(), status=201)
+
+
+@require_team
+@require_http_methods(["GET", "PUT", "DELETE"])
+def equipment_detail(request, equipment_id):
+    """Get, update, or delete measurement equipment."""
+    qs, tenant, _is_admin = qms_queryset(MeasurementEquipment, request.user)
+    try:
+        eq = qs.get(id=equipment_id)
+    except MeasurementEquipment.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    if request.method == "GET":
+        return JsonResponse(eq.to_dict())
+
+    if not qms_can_edit(request.user, eq, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
+
+    if request.method == "DELETE":
+        eq.delete()
+        return JsonResponse({"ok": True})
+
+    data = json.loads(request.body)
+    for field in [
+        "name",
+        "asset_id",
+        "serial_number",
+        "manufacturer",
+        "model_number",
+        "equipment_type",
+        "location",
+        "status",
+        "calibration_provider",
+        "calibration_certificate",
+        "measurement_range",
+        "resolution",
+        "accuracy",
+        "notes",
+    ]:
+        if field in data:
+            setattr(eq, field, data[field])
+    if "calibration_interval_months" in data:
+        eq.calibration_interval_months = data["calibration_interval_months"]
+    if "last_calibration_date" in data:
+        eq.last_calibration_date = data["last_calibration_date"]
+    if "next_calibration_due" in data:
+        eq.next_calibration_due = data["next_calibration_due"]
+    if "gage_studies" in data:
+        eq.gage_studies = data["gage_studies"]
+
+    eq.save()
+    return JsonResponse(eq.to_dict())

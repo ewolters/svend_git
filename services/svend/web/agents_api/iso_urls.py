@@ -49,6 +49,15 @@ urlpatterns = [
     path("signatures/", iso_views.signature_list_or_sign, name="iso_signatures"),
     path("signatures/<uuid:sig_id>/verify/", iso_views.signature_verify, name="iso_signature_verify"),
     path("signatures/verify-chain/", iso_views.signature_verify_chain, name="iso_signature_verify_chain"),
+    # Customer Complaints (clause 9.1.2)
+    path("complaints/", iso_views.complaint_list_create, name="iso_complaint_list"),
+    path("complaints/<uuid:complaint_id>/", iso_views.complaint_detail, name="iso_complaint_detail"),
+    # Risk Register (clause 6.1)
+    path("risks/", iso_views.risk_list_create, name="iso_risk_list"),
+    path("risks/<uuid:risk_id>/", iso_views.risk_detail, name="iso_risk_detail"),
+    # Calibration Equipment (clause 7.1.5)
+    path("equipment/", iso_views.equipment_list_create, name="iso_equipment_list"),
+    path("equipment/<uuid:equipment_id>/", iso_views.equipment_detail, name="iso_equipment_detail"),
     # Study Output Actions (Phase 7) — QMS routing from Studies
     path("study-actions/raise-ncr/", iso_views.study_raise_ncr, name="iso_study_raise_ncr"),
     path("study-actions/raise-capa/", iso_views.study_raise_capa, name="iso_study_raise_capa"),

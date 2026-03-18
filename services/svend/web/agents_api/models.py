@@ -4640,6 +4640,374 @@ class QMSFieldChange(models.Model):
         }
 
 
+# =========================================================================
+# C1: Customer Complaint Register — ISO 9001 §9.1.2
+# =========================================================================
+
+
+class CustomerComplaint(models.Model):
+    """Customer complaint tracking per ISO 9001 §9.1.2.
+
+    Tracks complaints through investigation to resolution with customer
+    satisfaction follow-up. Links to NCR and CAPA for closed-loop action.
+    """
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        ACKNOWLEDGED = "acknowledged", "Acknowledged"
+        INVESTIGATING = "investigating", "Investigating"
+        RESOLVED = "resolved", "Resolved"
+        CLOSED = "closed", "Closed"
+
+    class Source(models.TextChoices):
+        PHONE = "phone", "Phone"
+        EMAIL = "email", "Email"
+        WEB = "web", "Web Form"
+        FIELD = "field", "Field Report"
+        SOCIAL = "social", "Social Media"
+        RETURN = "return", "Product Return"
+        OTHER = "other", "Other"
+
+    TRANSITIONS = {
+        "open": {"acknowledged"},
+        "acknowledged": {"open", "investigating"},
+        "investigating": {"acknowledged", "resolved"},
+        "resolved": {"investigating", "closed"},
+        "closed": {"resolved"},
+    }
+    TRANSITION_REQUIRES = {
+        "acknowledged": ["assigned_to"],
+        "resolved": ["resolution"],
+        "closed": ["satisfaction_followup"],
+    }
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="complaints"
+    )
+    site = models.ForeignKey(
+        "agents_api.Site", on_delete=models.SET_NULL, null=True, blank=True, related_name="complaints"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="complaints_created"
+    )
+    title = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    source = models.CharField(max_length=20, choices=Source.choices, default=Source.OTHER)
+    severity = models.CharField(
+        max_length=20,
+        choices=[("low", "Low"), ("medium", "Medium"), ("high", "High"), ("critical", "Critical")],
+        default="medium",
+    )
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
+    product_service = models.CharField(max_length=300, blank=True, help_text="Product or service complained about")
+    customer_name = models.CharField(max_length=300, blank=True)
+    customer_contact = models.CharField(max_length=300, blank=True, help_text="Email or phone")
+    date_received = models.DateField(null=True, blank=True)
+    date_acknowledged = models.DateField(null=True, blank=True)
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_complaints"
+    )
+    root_cause = models.TextField(blank=True)
+    resolution = models.TextField(blank=True)
+    preventive_action = models.TextField(blank=True)
+    satisfaction_followup = models.TextField(blank=True, help_text="Customer satisfaction check after resolution")
+    customer_satisfied = models.BooleanField(null=True, blank=True)
+    # Cross-tool links
+    ncr = models.ForeignKey(
+        "agents_api.NonconformanceRecord", on_delete=models.SET_NULL, null=True, blank=True, related_name="complaints"
+    )
+    capa = models.ForeignKey(
+        "agents_api.CAPAReport", on_delete=models.SET_NULL, null=True, blank=True, related_name="complaints"
+    )
+    project = models.ForeignKey(
+        "core.Project", on_delete=models.SET_NULL, null=True, blank=True, related_name="complaints"
+    )
+    iso_clause = models.CharField(max_length=20, blank=True, default="9.1.2")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "iso_customer_complaints"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Complaint: {self.title}"
+
+    def can_transition(self, new_status):
+        """Check if transition is valid and requirements are met."""
+        allowed = self.TRANSITIONS.get(self.status, set())
+        if new_status not in allowed:
+            return False, f"Cannot transition from '{self.status}' to '{new_status}'"
+        for field in self.TRANSITION_REQUIRES.get(new_status, []):
+            val = getattr(self, field, None)
+            if val is None:
+                return False, f"'{field}' is required to transition to '{new_status}'"
+            if isinstance(val, str) and not val.strip():
+                return False, f"'{field}' is required to transition to '{new_status}'"
+        return True, ""
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "title": self.title,
+            "description": self.description,
+            "source": self.source,
+            "severity": self.severity,
+            "status": self.status,
+            "product_service": self.product_service,
+            "customer_name": self.customer_name,
+            "customer_contact": self.customer_contact,
+            "date_received": str(self.date_received) if self.date_received else None,
+            "date_acknowledged": str(self.date_acknowledged) if self.date_acknowledged else None,
+            "assigned_to": None,
+            "root_cause": self.root_cause,
+            "resolution": self.resolution,
+            "preventive_action": self.preventive_action,
+            "satisfaction_followup": self.satisfaction_followup,
+            "customer_satisfied": self.customer_satisfied,
+            "ncr_id": str(self.ncr_id) if self.ncr_id else None,
+            "capa_id": str(self.capa_id) if self.capa_id else None,
+            "project_id": str(self.project_id) if self.project_id else None,
+            "site_id": str(self.site_id) if self.site_id else None,
+            "iso_clause": self.iso_clause,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+# =========================================================================
+# C2: Risk Register — ISO 9001 §6.1
+# =========================================================================
+
+
+class Risk(models.Model):
+    """Organizational risk and opportunity register per ISO 9001 §6.1.
+
+    Tracks risks through identification, assessment, mitigation, and review.
+    Separate from FMEA (product/process risk) — this covers organizational,
+    compliance, strategic, and operational risks.
+    """
+
+    class Category(models.TextChoices):
+        OPERATIONAL = "operational", "Operational"
+        QUALITY = "quality", "Quality"
+        COMPLIANCE = "compliance", "Compliance"
+        STRATEGIC = "strategic", "Strategic"
+        SAFETY = "safety", "Safety"
+        FINANCIAL = "financial", "Financial"
+        SUPPLY_CHAIN = "supply_chain", "Supply Chain"
+
+    class Status(models.TextChoices):
+        IDENTIFIED = "identified", "Identified"
+        ASSESSING = "assessing", "Assessing"
+        MITIGATING = "mitigating", "Mitigating"
+        ACCEPTED = "accepted", "Accepted"
+        CLOSED = "closed", "Closed"
+
+    class RiskType(models.TextChoices):
+        RISK = "risk", "Risk"
+        OPPORTUNITY = "opportunity", "Opportunity"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="risks"
+    )
+    site = models.ForeignKey("agents_api.Site", on_delete=models.SET_NULL, null=True, blank=True, related_name="risks")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="risks_created"
+    )
+    title = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    risk_type = models.CharField(max_length=20, choices=RiskType.choices, default=RiskType.RISK)
+    category = models.CharField(max_length=20, choices=Category.choices, default=Category.OPERATIONAL)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.IDENTIFIED)
+    likelihood = models.IntegerField(
+        default=1, validators=[MinValueValidator(1), MaxValueValidator(5)], help_text="1=Rare, 5=Almost certain"
+    )
+    impact = models.IntegerField(
+        default=1, validators=[MinValueValidator(1), MaxValueValidator(5)], help_text="1=Negligible, 5=Catastrophic"
+    )
+    risk_score = models.IntegerField(default=1, help_text="likelihood × impact (computed)")
+    risk_owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="owned_risks"
+    )
+    mitigation_actions = models.JSONField(
+        default=list, blank=True, help_text='[{"action": str, "owner": str, "due_date": str, "status": str}]'
+    )
+    residual_likelihood = models.IntegerField(
+        null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
+    residual_impact = models.IntegerField(
+        null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
+    residual_risk_score = models.IntegerField(null=True, blank=True)
+    review_date = models.DateField(null=True, blank=True, help_text="Next scheduled review")
+    review_frequency_months = models.IntegerField(default=3, help_text="How often to review this risk")
+    iso_clause = models.CharField(max_length=20, blank=True, default="6.1")
+    # Cross-tool links
+    fmea = models.ForeignKey("agents_api.FMEA", on_delete=models.SET_NULL, null=True, blank=True, related_name="risks")
+    project = models.ForeignKey("core.Project", on_delete=models.SET_NULL, null=True, blank=True, related_name="risks")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "iso_risks"
+        ordering = ["-risk_score", "-created_at"]
+
+    def __str__(self):
+        return f"Risk: {self.title} (score={self.risk_score})"
+
+    def save(self, *args, **kwargs):
+        self.risk_score = self.likelihood * self.impact
+        if self.residual_likelihood and self.residual_impact:
+            self.residual_risk_score = self.residual_likelihood * self.residual_impact
+        super().save(*args, **kwargs)
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "title": self.title,
+            "description": self.description,
+            "risk_type": self.risk_type,
+            "category": self.category,
+            "status": self.status,
+            "likelihood": self.likelihood,
+            "impact": self.impact,
+            "risk_score": self.risk_score,
+            "risk_owner": None,
+            "mitigation_actions": self.mitigation_actions,
+            "residual_likelihood": self.residual_likelihood,
+            "residual_impact": self.residual_impact,
+            "residual_risk_score": self.residual_risk_score,
+            "review_date": str(self.review_date) if self.review_date else None,
+            "review_frequency_months": self.review_frequency_months,
+            "iso_clause": self.iso_clause,
+            "fmea_id": str(self.fmea_id) if self.fmea_id else None,
+            "project_id": str(self.project_id) if self.project_id else None,
+            "site_id": str(self.site_id) if self.site_id else None,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+# =========================================================================
+# C3: Calibration Equipment Register — ISO 9001 §7.1.5
+# =========================================================================
+
+
+class MeasurementEquipment(models.Model):
+    """Measurement equipment register per ISO 9001 §7.1.5.2.
+
+    Tracks calibration status, schedules, and links to Gage R&R studies.
+    """
+
+    class Status(models.TextChoices):
+        IN_SERVICE = "in_service", "In Service"
+        DUE = "due", "Calibration Due"
+        OVERDUE = "overdue", "Overdue"
+        OUT_OF_CAL = "out_of_calibration", "Out of Calibration"
+        OUT_OF_SERVICE = "out_of_service", "Out of Service"
+        RETIRED = "retired", "Retired"
+
+    class EquipmentType(models.TextChoices):
+        DIMENSIONAL = "dimensional", "Dimensional"
+        FORCE_TORQUE = "force_torque", "Force/Torque"
+        TEMPERATURE = "temperature", "Temperature"
+        PRESSURE = "pressure", "Pressure"
+        ELECTRICAL = "electrical", "Electrical"
+        MASS = "mass", "Mass/Weight"
+        OPTICAL = "optical", "Optical"
+        CHEMICAL = "chemical", "Chemical"
+        OTHER = "other", "Other"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="equipment"
+    )
+    site = models.ForeignKey(
+        "agents_api.Site", on_delete=models.SET_NULL, null=True, blank=True, related_name="equipment"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="equipment_created"
+    )
+    name = models.CharField(max_length=300)
+    asset_id = models.CharField(max_length=100, blank=True, help_text="Internal asset tag")
+    serial_number = models.CharField(max_length=100, blank=True)
+    manufacturer = models.CharField(max_length=200, blank=True)
+    model_number = models.CharField(max_length=200, blank=True)
+    equipment_type = models.CharField(max_length=20, choices=EquipmentType.choices, default=EquipmentType.OTHER)
+    location = models.CharField(max_length=300, blank=True)
+    status = models.CharField(max_length=25, choices=Status.choices, default=Status.IN_SERVICE)
+    # Calibration tracking
+    calibration_interval_months = models.IntegerField(default=12)
+    last_calibration_date = models.DateField(null=True, blank=True)
+    next_calibration_due = models.DateField(null=True, blank=True)
+    calibration_provider = models.CharField(max_length=300, blank=True)
+    calibration_certificate = models.CharField(max_length=300, blank=True, help_text="Certificate number or reference")
+    measurement_range = models.CharField(max_length=200, blank=True, help_text="e.g. 0-25mm, 0-100°C")
+    resolution = models.CharField(max_length=100, blank=True, help_text="e.g. 0.001mm, 0.1°C")
+    accuracy = models.CharField(max_length=100, blank=True, help_text="e.g. ±0.002mm")
+    # Gage R&R link
+    gage_studies = models.JSONField(default=list, blank=True, help_text="List of DSWResult IDs from Gage R&R studies")
+    notes = models.TextField(blank=True)
+    iso_clause = models.CharField(max_length=20, blank=True, default="7.1.5")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "iso_measurement_equipment"
+        ordering = ["next_calibration_due", "name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.asset_id or self.serial_number or 'no ID'})"
+
+    @property
+    def is_overdue(self):
+        from datetime import date
+
+        if self.next_calibration_due:
+            return self.next_calibration_due < date.today()
+        return False
+
+    @property
+    def is_due_soon(self):
+        from datetime import date, timedelta
+
+        if self.next_calibration_due:
+            return self.next_calibration_due <= date.today() + timedelta(days=30)
+        return False
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "name": self.name,
+            "asset_id": self.asset_id,
+            "serial_number": self.serial_number,
+            "manufacturer": self.manufacturer,
+            "model_number": self.model_number,
+            "equipment_type": self.equipment_type,
+            "location": self.location,
+            "status": self.status,
+            "calibration_interval_months": self.calibration_interval_months,
+            "last_calibration_date": str(self.last_calibration_date) if self.last_calibration_date else None,
+            "next_calibration_due": str(self.next_calibration_due) if self.next_calibration_due else None,
+            "calibration_provider": self.calibration_provider,
+            "calibration_certificate": self.calibration_certificate,
+            "measurement_range": self.measurement_range,
+            "resolution": self.resolution,
+            "accuracy": self.accuracy,
+            "gage_studies": self.gage_studies,
+            "notes": self.notes,
+            "is_overdue": self.is_overdue,
+            "is_due_soon": self.is_due_soon,
+            "site_id": str(self.site_id) if self.site_id else None,
+            "iso_clause": self.iso_clause,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
 class AuditChecklist(models.Model):
     """Reusable audit checklist template."""
 
