@@ -466,15 +466,20 @@ class NotificationTokenViewTests(TestCase):
     def test_get_valid_token(self):
         resp = self.client.get(f"/ntf/{self.tok.token}/")
         self.assertEqual(resp.status_code, 200)
-        data = resp.json()
-        self.assertIn("token", data)
-        self.assertIn("notification", data)
-        self.assertEqual(data["notification"]["title"], "CAPA needs attention")
+        self.assertEqual(resp["Content-Type"], "text/html")
+        content = resp.content.decode()
+        self.assertIn("CAPA needs attention", content)
+        self.assertIn("Status changed.", content)
+        self.assertIn("Acknowledge", content)
+        self.assertIn("<form", content)
 
     def test_post_acknowledges_and_marks_read(self):
-        resp = _post(self.client, f"/ntf/{self.tok.token}/")
+        resp = self.client.post(f"/ntf/{self.tok.token}/")
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(resp.json()["ok"])
+        self.assertEqual(resp["Content-Type"], "text/html")
+        content = resp.content.decode()
+        self.assertIn("Acknowledged", content)
+        self.assertIn("CAPA needs attention", content)
         self.tok.refresh_from_db()
         self.assertIsNotNone(self.tok.used_at)
         self.notif.refresh_from_db()
@@ -485,11 +490,15 @@ class NotificationTokenViewTests(TestCase):
         self.tok.save(update_fields=["expires_at"])
         resp = self.client.get(f"/ntf/{self.tok.token}/")
         self.assertEqual(resp.status_code, 410)
+        self.assertEqual(resp["Content-Type"], "text/html")
+        self.assertIn("expired", resp.content.decode())
 
     def test_post_used_token_410(self):
         self.tok.use()
-        resp = _post(self.client, f"/ntf/{self.tok.token}/")
+        resp = self.client.post(f"/ntf/{self.tok.token}/")
         self.assertEqual(resp.status_code, 410)
+        self.assertEqual(resp["Content-Type"], "text/html")
+        self.assertIn("already been used", resp.content.decode())
 
     def test_invalid_token_404(self):
         resp = self.client.get("/ntf/nonexistent-token-value/")
