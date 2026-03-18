@@ -571,34 +571,121 @@ function showToast(msg) {
 // ============================================================================
 
 async function loadRoutines() {
-    const { data } = await api(API + 'routines/');
     const el = document.getElementById('routines-content');
+    const streakEl = document.getElementById('routines-streak');
 
-    if (!data.routines?.length) {
+    // Get routines list (today)
+    const { data: todayData } = await api(API + 'routines/');
+    const routines = todayData.routines || [];
+
+    if (!routines.length) {
         el.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">No routines yet. Add routine cells to your 64-Window to start tracking.</div>';
+        streakEl.innerHTML = '';
         return;
     }
 
-    el.innerHTML = data.routines.map(r => `
-        <div class="routine-item">
-            <input type="checkbox" class="routine-check" ${r.is_completed ? 'checked' : ''}
-                onchange="toggleRoutine('${r.window_cell_id}', this.checked)">
-            <span class="routine-text ${r.is_completed ? 'done' : ''}">${esc(r.text)}</span>
+    // Get 30 days of history
+    const { data: hist } = await api(API + 'routines/history/?days=30');
+
+    // Build date columns (last 30 days)
+    const dates = [];
+    const today = new Date();
+    for (let i = 29; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        dates.push(d.toISOString().slice(0, 10));
+    }
+
+    // Build check lookup: {date: {cell_id: true/false}}
+    // We need per-routine per-day data — the history endpoint gives aggregates
+    // So fetch each date's routine data (we'll batch this with today's + history)
+    const checkMap = {};
+    const histDays = hist.days || [];
+    histDays.forEach(d => { checkMap[d.date] = d; });
+
+    // For the bowler we need per-routine-per-day. Let's use today's data structure
+    // and fetch all checks for the 30-day window
+    const allChecks = {};
+    for (const r of routines) {
+        allChecks[r.window_cell_id] = {};
+    }
+
+    // Fetch checks for each routine across 30 days via individual date queries
+    // This is expensive — but for now with few routines it's acceptable
+    // TODO: add a bulk endpoint for this
+    const startDate = dates[0];
+    for (const dateStr of dates) {
+        try {
+            const { data: dayData } = await api(API + 'routines/?date=' + dateStr);
+            (dayData.routines || []).forEach(r => {
+                if (!allChecks[r.window_cell_id]) allChecks[r.window_cell_id] = {};
+                allChecks[r.window_cell_id][dateStr] = r.is_completed;
+            });
+        } catch (e) {}
+    }
+
+    // Render bowler grid
+    const dayHeaders = dates.map(d => {
+        const dt = new Date(d + 'T12:00:00');
+        const isToday = d === today.toISOString().slice(0, 10);
+        return `<div style="writing-mode:vertical-lr;transform:rotate(180deg);font-size:8px;padding:2px;text-align:center;color:${isToday ? 'var(--accent-primary)' : 'var(--text-dim)'};font-weight:${isToday ? '700' : '400'};">${dt.getDate()}/${dt.getMonth()+1}</div>`;
+    }).join('');
+
+    const routineRows = routines.map(r => {
+        const checks = allChecks[r.window_cell_id] || {};
+        const goalDays = dates.length;
+        const actualDays = dates.filter(d => checks[d]).length;
+        const pct = goalDays > 0 ? Math.round((actualDays / goalDays) * 100) : 0;
+
+        const cells = dates.map(d => {
+            const done = checks[d] || false;
+            const isToday = d === today.toISOString().slice(0, 10);
+            const border = isToday ? 'border:2px solid var(--accent-primary);' : '';
+            return `<div onclick="toggleRoutineDay('${r.window_cell_id}', '${d}', ${!done})"
+                style="width:18px;height:18px;border-radius:3px;cursor:pointer;${border}
+                background:${done ? 'var(--accent-primary)' : 'var(--bg-secondary)'};
+                ${done ? '' : 'border:1px solid var(--border);'}"
+                title="${d}: ${done ? 'Done' : 'Not done'}"></div>`;
+        }).join('');
+
+        return `
+            <div style="display:contents;">
+                <div style="font-size:11px;color:var(--text-secondary);padding:4px 8px 4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;" title="${esc(r.text)}">${esc(r.text)}</div>
+                <div style="font-size:10px;color:var(--text-dim);text-align:center;padding:4px 4px;">${actualDays}</div>
+                <div style="font-size:10px;color:${pct >= 80 ? 'var(--accent-primary)' : pct >= 50 ? '#e89547' : '#e07060'};text-align:center;padding:4px 4px;font-weight:600;">${pct}%</div>
+                ${cells}
+            </div>
+        `;
+    }).join('');
+
+    el.innerHTML = `
+        <div style="overflow-x:auto;">
+            <div style="display:grid;grid-template-columns:150px 30px 36px repeat(${dates.length}, 18px);gap:2px;align-items:center;">
+                <div style="font-size:10px;font-weight:600;color:var(--text-dim);">Routine</div>
+                <div style="font-size:8px;color:var(--text-dim);text-align:center;">Act</div>
+                <div style="font-size:8px;color:var(--text-dim);text-align:center;">%</div>
+                ${dayHeaders}
+                ${routineRows}
+            </div>
         </div>
-    `).join('');
+    `;
 
     // Streak
-    const { data: hist } = await api(API + 'routines/history/?days=7');
-    document.getElementById('routines-streak').innerHTML = `
-        <div class="hr-card" style="text-align:center;">
-            <div style="font-size:2rem;font-weight:700;color:var(--accent-primary);">${hist.streak}</div>
-            <div style="font-size:11px;color:var(--text-dim);">day streak</div>
+    streakEl.innerHTML = `
+        <div style="display:flex;gap:16px;align-items:center;margin-top:12px;">
+            <div style="text-align:center;">
+                <div style="font-size:2rem;font-weight:700;color:var(--accent-primary);">${hist.streak}</div>
+                <div style="font-size:10px;color:var(--text-dim);">day streak</div>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);">
+                ${routines.length} routine${routines.length !== 1 ? 's' : ''} tracked over 30 days
+            </div>
         </div>
     `;
 }
 
-async function toggleRoutine(cellId, completed) {
-    await api(API + 'routines/', 'POST', { window_cell_id: cellId, is_completed: completed });
+async function toggleRoutineDay(cellId, dateStr, completed) {
+    await api(API + 'routines/', 'POST', { window_cell_id: cellId, date: dateStr, is_completed: completed });
     loadRoutines();
 }
 
