@@ -587,7 +587,7 @@ async function loadRoutines() {
     // Get 30 days of history
     const { data: hist } = await api(API + 'routines/history/?days=30');
 
-    // Build date columns (last 30 days)
+    // Build date columns (last 30 days, oldest → newest, today on right)
     const dates = [];
     const today = new Date();
     for (let i = 29; i >= 0; i--) {
@@ -595,6 +595,7 @@ async function loadRoutines() {
         d.setDate(d.getDate() - i);
         dates.push(d.toISOString().slice(0, 10));
     }
+    // dates[0] = 30 days ago, dates[29] = today — left to right chronological
 
     // Build check lookup: {date: {cell_id: true/false}}
     // We need per-routine per-day data — the history endpoint gives aggregates
@@ -625,10 +626,12 @@ async function loadRoutines() {
     }
 
     // Render bowler grid
+    const todayStr = today.toISOString().slice(0, 10);
     const dayHeaders = dates.map(d => {
         const dt = new Date(d + 'T12:00:00');
-        const isToday = d === today.toISOString().slice(0, 10);
-        return `<div style="writing-mode:vertical-lr;transform:rotate(180deg);font-size:8px;padding:2px;text-align:center;color:${isToday ? 'var(--accent-primary)' : 'var(--text-dim)'};font-weight:${isToday ? '700' : '400'};">${dt.getDate()}/${dt.getMonth()+1}</div>`;
+        const isToday = d === todayStr;
+        const day = dt.getDate();
+        return `<div style="font-size:10px;text-align:center;padding:2px 0;color:${isToday ? 'var(--accent-primary)' : 'var(--text-dim)'};font-weight:${isToday ? '700' : '400'};">${day}</div>`;
     }).join('');
 
     const routineRows = routines.map(r => {
@@ -639,10 +642,10 @@ async function loadRoutines() {
 
         const cells = dates.map(d => {
             const done = checks[d] || false;
-            const isToday = d === today.toISOString().slice(0, 10);
+            const isToday = d === todayStr;
             const border = isToday ? 'border:2px solid var(--accent-primary);' : '';
             return `<div onclick="toggleRoutineDay('${r.window_cell_id}', '${d}', ${!done})"
-                style="width:18px;height:18px;border-radius:3px;cursor:pointer;${border}
+                style="width:22px;height:22px;border-radius:3px;cursor:pointer;${border}
                 background:${done ? 'var(--accent-primary)' : 'var(--bg-secondary)'};
                 ${done ? '' : 'border:1px solid var(--border);'}"
                 title="${d}: ${done ? 'Done' : 'Not done'}"></div>`;
@@ -650,9 +653,9 @@ async function loadRoutines() {
 
         return `
             <div style="display:contents;">
-                <div style="font-size:11px;color:var(--text-secondary);padding:4px 8px 4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;" title="${esc(r.text)}">${esc(r.text)}</div>
-                <div style="font-size:10px;color:var(--text-dim);text-align:center;padding:4px 4px;">${actualDays}</div>
-                <div style="font-size:10px;color:${pct >= 80 ? 'var(--accent-primary)' : pct >= 50 ? '#e89547' : '#e07060'};text-align:center;padding:4px 4px;font-weight:600;">${pct}%</div>
+                <div style="font-size:13px;color:var(--text-secondary);padding:4px 8px 4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;" title="${esc(r.text)}">${esc(r.text)}</div>
+                <div style="font-size:12px;color:var(--text-dim);text-align:center;padding:4px 4px;">${actualDays}</div>
+                <div style="font-size:12px;color:${pct >= 80 ? 'var(--accent-primary)' : pct >= 50 ? '#e89547' : '#e07060'};text-align:center;padding:4px 4px;font-weight:600;">${pct}%</div>
                 ${cells}
             </div>
         `;
@@ -660,10 +663,10 @@ async function loadRoutines() {
 
     el.innerHTML = `
         <div style="overflow-x:auto;">
-            <div style="display:grid;grid-template-columns:150px 30px 36px repeat(${dates.length}, 18px);gap:2px;align-items:center;">
-                <div style="font-size:10px;font-weight:600;color:var(--text-dim);">Routine</div>
-                <div style="font-size:8px;color:var(--text-dim);text-align:center;">Act</div>
-                <div style="font-size:8px;color:var(--text-dim);text-align:center;">%</div>
+            <div style="display:grid;grid-template-columns:180px 36px 40px repeat(${dates.length}, 22px);gap:3px;align-items:center;">
+                <div style="font-size:11px;font-weight:600;color:var(--text-dim);">Routine</div>
+                <div style="font-size:10px;color:var(--text-dim);text-align:center;">Act</div>
+                <div style="font-size:10px;color:var(--text-dim);text-align:center;">%</div>
                 ${dayHeaders}
                 ${routineRows}
             </div>
