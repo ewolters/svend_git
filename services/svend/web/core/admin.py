@@ -3,21 +3,28 @@
 from django.contrib import admin
 
 from .models import (
+    DailyDiary,
     Dataset,
     Evidence,
     EvidenceLink,
     ExperimentDesign,
+    HaradaGoal,
     Hypothesis,
     Membership,
     Notebook,
     NotebookPage,
     OrgInvitation,
     Project,
+    QuestionDimension,
+    QuestionnaireResponse,
+    RoutineCheck,
+    Scenario,
     StudentEnrollment,
     Tenant,
     TrainingCenter,
     TrainingProgram,
     Trial,
+    Window64,
     Yokoten,
 )
 
@@ -214,3 +221,68 @@ class StudentEnrollmentAdmin(admin.ModelAdmin):
     list_filter = ["status"]
     search_fields = ["user__email", "program__title"]
     readonly_fields = ["id", "enrolled_at"]
+
+
+# ---------------------------------------------------------------------------
+# Harada Method models
+# ---------------------------------------------------------------------------
+
+
+class ScenarioInline(admin.TabularInline):
+    model = Scenario
+    extra = 0
+    fields = [
+        "scenario_key",
+        "situation",
+        "option_a_label",
+        "option_b_label",
+        "option_c_label",
+        "option_d_label",
+        "is_active",
+    ]
+
+
+@admin.register(QuestionDimension)
+class QuestionDimensionAdmin(admin.ModelAdmin):
+    list_display = ["dimension_number", "instrument", "name", "category", "response_type"]
+    list_filter = ["instrument", "category", "response_type"]
+    ordering = ["instrument", "dimension_number"]
+    inlines = [ScenarioInline]
+
+
+@admin.register(QuestionnaireResponse)
+class QuestionnaireResponseAdmin(admin.ModelAdmin):
+    list_display = ["user", "dimension", "score", "option_chosen", "instrument_version", "timestamp"]
+    list_filter = ["dimension__instrument", "instrument_version"]
+    search_fields = ["user__email"]
+    readonly_fields = ["id", "timestamp"]
+
+
+@admin.register(HaradaGoal)
+class HaradaGoalAdmin(admin.ModelAdmin):
+    list_display = ["title", "user", "horizon", "status", "target_date"]
+    list_filter = ["horizon", "status"]
+    search_fields = ["title", "user__email"]
+    readonly_fields = ["id", "created_at", "updated_at"]
+
+
+@admin.register(Window64)
+class Window64Admin(admin.ModelAdmin):
+    list_display = ["text", "user", "goal_number", "position", "cell_type", "is_completed"]
+    list_filter = ["cell_type", "is_completed", "goal_number"]
+    search_fields = ["text", "user__email"]
+
+
+@admin.register(RoutineCheck)
+class RoutineCheckAdmin(admin.ModelAdmin):
+    list_display = ["window_cell", "user", "date", "is_completed"]
+    list_filter = ["is_completed", "date"]
+    search_fields = ["user__email"]
+
+
+@admin.register(DailyDiary)
+class DailyDiaryAdmin(admin.ModelAdmin):
+    list_display = ["user", "date", "total_score", "daily_phrase"]
+    list_filter = ["date"]
+    search_fields = ["user__email"]
+    readonly_fields = ["id", "created_at", "updated_at"]

@@ -10,6 +10,15 @@ This module contains the foundational models:
 """
 
 from .graph import Entity, KnowledgeGraph, Relationship
+from .harada import (
+    DailyDiary,
+    HaradaGoal,
+    QuestionDimension,
+    QuestionnaireResponse,
+    RoutineCheck,
+    Scenario,
+    Window64,
+)
 from .hypothesis import Evidence, EvidenceLink, Hypothesis
 from .investigation import Investigation, InvestigationMembership, InvestigationToolLink
 from .measurement import GageStudy, MeasurementSystem
@@ -67,4 +76,12 @@ __all__ = [
     "Yokoten",
     "YokotenAdoption",
     "FrontPageDigest",
+    # Harada Method
+    "QuestionDimension",
+    "Scenario",
+    "QuestionnaireResponse",
+    "HaradaGoal",
+    "Window64",
+    "RoutineCheck",
+    "DailyDiary",
 ]
