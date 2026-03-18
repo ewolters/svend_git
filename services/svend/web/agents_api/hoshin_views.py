@@ -1468,6 +1468,14 @@ def list_create_commitments(request):
         hours_per_day=data.get("hours_per_day", 8),
         requested_by=request.user,
     )
+    # Notify the assigned employee (NTF-001 / QMS-002)
+    try:
+        from agents_api.commitment_notifications import notify_commitment_requested
+
+        notify_commitment_requested(commitment)
+    except Exception:
+        logger.exception("Failed to send commitment notification for %s", commitment.id)
+
     result = commitment.to_dict()
     if conflict_data:
         result["conflicts"] = conflict_data
@@ -1501,6 +1509,8 @@ def commitment_detail(request, commitment_id):
     except (json.JSONDecodeError, ValueError):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
+    old_status = commitment.status
+
     if "status" in data:
         new_status = data["status"]
         valid = ResourceCommitment.VALID_TRANSITIONS.get(commitment.status, set())
@@ -1523,6 +1533,16 @@ def commitment_detail(request, commitment_id):
         commitment.end_date = date.fromisoformat(data["end_date"])
 
     commitment.save()
+
+    # Notify requester on confirm/decline (NTF-001 / QMS-002)
+    if commitment.status in ("confirmed", "declined") and old_status != commitment.status:
+        try:
+            from agents_api.commitment_notifications import notify_commitment_response
+
+            notify_commitment_response(commitment, old_status)
+        except Exception:
+            logger.exception("Failed to send commitment response notification")
+
     return JsonResponse(commitment.to_dict())
 
 

@@ -56,6 +56,7 @@ _ENTITY_URLS = {
     "fmea": "/app/fmea/{id}/",
     "action": "/app/qms/#action-{id}",
     "signature": "/app/qms/#sig-{id}",
+    "hoshin_project": "/app/hoshin/",
 }
 
 

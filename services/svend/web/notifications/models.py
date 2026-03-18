@@ -28,6 +28,10 @@ class NotificationType(models.TextChoices):
     INCIDENT_CREATED = "incident_created", "Incident Created"
     INCIDENT_ESCALATED = "incident_escalated", "Incident Escalated"
     INCIDENT_RESOLVED = "incident_resolved", "Incident Resolved"
+    # Resource Commitments (QMS-002)
+    COMMITMENT_REQUESTED = "commitment_requested", "Commitment Requested"
+    COMMITMENT_CONFIRMED = "commitment_confirmed", "Commitment Confirmed"
+    COMMITMENT_DECLINED = "commitment_declined", "Commitment Declined"
     # Harada Method
     ROUTINE_REMINDER = "routine_reminder", "Routine Reminder"
     ROUTINE_STREAK = "routine_streak", "Routine Streak"

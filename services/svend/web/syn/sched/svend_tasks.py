@@ -97,6 +97,19 @@ def register_svend_tasks():
         max_attempts=2,
     )
 
+    # ---- agents_api/commitment_tasks.py handler ----
+
+    from agents_api.commitment_tasks import send_commitment_request_email_task
+
+    TaskRegistry.register(
+        task_name="agents_api.send_commitment_request_email",
+        handler=send_commitment_request_email_task,
+        queue=QueueType.CORE,
+        priority=TaskPriority.NORMAL,
+        timeout_seconds=30,
+        max_attempts=3,
+    )
+
     # ---- forge/tasks.py handler ----
 
     from forge.tasks import generate_data_task_async
