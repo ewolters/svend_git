@@ -262,9 +262,9 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 </div>
 
 <div class="hr-modal-overlay" id="modal-toast" style="display:none;">
-    <div class="hr-modal" style="max-width:300px;text-align:center;">
-        <p id="toast-message"></p>
-        <button onclick="closeModal('modal-toast')" class="hr-modal-submit" style="margin-top:12px;">OK</button>
+    <div class="hr-modal" style="max-width:340px;text-align:center;background:var(--bg-card, #1e1e1e);border:1px solid var(--border, #333);">
+        <p id="toast-message" style="margin:0;font-size:14px;color:var(--text-primary, #eee);"></p>
+        <button onclick="closeModal('modal-toast')" class="hr-modal-submit" style="margin-top:16px;">OK</button>
     </div>
 </div>
 
@@ -325,8 +325,40 @@ async function loadDashboard() {
     const archEl = document.getElementById('dashboard-archetype');
     if (arch.archetype) {
         archEl.innerHTML = `<div class="hr-card"><div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Your Archetype</div><div style="font-size:1.1rem;font-weight:600;">${esc(arch.archetype.cluster_label)}</div></div>`;
-    } else {
-        archEl.innerHTML = `<div class="hr-card" style="color:var(--text-dim);">Take the CI Readiness questionnaire to discover your archetype.</div>`;
+    }
+
+    // Questionnaire results
+    const { data: history } = await api(API + 'questionnaire/history/?instrument=ci_readiness');
+    if (history.history?.length > 0) {
+        const latest = history.history[0];
+        const likert = latest.responses.filter(r => r.response_type === 'likert');
+        const fc = latest.responses.filter(r => r.response_type === 'forced_choice');
+
+        let resultsHtml = '<div class="hr-card"><div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">CI Readiness — Version ' + latest.version + '</div>';
+
+        if (likert.length > 0) {
+            resultsHtml += '<div style="display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-size:12px;margin-bottom:12px;">';
+            likert.forEach(r => {
+                const pct = (r.score / 5) * 100;
+                resultsHtml += `<div style="color:var(--text-secondary);">${esc(r.dimension_name)}</div>`;
+                resultsHtml += `<div style="display:flex;align-items:center;gap:6px;"><div style="width:60px;height:6px;background:var(--bg-secondary);border-radius:3px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:var(--accent-primary);border-radius:3px;"></div></div><span style="color:var(--text-primary);font-weight:600;">${r.score}/5</span></div>`;
+            });
+            resultsHtml += '</div>';
+        }
+
+        if (fc.length > 0) {
+            resultsHtml += '<div style="font-size:12px;">';
+            fc.forEach(r => {
+                const label = (r.option_chosen || '').replace(/_/g, ' ');
+                resultsHtml += `<div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="color:var(--text-secondary);">${esc(r.dimension_name)}</span><span style="color:var(--accent-primary);font-weight:600;">${esc(label)}</span></div>`;
+            });
+            resultsHtml += '</div>';
+        }
+
+        resultsHtml += '</div>';
+        archEl.innerHTML += resultsHtml;
+    } else if (!arch.archetype) {
+        archEl.innerHTML = `<div class="hr-card" style="color:var(--text-dim);">Take the CI Readiness questionnaire to see your profile.</div>`;
     }
 
     // Routines streak
