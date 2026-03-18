@@ -1,6 +1,16 @@
 # Pre-commit hooks — STY-001 §9.2, TST-001 §10.4, INIT-010 FEAT-077
 # Advisory development-time quality gate (not authoritative — see compliance runner)
 repos:
+  # CHG-001 §7.1.1: Block commits unless a ChangeRequest is in_progress
+  - repo: local
+    hooks:
+      - id: check-cr
+        name: CHG-001 ChangeRequest check
+        entry: python3 ops/hooks/check_cr.py
+        language: system
+        always_run: true
+        pass_filenames: false
+        stages: [pre-commit]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.4
     hooks:

@@ -46,31 +46,85 @@ ChatGPT helped build Meganeura — an early workflow engine named after a stuffe
 - Technical debt is tracked in `.kjerne/DEBT.md`. Process for closing items is in `DEBT-001.md`.
 - Unified workbench direction is documented in `services/svend/reference_docs/ARCHITECTURE.md`.
 
-## WARNING: Change Request Enforcement (CHG-001 §7.1.1)
+## ⛔ STOP — READ THIS BEFORE WRITING ANY CODE ⛔
 
-**DO NOT touch code without a ChangeRequest. This is not a guideline — it is enforced at three levels and there is no bypass.**
+**You CANNOT commit code without a ChangeRequest. This is mechanically enforced — your commit WILL be rejected.**
 
-| Layer | Mechanism | What It Catches |
-|-------|-----------|-----------------|
-| **Model** | `ChangeRequest.clean()` | Rejects empty title (<10 chars), description (<20 chars), or author |
-| **API** | `validate_for_transition(target_state)` | Blocks state transitions when required fields are missing |
-| **Compliance** | `check_change_management()` — 14 checks, daily | Flags ALL gaps as FAIL or WARNING, reports field completeness |
+### Enforcement layers (you cannot bypass these):
 
-**Before ANY code change:**
-1. Create a ChangeRequest with `title` (>=10 chars), `description` (>=20 chars), `change_type`, `author`
-2. Add `justification` and `affected_files` before submitting
-3. Add `implementation_plan`, `testing_plan`, and `rollback_plan` (if applicable) before approval
-4. Risk assessment REQUIRED for all code-touching types (feature, enhancement, bugfix, security, infrastructure, migration, debt)
+| Layer | Mechanism | What Happens If You Skip |
+|-------|-----------|--------------------------|
+| **Pre-commit hook** | `ops/hooks/check_cr.py` | **git commit is REJECTED** if no CR is in `in_progress` status |
+| **Model save()** | `ChangeRequest._enforce_transition()` | **ValidationError** if you skip lifecycle steps or miss required fields |
+| **Model save()** | `validate_for_transition()` | **ValidationError** if commit_shas, RA, or plans are missing |
+| **Compliance** | `check_change_management()` — daily | Flags ALL gaps permanently in the audit trail |
 
-**After implementation — BEFORE completing the CR (CHG-001 §5.4.2):**
-1. Commit code → capture the SHA
-2. Set `cr.commit_shas = [sha]` — this is the CR→git bridge
-3. Set `cr.log_md_ref` to the log.md section reference
-4. THEN transition CR to `completed`
+### Before writing code — create and advance a CR:
 
-**`validate_for_transition('completed')` will REJECT any code CR with empty `commit_shas`.** This is not a suggestion. The transition returns HTTP 400 and the CR stays in its current state until the field is populated.
+```python
+from syn.audit.models import ChangeRequest, ChangeLog, RiskAssessment
 
-Skipping this creates compliance failures that are permanently visible in the audit trail. There is no retroactive cleanup path that removes the gap — only honest markers acknowledging it.
+# 1. Create
+cr = ChangeRequest.objects.create(
+    title='Your change title (>=10 chars)',           # REQUIRED
+    description='What and why (>=20 chars)',           # REQUIRED
+    change_type='feature',                             # REQUIRED
+    author='eric.wolters@svend.ai',                    # REQUIRED
+    justification='Why this change is needed',         # REQUIRED for code types
+    affected_files='file1.py, file2.py',               # REQUIRED for submission
+    implementation_plan='What you will do',             # REQUIRED for approval
+    testing_plan='How you will verify',                 # REQUIRED for approval
+    rollback_plan='How to revert',                     # REQUIRED for feature/migration/infra/security
+)
+ChangeLog.objects.create(change_request=cr, action='created', actor='eric.wolters@svend.ai', details={})
+
+# 2. Submit
+cr.status = 'submitted'
+cr.save()
+ChangeLog.objects.create(change_request=cr, action='submitted', actor='eric.wolters@svend.ai', details={})
+
+# 3. Risk assessment (REQUIRED for feature/enhancement/bugfix/security/infra/migration/debt)
+RiskAssessment.objects.create(
+    change_request=cr, assessment_type='single_agent',
+    security_score=1, availability_score=1, integrity_score=1,
+    confidentiality_score=1, privacy_score=1, overall_score=1,
+    overall_recommendation='approve', assessed_by='claude',
+    summary='Brief risk assessment of the change.',
+)
+
+# 4. Approve
+cr.status = 'approved'
+cr.save()
+ChangeLog.objects.create(change_request=cr, action='approved', actor='eric.wolters@svend.ai', details={})
+
+# 5. Start work
+cr.status = 'in_progress'
+cr.save()
+ChangeLog.objects.create(change_request=cr, action='in_progress', actor='eric.wolters@svend.ai', details={})
+
+# >>> NOW you can write code and commit <<<
+```
+
+### After committing — close the CR:
+
+```python
+cr.commit_shas = ['<sha>']                            # REQUIRED — the CR→git bridge
+cr.log_md_ref = 'Description of change'                # REQUIRED
+cr.save(update_fields=['commit_shas', 'log_md_ref'])   # Field-only save, no transition check
+
+cr.status = 'completed'
+cr.save()
+ChangeLog.objects.create(change_request=cr, action='completed', actor='eric.wolters@svend.ai', details={})
+```
+
+### What happens if you skip this:
+
+1. **Your `git commit` will fail** — the pre-commit hook checks for an active CR
+2. **`cr.status = 'completed'; cr.save()` will raise `ValidationError`** if you skip steps
+3. **The compliance check will flag it** as a permanent FAIL in the audit trail
+4. **Someone will have to clean up after you** with retroactive backfills
+
+There are no shortcuts. Follow the lifecycle: `draft → submitted → approved → in_progress → [commit] → completed`.
 
 ## Architecture
 
