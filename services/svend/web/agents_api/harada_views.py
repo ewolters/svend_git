@@ -83,6 +83,22 @@ def get_questionnaire(request):
     session_id = str(_uuid.uuid4())
     items = []
 
+    # Experience gate for Q11 (Measurement System Trust)
+    # Default to profile, fallback to asking
+    Q11_EXPERIENCED = (
+        "I have delayed or revised a conclusion after discovering a problem with how the data was collected."
+    )
+    Q11_EARLY_CAREER = "Before drawing conclusions from data, I investigate whether the measurement system itself could explain the result."
+
+    user = request.user
+    experience_known = bool(getattr(user, "experience_level", None)) or getattr(user, "role", "") == "student"
+    is_early_career = None
+    if experience_known:
+        is_early_career = getattr(user, "experience_level", "") == "beginner" or getattr(user, "role", "") == "student"
+
+    # If experience is unknown, we'll flag it so the UI can ask
+    needs_experience_question = not experience_known and instrument == "ci_readiness"
+
     for dim in dimensions:
         item = {
             "dimension_id": str(dim.id),
@@ -94,7 +110,18 @@ def get_questionnaire(request):
         }
 
         if dim.response_type == "likert":
-            item["question_text"] = dim.question_text
+            question_text = dim.question_text
+
+            # Q11 experience gate
+            if instrument == "ci_readiness" and dim.dimension_number == 11:
+                if is_early_career is True:
+                    question_text = Q11_EARLY_CAREER
+                elif is_early_career is False:
+                    question_text = Q11_EXPERIENCED
+                # If unknown, default to experienced — UI will ask experience first
+                item["experience_gated"] = True
+
+            item["question_text"] = question_text
             item["scale_min"] = 1
             item["scale_max"] = 5
             item["scale_labels"] = ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"]
@@ -124,18 +151,28 @@ def get_questionnaire(request):
 
         items.append(item)
 
-    return JsonResponse(
-        {
-            "instrument": instrument,
-            "session_id": session_id,
-            "dimensions": items,
-            "retake_number": QuestionnaireResponse.objects.filter(user=request.user, dimension__instrument=instrument)
-            .values("session_id")
-            .distinct()
-            .count()
-            + 1,
+    result = {
+        "instrument": instrument,
+        "session_id": session_id,
+        "dimensions": items,
+        "retake_number": QuestionnaireResponse.objects.filter(user=request.user, dimension__instrument=instrument)
+        .values("session_id")
+        .distinct()
+        .count()
+        + 1,
+    }
+
+    if needs_experience_question:
+        result["experience_question"] = {
+            "prompt": "How many years of continuous improvement or quality experience do you have?",
+            "options": [
+                {"value": "early", "label": "Less than 2 years"},
+                {"value": "experienced", "label": "2 or more years"},
+            ],
+            "purpose": "q11_variant",
         }
-    )
+
+    return JsonResponse(result)
 
 
 @require_http_methods(["POST"])
@@ -163,6 +200,16 @@ def submit_responses(request):
     instrument = data.get("instrument", "ci_readiness")
     session_id = data.get("session_id")
     responses = data.get("responses", [])
+
+    # Handle experience gate answer — store on profile so we don't ask again
+    experience_answer = data.get("experience_answer")
+    if experience_answer:
+        user = request.user
+        if experience_answer == "early":
+            user.experience_level = "beginner"
+        else:
+            user.experience_level = "intermediate"
+        user.save(update_fields=["experience_level"])
 
     if not session_id or not responses:
         return JsonResponse({"error": "session_id and responses required"}, status=400)

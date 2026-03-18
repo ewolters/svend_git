@@ -216,6 +216,86 @@ class QuestionnaireFlowTest(TestCase):
         )
         self.assertEqual(res.json()["version"], 2)
 
+    def test_q11_experience_gate_uses_profile(self):
+        """Q11 shows experienced variant when user has experience_level set."""
+        # Set user as intermediate
+        self.user.experience_level = "intermediate"
+        self.user.save(update_fields=["experience_level"])
+
+        # Add Q11 dimension
+        q11 = QuestionDimension.objects.create(
+            instrument="ci_readiness",
+            dimension_number=11,
+            name="Measurement System Trust",
+            category="ci",
+            response_type="likert",
+            question_text="I have delayed or revised a conclusion after discovering a problem with how the data was collected.",
+        )
+
+        res = self.client.get("/api/harada/questionnaire/?instrument=ci_readiness")
+        data = res.json()
+        d11 = next((d for d in data["dimensions"] if d["dimension_number"] == 11), None)
+        self.assertIsNotNone(d11)
+        self.assertIn("delayed or revised", d11["question_text"])
+        self.assertNotIn("experience_question", data)
+
+    def test_q11_experience_gate_early_career(self):
+        """Q11 shows early-career variant for students."""
+        self.user.role = "student"
+        self.user.save(update_fields=["role"])
+
+        QuestionDimension.objects.create(
+            instrument="ci_readiness",
+            dimension_number=11,
+            name="Measurement System Trust",
+            category="ci",
+            response_type="likert",
+            question_text="I have delayed or revised a conclusion after discovering a problem with how the data was collected.",
+        )
+
+        res = self.client.get("/api/harada/questionnaire/?instrument=ci_readiness")
+        d11 = next((d for d in res.json()["dimensions"] if d["dimension_number"] == 11), None)
+        self.assertIn("investigate whether the measurement system", d11["question_text"])
+
+    def test_q11_experience_gate_asks_when_unknown(self):
+        """When experience not in profile, response includes experience_question."""
+        self.user.experience_level = ""
+        self.user.role = ""
+        self.user.save(update_fields=["experience_level", "role"])
+
+        QuestionDimension.objects.create(
+            instrument="ci_readiness",
+            dimension_number=11,
+            name="Measurement System Trust",
+            category="ci",
+            response_type="likert",
+            question_text="I have delayed or revised a conclusion after discovering a problem with how the data was collected.",
+        )
+
+        res = self.client.get("/api/harada/questionnaire/?instrument=ci_readiness")
+        data = res.json()
+        self.assertIn("experience_question", data)
+        self.assertEqual(len(data["experience_question"]["options"]), 2)
+
+    def test_experience_answer_stored_on_submit(self):
+        """Submitting experience_answer updates user profile."""
+        self.user.experience_level = ""
+        self.user.save(update_fields=["experience_level"])
+
+        _post_json(
+            self.client,
+            "/api/harada/questionnaire/submit/",
+            {
+                "instrument": "ci_readiness",
+                "session_id": "00000000-0000-0000-0000-000000000099",
+                "responses": [{"dimension_id": str(self.likert_dim.id), "score": 3}],
+                "experience_answer": "early",
+            },
+        )
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.experience_level, "beginner")
+
     def test_retake_avoids_previous_scenario(self):
         """On retake, previously seen scenarios are avoided when alternatives exist."""
         # First take — record which scenario was used
