@@ -249,11 +249,13 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
         <h3 id="cell-modal-title">Add Cell</h3>
         <label>Text</label>
         <input type="text" id="cell-text" placeholder="Action or routine...">
-        <label>Type</label>
-        <select id="cell-type">
-            <option value="task">One-time Task</option>
-            <option value="routine">Daily Routine</option>
-        </select>
+        <div id="cell-type-wrap">
+            <label>Type</label>
+            <select id="cell-type">
+                <option value="task">One-time Task</option>
+                <option value="routine">Daily Routine</option>
+            </select>
+        </div>
         <div class="hr-modal-actions">
             <button onclick="closeModal('modal-cell')" class="hr-modal-cancel">Cancel</button>
             <button onclick="submitCell()" class="hr-modal-submit">Save</button>
@@ -525,7 +527,7 @@ async function addCell(row, col) {
     document.getElementById('cell-modal-title').textContent = position === 0 ? 'Add Goal' : 'Add Action';
     document.getElementById('cell-text').value = '';
     document.getElementById('cell-text').placeholder = position === 0 ? 'Goal name...' : 'Action or routine...';
-    document.getElementById('cell-type').style.display = position === 0 ? 'none' : '';
+    document.getElementById('cell-type-wrap').style.display = position === 0 ? 'none' : '';
     document.getElementById('modal-cell').style.display = 'flex';
     document.getElementById('cell-text').focus();
 }
