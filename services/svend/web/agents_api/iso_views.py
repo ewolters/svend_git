@@ -799,6 +799,10 @@ def ncr_detail(request, ncr_id):
             source_type="observation",
         )
 
+    # D2: Auto-create closure signature on NCR close
+    if new_status == "closed":
+        _create_workflow_signature(request, "ncr", ncr.id, "approved", record=ncr)
+
     return JsonResponse(ncr.to_dict())
 
 
@@ -1541,6 +1545,8 @@ def review_detail(request, review_id):
             return JsonResponse(
                 {"error": "Outputs are required to complete a management review (ISO 9001 §9.3.3)"}, status=400
             )
+        # D4: Auto-create completion signature on management review
+        _create_workflow_signature(request, "review", review.id, "approved", record=review)
 
     review.save()
     return JsonResponse(review.to_dict())
@@ -1764,6 +1770,8 @@ def document_detail(request, doc_id):
             doc.approved_at = timezone.now()
             if doc.approved_by_user:
                 doc.approved_by = doc.approved_by_user.display_name or doc.approved_by_user.email
+            # D1: Auto-create approval signature
+            _create_workflow_signature(request, "document", doc.id, "approved", record=doc)
 
         # Clear approved_at when leaving approved state
         if old_status == "approved" and new_status != "approved":
@@ -2456,6 +2464,70 @@ def _resolve_tenant_id(user):
 
     m = Membership.objects.filter(user=user).first()
     return m.tenant_id if m else None
+
+
+def _create_workflow_signature(request, document_type, document_id, meaning, record=None):
+    """D-helper: Create an electronic signature from a QMS workflow transition.
+
+    Called automatically when key transitions occur (document approval, NCR/CAPA
+    closure, management review completion). Captures document snapshot, user agent,
+    and IP for audit trail.
+
+    If `password` is in the request body and valid, creates a fully re-authenticated
+    signature per 21 CFR Part 11 §11.100. Otherwise creates a workflow-triggered
+    signature (sufficient for ISO 9001, not for FDA-regulated).
+
+    Returns the signature dict or None if creation fails.
+    """
+    user = request.user
+    tenant_id = _resolve_tenant_id(user)
+
+    # Capture snapshot
+    snapshot = {}
+    if record and hasattr(record, "to_dict"):
+        snapshot = record.to_dict()
+
+    # Check optional re-auth
+    password = None
+    try:
+        data = json.loads(request.body) if request.body else {}
+        password = data.get("password")
+    except (json.JSONDecodeError, AttributeError):
+        pass
+
+    re_authed = False
+    if password and user.check_password(password):
+        re_authed = True
+
+    try:
+        sig = ElectronicSignature(
+            signer=user,
+            document_type=document_type,
+            document_id=document_id,
+            meaning=meaning,
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            # SynaraImmutableLog fields
+            event_name=f"workflow_{meaning}",
+            actor=user.email or str(user.id),
+            tenant_id=tenant_id,
+            before_snapshot=snapshot,
+            after_snapshot={},
+            changes={"workflow_triggered": True, "re_authenticated": re_authed},
+            reason=f"Workflow transition: {document_type} {meaning}",
+        )
+        sig.save()
+        logger.info(
+            "Workflow signature: %s %s %s/%s (re_auth=%s)",
+            user.email,
+            meaning,
+            document_type,
+            document_id,
+            re_authed,
+        )
+        return sig.to_dict()
+    except Exception:
+        logger.exception("Failed to create workflow signature for %s/%s", document_type, document_id)
+        return None
 
 
 @require_team

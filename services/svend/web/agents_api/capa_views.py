@@ -323,6 +323,12 @@ def capa_detail(request, capa_id):
     if new_status == "closed":
         _check_recurrence(capa, request.user)
 
+    # D3: Auto-create closure signature on CAPA close
+    if new_status == "closed":
+        from .iso_views import _create_workflow_signature
+
+        _create_workflow_signature(request, "capa", capa.id, "approved", record=capa)
+
     # Evidence on close
     if new_status == "closed" and capa.project:
         create_tool_evidence(

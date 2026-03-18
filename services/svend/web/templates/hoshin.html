@@ -530,6 +530,7 @@
         <a class="hoshin-tab active" href="#/dashboard">Dashboard</a>
         <a class="hoshin-tab" href="#/projects">Projects</a>
         <a class="hoshin-tab" href="#/calendar">Calendar</a>
+        <a class="hoshin-tab" href="#/resources">Resources</a>
         <a class="hoshin-tab" href="#/sites">Sites</a>
         <a class="hoshin-tab" href="#/x-matrix">X-Matrix</a>
         <a class="hoshin-tab" href="#/calc-library">Calculations</a>
@@ -718,6 +719,44 @@
             </div>
         </div>
         <div class="calendar-wrap" id="calendar-container" style="overflow-x:auto;"></div>
+    </div>
+
+    <!-- ============ RESOURCES ============ -->
+    <div id="tab-resources" class="hoshin-panel">
+        <div class="section-header">
+            <h2>Resource Calendar</h2>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <select id="res-filter-role" class="filter-select" style="padding:5px 10px; font-size:12px; background:var(--bg-tertiary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary);">
+                    <option value="">All Roles</option>
+                    <option value="facilitator">Facilitator</option>
+                    <option value="team_member">Team Member</option>
+                    <option value="sponsor">Sponsor</option>
+                    <option value="process_owner">Process Owner</option>
+                    <option value="subject_expert">Subject Expert</option>
+                </select>
+            </div>
+        </div>
+        <div style="display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-dim);">
+                <span style="display:inline-block;width:14px;height:10px;background:var(--accent-primary);border-radius:2px;opacity:0.6;"></span> Facilitator
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-dim);">
+                <span style="display:inline-block;width:14px;height:10px;background:var(--accent-blue);border-radius:2px;opacity:0.6;"></span> Team Member
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-dim);">
+                <span style="display:inline-block;width:14px;height:10px;background:var(--accent-purple);border-radius:2px;opacity:0.6;"></span> Sponsor
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-dim);">
+                <span style="display:inline-block;width:14px;height:10px;background:var(--accent-gold);border-radius:2px;opacity:0.6;"></span> Process Owner
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-dim);">
+                <span style="display:inline-block;width:14px;height:10px;background:var(--accent-orange);border-radius:2px;opacity:0.6;"></span> Subject Expert
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-dim);">
+                <span style="display:inline-block;width:14px;height:10px;border:1.5px dashed var(--text-dim);border-radius:2px;"></span> Unconfirmed
+            </div>
+        </div>
+        <div class="gantt-container" id="resource-gantt" style="overflow-x:auto;"></div>
     </div>
 
     <!-- ============ SITES ============ -->
@@ -1339,6 +1378,10 @@ function navigate(hash) {
         document.getElementById('tab-calendar').classList.add('active');
         document.querySelector('#main-tabs [href="#/calendar"]').classList.add('active');
         renderCalendar();
+    } else if (route === 'resources') {
+        document.getElementById('tab-resources').classList.add('active');
+        document.querySelector('#main-tabs [href="#/resources"]').classList.add('active');
+        renderResourceGantt();
     } else if (route === 'sites') {
         document.getElementById('tab-sites').classList.add('active');
         document.querySelector('#main-tabs [href="#/sites"]').classList.add('active');
@@ -3226,6 +3269,132 @@ function calBarCell(m) {
     const label = m.actual ? fmt$(m.actual) : '';
     return `<td><div class="cal-bar ${cls}"><div class="cal-bar-fill" style="width:${w}%"></div><div class="cal-bar-label">${label}</div></div></td>`;
 }
+
+// ════════════════════════════════════════════════════════════════
+// RESOURCE GANTT CHART
+// ════════════════════════════════════════════════════════════════
+
+const ROLE_COLORS = {
+    facilitator:    {bg: 'rgba(74,159,110,0.5)',  border: '#4a9f6e'},  // green
+    team_member:    {bg: 'rgba(74,159,175,0.5)',  border: '#4a9faf'},  // blue
+    sponsor:        {bg: 'rgba(138,127,191,0.5)', border: '#8a7fbf'},  // purple
+    process_owner:  {bg: 'rgba(232,197,71,0.5)',  border: '#e8c547'},  // gold
+    subject_expert: {bg: 'rgba(232,149,71,0.5)',  border: '#e89547'},  // orange
+};
+
+const ROLE_LABELS = {
+    facilitator: 'Facilitator', team_member: 'Team Member', sponsor: 'Sponsor',
+    process_owner: 'Process Owner', subject_expert: 'Subject Expert',
+};
+
+async function renderResourceGantt() {
+    const container = document.getElementById('resource-gantt');
+    const roleFilter = document.getElementById('res-filter-role').value;
+
+    const data = await api(`/calendar/facilitators/?fiscal_year=${selectedFY}`);
+    if (!data || !data.facilitators) {
+        container.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-dim);font-size:13px;">No resource commitments found.</div>';
+        return;
+    }
+
+    // Flatten all facilitators into employee rows with commitments
+    let rows = data.facilitators.map(f => ({
+        name: f.employee.name,
+        role: f.employee.role || '',
+        department: f.employee.department || '',
+        overCommitted: f.over_committed,
+        overDates: new Set(f.over_committed_dates || []),
+        commitments: (f.commitments || []).filter(c =>
+            !roleFilter || c.role === roleFilter
+        ),
+    })).filter(r => r.commitments.length > 0);
+
+    if (!rows.length) {
+        container.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-dim);font-size:13px;">No commitments match the selected filter.</div>';
+        return;
+    }
+
+    // Find date range across all commitments
+    const today = new Date();
+    let minDate = new Date(today.getFullYear(), 0, 1);
+    let maxDate = new Date(today.getFullYear(), 11, 31);
+    rows.forEach(r => r.commitments.forEach(c => {
+        const s = new Date(c.start_date);
+        const e = new Date(c.end_date);
+        if (s < minDate) minDate = s;
+        if (e > maxDate) maxDate = e;
+    }));
+    // 2-week padding
+    minDate = new Date(minDate.getTime() - 14 * 86400000);
+    maxDate = new Date(maxDate.getTime() + 14 * 86400000);
+    const totalDays = Math.max(1, (maxDate - minDate) / 86400000);
+
+    // Month headers
+    const months = [];
+    let d = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+    while (d <= maxDate) {
+        const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        const startOff = Math.max(0, (d - minDate) / 86400000);
+        const endOff = Math.min(totalDays, (monthEnd - minDate) / 86400000);
+        const wPct = (endOff - startOff) / totalDays * 100;
+        months.push(`<div class="gantt-month" style="width:${wPct}%;">${MONTHS[d.getMonth()]} ${d.getFullYear()}</div>`);
+        d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    }
+
+    // Today marker
+    const todayPct = (today - minDate) / 86400000 / totalDays * 100;
+
+    // Build rows
+    const rowsHtml = rows.map(r => {
+        const bars = r.commitments.map(c => {
+            const start = new Date(c.start_date);
+            const end = new Date(c.end_date);
+            const leftPct = Math.max(0, (start - minDate) / 86400000 / totalDays * 100);
+            const widthPct = Math.max(0.5, (end - start) / 86400000 / totalDays * 100);
+
+            const colors = ROLE_COLORS[c.role] || ROLE_COLORS.team_member;
+            const isConfirmed = c.status === 'confirmed' || c.status === 'active' || c.status === 'completed';
+            const isDeclined = c.status === 'declined';
+
+            let barStyle, barTitle;
+            if (isDeclined) {
+                barStyle = `left:${leftPct}%;width:${widthPct}%;background:rgba(208,96,96,0.15);border:1.5px dashed var(--error);`;
+                barTitle = `${c.project_title} (${ROLE_LABELS[c.role] || c.role}) — DECLINED`;
+            } else if (!isConfirmed) {
+                // Unconfirmed: border only, no fill
+                barStyle = `left:${leftPct}%;width:${widthPct}%;background:transparent;border:1.5px dashed ${colors.border};`;
+                barTitle = `${c.project_title} (${ROLE_LABELS[c.role] || c.role}) — ${c.status}`;
+            } else {
+                barStyle = `left:${leftPct}%;width:${widthPct}%;background:${colors.bg};border:1.5px solid ${colors.border};`;
+                barTitle = `${c.project_title} (${ROLE_LABELS[c.role] || c.role})`;
+            }
+
+            return `<div class="gantt-bar" style="${barStyle}" title="${barTitle}"></div>`;
+        }).join('');
+
+        const overTag = r.overCommitted
+            ? ' <span style="color:var(--error);font-size:10px;font-weight:600;" title="Over-committed on some dates">⚠</span>'
+            : '';
+
+        return `<div class="gantt-row">
+            <div class="gantt-row-label" title="${r.name} — ${r.department}">${r.name}${overTag}</div>
+            <div class="gantt-row-bars">${bars}</div>
+        </div>`;
+    }).join('');
+
+    container.innerHTML = `
+        <div class="gantt-header">
+            <div class="gantt-labels" style="font-size:10px;color:var(--text-dim);font-weight:600;">PERSON</div>
+            <div class="gantt-timeline">${months.join('')}</div>
+        </div>
+        <div style="position:relative;">
+            ${todayPct > 0 && todayPct < 100 ? `<div class="gantt-today" style="left:calc(200px + (100% - 200px) * ${todayPct / 100});" title="Today"></div>` : ''}
+            ${rowsHtml}
+        </div>`;
+}
+
+// Re-render on filter change
+document.getElementById('res-filter-role')?.addEventListener('change', renderResourceGantt);
 
 async function renderCalendar() {
     const siteFilter = document.getElementById('cal-filter-site').value;
