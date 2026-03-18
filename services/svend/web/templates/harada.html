@@ -218,7 +218,16 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 
         <!-- Diary -->
         <div class="hr-section" id="sec-diary">
-            <h2>Daily Diary</h2>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                <h2 style="margin:0;">Daily Diary</h2>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <button onclick="changeDiaryDate(-1)" style="background:none;border:1px solid var(--border);border-radius:4px;padding:4px 8px;color:var(--text-primary);cursor:pointer;">&larr;</button>
+                    <input type="date" id="diary-date-picker" style="padding:4px 8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:12px;">
+                    <button onclick="changeDiaryDate(1)" style="background:none;border:1px solid var(--border);border-radius:4px;padding:4px 8px;color:var(--text-primary);cursor:pointer;">&rarr;</button>
+                    <button onclick="goToDiaryToday()" style="background:none;border:1px solid var(--border);border-radius:4px;padding:4px 8px;color:var(--accent-primary);cursor:pointer;font-size:11px;">Today</button>
+                </div>
+            </div>
+            <div id="diary-recent" style="margin-bottom:12px;"></div>
             <div id="diary-content"></div>
         </div>
     </div>
@@ -597,11 +606,56 @@ async function toggleRoutine(cellId, completed) {
 // Diary
 // ============================================================================
 
+let _diaryDate = new Date().toISOString().slice(0, 10);
+
+function changeDiaryDate(delta) {
+    const d = new Date(_diaryDate);
+    d.setDate(d.getDate() + delta);
+    _diaryDate = d.toISOString().slice(0, 10);
+    document.getElementById('diary-date-picker').value = _diaryDate;
+    loadDiary();
+}
+
+function goToDiaryToday() {
+    _diaryDate = new Date().toISOString().slice(0, 10);
+    document.getElementById('diary-date-picker').value = _diaryDate;
+    loadDiary();
+}
+
+function loadDiaryForDate(dateStr) {
+    _diaryDate = dateStr;
+    document.getElementById('diary-date-picker').value = _diaryDate;
+    showTab('diary');
+}
+
 async function loadDiary() {
-    const today = new Date().toISOString().slice(0, 10);
+    // Set date picker
+    const picker = document.getElementById('diary-date-picker');
+    if (picker) {
+        picker.value = _diaryDate;
+        picker.onchange = (e) => { _diaryDate = e.target.value; loadDiary(); };
+    }
+
+    // Load recent entries for the sidebar list
+    const { data: recentData } = await api(API + 'diary/?days=14');
+    const recentEl = document.getElementById('diary-recent');
+    const entries = recentData.entries || [];
+    if (entries.length > 0) {
+        recentEl.innerHTML = `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;">` +
+            entries.map(e => {
+                const isActive = e.date === _diaryDate;
+                const score = e.score_total != null ? e.score_total : '—';
+                return `<div onclick="loadDiaryForDate('${e.date}')" style="padding:4px 8px;border-radius:4px;font-size:10px;cursor:pointer;border:1px solid ${isActive ? 'var(--accent-primary)' : 'var(--border)'};background:${isActive ? 'rgba(74,159,110,0.15)' : 'transparent'};color:${isActive ? 'var(--accent-primary)' : 'var(--text-dim)'};">
+                    ${e.date.slice(5)} <span style="font-weight:600;">${score}</span>
+                </div>`;
+            }).join('') + '</div>';
+    } else {
+        recentEl.innerHTML = '';
+    }
+
     let diary = null;
     try {
-        const { data, status } = await api(API + 'diary/' + today + '/');
+        const { data, status } = await api(API + 'diary/' + _diaryDate + '/');
         if (status === 200) diary = data;
     } catch (e) {}
 
@@ -719,6 +773,7 @@ async function saveDiary() {
     });
 
     await api(API + 'diary/', 'POST', {
+        date: _diaryDate,
         daily_phrase: document.getElementById('diary-phrase').value,
         scores,
         score_comments,
@@ -728,7 +783,7 @@ async function saveDiary() {
         what_differently: document.getElementById('diary-differently').value,
         notes: document.getElementById('diary-notes').value,
     });
-    showToast('Diary saved.');
+    showTab('dashboard');
 }
 
 // ============================================================================
