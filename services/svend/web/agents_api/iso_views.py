@@ -1553,6 +1553,134 @@ def review_detail(request, review_id):
 
 
 # =========================================================================
+# E8: Management Review Auto-Narrative
+# =========================================================================
+
+
+@require_team
+@require_http_methods(["POST"])
+def review_narrative(request, review_id):
+    """E8: Generate an executive summary narrative from management review data.
+
+    Uses the auto-captured snapshot + any manual inputs to generate a
+    structured executive summary per ISO 9001 §9.3.3 outputs format.
+    Calls Claude for interpretation — rate-limited like the AI guide.
+    """
+    try:
+        review = ManagementReview.objects.get(id=review_id, owner=request.user)
+    except ManagementReview.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    snapshot = review.data_snapshot or {}
+    inputs = review.inputs or {}
+    attendees = review.attendees or []
+
+    # Build context for Claude
+    context_parts = [
+        f"Management Review: {review.title}",
+        f"Date: {review.meeting_date}",
+        f"Attendees: {', '.join(attendees) if attendees else 'Not recorded'}",
+    ]
+
+    # Snapshot data
+    ncr = snapshot.get("ncr_summary", {})
+    if ncr:
+        context_parts.append(
+            f"\nNCR Status: {ncr.get('total', 0)} total, {ncr.get('open', 0)} open, "
+            f"{ncr.get('closed', 0)} closed. "
+            f"By severity: {ncr.get('by_severity', {}).get('critical', 0)} critical, "
+            f"{ncr.get('by_severity', {}).get('major', 0)} major, "
+            f"{ncr.get('by_severity', {}).get('minor', 0)} minor."
+        )
+
+    audit = snapshot.get("audit_summary", {})
+    if audit:
+        context_parts.append(
+            f"Audits: {audit.get('completed', 0)} completed, {audit.get('open_findings', 0)} open findings."
+        )
+
+    training = snapshot.get("training_summary", {})
+    if training:
+        context_parts.append(
+            f"Training: {training.get('compliance_rate', 'N/A')}% compliance, {training.get('gap_count', 0)} gaps."
+        )
+
+    prior = snapshot.get("prior_actions", {})
+    if prior:
+        context_parts.append(f"Prior review actions: {json.dumps(prior, indent=2)[:500]}")
+
+    # Manual inputs
+    for key, val in inputs.items():
+        if isinstance(val, dict) and val.get("content"):
+            context_parts.append(f"{val.get('title', key)}: {val['content'][:300]}")
+        elif isinstance(val, str) and val.strip():
+            context_parts.append(f"{key}: {val[:300]}")
+
+    # Also include audit readiness if available
+    try:
+        from django.test import RequestFactory
+
+        factory = RequestFactory()
+        readiness_req = factory.get("/api/iso/audit-readiness/")
+        readiness_req.user = request.user
+        readiness_resp = audit_readiness(readiness_req)
+        readiness_data = json.loads(readiness_resp.content)
+        context_parts.append(
+            f"\nAudit Readiness Score: {readiness_data['overall_score']}/100 ({readiness_data['overall_rag']})"
+        )
+        for f in readiness_data.get("top_findings", [])[:3]:
+            context_parts.append(f"  Gap: §{f['clause']} {f['name']}: {f['detail']}")
+    except Exception:
+        pass
+
+    context = "\n".join(context_parts)
+
+    # Call Claude
+    from svend_config.config import get_anthropic_client
+
+    try:
+        client = get_anthropic_client()
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1500,
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        "You are a quality management consultant generating an executive summary for an "
+                        "ISO 9001:2015 management review (clause 9.3.3). Based on the following QMS data, "
+                        "write a concise executive summary with these sections:\n\n"
+                        "1. **Overall QMS Health** — one paragraph assessment\n"
+                        "2. **Key Findings** — 3-5 bullet points on what the data shows\n"
+                        "3. **Actions Required** — specific, actionable items for management\n"
+                        "4. **Resource Needs** — any resource implications\n"
+                        "5. **Opportunities for Improvement** — forward-looking recommendations\n\n"
+                        "Be specific and reference the numbers. Do not use generic quality platitudes. "
+                        "Write for a plant manager or quality director who has 5 minutes.\n\n"
+                        f"QMS DATA:\n{context}"
+                    ),
+                }
+            ],
+        )
+        narrative = message.content[0].text
+    except Exception as e:
+        logger.exception("Review narrative generation failed")
+        return JsonResponse({"error": f"Narrative generation failed: {e}"}, status=500)
+
+    return JsonResponse(
+        {
+            "narrative": narrative,
+            "review_id": str(review.id),
+            "data_sources": list(snapshot.keys()),
+            "usage": {
+                "input_tokens": message.usage.input_tokens,
+                "output_tokens": message.usage.output_tokens,
+            },
+        }
+    )
+
+
+# =========================================================================
 # Management Review Templates
 # =========================================================================
 

@@ -34,6 +34,7 @@ urlpatterns = [
     # Management Reviews (clause 9.3)
     path("reviews/", iso_views.review_list_create, name="iso_review_list"),
     path("reviews/<uuid:review_id>/", iso_views.review_detail, name="iso_review_detail"),
+    path("reviews/<uuid:review_id>/narrative/", iso_views.review_narrative, name="iso_review_narrative"),
     # Management Review Templates
     path("review-templates/", iso_views.review_template_list_create, name="iso_review_template_list"),
     path("review-templates/default/", iso_views.review_template_default, name="iso_review_template_default"),

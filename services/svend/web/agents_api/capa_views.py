@@ -9,7 +9,7 @@ import logging
 from collections import defaultdict
 from datetime import date
 
-from django.db.models import Avg, Count, F, Q, Sum
+from django.db.models import Avg, Count, F, Sum
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
@@ -525,49 +525,70 @@ def capa_launch_rca(request, capa_id):
 # =========================================================================
 
 
-def _check_recurrence(capa, user):
-    """Check if this CAPA's root cause matches historical patterns.
+_STOP_WORDS = frozenset(
+    "the and for are but not you all any can had her was one our out has been have does that with this will your from they"
+    " been into more when than them some what also each made were said does most only over such some very after before".split()
+)
 
-    Matches by: source_type, root_cause keyword overlap.
-    If 3+ matches: auto-escalate priority to critical, mark recurrence flag.
+
+def _extract_keywords(text):
+    """Extract significant keywords from text, filtering stop words and short tokens."""
+    import re
+
+    words = re.findall(r"[a-z]+", text.lower())
+    return {w for w in words if len(w) > 3 and w not in _STOP_WORDS}
+
+
+def _keyword_overlap_score(words_a, words_b):
+    """Jaccard similarity between two keyword sets (0.0 to 1.0)."""
+    if not words_a or not words_b:
+        return 0.0
+    intersection = words_a & words_b
+    union = words_a | words_b
+    return len(intersection) / len(union)
+
+
+def _check_recurrence(capa, user):
+    """E3: Check if this CAPA's root cause matches historical patterns.
+
+    Uses keyword overlap scoring (Jaccard similarity) instead of naive
+    icontains matching. Scores ≥0.3 count as a match. Threshold of 2+
+    matches escalates to critical with notification.
     """
     if not capa.root_cause:
         return
 
-    # Find historical closed CAPAs from same user with root causes
-    historical = qms_queryset(CAPAReport, user)[0].filter(status="closed", root_cause__gt="").exclude(id=capa.id)
-
-    # Match by source_type if present
-    if capa.source_type:
-        source_matches = historical.filter(source_type=capa.source_type)
-    else:
-        source_matches = historical
-
-    # Keyword overlap: extract significant words (>3 chars) from root cause
-    words = {w.lower() for w in capa.root_cause.split() if len(w) > 3}
-    if not words:
+    capa_keywords = _extract_keywords(capa.root_cause)
+    if not capa_keywords:
         return
 
-    # Build Q filter for keyword matching
-    keyword_q = Q()
-    for word in list(words)[:10]:  # Limit to 10 keywords
-        keyword_q |= Q(root_cause__icontains=word)
+    historical = qms_queryset(CAPAReport, user)[0].filter(status="closed", root_cause__gt="").exclude(id=capa.id)
 
-    matches = source_matches.filter(keyword_q).distinct()
-    match_count = matches.count()
+    # Score each historical CAPA by root cause similarity
+    matches = []
+    for hist in historical[:200]:
+        hist_keywords = _extract_keywords(hist.root_cause)
+        score = _keyword_overlap_score(capa_keywords, hist_keywords)
+        if score >= 0.3:
+            matches.append({"id": hist.id, "title": hist.title, "score": score})
 
+    match_count = len(matches)
     if match_count > 0:
         capa.is_recurrence_checked = True
 
-    if match_count >= 3 and capa.priority != "critical":
+    if match_count >= 2 and capa.priority != "critical":
         capa.priority = "critical"
         capa.save(update_fields=["priority", "is_recurrence_checked"])
-        # Notify quality manager
+        top_match = max(matches, key=lambda m: m["score"])
         notify(
             recipient=user,
             notification_type="capa_status",
             title="Recurring Root Cause Detected",
-            message=f"CAPA '{capa.title}' matches {match_count} previous CAPAs. Priority escalated to critical.",
+            message=(
+                f"CAPA '{capa.title}' matches {match_count} previous CAPAs "
+                f"(strongest: '{top_match['title']}', similarity {top_match['score']:.0%}). "
+                f"Priority escalated to critical."
+            ),
             entity_type="capa",
             entity_id=capa.id,
         )
@@ -578,55 +599,75 @@ def _check_recurrence(capa, user):
 @require_team
 @require_http_methods(["GET"])
 def recurrence_report(request):
-    """Recurrence report — which root causes keep coming back.
+    """E3: Recurrence report — root cause clusters across CAPAs.
 
     GET /api/capa/recurrence/
-    Groups closed CAPAs by root_cause keyword similarity, flags repeat offenders.
+    Clusters closed CAPAs by root cause keyword similarity (greedy clustering
+    with Jaccard ≥0.25 threshold). Returns clusters sorted by size, with
+    shared keywords that characterize each cluster.
     """
     user = request.user
-    capas = (
-        qms_queryset(CAPAReport, user)[0]
-        .filter(
-            status="closed",
-            root_cause__gt="",
-        )
-        .order_by("-closed_at")
+    capas = list(
+        qms_queryset(CAPAReport, user)[0].filter(status="closed", root_cause__gt="").order_by("-closed_at")[:200]
     )
 
-    # Group by source_type and find repeat root causes
-    from collections import defaultdict
+    if not capas:
+        return JsonResponse({"clusters": [], "total_closed_capas": 0, "total_flagged": 0})
 
-    by_source = defaultdict(list)
-    for c in capas[:200]:  # Limit for performance
-        by_source[c.source_type or "unknown"].append(
+    # Extract keywords for each CAPA
+    capa_data = []
+    for c in capas:
+        kw = _extract_keywords(c.root_cause)
+        capa_data.append(
             {
                 "id": str(c.id),
                 "title": c.title,
-                "root_cause": c.root_cause[:200],
+                "root_cause": c.root_cause[:300],
                 "priority": c.priority,
+                "source_type": c.source_type or "unknown",
                 "closed_at": c.closed_at.isoformat() if c.closed_at else None,
                 "is_recurrence": c.is_recurrence_checked,
+                "keywords": kw,
             }
         )
 
-    recurrences = []
-    for source_type, items in by_source.items():
-        if len(items) >= 2:
-            recurrences.append(
+    # Greedy single-linkage clustering by keyword similarity
+    clusters = []
+    assigned = set()
+
+    for i, item in enumerate(capa_data):
+        if i in assigned:
+            continue
+        cluster = [item]
+        assigned.add(i)
+        for j in range(i + 1, len(capa_data)):
+            if j in assigned:
+                continue
+            score = _keyword_overlap_score(item["keywords"], capa_data[j]["keywords"])
+            if score >= 0.25:
+                cluster.append(capa_data[j])
+                assigned.add(j)
+        if len(cluster) >= 2:
+            # Find shared keywords across the cluster
+            shared = set.intersection(*(c["keywords"] for c in cluster)) if cluster else set()
+            clusters.append(
                 {
-                    "source_type": source_type,
-                    "count": len(items),
-                    "capas": items,
-                    "escalated": any(i["priority"] == "critical" and i["is_recurrence"] for i in items),
+                    "size": len(cluster),
+                    "shared_keywords": sorted(shared)[:10],
+                    "escalated": any(c["priority"] == "critical" and c["is_recurrence"] for c in cluster),
+                    "capas": [{k: v for k, v in c.items() if k != "keywords"} for c in cluster],
                 }
             )
 
-    recurrences.sort(key=lambda r: r["count"], reverse=True)
+    clusters.sort(key=lambda c: c["size"], reverse=True)
+
+    total_flagged = sum(1 for c in capas if c.is_recurrence_checked)
 
     return JsonResponse(
         {
-            "recurrences": recurrences,
-            "total_closed_capas": capas.count(),
-            "total_flagged": capas.filter(is_recurrence_checked=True).count(),
+            "clusters": clusters,
+            "total_closed_capas": len(capas),
+            "total_flagged": total_flagged,
+            "singleton_count": len(capa_data) - sum(c["size"] for c in clusters),
         }
     )
