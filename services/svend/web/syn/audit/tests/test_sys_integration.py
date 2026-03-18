@@ -469,7 +469,6 @@ class BrowserNavTest(TestCase):
             "/app/a3/",
             "/app/fmea/",
             "/app/rca/",
-            "/app/spc/",
             "/app/learn/",
             "/app/settings/",
         ]

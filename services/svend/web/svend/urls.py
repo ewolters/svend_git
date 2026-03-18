@@ -7,7 +7,7 @@ from django.contrib.auth import views as auth_views
 from django.contrib.sitemaps import Sitemap
 from django.contrib.sitemaps.views import sitemap
 from django.urls import include, path
-from django.views.generic import TemplateView
+from django.views.generic import RedirectView, TemplateView
 
 from agents_api.whiteboard_views import guest_board_view
 from api.blog_views import blog_detail, blog_list
@@ -157,7 +157,7 @@ urlpatterns = [
     path("app/hypotheses/", TemplateView.as_view(template_name="projects.html"), name="hypotheses"),  # Legacy redirect
     # path("app/knowledge/", TemplateView.as_view(template_name="knowledge.html"), name="knowledge"),  # Disabled - prototype only
     path("app/experimenter/", TemplateView.as_view(template_name="experimenter.html"), name="experimenter"),
-    path("app/spc/", TemplateView.as_view(template_name="spc.html"), name="spc"),
+    path("app/spc/", RedirectView.as_view(url="/app/dsw/", permanent=True), name="spc"),
     # path("app/coder/", TemplateView.as_view(template_name="coder.html"), name="coder"),  # Temporarily disabled
     path("app/a3/", TemplateView.as_view(template_name="a3.html"), name="a3"),
     path("app/a3/<uuid:report_id>/", TemplateView.as_view(template_name="a3.html"), name="a3_edit"),

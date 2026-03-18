@@ -55,7 +55,7 @@ def _email_welcome(user, survey):
 <ol>
 <li><a href="https://svend.ai/app/analysis/" style="color:#4a9f6e;">Run a quick analysis</a> in the Analysis Workbench</li>
 <li>Check out the <a href="https://svend.ai/app/learn/" style="color:#4a9f6e;">Learning Center</a> for guided tutorials</li>
-<li>Try an <a href="https://svend.ai/app/spc/" style="color:#4a9f6e;">SPC control chart</a> with your own data</li>
+<li>Try an <a href="https://svend.ai/app/dsw/" style="color:#4a9f6e;">SPC control chart</a> with your own data</li>
 </ol>
 
 <p>You get 5 free runs per day. If you hit that limit quickly, that's a good sign you should check out our <a href="https://svend.ai/#pricing" style="color:#4a9f6e;">Professional plan</a> at $49/month — 77% less than Minitab.</p>
@@ -72,7 +72,7 @@ def _email_getting_started(user, survey):
     # Personalize based on primary goal
     tip = ""
     if goal == "spc":
-        tip = """<p><strong>Since you're interested in SPC:</strong> Head to the <a href="https://svend.ai/app/spc/" style="color:#4a9f6e;">SPC module</a> and paste in some process data. Svend will generate X-bar/R, I-MR, or p-charts automatically and flag any out-of-control points. No setup needed.</p>"""
+        tip = """<p><strong>Since you're interested in SPC:</strong> Head to the <a href="https://svend.ai/app/dsw/" style="color:#4a9f6e;">SPC module</a> and paste in some process data. Svend will generate X-bar/R, I-MR, or p-charts automatically and flag any out-of-control points. No setup needed.</p>"""
     elif goal == "doe":
         tip = """<p><strong>Since you're interested in DOE:</strong> The <a href="https://svend.ai/app/experimenter/" style="color:#4a9f6e;">Experimenter</a> can design full factorial, fractional factorial, and response surface experiments. Describe your factors and it handles the rest.</p>"""
     elif goal == "analysis":
@@ -142,7 +142,7 @@ def _email_learning_path(user, survey):
             "items": [
                 (
                     "SPC Control Charts",
-                    "/app/spc/",
+                    "/app/dsw/",
                     "Monitor process stability with X-bar/R, I-MR, and attribute charts",
                 ),
                 ("Capability Analysis", "/app/analysis/", "Calculate Cpk, Ppk, and process performance indices"),
@@ -154,7 +154,7 @@ def _email_learning_path(user, survey):
             "title": "Your Management Dashboard Path",
             "items": [
                 ("Quick Analysis", "/app/analysis/", "Get answers from data without needing to pick the right test"),
-                ("SPC Dashboards", "/app/spc/", "Monitor key process metrics at a glance"),
+                ("SPC Dashboards", "/app/dsw/", "Monitor key process metrics at a glance"),
                 ("A3 Reports", "/app/a3/", "Structure problem-solving for your team"),
                 ("PDF Export", "/app/analysis/", "Generate clean reports for stakeholders"),
             ],
@@ -173,7 +173,7 @@ def _email_learning_path(user, survey):
             "items": [
                 ("Statistical Testing", "/app/analysis/", "Run the right test automatically based on your data"),
                 ("Visualization", "/app/analysis/", "Interactive charts and distribution plots"),
-                ("Process Monitoring", "/app/spc/", "Set up ongoing control charts"),
+                ("Process Monitoring", "/app/dsw/", "Set up ongoing control charts"),
                 (
                     "Calculators",
                     "/app/calculators/",
@@ -443,7 +443,7 @@ def _lifecycle_feature_discovery(user, feature="doe"):
         "spc": {
             "title": "Statistical Process Control",
             "desc": "Monitor process stability with control charts. Detects shifts before they become defects.",
-            "url": "https://svend.ai/app/spc/",
+            "url": "https://svend.ai/app/dsw/",
             "cta": "Try SPC",
         },
         "forecast": {
