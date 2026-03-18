@@ -315,6 +315,7 @@ urlpatterns = [
         "api/investigations/", include("agents_api.investigation_urls")
     ),  # Investigation lifecycle (CANON-002) — deprecated
     path("api/notebooks/", include("agents_api.notebook_urls")),  # Notebook lifecycle (NB-001)
+    path("api/harada/", include("agents_api.harada_urls")),  # Harada Method (questionnaire, goals, routines, diary)
     path("api/core/", include("core.urls")),  # Projects, hypotheses, evidence, knowledge graph
     path("api/workbench/", include("workbench.urls")),
     path("chat/", include("chat.urls")),
