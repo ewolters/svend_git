@@ -107,24 +107,40 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 .routine-text.done { text-decoration: line-through; color: var(--text-dim); }
 
 /* Questionnaire */
-.q-item { margin-bottom: 20px; }
-.q-item label { display: block; font-size: 13px; color: var(--text-primary); margin-bottom: 8px; line-height: 1.5; }
-.q-likert { display: flex; gap: 8px; }
+.q-item { margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+.q-item:last-of-type { border-bottom: none; }
+.q-item > label { display: block; font-size: 13px; color: var(--text-primary); margin-bottom: 10px; line-height: 1.5; }
+.q-likert { display: flex; gap: 16px; padding: 4px 0; }
 .q-likert label {
-    flex: 1; text-align: center; padding: 8px 4px; font-size: 11px;
-    border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
-    transition: all 0.15s;
+    display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; color: var(--text-secondary);
 }
-.q-likert input { display: none; }
-.q-likert input:checked + span { background: var(--accent-primary); color: #fff; }
-.q-likert label:has(input:checked) { border-color: var(--accent-primary); background: rgba(74,159,110,0.1); }
-.q-scenario { margin: 12px 0; padding: 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 13px; line-height: 1.6; }
+.q-likert input[type=radio] {
+    appearance: none; -webkit-appearance: none; width: 16px; height: 16px;
+    border: 2px solid var(--border); border-radius: 50%; cursor: pointer;
+    transition: all 0.15s; flex-shrink: 0;
+}
+.q-likert input[type=radio]:checked {
+    border-color: var(--accent-primary); background: var(--accent-primary);
+    box-shadow: inset 0 0 0 3px var(--bg-card);
+}
+.q-likert input[type=radio]:hover { border-color: var(--accent-primary); }
+.q-scenario { margin: 8px 0 12px; padding: 12px; background: var(--bg-secondary); border-radius: 6px; font-size: 13px; line-height: 1.6; color: var(--text-secondary); }
 .q-option {
-    display: block; padding: 10px 12px; margin: 6px 0; border: 1px solid var(--border);
-    border-radius: 6px; cursor: pointer; font-size: 12px; line-height: 1.5; transition: all 0.15s;
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; margin: 0;
+    cursor: pointer; font-size: 12px; line-height: 1.5; transition: color 0.15s;
+    color: var(--text-secondary); border: none;
 }
-.q-option:hover { border-color: var(--accent-primary); background: rgba(74,159,110,0.05); }
-.q-option.selected { border-color: var(--accent-primary); background: rgba(74,159,110,0.15); }
+.q-option::before {
+    content: ''; width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px;
+    border: 2px solid var(--border); border-radius: 50%; transition: all 0.15s;
+}
+.q-option:hover { color: var(--text-primary); }
+.q-option:hover::before { border-color: var(--accent-primary); }
+.q-option.selected { color: var(--text-primary); }
+.q-option.selected::before {
+    border-color: var(--accent-primary); background: var(--accent-primary);
+    box-shadow: inset 0 0 0 3px var(--bg-card);
+}
 
 /* Goal cascade */
 .goal-tree { padding-left: 0; }
@@ -620,9 +636,9 @@ function renderQuestionnaire(data) {
                 <label>${lines.map(l => esc(l)).join('<br>')}</label>
                 <div class="q-likert">
                     ${[1,2,3,4,5].map(v => `
-                        <label onclick="this.querySelector('input').checked=true; this.parentElement.querySelectorAll('label').forEach(l=>l.style.borderColor=''); this.style.borderColor='var(--accent-primary)';">
-                            <input type="radio" name="q_${i}" value="${v}"><span>${v}</span>
-                            <div style="font-size:9px;margin-top:2px;">${dim.scale_labels?.[v-1] || ''}</div>
+                        <label>
+                            <input type="radio" name="q_${i}" value="${v}">
+                            <span>${v} — ${dim.scale_labels?.[v-1] || ''}</span>
                         </label>
                     `).join('')}
                 </div>
