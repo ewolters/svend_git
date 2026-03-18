@@ -871,17 +871,24 @@
                     <div class="charter-section">
                         <h3>Team Roster</h3>
                         <div class="team-list" id="ch-team-list"></div>
-                        <div style="display:flex;gap:8px;margin-top:10px;">
-                            <input id="ch-team-name" placeholder="Name" style="flex:3;min-width:0;padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
+                        <div style="display:flex;gap:8px;margin-top:10px;position:relative;">
+                            <div style="flex:3;position:relative;">
+                                <input id="ch-team-name" placeholder="Name (type to search employees)" autocomplete="off"
+                                    style="width:100%;box-sizing:border-box;padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
+                                <div id="ch-team-autocomplete" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:100;
+                                    background:var(--bg-tertiary);border:1px solid var(--border);border-radius:0 0 6px 6px;max-height:180px;overflow-y:auto;"></div>
+                            </div>
                             <select id="ch-team-role" style="flex:2;min-width:0;padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
-                                <option value="Member">Member</option>
-                                <option value="Team Leader">Team Leader</option>
-                                <option value="Facilitator">Facilitator</option>
-                                <option value="SME">SME</option>
+                                <option value="team_member">Team Member</option>
+                                <option value="facilitator">Facilitator</option>
+                                <option value="sponsor">Sponsor</option>
+                                <option value="process_owner">Process Owner</option>
+                                <option value="subject_expert">Subject Expert</option>
                             </select>
-                            <input id="ch-team-dept" placeholder="Department" style="flex:2;min-width:0;padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
+                            <input id="ch-team-email" placeholder="Email" style="flex:2;min-width:0;padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
                             <button class="btn-h small primary" onclick="addTeamMember()">Add</button>
                         </div>
+                        <input type="hidden" id="ch-team-employee-id" value="">
                     </div>
                     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
                         <button class="btn-h primary" onclick="saveCharter()">Save Charter</button>
@@ -2564,26 +2571,82 @@ function updateCharterMetricPct() {
 }
 
 function renderCharterTeam() {
-    document.getElementById('ch-team-list').innerHTML = charterTeamMembers.map((m, i) => `
-        <div class="team-member">
+    const ROLE_BADGE = {facilitator:'Facilitator',team_member:'Team Member',sponsor:'Sponsor',
+        process_owner:'Process Owner',subject_expert:'Subject Expert'};
+    document.getElementById('ch-team-list').innerHTML = charterTeamMembers.map((m, i) => {
+        const statusBadge = m.employee_id
+            ? `<span style="font-size:10px;padding:1px 6px;border-radius:3px;margin-left:4px;
+                background:${m.commitment_status === 'confirmed' || m.commitment_status === 'active' ? 'rgba(74,159,110,0.2);color:#4a9f6e' :
+                m.commitment_status === 'declined' ? 'rgba(208,96,96,0.2);color:#d06060' :
+                'rgba(232,197,71,0.2);color:#e8c547'};">${m.commitment_status || 'pending'}</span>`
+            : '';
+        return `<div class="team-member">
             <strong>${m.name}</strong>
-            <span class="role">${m.role}</span>
-            ${m.department ? `<span class="role">(${m.department})</span>` : ''}
+            <span class="role">${ROLE_BADGE[m.role] || m.role}</span>
+            ${m.email ? `<span style="font-size:11px;color:var(--text-dim);">${m.email}</span>` : ''}
+            ${statusBadge}
             <span class="remove" onclick="removeTeamMember(${i})">&#x2715;</span>
+        </div>`;
+    }).join('') || '<div style="font-size:12px;color:var(--text-dim);padding:8px;">No team members added.</div>';
+}
+
+// ── Employee autocomplete for charter team ──
+let _employeeCache = null;
+
+async function loadEmployeeCache() {
+    if (_employeeCache) return _employeeCache;
+    const data = await api('/employees/');
+    _employeeCache = Array.isArray(data) ? data : [];
+    return _employeeCache;
+}
+
+document.getElementById('ch-team-name')?.addEventListener('input', async function() {
+    const q = this.value.trim().toLowerCase();
+    const dropdown = document.getElementById('ch-team-autocomplete');
+    if (q.length < 2) { dropdown.style.display = 'none'; return; }
+
+    const employees = await loadEmployeeCache();
+    const matches = employees.filter(e =>
+        e.name.toLowerCase().includes(q) || (e.email && e.email.toLowerCase().includes(q))
+    ).slice(0, 8);
+
+    if (!matches.length) { dropdown.style.display = 'none'; return; }
+
+    dropdown.innerHTML = matches.map(e => `
+        <div style="padding:6px 10px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--border);"
+             onmousedown="selectEmployee('${e.id}','${e.name.replace(/'/g,"\\'")}','${e.email || ''}','${e.department || ''}')">
+            <strong>${e.name}</strong>
+            ${e.email ? `<span style="color:var(--text-dim);margin-left:6px;">${e.email}</span>` : ''}
+            ${e.department ? `<span style="color:var(--text-dim);margin-left:6px;">(${e.department})</span>` : ''}
         </div>
-    `).join('') || '<div style="font-size:12px;color:var(--text-dim);padding:8px;">No team members added.</div>';
+    `).join('');
+    dropdown.style.display = 'block';
+});
+
+document.getElementById('ch-team-name')?.addEventListener('blur', function() {
+    setTimeout(() => { document.getElementById('ch-team-autocomplete').style.display = 'none'; }, 200);
+});
+
+function selectEmployee(id, name, email, dept) {
+    document.getElementById('ch-team-name').value = name;
+    document.getElementById('ch-team-email').value = email;
+    document.getElementById('ch-team-employee-id').value = id;
+    document.getElementById('ch-team-autocomplete').style.display = 'none';
 }
 
 function addTeamMember() {
     const name = document.getElementById('ch-team-name').value.trim();
     if (!name) return;
+    const employeeId = document.getElementById('ch-team-employee-id').value || '';
     charterTeamMembers.push({
         name: name,
         role: document.getElementById('ch-team-role').value,
-        department: document.getElementById('ch-team-dept').value.trim(),
+        email: document.getElementById('ch-team-email').value.trim(),
+        employee_id: employeeId || null,
     });
     document.getElementById('ch-team-name').value = '';
-    document.getElementById('ch-team-dept').value = '';
+    document.getElementById('ch-team-email').value = '';
+    document.getElementById('ch-team-employee-id').value = '';
     renderCharterTeam();
 }
 

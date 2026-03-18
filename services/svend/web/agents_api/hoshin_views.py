@@ -10,7 +10,7 @@ Enterprise-only feature for managing continuous improvement project portfolios:
 
 import json
 import logging
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
@@ -368,6 +368,13 @@ def update_hoshin_project(request, hoshin_id):
 
     hoshin.save()
 
+    # Sync charter team_members → ResourceCommitments when charter changes
+    if "kaizen_charter" in data:
+        try:
+            _sync_charter_commitments(hoshin, request.user)
+        except Exception:
+            logger.exception("Failed to sync charter commitments for %s", hoshin.id)
+
     # Also update core.Project fields if provided
     core_fields = ["title", "champion_name", "leader_name", "team_members", "methodology", "goal_metric"]
     core_changed = False
@@ -379,6 +386,103 @@ def update_hoshin_project(request, hoshin_id):
         hoshin.project.save()
 
     return JsonResponse({"success": True, "project": hoshin.to_dict()})
+
+
+# Role mapping: charter role strings → ResourceCommitment role keys
+_CHARTER_ROLE_MAP = {
+    "facilitator": "facilitator",
+    "team_member": "team_member",
+    "sponsor": "sponsor",
+    "process_owner": "process_owner",
+    "subject_expert": "subject_expert",
+    # Legacy role names from old charter form
+    "Member": "team_member",
+    "Team Leader": "facilitator",
+    "Facilitator": "facilitator",
+    "SME": "subject_expert",
+}
+
+
+def _sync_charter_commitments(hoshin, requested_by):
+    """Sync kaizen_charter.team_members with ResourceCommitments.
+
+    For each team member with an employee_id, ensure a ResourceCommitment
+    exists for this project. New members get a commitment + notification.
+    Removed members get their commitment declined (if still requested).
+    """
+    from agents_api.commitment_notifications import notify_commitment_requested
+
+    charter = hoshin.kaizen_charter or {}
+    members = charter.get("team_members", [])
+    tenant = hoshin.site.tenant if hoshin.site else None
+    if not tenant:
+        return
+
+    # Get event dates for commitment range
+    event_date = charter.get("event_date", "")
+    end_date = charter.get("end_date", "") or event_date
+    if not event_date:
+        return
+
+    try:
+        start = date.fromisoformat(event_date)
+        end = date.fromisoformat(end_date) if end_date else start + timedelta(days=5)
+    except (ValueError, TypeError):
+        return
+
+    # Track which employees are in the charter
+    charter_employee_ids = set()
+
+    for member in members:
+        emp_id = member.get("employee_id")
+        if not emp_id:
+            continue
+
+        try:
+            emp = Employee.objects.get(id=emp_id, tenant=tenant)
+        except Employee.DoesNotExist:
+            continue
+
+        charter_employee_ids.add(str(emp.id))
+        role = _CHARTER_ROLE_MAP.get(member.get("role", ""), "team_member")
+
+        # Check if commitment already exists
+        existing = (
+            ResourceCommitment.objects.filter(
+                employee=emp,
+                project=hoshin,
+            )
+            .exclude(status="declined")
+            .first()
+        )
+
+        if existing:
+            # Update role if changed
+            if existing.role != role:
+                existing.role = role
+                existing.save(update_fields=["role", "updated_at"])
+            continue
+
+        # Create new commitment
+        commitment = ResourceCommitment.objects.create(
+            employee=emp,
+            project=hoshin,
+            role=role,
+            start_date=start,
+            end_date=end,
+            requested_by=requested_by,
+        )
+        notify_commitment_requested(commitment)
+
+    # Decline commitments for employees removed from charter
+    removed = ResourceCommitment.objects.filter(
+        project=hoshin,
+        status="requested",
+    ).exclude(employee_id__in=charter_employee_ids)
+
+    for commitment in removed:
+        commitment.status = "declined"
+        commitment.save(update_fields=["status", "updated_at"])
 
 
 @require_feature("hoshin_kanri")
