@@ -208,6 +208,76 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     </div>
 </div>
 
+<!-- Modals -->
+<div class="hr-modal-overlay" id="modal-goal" style="display:none;">
+    <div class="hr-modal">
+        <h3>Add Goal</h3>
+        <label>Title</label>
+        <input type="text" id="goal-title" placeholder="Your goal...">
+        <label>Horizon</label>
+        <select id="goal-horizon">
+            <option value="long_term">3-5 Year</option>
+            <option value="fiscal_year">Current FY</option>
+            <option value="monthly">Current Month</option>
+            <option value="immediate">Immediate</option>
+        </select>
+        <div class="hr-modal-actions">
+            <button onclick="closeModal('modal-goal')" class="hr-modal-cancel">Cancel</button>
+            <button onclick="submitGoal()" class="hr-modal-submit">Add</button>
+        </div>
+    </div>
+</div>
+
+<div class="hr-modal-overlay" id="modal-cell" style="display:none;">
+    <div class="hr-modal">
+        <h3 id="cell-modal-title">Add Cell</h3>
+        <label>Text</label>
+        <input type="text" id="cell-text" placeholder="Action or routine...">
+        <label>Type</label>
+        <select id="cell-type">
+            <option value="task">One-time Task</option>
+            <option value="routine">Daily Routine</option>
+        </select>
+        <div class="hr-modal-actions">
+            <button onclick="closeModal('modal-cell')" class="hr-modal-cancel">Cancel</button>
+            <button onclick="submitCell()" class="hr-modal-submit">Save</button>
+        </div>
+    </div>
+</div>
+
+<div class="hr-modal-overlay" id="modal-toast" style="display:none;">
+    <div class="hr-modal" style="max-width:300px;text-align:center;">
+        <p id="toast-message"></p>
+        <button onclick="closeModal('modal-toast')" class="hr-modal-submit" style="margin-top:12px;">OK</button>
+    </div>
+</div>
+
+<style>
+.hr-modal-overlay {
+    position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);
+    display:flex;align-items:center;justify-content:center;z-index:10000;
+}
+.hr-modal {
+    background:var(--bg-card);border:1px solid var(--border);border-radius:8px;
+    padding:24px;width:380px;max-width:90vw;
+}
+.hr-modal h3 { margin:0 0 16px; font-size:15px; }
+.hr-modal label { display:block;font-size:12px;color:var(--text-dim);margin:8px 0 4px; }
+.hr-modal input, .hr-modal select {
+    width:100%;padding:8px;background:var(--bg-secondary);color:var(--text-primary);
+    border:1px solid var(--border);border-radius:4px;font-size:13px;
+}
+.hr-modal-actions { display:flex;gap:8px;justify-content:flex-end;margin-top:16px; }
+.hr-modal-cancel {
+    padding:6px 14px;font-size:12px;background:transparent;color:var(--text-primary);
+    border:1px solid var(--border);border-radius:4px;cursor:pointer;
+}
+.hr-modal-submit {
+    padding:6px 14px;font-size:12px;background:var(--accent-primary);color:#fff;
+    border:none;border-radius:4px;cursor:pointer;font-weight:600;
+}
+</style>
+
 <script>
 const API = '/api/harada/';
 function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
@@ -354,19 +424,21 @@ function renderMandala(grid) {
 }
 
 async function editCell(cellId) {
-    const text = prompt('Update text (or leave empty to toggle completion):');
-    if (text === null) return;
-    if (text === '') {
-        // Toggle completion
-        await api(API + 'window/' + cellId + '/', 'PATCH', { is_completed: true });
-    } else {
-        await api(API + 'window/' + cellId + '/', 'PATCH', { text });
-    }
-    loadWindow();
+    _pendingCellId = cellId;
+    _pendingCellMode = 'edit';
+    document.getElementById('cell-modal-title').textContent = 'Edit Cell';
+    document.getElementById('cell-text').value = '';
+    document.getElementById('cell-text').placeholder = 'New text (leave empty to toggle completion)';
+    document.getElementById('modal-cell').style.display = 'flex';
+    document.getElementById('cell-text').focus();
 }
 
+let _pendingCellId = null;
+let _pendingCellMode = null;
+let _pendingGoalNum = null;
+let _pendingPosition = null;
+
 async function addCell(row, col) {
-    // Determine which goal block this belongs to
     const blockPositions = [[3,3],[0,0],[0,3],[0,6],[3,0],[3,6],[6,0],[6,3],[6,6]];
     let goalNum = null;
     let position = null;
@@ -377,7 +449,7 @@ async function addCell(row, col) {
             goalNum = g;
             const lr = row - br;
             const lc = col - bc;
-            if (lr === 1 && lc === 1) position = 0; // center
+            if (lr === 1 && lc === 1) position = 0;
             else {
                 const offsets = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
                 for (let i = 0; i < 8; i++) {
@@ -389,12 +461,39 @@ async function addCell(row, col) {
     }
 
     if (goalNum === null) return;
-    const text = prompt('Enter text:');
-    if (!text) return;
-    const cellType = position === 0 ? 'goal' : (confirm('Is this a daily routine? (OK=routine, Cancel=one-time task)') ? 'routine' : 'task');
+    _pendingGoalNum = goalNum;
+    _pendingPosition = position;
+    _pendingCellMode = 'add';
+    document.getElementById('cell-modal-title').textContent = position === 0 ? 'Add Goal' : 'Add Action';
+    document.getElementById('cell-text').value = '';
+    document.getElementById('cell-text').placeholder = position === 0 ? 'Goal name...' : 'Action or routine...';
+    document.getElementById('cell-type').style.display = position === 0 ? 'none' : '';
+    document.getElementById('modal-cell').style.display = 'flex';
+    document.getElementById('cell-text').focus();
+}
 
-    await api(API + 'window/', 'POST', { goal_number: goalNum, position, text, cell_type: cellType });
+async function submitCell() {
+    const text = document.getElementById('cell-text').value.trim();
+    if (_pendingCellMode === 'edit') {
+        if (text === '') {
+            await api(API + 'window/' + _pendingCellId + '/', 'PATCH', { is_completed: true });
+        } else {
+            await api(API + 'window/' + _pendingCellId + '/', 'PATCH', { text });
+        }
+    } else if (_pendingCellMode === 'add' && text) {
+        const cellType = _pendingPosition === 0 ? 'goal' : document.getElementById('cell-type').value;
+        await api(API + 'window/', 'POST', {
+            goal_number: _pendingGoalNum, position: _pendingPosition, text, cell_type: cellType,
+        });
+    }
+    closeModal('modal-cell');
     loadWindow();
+}
+
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function showToast(msg) {
+    document.getElementById('toast-message').textContent = msg;
+    document.getElementById('modal-toast').style.display = 'flex';
 }
 
 // ============================================================================
@@ -572,7 +671,7 @@ async function submitQuestionnaire() {
         }
     });
 
-    if (responses.length === 0) { alert('Please answer at least one question.'); return; }
+    if (responses.length === 0) { showToast('Please answer at least one question.'); return; }
 
     const { data } = await api(API + 'questionnaire/submit/', 'POST', {
         instrument: 'ci_readiness',
@@ -580,7 +679,7 @@ async function submitQuestionnaire() {
         responses,
     });
 
-    alert(`Saved ${data.responses_saved} responses (version ${data.version}).`);
+    showToast(`Saved ${data.responses_saved} responses (version ${data.version}).`);
     loadDashboard();
 }
 
@@ -616,12 +715,19 @@ async function loadGoals() {
     el.innerHTML = data.goals.map(g => renderGoal(g)).join('');
 }
 
-async function showGoalForm() {
-    const title = prompt('Goal title:');
+function showGoalForm() {
+    document.getElementById('goal-title').value = '';
+    document.getElementById('goal-horizon').value = 'long_term';
+    document.getElementById('modal-goal').style.display = 'flex';
+    document.getElementById('goal-title').focus();
+}
+
+async function submitGoal() {
+    const title = document.getElementById('goal-title').value.trim();
     if (!title) return;
-    const horizon = prompt('Horizon (long_term, fiscal_year, monthly, immediate):', 'long_term');
-    if (!horizon) return;
+    const horizon = document.getElementById('goal-horizon').value;
     await api(API + 'goals/', 'POST', { title, horizon });
+    closeModal('modal-goal');
     loadGoals();
 }
 
