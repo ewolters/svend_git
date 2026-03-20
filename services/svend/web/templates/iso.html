@@ -203,6 +203,10 @@ select.iso-input { appearance: none; background-image: url("data:image/svg+xml,%
         <a class="iso-tab" href="#/reviews">Management Reviews</a>
         <a class="iso-tab" href="#/documents">Document Control</a>
         <a class="iso-tab" href="#/suppliers">Suppliers</a>
+        <a class="iso-tab" href="#/complaints">Complaints</a>
+        <a class="iso-tab" href="#/risks">Risks</a>
+        <a class="iso-tab" href="#/equipment">Equipment</a>
+        <a class="iso-tab" href="#/audit-readiness">Audit Readiness</a>
     </div>
 
     <div id="panel-dashboard" class="iso-panel"></div>
@@ -212,6 +216,10 @@ select.iso-input { appearance: none; background-image: url("data:image/svg+xml,%
     <div id="panel-reviews" class="iso-panel"></div>
     <div id="panel-documents" class="iso-panel"></div>
     <div id="panel-suppliers" class="iso-panel"></div>
+    <div id="panel-complaints" class="iso-panel"></div>
+    <div id="panel-risks" class="iso-panel"></div>
+    <div id="panel-equipment" class="iso-panel"></div>
+    <div id="panel-audit-readiness" class="iso-panel"></div>
 </div>
 {% endblock %}
 
@@ -273,7 +281,7 @@ function siteBadge(siteId, siteName) {
 // =========================================================================
 // Navigation
 // =========================================================================
-const TABS = ['dashboard', 'ncrs', 'audits', 'training', 'reviews', 'documents', 'suppliers'];
+const TABS = ['dashboard', 'ncrs', 'audits', 'training', 'reviews', 'documents', 'suppliers', 'complaints', 'risks', 'equipment', 'audit-readiness'];
 let currentTab = 'dashboard';
 
 function navigate(tab) {
@@ -290,6 +298,10 @@ function navigate(tab) {
         reviews: loadReviews,
         documents: loadDocuments,
         suppliers: loadSuppliers,
+        complaints: loadComplaints,
+        risks: loadRisks,
+        equipment: loadEquipment,
+        'audit-readiness': loadAuditReadiness,
     };
     if (loader[tab]) loader[tab]();
 }
@@ -2424,6 +2436,575 @@ async function deleteSupplier(id) {
         toast('Supplier deleted');
         loadSuppliers();
     } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
+}
+
+// =========================================================================
+// Customer Complaints tab (ISO 9001 §9.1.2)
+// =========================================================================
+let complaintFilterStatus = '';
+let complaintFilterSeverity = '';
+
+async function loadComplaints() {
+    const el = document.getElementById('panel-complaints');
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim)">Loading complaints...</div>';
+    try {
+        let qs = '/complaints/';
+        const params = [];
+        if (complaintFilterStatus) params.push(`status=${complaintFilterStatus}`);
+        if (complaintFilterSeverity) params.push(`severity=${complaintFilterSeverity}`);
+        if (params.length) qs += '?' + params.join('&');
+        const data = await apiFetch(qs);
+        renderComplaintList(el, data);
+    } catch (e) { el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Unknown error'))}</div>`; }
+}
+
+function renderComplaintList(el, items) {
+    let html = '<div class="iso-toolbar">';
+    html += `<select class="iso-input" style="width:140px" onchange="complaintFilterStatus=this.value;loadComplaints()">
+        <option value="">All Statuses</option>
+        <option value="open"${complaintFilterStatus==='open'?' selected':''}>Open</option>
+        <option value="acknowledged"${complaintFilterStatus==='acknowledged'?' selected':''}>Acknowledged</option>
+        <option value="investigating"${complaintFilterStatus==='investigating'?' selected':''}>Investigating</option>
+        <option value="resolved"${complaintFilterStatus==='resolved'?' selected':''}>Resolved</option>
+        <option value="closed"${complaintFilterStatus==='closed'?' selected':''}>Closed</option>
+    </select>`;
+    html += `<select class="iso-input" style="width:120px;margin-left:8px" onchange="complaintFilterSeverity=this.value;loadComplaints()">
+        <option value="">All Severity</option>
+        <option value="low"${complaintFilterSeverity==='low'?' selected':''}>Low</option>
+        <option value="medium"${complaintFilterSeverity==='medium'?' selected':''}>Medium</option>
+        <option value="high"${complaintFilterSeverity==='high'?' selected':''}>High</option>
+        <option value="critical"${complaintFilterSeverity==='critical'?' selected':''}>Critical</option>
+    </select>`;
+    html += '<div style="flex:1"></div>';
+    html += '<button class="iso-btn primary" onclick="showComplaintForm()">+ New Complaint</button>';
+    html += '</div>';
+    if (!items.length) {
+        html += '<div style="text-align:center;padding:60px;color:var(--text-dim)">No complaints found</div>';
+    } else {
+        html += '<table class="iso-table"><thead><tr><th>Title</th><th>Status</th><th>Severity</th><th>Source</th><th>Customer</th><th>Created</th></tr></thead><tbody>';
+        items.forEach(c => {
+            html += `<tr style="cursor:pointer" onclick="loadComplaintDetail('${c.id}')">
+                <td>${escHtml(c.title)}</td><td>${badge(c.status, c.status)}</td><td>${badge(c.severity, c.severity)}</td>
+                <td>${escHtml(c.source)}</td><td>${escHtml(c.customer_name||'—')}</td><td>${fmtDate(c.created_at)}</td></tr>`;
+        });
+        html += '</tbody></table>';
+    }
+    el.innerHTML = html;
+}
+
+function showComplaintForm() {
+    const el = document.getElementById('panel-complaints');
+    el.innerHTML = `<div class="iso-form" style="max-width:700px">
+        <h3 style="margin:0 0 16px">New Customer Complaint</h3>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">Title *</label><input class="iso-input" id="comp-title" placeholder="Brief description"></div>
+            <div><label class="iso-label">Source</label><select class="iso-input" id="comp-source">
+                <option value="other">Other</option><option value="phone">Phone</option><option value="email">Email</option>
+                <option value="web">Web Form</option><option value="field">Field Report</option><option value="social">Social Media</option>
+                <option value="return">Product Return</option></select></div>
+            <div><label class="iso-label">Severity</label><select class="iso-input" id="comp-severity">
+                <option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="critical">Critical</option></select></div>
+            <div><label class="iso-label">Customer Name</label><input class="iso-input" id="comp-customer" placeholder="Customer name"></div>
+            <div><label class="iso-label">Contact</label><input class="iso-input" id="comp-contact" placeholder="Email or phone"></div>
+            <div><label class="iso-label">Product/Service</label><input class="iso-input" id="comp-product" placeholder="What was complained about"></div>
+        </div>
+        <div style="margin-top:12px"><label class="iso-label">Description</label><textarea class="iso-textarea" id="comp-desc" rows="3"></textarea></div>
+        ${siteSelectHtml('comp-site')}
+        <div style="margin-top:16px;display:flex;gap:8px">
+            <button class="iso-btn primary" onclick="saveComplaint()">Create Complaint</button>
+            <button class="iso-btn" onclick="loadComplaints()">Cancel</button>
+        </div>
+    </div>`;
+}
+
+async function saveComplaint() {
+    const title = document.getElementById('comp-title').value.trim();
+    if (!title) { toast('Title is required', true); return; }
+    try {
+        await apiFetch('/complaints/', { method: 'POST', body: {
+            title, description: document.getElementById('comp-desc').value,
+            source: document.getElementById('comp-source').value, severity: document.getElementById('comp-severity').value,
+            customer_name: document.getElementById('comp-customer').value, customer_contact: document.getElementById('comp-contact').value,
+            product_service: document.getElementById('comp-product').value, site_id: siteVal('comp-site'),
+        }});
+        toast('Complaint created');
+        loadComplaints();
+    } catch (e) { toast(safeStr(e, 'Error saving complaint'), true); }
+}
+
+async function loadComplaintDetail(id) {
+    const el = document.getElementById('panel-complaints');
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim)">Loading...</div>';
+    try {
+        const c = await apiFetch(`/complaints/${id}/`);
+        const members = teamMembers || [];
+        const statuses = ['open','acknowledged','investigating','resolved','closed'];
+        let html = `<div style="margin-bottom:12px"><button class="iso-btn" onclick="loadComplaints()">&larr; Back</button>
+            <span style="margin-left:12px;font-size:18px;font-weight:600">${escHtml(c.title)}</span>
+            ${badge(c.status, c.status)} ${badge(c.severity, c.severity)}</div>`;
+        // Status progression bar
+        html += '<div style="display:flex;gap:4px;margin:16px 0">';
+        statuses.forEach(s => {
+            const active = s === c.status ? 'background:var(--accent);color:white;' : 'background:var(--card-bg);color:var(--text-secondary);';
+            html += `<div style="flex:1;text-align:center;padding:6px;border-radius:6px;font-size:11px;${active}">${s}</div>`;
+        });
+        html += '</div>';
+        // Detail fields
+        html += `<div class="iso-form" style="max-width:700px">
+            <div class="iso-form-grid">
+                <div><label class="iso-label">Title</label><input class="iso-input" id="cd-title" value="${escHtml(c.title)}"></div>
+                <div><label class="iso-label">Severity</label><select class="iso-input" id="cd-severity">
+                    ${['low','medium','high','critical'].map(s=>`<option${s===c.severity?' selected':''}>${s}</option>`).join('')}</select></div>
+                <div><label class="iso-label">Source</label><select class="iso-input" id="cd-source">
+                    ${['phone','email','web','field','social','return','other'].map(s=>`<option${s===c.source?' selected':''}>${s}</option>`).join('')}</select></div>
+                <div><label class="iso-label">Customer</label><input class="iso-input" id="cd-customer" value="${escHtml(c.customer_name||'')}"></div>
+                <div><label class="iso-label">Contact</label><input class="iso-input" id="cd-contact" value="${escHtml(c.customer_contact||'')}"></div>
+                <div><label class="iso-label">Product/Service</label><input class="iso-input" id="cd-product" value="${escHtml(c.product_service||'')}"></div>
+                <div><label class="iso-label">Assigned To</label><select class="iso-input" id="cd-assigned">
+                    <option value="">— Unassigned —</option>
+                    ${members.map(m=>`<option value="${m.id}"${m.id===(c.assigned_to?.id||c.assigned_to)?' selected':''}>${escHtml(m.name||m.email)}</option>`).join('')}</select></div>
+            </div>
+            <div style="margin-top:12px"><label class="iso-label">Description</label><textarea class="iso-textarea" id="cd-desc" rows="3">${escHtml(c.description||'')}</textarea></div>
+            <div style="margin-top:12px"><label class="iso-label">Root Cause</label><textarea class="iso-textarea" id="cd-rootcause" rows="2">${escHtml(c.root_cause||'')}</textarea></div>
+            <div style="margin-top:12px"><label class="iso-label">Resolution</label><textarea class="iso-textarea" id="cd-resolution" rows="2">${escHtml(c.resolution||'')}</textarea></div>
+            <div style="margin-top:12px"><label class="iso-label">Preventive Action</label><textarea class="iso-textarea" id="cd-preventive" rows="2">${escHtml(c.preventive_action||'')}</textarea></div>
+            <div style="margin-top:12px"><label class="iso-label">Satisfaction Follow-up</label><textarea class="iso-textarea" id="cd-followup" rows="2">${escHtml(c.satisfaction_followup||'')}</textarea></div>
+            <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+                <button class="iso-btn primary" onclick="updateComplaint('${c.id}')">Save Changes</button>`;
+        // Status transition buttons
+        const transitions = {open:['acknowledged'],acknowledged:['investigating'],investigating:['resolved'],resolved:['closed']};
+        (transitions[c.status]||[]).forEach(ns => {
+            html += `<button class="iso-btn" onclick="advanceComplaint('${c.id}','${ns}')">&rarr; ${ns}</button>`;
+        });
+        html += `<button class="iso-btn" style="margin-left:auto;color:#f87171" onclick="deleteComplaint('${c.id}')">Delete</button>
+            </div></div>`;
+        el.innerHTML = html;
+    } catch (e) { el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Error'))}</div>`; }
+}
+
+async function updateComplaint(id) {
+    try {
+        await apiFetch(`/complaints/${id}/`, { method: 'PUT', body: {
+            title: document.getElementById('cd-title').value,
+            severity: document.getElementById('cd-severity').value,
+            source: document.getElementById('cd-source').value,
+            customer_name: document.getElementById('cd-customer').value,
+            customer_contact: document.getElementById('cd-contact').value,
+            product_service: document.getElementById('cd-product').value,
+            description: document.getElementById('cd-desc').value,
+            root_cause: document.getElementById('cd-rootcause').value,
+            resolution: document.getElementById('cd-resolution').value,
+            preventive_action: document.getElementById('cd-preventive').value,
+            satisfaction_followup: document.getElementById('cd-followup').value,
+            assigned_to: document.getElementById('cd-assigned').value || null,
+        }});
+        toast('Complaint updated');
+        loadComplaintDetail(id);
+    } catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+async function advanceComplaint(id, newStatus) {
+    const body = { status: newStatus };
+    if (newStatus === 'acknowledged') body.assigned_to = document.getElementById('cd-assigned').value || null;
+    if (newStatus === 'resolved') body.resolution = document.getElementById('cd-resolution').value;
+    if (newStatus === 'closed') body.satisfaction_followup = document.getElementById('cd-followup').value;
+    try {
+        await apiFetch(`/complaints/${id}/`, { method: 'PUT', body });
+        toast(`Status → ${newStatus}`);
+        loadComplaintDetail(id);
+    } catch (e) { toast(safeStr(e, 'Transition failed'), true); }
+}
+
+async function deleteComplaint(id) {
+    if (!confirm('Delete this complaint?')) return;
+    try { await apiFetch(`/complaints/${id}/`, { method: 'DELETE' }); toast('Deleted'); loadComplaints(); }
+    catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+// =========================================================================
+// Risk Register tab (ISO 9001 §6.1)
+// =========================================================================
+let riskFilterStatus = '';
+let riskFilterCategory = '';
+
+async function loadRisks() {
+    const el = document.getElementById('panel-risks');
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim)">Loading risks...</div>';
+    try {
+        let qs = '/risks/';
+        const params = [];
+        if (riskFilterStatus) params.push(`status=${riskFilterStatus}`);
+        if (riskFilterCategory) params.push(`category=${riskFilterCategory}`);
+        if (params.length) qs += '?' + params.join('&');
+        const data = await apiFetch(qs);
+        renderRiskList(el, data);
+    } catch (e) { el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Unknown error'))}</div>`; }
+}
+
+function riskScoreColor(score) {
+    if (score >= 15) return '#f87171';
+    if (score >= 8) return '#facc15';
+    return '#4ade80';
+}
+
+function renderRiskList(el, items) {
+    let html = '<div class="iso-toolbar">';
+    html += `<select class="iso-input" style="width:130px" onchange="riskFilterStatus=this.value;loadRisks()">
+        <option value="">All Statuses</option>
+        ${['identified','assessing','mitigating','accepted','closed'].map(s=>`<option value="${s}"${riskFilterStatus===s?' selected':''}>${s}</option>`).join('')}
+    </select>`;
+    html += `<select class="iso-input" style="width:130px;margin-left:8px" onchange="riskFilterCategory=this.value;loadRisks()">
+        <option value="">All Categories</option>
+        ${['operational','quality','compliance','strategic','safety','financial','supply_chain'].map(s=>`<option value="${s}"${riskFilterCategory===s?' selected':''}>${s}</option>`).join('')}
+    </select>`;
+    html += '<div style="flex:1"></div>';
+    html += '<button class="iso-btn primary" onclick="showRiskForm()">+ New Risk</button>';
+    html += '</div>';
+    if (!items.length) {
+        html += '<div style="text-align:center;padding:60px;color:var(--text-dim)">No risks registered — §6.1 requires risk-based thinking</div>';
+    } else {
+        html += '<table class="iso-table"><thead><tr><th>Title</th><th>Type</th><th>Category</th><th>Score</th><th>Status</th><th>Created</th></tr></thead><tbody>';
+        items.forEach(r => {
+            html += `<tr style="cursor:pointer" onclick="loadRiskDetail('${r.id}')">
+                <td>${escHtml(r.title)}</td><td>${badge(r.risk_type, r.risk_type)}</td><td>${escHtml(r.category)}</td>
+                <td><span style="font-weight:700;color:${riskScoreColor(r.risk_score)};font-family:'JetBrains Mono',monospace">${r.risk_score}</span>
+                    <span style="font-size:10px;color:var(--text-dim)">(${r.likelihood}×${r.impact})</span></td>
+                <td>${badge(r.status, r.status)}</td><td>${fmtDate(r.created_at)}</td></tr>`;
+        });
+        html += '</tbody></table>';
+    }
+    el.innerHTML = html;
+}
+
+function showRiskForm() {
+    const el = document.getElementById('panel-risks');
+    el.innerHTML = `<div class="iso-form" style="max-width:700px">
+        <h3 style="margin:0 0 16px">New Risk / Opportunity</h3>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">Title *</label><input class="iso-input" id="risk-title" placeholder="Brief description"></div>
+            <div><label class="iso-label">Type</label><select class="iso-input" id="risk-type">
+                <option value="risk">Risk</option><option value="opportunity">Opportunity</option></select></div>
+            <div><label class="iso-label">Category</label><select class="iso-input" id="risk-cat">
+                ${['operational','quality','compliance','strategic','safety','financial','supply_chain'].map(s=>`<option value="${s}">${s}</option>`).join('')}</select></div>
+            <div><label class="iso-label">Likelihood (1-5)</label><input class="iso-input" id="risk-like" type="number" min="1" max="5" value="1"></div>
+            <div><label class="iso-label">Impact (1-5)</label><input class="iso-input" id="risk-impact" type="number" min="1" max="5" value="1"></div>
+        </div>
+        <div style="margin-top:12px"><label class="iso-label">Description</label><textarea class="iso-textarea" id="risk-desc" rows="3"></textarea></div>
+        ${siteSelectHtml('risk-site')}
+        <div style="margin-top:16px;display:flex;gap:8px">
+            <button class="iso-btn primary" onclick="saveRisk()">Create Risk</button>
+            <button class="iso-btn" onclick="loadRisks()">Cancel</button>
+        </div>
+    </div>`;
+}
+
+async function saveRisk() {
+    const title = document.getElementById('risk-title').value.trim();
+    if (!title) { toast('Title is required', true); return; }
+    try {
+        await apiFetch('/risks/', { method: 'POST', body: {
+            title, description: document.getElementById('risk-desc').value,
+            risk_type: document.getElementById('risk-type').value, category: document.getElementById('risk-cat').value,
+            likelihood: parseInt(document.getElementById('risk-like').value) || 1,
+            impact: parseInt(document.getElementById('risk-impact').value) || 1,
+            site_id: siteVal('risk-site'),
+        }});
+        toast('Risk created');
+        loadRisks();
+    } catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+async function loadRiskDetail(id) {
+    const el = document.getElementById('panel-risks');
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim)">Loading...</div>';
+    try {
+        const r = await apiFetch(`/risks/${id}/`);
+        let html = `<div style="margin-bottom:12px"><button class="iso-btn" onclick="loadRisks()">&larr; Back</button>
+            <span style="margin-left:12px;font-size:18px;font-weight:600">${escHtml(r.title)}</span>
+            ${badge(r.risk_type, r.risk_type)} ${badge(r.status, r.status)}</div>`;
+        // Score display
+        html += `<div class="iso-kpis" style="max-width:400px">
+            <div class="iso-kpi"><div class="label">Risk Score</div><div class="value" style="color:${riskScoreColor(r.risk_score)}">${r.risk_score}</div>
+                <div class="sub">${r.likelihood} × ${r.impact}</div></div>`;
+        if (r.residual_risk_score != null) {
+            html += `<div class="iso-kpi"><div class="label">Residual</div><div class="value" style="color:${riskScoreColor(r.residual_risk_score)}">${r.residual_risk_score}</div>
+                <div class="sub">${r.residual_likelihood} × ${r.residual_impact}</div></div>`;
+        }
+        html += '</div>';
+        // Edit form
+        html += `<div class="iso-form" style="max-width:700px">
+            <div class="iso-form-grid">
+                <div><label class="iso-label">Title</label><input class="iso-input" id="rd-title" value="${escHtml(r.title)}"></div>
+                <div><label class="iso-label">Status</label><select class="iso-input" id="rd-status">
+                    ${['identified','assessing','mitigating','accepted','closed'].map(s=>`<option${s===r.status?' selected':''}>${s}</option>`).join('')}</select></div>
+                <div><label class="iso-label">Category</label><select class="iso-input" id="rd-cat">
+                    ${['operational','quality','compliance','strategic','safety','financial','supply_chain'].map(s=>`<option${s===r.category?' selected':''}>${s}</option>`).join('')}</select></div>
+                <div><label class="iso-label">Type</label><select class="iso-input" id="rd-type">
+                    ${['risk','opportunity'].map(s=>`<option${s===r.risk_type?' selected':''}>${s}</option>`).join('')}</select></div>
+                <div><label class="iso-label">Likelihood (1-5)</label><input class="iso-input" id="rd-like" type="number" min="1" max="5" value="${r.likelihood}"></div>
+                <div><label class="iso-label">Impact (1-5)</label><input class="iso-input" id="rd-impact" type="number" min="1" max="5" value="${r.impact}"></div>
+                <div><label class="iso-label">Residual Likelihood</label><input class="iso-input" id="rd-reslike" type="number" min="1" max="5" value="${r.residual_likelihood||''}"></div>
+                <div><label class="iso-label">Residual Impact</label><input class="iso-input" id="rd-resimpact" type="number" min="1" max="5" value="${r.residual_impact||''}"></div>
+            </div>
+            <div style="margin-top:12px"><label class="iso-label">Description</label><textarea class="iso-textarea" id="rd-desc" rows="3">${escHtml(r.description||'')}</textarea></div>
+            <div style="margin-top:16px;display:flex;gap:8px">
+                <button class="iso-btn primary" onclick="updateRisk('${r.id}')">Save Changes</button>
+                <button class="iso-btn" style="margin-left:auto;color:#f87171" onclick="deleteRisk('${r.id}')">Delete</button>
+            </div>
+        </div>`;
+        el.innerHTML = html;
+    } catch (e) { el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Error'))}</div>`; }
+}
+
+async function updateRisk(id) {
+    try {
+        await apiFetch(`/risks/${id}/`, { method: 'PUT', body: {
+            title: document.getElementById('rd-title').value, status: document.getElementById('rd-status').value,
+            category: document.getElementById('rd-cat').value, risk_type: document.getElementById('rd-type').value,
+            description: document.getElementById('rd-desc').value,
+            likelihood: parseInt(document.getElementById('rd-like').value) || 1,
+            impact: parseInt(document.getElementById('rd-impact').value) || 1,
+            residual_likelihood: parseInt(document.getElementById('rd-reslike').value) || null,
+            residual_impact: parseInt(document.getElementById('rd-resimpact').value) || null,
+        }});
+        toast('Risk updated');
+        loadRiskDetail(id);
+    } catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+async function deleteRisk(id) {
+    if (!confirm('Delete this risk?')) return;
+    try { await apiFetch(`/risks/${id}/`, { method: 'DELETE' }); toast('Deleted'); loadRisks(); }
+    catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+// =========================================================================
+// Calibration Equipment tab (ISO 9001 §7.1.5)
+// =========================================================================
+let equipFilterStatus = '';
+let equipFilterType = '';
+
+async function loadEquipment() {
+    const el = document.getElementById('panel-equipment');
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim)">Loading equipment...</div>';
+    try {
+        let qs = '/equipment/';
+        const params = [];
+        if (equipFilterStatus) params.push(`status=${equipFilterStatus}`);
+        if (equipFilterType) params.push(`type=${equipFilterType}`);
+        if (params.length) qs += '?' + params.join('&');
+        const data = await apiFetch(qs);
+        renderEquipList(el, data);
+    } catch (e) { el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Unknown error'))}</div>`; }
+}
+
+function renderEquipList(el, items) {
+    let html = '<div class="iso-toolbar">';
+    html += `<select class="iso-input" style="width:140px" onchange="equipFilterStatus=this.value;loadEquipment()">
+        <option value="">All Statuses</option>
+        ${['in_service','due','overdue','out_of_calibration','out_of_service','retired'].map(s=>`<option value="${s}"${equipFilterStatus===s?' selected':''}>${s.replace(/_/g,' ')}</option>`).join('')}
+    </select>`;
+    html += `<select class="iso-input" style="width:140px;margin-left:8px" onchange="equipFilterType=this.value;loadEquipment()">
+        <option value="">All Types</option>
+        ${['dimensional','force_torque','temperature','pressure','electrical','mass','optical','chemical','other'].map(s=>`<option value="${s}"${equipFilterType===s?' selected':''}>${s.replace(/_/g,' ')}</option>`).join('')}
+    </select>`;
+    html += '<div style="flex:1"></div>';
+    html += '<button class="iso-btn primary" onclick="showEquipForm()">+ New Equipment</button>';
+    html += '</div>';
+    if (!items.length) {
+        html += '<div style="text-align:center;padding:60px;color:var(--text-dim)">No equipment registered</div>';
+    } else {
+        html += '<table class="iso-table"><thead><tr><th>Name</th><th>Asset ID</th><th>Type</th><th>Status</th><th>Next Cal Due</th><th>Range</th></tr></thead><tbody>';
+        items.forEach(e => {
+            const overdue = e.is_overdue ? 'color:#f87171;font-weight:600' : e.is_due_soon ? 'color:#facc15;font-weight:600' : '';
+            html += `<tr style="cursor:pointer" onclick="loadEquipDetail('${e.id}')">
+                <td>${escHtml(e.name)}</td><td>${escHtml(e.asset_id||'—')}</td><td>${escHtml(e.equipment_type.replace(/_/g,' '))}</td>
+                <td>${badge(e.status, e.status.replace(/_/g,' '))}</td>
+                <td style="${overdue}">${e.next_calibration_due ? fmtDate(e.next_calibration_due) : '—'}${e.is_overdue?' ⚠':''}</td>
+                <td>${escHtml(e.measurement_range||'—')}</td></tr>`;
+        });
+        html += '</tbody></table>';
+    }
+    el.innerHTML = html;
+}
+
+function showEquipForm() {
+    const el = document.getElementById('panel-equipment');
+    el.innerHTML = `<div class="iso-form" style="max-width:700px">
+        <h3 style="margin:0 0 16px">New Measurement Equipment</h3>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">Name *</label><input class="iso-input" id="eq-name" placeholder="e.g. Mitutoyo Micrometer"></div>
+            <div><label class="iso-label">Asset ID</label><input class="iso-input" id="eq-asset" placeholder="Internal tag"></div>
+            <div><label class="iso-label">Serial Number</label><input class="iso-input" id="eq-serial"></div>
+            <div><label class="iso-label">Manufacturer</label><input class="iso-input" id="eq-mfg"></div>
+            <div><label class="iso-label">Model</label><input class="iso-input" id="eq-model"></div>
+            <div><label class="iso-label">Type</label><select class="iso-input" id="eq-type">
+                ${['dimensional','force_torque','temperature','pressure','electrical','mass','optical','chemical','other'].map(s=>`<option value="${s}">${s.replace(/_/g,' ')}</option>`).join('')}</select></div>
+            <div><label class="iso-label">Location</label><input class="iso-input" id="eq-location"></div>
+            <div><label class="iso-label">Cal Interval (months)</label><input class="iso-input" id="eq-interval" type="number" value="12"></div>
+            <div><label class="iso-label">Measurement Range</label><input class="iso-input" id="eq-range" placeholder="e.g. 0-25mm"></div>
+            <div><label class="iso-label">Resolution</label><input class="iso-input" id="eq-resolution" placeholder="e.g. 0.001mm"></div>
+            <div><label class="iso-label">Accuracy</label><input class="iso-input" id="eq-accuracy" placeholder="e.g. ±0.002mm"></div>
+            <div><label class="iso-label">Cal Provider</label><input class="iso-input" id="eq-provider"></div>
+        </div>
+        ${siteSelectHtml('eq-site')}
+        <div style="margin-top:16px;display:flex;gap:8px">
+            <button class="iso-btn primary" onclick="saveEquip()">Create Equipment</button>
+            <button class="iso-btn" onclick="loadEquipment()">Cancel</button>
+        </div>
+    </div>`;
+}
+
+async function saveEquip() {
+    const name = document.getElementById('eq-name').value.trim();
+    if (!name) { toast('Name is required', true); return; }
+    try {
+        await apiFetch('/equipment/', { method: 'POST', body: {
+            name, asset_id: document.getElementById('eq-asset').value, serial_number: document.getElementById('eq-serial').value,
+            manufacturer: document.getElementById('eq-mfg').value, model_number: document.getElementById('eq-model').value,
+            equipment_type: document.getElementById('eq-type').value, location: document.getElementById('eq-location').value,
+            calibration_interval_months: parseInt(document.getElementById('eq-interval').value) || 12,
+            measurement_range: document.getElementById('eq-range').value, resolution: document.getElementById('eq-resolution').value,
+            accuracy: document.getElementById('eq-accuracy').value, calibration_provider: document.getElementById('eq-provider').value,
+            site_id: siteVal('eq-site'),
+        }});
+        toast('Equipment created');
+        loadEquipment();
+    } catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+async function loadEquipDetail(id) {
+    const el = document.getElementById('panel-equipment');
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim)">Loading...</div>';
+    try {
+        const e = await apiFetch(`/equipment/${id}/`);
+        let html = `<div style="margin-bottom:12px"><button class="iso-btn" onclick="loadEquipment()">&larr; Back</button>
+            <span style="margin-left:12px;font-size:18px;font-weight:600">${escHtml(e.name)}</span>
+            ${badge(e.status, e.status.replace(/_/g,' '))}
+            ${e.is_overdue?'<span style="color:#f87171;font-weight:600;margin-left:8px">⚠ OVERDUE</span>':''}
+            ${e.is_due_soon&&!e.is_overdue?'<span style="color:#facc15;font-weight:600;margin-left:8px">Due Soon</span>':''}</div>`;
+        html += `<div class="iso-form" style="max-width:700px">
+            <div class="iso-form-grid">
+                <div><label class="iso-label">Name</label><input class="iso-input" id="ed-name" value="${escHtml(e.name)}"></div>
+                <div><label class="iso-label">Asset ID</label><input class="iso-input" id="ed-asset" value="${escHtml(e.asset_id||'')}"></div>
+                <div><label class="iso-label">Serial Number</label><input class="iso-input" id="ed-serial" value="${escHtml(e.serial_number||'')}"></div>
+                <div><label class="iso-label">Manufacturer</label><input class="iso-input" id="ed-mfg" value="${escHtml(e.manufacturer||'')}"></div>
+                <div><label class="iso-label">Model</label><input class="iso-input" id="ed-model" value="${escHtml(e.model_number||'')}"></div>
+                <div><label class="iso-label">Type</label><select class="iso-input" id="ed-type">
+                    ${['dimensional','force_torque','temperature','pressure','electrical','mass','optical','chemical','other'].map(s=>`<option${s===e.equipment_type?' selected':''}>${s}</option>`).join('')}</select></div>
+                <div><label class="iso-label">Status</label><select class="iso-input" id="ed-status">
+                    ${['in_service','due','overdue','out_of_calibration','out_of_service','retired'].map(s=>`<option${s===e.status?' selected':''}>${s.replace(/_/g,' ')}</option>`).join('')}</select></div>
+                <div><label class="iso-label">Location</label><input class="iso-input" id="ed-location" value="${escHtml(e.location||'')}"></div>
+                <div><label class="iso-label">Cal Interval (months)</label><input class="iso-input" id="ed-interval" type="number" value="${e.calibration_interval_months}"></div>
+                <div><label class="iso-label">Last Calibration</label><input class="iso-input" id="ed-lastcal" type="date" value="${e.last_calibration_date||''}"></div>
+                <div><label class="iso-label">Next Cal Due</label><input class="iso-input" id="ed-nextcal" type="date" value="${e.next_calibration_due||''}"></div>
+                <div><label class="iso-label">Cal Provider</label><input class="iso-input" id="ed-provider" value="${escHtml(e.calibration_provider||'')}"></div>
+                <div><label class="iso-label">Range</label><input class="iso-input" id="ed-range" value="${escHtml(e.measurement_range||'')}"></div>
+                <div><label class="iso-label">Resolution</label><input class="iso-input" id="ed-resolution" value="${escHtml(e.resolution||'')}"></div>
+                <div><label class="iso-label">Accuracy</label><input class="iso-input" id="ed-accuracy" value="${escHtml(e.accuracy||'')}"></div>
+                <div><label class="iso-label">Certificate</label><input class="iso-input" id="ed-cert" value="${escHtml(e.calibration_certificate||'')}"></div>
+            </div>
+            <div style="margin-top:12px"><label class="iso-label">Notes</label><textarea class="iso-textarea" id="ed-notes" rows="2">${escHtml(e.notes||'')}</textarea></div>
+            <div style="margin-top:16px;display:flex;gap:8px">
+                <button class="iso-btn primary" onclick="updateEquip('${e.id}')">Save Changes</button>
+                <button class="iso-btn" style="margin-left:auto;color:#f87171" onclick="deleteEquip('${e.id}')">Delete</button>
+            </div>
+        </div>`;
+        el.innerHTML = html;
+    } catch (e) { el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Error'))}</div>`; }
+}
+
+async function updateEquip(id) {
+    try {
+        await apiFetch(`/equipment/${id}/`, { method: 'PUT', body: {
+            name: document.getElementById('ed-name').value, asset_id: document.getElementById('ed-asset').value,
+            serial_number: document.getElementById('ed-serial').value, manufacturer: document.getElementById('ed-mfg').value,
+            model_number: document.getElementById('ed-model').value, equipment_type: document.getElementById('ed-type').value,
+            status: document.getElementById('ed-status').value, location: document.getElementById('ed-location').value,
+            calibration_interval_months: parseInt(document.getElementById('ed-interval').value) || 12,
+            last_calibration_date: document.getElementById('ed-lastcal').value || null,
+            next_calibration_due: document.getElementById('ed-nextcal').value || null,
+            calibration_provider: document.getElementById('ed-provider').value,
+            calibration_certificate: document.getElementById('ed-cert').value,
+            measurement_range: document.getElementById('ed-range').value,
+            resolution: document.getElementById('ed-resolution').value,
+            accuracy: document.getElementById('ed-accuracy').value,
+            notes: document.getElementById('ed-notes').value,
+        }});
+        toast('Equipment updated');
+        loadEquipDetail(id);
+    } catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+async function deleteEquip(id) {
+    if (!confirm('Delete this equipment?')) return;
+    try { await apiFetch(`/equipment/${id}/`, { method: 'DELETE' }); toast('Deleted'); loadEquipment(); }
+    catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+// =========================================================================
+// Audit Readiness tab (E4)
+// =========================================================================
+
+async function loadAuditReadiness() {
+    const el = document.getElementById('panel-audit-readiness');
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim)">Calculating audit readiness...</div>';
+    try {
+        const d = await apiFetch('/audit-readiness/');
+        let html = '';
+        // Overall score
+        const scoreColor = d.overall_rag === 'green' ? '#4ade80' : d.overall_rag === 'amber' ? '#facc15' : '#f87171';
+        html += `<div style="display:flex;align-items:center;gap:32px;margin-bottom:24px">
+            <div style="text-align:center">
+                <div style="font-size:64px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${scoreColor}">${d.overall_score}</div>
+                <div style="font-size:13px;color:var(--text-secondary)">Overall Score / 100</div>
+            </div>
+            <div>
+                <div style="font-size:18px;font-weight:600;color:var(--text-primary)">${escHtml(d.interpretation?.headline||'')}</div>
+                <div style="margin-top:8px;color:var(--text-secondary);line-height:1.6">${escHtml(d.interpretation?.summary||'')}</div>
+            </div>
+        </div>`;
+        // RAG summary
+        html += `<div class="iso-kpis" style="max-width:400px;margin-bottom:24px">
+            <div class="iso-kpi good"><div class="label">Green</div><div class="value">${d.green}</div></div>
+            <div class="iso-kpi warn"><div class="label">Amber</div><div class="value">${d.amber}</div></div>
+            <div class="iso-kpi alert"><div class="label">Red</div><div class="value">${d.red}</div></div>
+        </div>`;
+        // Clause grid
+        html += '<h3 style="margin:0 0 12px;color:var(--text-primary)">Clause Coverage</h3>';
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px">';
+        d.clauses.forEach(c => {
+            const bg = c.rag === 'green' ? 'rgba(34,197,94,0.08)' : c.rag === 'amber' ? 'rgba(250,204,21,0.08)' : 'rgba(248,113,113,0.08)';
+            const border = c.rag === 'green' ? '#4ade80' : c.rag === 'amber' ? '#facc15' : '#f87171';
+            html += `<div style="background:${bg};border:1px solid ${border};border-radius:8px;padding:14px">
+                <div style="font-weight:700;font-family:'JetBrains Mono',monospace;font-size:16px;color:var(--text-primary)">§${escHtml(c.clause)}</div>
+                <div style="font-size:12px;font-weight:500;color:var(--text-secondary);margin:4px 0">${escHtml(c.name)}</div>
+                <div style="font-size:20px;font-weight:700;color:${border};font-family:'JetBrains Mono',monospace">${c.score !== null ? c.score : '—'}</div>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.4">${escHtml(c.detail)}</div>
+            </div>`;
+        });
+        html += '</div>';
+        // Top findings
+        if (d.top_findings && d.top_findings.length) {
+            html += '<h3 style="margin:0 0 12px;color:var(--text-primary)">Top Findings</h3>';
+            html += '<div style="margin-bottom:24px">';
+            d.top_findings.forEach(f => {
+                html += `<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px">
+                    <span style="font-weight:600;color:var(--text-primary)">§${escHtml(f.clause)} ${escHtml(f.name)}</span>
+                    <span style="font-family:'JetBrains Mono',monospace;margin-left:8px;color:#f87171">${f.score}</span>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">${escHtml(f.detail)}</div>
+                </div>`;
+            });
+            html += '</div>';
+        }
+        // Next actions
+        if (d.interpretation?.next_actions?.length) {
+            html += '<h3 style="margin:0 0 12px;color:var(--text-primary)">Recommended Actions</h3><ul style="margin:0;padding:0 0 0 20px;color:var(--text-secondary)">';
+            d.interpretation.next_actions.forEach(a => { html += `<li style="margin-bottom:6px">${escHtml(a)}</li>`; });
+            html += '</ul>';
+        }
+        el.innerHTML = html;
+    } catch (e) { el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Unknown error'))}</div>`; }
 }
 
 </script>
