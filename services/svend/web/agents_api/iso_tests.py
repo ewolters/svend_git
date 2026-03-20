@@ -4449,3 +4449,1459 @@ class RecurrenceDetectionTest(TestCase):
         data = resp.json()
         self.assertEqual(data["total_closed_capas"], 0)
         self.assertEqual(data["recurrences"], [])
+
+
+# =============================================================================
+# Customer Complaints (ISO 9001 §9.1.2)
+# =============================================================================
+
+
+@SECURE_OFF
+class CustomerComplaintCrudTest(TestCase):
+    """CustomerComplaint CRUD and field validation."""
+
+    def setUp(self):
+        self.user = _make_team_user("complaint@test.com")
+        self.client.force_login(self.user)
+
+    def test_create_complaint(self):
+        """POST /api/iso/complaints/ creates a complaint with defaults."""
+        resp = _post(
+            self.client,
+            "/api/iso/complaints/",
+            {
+                "title": "Widget misaligned on delivery",
+                "severity": "high",
+                "source": "email",
+                "customer_name": "Acme Corp",
+            },
+        )
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+        self.assertEqual(data["title"], "Widget misaligned on delivery")
+        self.assertEqual(data["severity"], "high")
+        self.assertEqual(data["source"], "email")
+        self.assertEqual(data["status"], "open")
+        self.assertEqual(data["iso_clause"], "9.1.2")
+
+    def test_create_complaint_title_required(self):
+        """Title is required for creation."""
+        resp = _post(self.client, "/api/iso/complaints/", {"severity": "low"})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Title", _err_msg(resp))
+
+    def test_list_complaints(self):
+        """GET /api/iso/complaints/ returns user's complaints."""
+        _post(self.client, "/api/iso/complaints/", {"title": "C1"})
+        _post(self.client, "/api/iso/complaints/", {"title": "C2"})
+        resp = self.client.get("/api/iso/complaints/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.json()), 2)
+
+    def test_list_filter_by_status(self):
+        """GET /api/iso/complaints/?status=open filters correctly."""
+        _post(self.client, "/api/iso/complaints/", {"title": "Open one"})
+        resp = self.client.get("/api/iso/complaints/?status=open")
+        data = resp.json()
+        self.assertTrue(all(c["status"] == "open" for c in data))
+
+    def test_list_filter_by_severity(self):
+        """GET /api/iso/complaints/?severity=critical filters correctly."""
+        _post(self.client, "/api/iso/complaints/", {"title": "Crit", "severity": "critical"})
+        _post(self.client, "/api/iso/complaints/", {"title": "Low", "severity": "low"})
+        resp = self.client.get("/api/iso/complaints/?severity=critical")
+        data = resp.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["severity"], "critical")
+
+    def test_get_detail(self):
+        """GET /api/iso/complaints/<id>/ returns single complaint."""
+        create = _post(self.client, "/api/iso/complaints/", {"title": "Detail test"})
+        cid = create.json()["id"]
+        resp = self.client.get(f"/api/iso/complaints/{cid}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["title"], "Detail test")
+
+    def test_get_detail_not_found(self):
+        """GET /api/iso/complaints/<bad-id>/ returns 404."""
+        import uuid
+
+        resp = self.client.get(f"/api/iso/complaints/{uuid.uuid4()}/")
+        self.assertEqual(resp.status_code, 404)
+
+    def test_update_fields(self):
+        """PUT /api/iso/complaints/<id>/ updates non-status fields."""
+        create = _post(self.client, "/api/iso/complaints/", {"title": "Original"})
+        cid = create.json()["id"]
+        resp = _put(
+            self.client,
+            f"/api/iso/complaints/{cid}/",
+            {
+                "title": "Updated",
+                "root_cause": "Packaging error",
+                "customer_name": "BigCo",
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["title"], "Updated")
+        self.assertEqual(data["root_cause"], "Packaging error")
+        self.assertEqual(data["customer_name"], "BigCo")
+
+    def test_delete_complaint(self):
+        """DELETE /api/iso/complaints/<id>/ removes the record."""
+        create = _post(self.client, "/api/iso/complaints/", {"title": "To delete"})
+        cid = create.json()["id"]
+        resp = _delete(self.client, f"/api/iso/complaints/{cid}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()["ok"])
+        # Confirm gone
+        resp2 = self.client.get(f"/api/iso/complaints/{cid}/")
+        self.assertEqual(resp2.status_code, 404)
+
+
+@SECURE_OFF
+class CustomerComplaintWorkflowTest(TestCase):
+    """Complaint status state machine: open → acknowledged → investigating → resolved → closed."""
+
+    def setUp(self):
+        self.user = _make_team_user("compwf@test.com")
+        self.client.force_login(self.user)
+        resp = _post(self.client, "/api/iso/complaints/", {"title": "Workflow complaint"})
+        self.cid = resp.json()["id"]
+
+    def test_open_to_acknowledged_requires_assigned_to(self):
+        """Transition to acknowledged without assigned_to fails."""
+        resp = _put(self.client, f"/api/iso/complaints/{self.cid}/", {"status": "acknowledged"})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("assigned_to", _err_msg(resp))
+
+    def test_open_to_acknowledged_with_assigned_to(self):
+        """Transition to acknowledged with assigned_to succeeds + sets date_acknowledged."""
+        resp = _put(
+            self.client,
+            f"/api/iso/complaints/{self.cid}/",
+            {
+                "status": "acknowledged",
+                "assigned_to": self.user.id,
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["status"], "acknowledged")
+        self.assertIsNotNone(data["date_acknowledged"])
+
+    def test_acknowledged_to_investigating(self):
+        """acknowledged → investigating succeeds (no extra requirements)."""
+        _put(
+            self.client,
+            f"/api/iso/complaints/{self.cid}/",
+            {
+                "status": "acknowledged",
+                "assigned_to": self.user.id,
+            },
+        )
+        resp = _put(self.client, f"/api/iso/complaints/{self.cid}/", {"status": "investigating"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "investigating")
+
+    def test_investigating_to_resolved_requires_resolution(self):
+        """Transition to resolved without resolution fails."""
+        _put(
+            self.client,
+            f"/api/iso/complaints/{self.cid}/",
+            {
+                "status": "acknowledged",
+                "assigned_to": self.user.id,
+            },
+        )
+        _put(self.client, f"/api/iso/complaints/{self.cid}/", {"status": "investigating"})
+        resp = _put(self.client, f"/api/iso/complaints/{self.cid}/", {"status": "resolved"})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("resolution", _err_msg(resp))
+
+    def test_investigating_to_resolved_with_resolution(self):
+        """Transition to resolved with resolution succeeds."""
+        _put(
+            self.client,
+            f"/api/iso/complaints/{self.cid}/",
+            {
+                "status": "acknowledged",
+                "assigned_to": self.user.id,
+            },
+        )
+        _put(self.client, f"/api/iso/complaints/{self.cid}/", {"status": "investigating"})
+        resp = _put(
+            self.client,
+            f"/api/iso/complaints/{self.cid}/",
+            {
+                "status": "resolved",
+                "resolution": "Replaced defective widget",
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "resolved")
+
+    def test_resolved_to_closed_requires_satisfaction_followup(self):
+        """Transition to closed without satisfaction_followup fails."""
+        self._advance_to_resolved()
+        resp = _put(self.client, f"/api/iso/complaints/{self.cid}/", {"status": "closed"})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("satisfaction_followup", _err_msg(resp))
+
+    def test_full_lifecycle(self):
+        """Complete lifecycle: open → acknowledged → investigating → resolved → closed."""
+        self._advance_to_resolved()
+        resp = _put(
+            self.client,
+            f"/api/iso/complaints/{self.cid}/",
+            {
+                "status": "closed",
+                "satisfaction_followup": "Customer confirmed satisfaction via email",
+                "customer_satisfied": True,
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "closed")
+
+    def test_invalid_transition_skipping_states(self):
+        """Cannot skip from open directly to resolved."""
+        resp = _put(
+            self.client,
+            f"/api/iso/complaints/{self.cid}/",
+            {
+                "status": "resolved",
+                "resolution": "Skip attempt",
+            },
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_backward_transition(self):
+        """Can transition backward: resolved → investigating."""
+        self._advance_to_resolved()
+        resp = _put(self.client, f"/api/iso/complaints/{self.cid}/", {"status": "investigating"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "investigating")
+
+    def _advance_to_resolved(self):
+        _put(
+            self.client,
+            f"/api/iso/complaints/{self.cid}/",
+            {
+                "status": "acknowledged",
+                "assigned_to": self.user.id,
+            },
+        )
+        _put(self.client, f"/api/iso/complaints/{self.cid}/", {"status": "investigating"})
+        _put(
+            self.client,
+            f"/api/iso/complaints/{self.cid}/",
+            {
+                "status": "resolved",
+                "resolution": "Replaced widget",
+            },
+        )
+
+
+# =============================================================================
+# Risk Register (ISO 9001 §6.1)
+# =============================================================================
+
+
+@SECURE_OFF
+class RiskCrudTest(TestCase):
+    """Risk register CRUD + auto-computed scores."""
+
+    def setUp(self):
+        self.user = _make_team_user("risk@test.com")
+        self.client.force_login(self.user)
+
+    def test_create_risk_with_defaults(self):
+        """POST /api/iso/risks/ creates a risk with default likelihood/impact."""
+        resp = _post(self.client, "/api/iso/risks/", {"title": "Supply chain disruption"})
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+        self.assertEqual(data["title"], "Supply chain disruption")
+        self.assertEqual(data["risk_type"], "risk")
+        self.assertEqual(data["category"], "operational")
+        self.assertEqual(data["status"], "identified")
+        self.assertEqual(data["likelihood"], 1)
+        self.assertEqual(data["impact"], 1)
+        self.assertEqual(data["risk_score"], 1)
+        self.assertEqual(data["iso_clause"], "6.1")
+
+    def test_create_risk_with_scoring(self):
+        """Risk score = likelihood × impact, auto-computed on save."""
+        resp = _post(
+            self.client,
+            "/api/iso/risks/",
+            {
+                "title": "Equipment failure",
+                "likelihood": 3,
+                "impact": 4,
+            },
+        )
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+        self.assertEqual(data["likelihood"], 3)
+        self.assertEqual(data["impact"], 4)
+        self.assertEqual(data["risk_score"], 12)
+
+    def test_create_opportunity(self):
+        """Can create an opportunity (not just a risk)."""
+        resp = _post(
+            self.client,
+            "/api/iso/risks/",
+            {
+                "title": "New market entry",
+                "risk_type": "opportunity",
+                "category": "strategic",
+            },
+        )
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(resp.json()["risk_type"], "opportunity")
+        self.assertEqual(resp.json()["category"], "strategic")
+
+    def test_create_risk_title_required(self):
+        """Title is required."""
+        resp = _post(self.client, "/api/iso/risks/", {"likelihood": 3})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Title", _err_msg(resp))
+
+    def test_likelihood_clamped_to_range(self):
+        """Likelihood and impact clamped to 1-5."""
+        resp = _post(
+            self.client,
+            "/api/iso/risks/",
+            {
+                "title": "Clamped",
+                "likelihood": 10,
+                "impact": -2,
+            },
+        )
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+        self.assertEqual(data["likelihood"], 5)
+        self.assertEqual(data["impact"], 1)
+        self.assertEqual(data["risk_score"], 5)
+
+    def test_list_risks(self):
+        """GET /api/iso/risks/ returns risks ordered by score descending."""
+        _post(self.client, "/api/iso/risks/", {"title": "Low", "likelihood": 1, "impact": 1})
+        _post(self.client, "/api/iso/risks/", {"title": "High", "likelihood": 5, "impact": 5})
+        resp = self.client.get("/api/iso/risks/")
+        data = resp.json()
+        self.assertEqual(len(data), 2)
+        self.assertEqual(data[0]["title"], "High")  # Higher score first
+
+    def test_list_filter_by_category(self):
+        """Filter risks by category."""
+        _post(self.client, "/api/iso/risks/", {"title": "Safety", "category": "safety"})
+        _post(self.client, "/api/iso/risks/", {"title": "Quality", "category": "quality"})
+        resp = self.client.get("/api/iso/risks/?category=safety")
+        data = resp.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["category"], "safety")
+
+    def test_list_filter_by_risk_type(self):
+        """Filter by risk_type."""
+        _post(self.client, "/api/iso/risks/", {"title": "R", "risk_type": "risk"})
+        _post(self.client, "/api/iso/risks/", {"title": "O", "risk_type": "opportunity"})
+        resp = self.client.get("/api/iso/risks/?risk_type=opportunity")
+        self.assertEqual(len(resp.json()), 1)
+
+    def test_get_detail(self):
+        """GET /api/iso/risks/<id>/ returns single risk."""
+        create = _post(self.client, "/api/iso/risks/", {"title": "Detail risk"})
+        rid = create.json()["id"]
+        resp = self.client.get(f"/api/iso/risks/{rid}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["title"], "Detail risk")
+
+    def test_update_risk_recomputes_score(self):
+        """PUT updates likelihood/impact and recomputes risk_score."""
+        create = _post(self.client, "/api/iso/risks/", {"title": "Updatable", "likelihood": 2, "impact": 2})
+        rid = create.json()["id"]
+        resp = _put(self.client, f"/api/iso/risks/{rid}/", {"likelihood": 4, "impact": 5})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["risk_score"], 20)
+
+    def test_update_residual_scores(self):
+        """PUT with residual_likelihood/impact computes residual_risk_score."""
+        create = _post(
+            self.client,
+            "/api/iso/risks/",
+            {
+                "title": "Mitigated",
+                "likelihood": 5,
+                "impact": 5,
+            },
+        )
+        rid = create.json()["id"]
+        resp = _put(
+            self.client,
+            f"/api/iso/risks/{rid}/",
+            {
+                "residual_likelihood": 2,
+                "residual_impact": 2,
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["residual_risk_score"], 4)
+
+    def test_update_mitigation_actions(self):
+        """PUT with mitigation_actions stores JSON array."""
+        create = _post(self.client, "/api/iso/risks/", {"title": "Mitigate me"})
+        rid = create.json()["id"]
+        actions = [{"action": "Add redundancy", "owner": "Ops", "status": "open"}]
+        resp = _put(self.client, f"/api/iso/risks/{rid}/", {"mitigation_actions": actions})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.json()["mitigation_actions"]), 1)
+        self.assertEqual(resp.json()["mitigation_actions"][0]["action"], "Add redundancy")
+
+    def test_delete_risk(self):
+        """DELETE /api/iso/risks/<id>/ removes risk."""
+        create = _post(self.client, "/api/iso/risks/", {"title": "Delete me"})
+        rid = create.json()["id"]
+        resp = _delete(self.client, f"/api/iso/risks/{rid}/")
+        self.assertEqual(resp.status_code, 200)
+        resp2 = self.client.get(f"/api/iso/risks/{rid}/")
+        self.assertEqual(resp2.status_code, 404)
+
+
+# =============================================================================
+# Measurement Equipment (ISO 9001 §7.1.5)
+# =============================================================================
+
+
+@SECURE_OFF
+class MeasurementEquipmentCrudTest(TestCase):
+    """MeasurementEquipment CRUD + calibration tracking."""
+
+    def setUp(self):
+        self.user = _make_team_user("equip@test.com")
+        self.client.force_login(self.user)
+
+    def test_create_equipment(self):
+        """POST /api/iso/equipment/ creates equipment record."""
+        resp = _post(
+            self.client,
+            "/api/iso/equipment/",
+            {
+                "name": "Mitutoyo Micrometer",
+                "asset_id": "MIC-001",
+                "serial_number": "SN12345",
+                "manufacturer": "Mitutoyo",
+                "equipment_type": "dimensional",
+                "measurement_range": "0-25mm",
+                "resolution": "0.001mm",
+                "accuracy": "±0.002mm",
+            },
+        )
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+        self.assertEqual(data["name"], "Mitutoyo Micrometer")
+        self.assertEqual(data["equipment_type"], "dimensional")
+        self.assertEqual(data["status"], "in_service")
+        self.assertEqual(data["iso_clause"], "7.1.5")
+        self.assertEqual(data["measurement_range"], "0-25mm")
+
+    def test_create_equipment_name_required(self):
+        """Name is required."""
+        resp = _post(self.client, "/api/iso/equipment/", {"asset_id": "X"})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Name", _err_msg(resp))
+
+    def test_list_equipment(self):
+        """GET /api/iso/equipment/ lists equipment."""
+        _post(self.client, "/api/iso/equipment/", {"name": "Caliper"})
+        _post(self.client, "/api/iso/equipment/", {"name": "Gage"})
+        resp = self.client.get("/api/iso/equipment/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.json()), 2)
+
+    def test_list_filter_by_type(self):
+        """GET /api/iso/equipment/?type=dimensional filters by equipment_type."""
+        _post(self.client, "/api/iso/equipment/", {"name": "Mic", "equipment_type": "dimensional"})
+        _post(self.client, "/api/iso/equipment/", {"name": "Therm", "equipment_type": "temperature"})
+        resp = self.client.get("/api/iso/equipment/?type=dimensional")
+        data = resp.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["equipment_type"], "dimensional")
+
+    def test_list_filter_by_status(self):
+        """GET /api/iso/equipment/?status=in_service filters."""
+        _post(self.client, "/api/iso/equipment/", {"name": "Active"})
+        resp = self.client.get("/api/iso/equipment/?status=in_service")
+        data = resp.json()
+        self.assertTrue(all(e["status"] == "in_service" for e in data))
+
+    def test_get_detail_with_computed_properties(self):
+        """GET detail includes is_overdue and is_due_soon computed fields."""
+        create = _post(self.client, "/api/iso/equipment/", {"name": "Test instrument"})
+        eid = create.json()["id"]
+        # Set date via PUT (avoids string/date coercion issue on create)
+        _put(
+            self.client,
+            f"/api/iso/equipment/{eid}/",
+            {
+                "next_calibration_due": str(date.today() - timedelta(days=10)),
+            },
+        )
+        resp = self.client.get(f"/api/iso/equipment/{eid}/")
+        data = resp.json()
+        self.assertTrue(data["is_overdue"])
+        self.assertTrue(data["is_due_soon"])
+
+    def test_not_overdue_when_future(self):
+        """Equipment with future cal date is not overdue."""
+        create = _post(self.client, "/api/iso/equipment/", {"name": "Good instrument"})
+        eid = create.json()["id"]
+        _put(
+            self.client,
+            f"/api/iso/equipment/{eid}/",
+            {
+                "next_calibration_due": str(date.today() + timedelta(days=60)),
+            },
+        )
+        resp = self.client.get(f"/api/iso/equipment/{eid}/")
+        data = resp.json()
+        self.assertFalse(data["is_overdue"])
+        self.assertFalse(data["is_due_soon"])
+
+    def test_due_soon_within_30_days(self):
+        """Equipment due within 30 days shows is_due_soon=True."""
+        create = _post(self.client, "/api/iso/equipment/", {"name": "Soon instrument"})
+        eid = create.json()["id"]
+        _put(
+            self.client,
+            f"/api/iso/equipment/{eid}/",
+            {
+                "next_calibration_due": str(date.today() + timedelta(days=15)),
+            },
+        )
+        eid = create.json()["id"]
+        resp = self.client.get(f"/api/iso/equipment/{eid}/")
+        data = resp.json()
+        self.assertFalse(data["is_overdue"])
+        self.assertTrue(data["is_due_soon"])
+
+    def test_update_equipment(self):
+        """PUT updates equipment fields."""
+        create = _post(self.client, "/api/iso/equipment/", {"name": "Old name"})
+        eid = create.json()["id"]
+        resp = _put(
+            self.client,
+            f"/api/iso/equipment/{eid}/",
+            {
+                "name": "New name",
+                "status": "out_of_service",
+                "calibration_provider": "Cal Lab Inc",
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["name"], "New name")
+        self.assertEqual(data["status"], "out_of_service")
+        self.assertEqual(data["calibration_provider"], "Cal Lab Inc")
+
+    def test_update_gage_studies(self):
+        """PUT with gage_studies stores DSWResult IDs."""
+        create = _post(self.client, "/api/iso/equipment/", {"name": "Gage linked"})
+        eid = create.json()["id"]
+        studies = ["abc-123", "def-456"]
+        resp = _put(self.client, f"/api/iso/equipment/{eid}/", {"gage_studies": studies})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["gage_studies"], studies)
+
+    def test_delete_equipment(self):
+        """DELETE /api/iso/equipment/<id>/ removes equipment."""
+        create = _post(self.client, "/api/iso/equipment/", {"name": "Delete me"})
+        eid = create.json()["id"]
+        resp = _delete(self.client, f"/api/iso/equipment/{eid}/")
+        self.assertEqual(resp.status_code, 200)
+        resp2 = self.client.get(f"/api/iso/equipment/{eid}/")
+        self.assertEqual(resp2.status_code, 404)
+
+
+# =============================================================================
+# Electronic Signatures (21 CFR Part 11)
+# =============================================================================
+
+
+@SECURE_OFF
+class ElectronicSignatureTest(TestCase):
+    """E-signature creation with re-authentication, hash chain, verification."""
+
+    def setUp(self):
+        self.user = _make_team_user("esig@test.com")
+        self.client.force_login(self.user)
+        # Create an NCR to sign
+        resp = _post(self.client, "/api/iso/ncrs/", {"title": "Signable NCR", "severity": "major"})
+        self.ncr_id = resp.json()["id"]
+
+    def test_sign_document(self):
+        """POST /api/iso/signatures/ with valid password creates signature."""
+        resp = _post(
+            self.client,
+            "/api/iso/signatures/",
+            {
+                "document_type": "ncr",
+                "document_id": self.ncr_id,
+                "meaning": "approved",
+                "password": "testpass123!",
+            },
+        )
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+        self.assertEqual(data["document_type"], "ncr")
+        self.assertEqual(data["meaning"], "approved")
+        self.assertIn("entry_hash", data)
+
+    def test_sign_requires_password(self):
+        """Signing without password returns 400."""
+        resp = _post(
+            self.client,
+            "/api/iso/signatures/",
+            {
+                "document_type": "ncr",
+                "document_id": self.ncr_id,
+                "meaning": "approved",
+            },
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("password", _err_msg(resp))
+
+    def test_sign_wrong_password_rejected(self):
+        """Wrong password returns 403 — re-authentication failure."""
+        resp = _post(
+            self.client,
+            "/api/iso/signatures/",
+            {
+                "document_type": "ncr",
+                "document_id": self.ncr_id,
+                "meaning": "approved",
+                "password": "wrongpassword",
+            },
+        )
+        self.assertEqual(resp.status_code, 403)
+        self.assertIn("Password", _err_msg(resp))
+
+    def test_sign_invalid_document_type(self):
+        """Invalid document_type returns 400."""
+        resp = _post(
+            self.client,
+            "/api/iso/signatures/",
+            {
+                "document_type": "invalid_type",
+                "document_id": self.ncr_id,
+                "meaning": "approved",
+                "password": "testpass123!",
+            },
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Invalid document_type", _err_msg(resp))
+
+    def test_sign_invalid_meaning(self):
+        """Invalid meaning returns 400."""
+        resp = _post(
+            self.client,
+            "/api/iso/signatures/",
+            {
+                "document_type": "ncr",
+                "document_id": self.ncr_id,
+                "meaning": "yolo",
+                "password": "testpass123!",
+            },
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Invalid meaning", _err_msg(resp))
+
+    def test_sign_missing_required_fields(self):
+        """Missing document_type/document_id/meaning returns 400."""
+        resp = _post(
+            self.client,
+            "/api/iso/signatures/",
+            {
+                "password": "testpass123!",
+            },
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_rejection_requires_reason(self):
+        """Rejection without reason returns 400 (21 CFR Part 11 §11.50)."""
+        resp = _post(
+            self.client,
+            "/api/iso/signatures/",
+            {
+                "document_type": "ncr",
+                "document_id": self.ncr_id,
+                "meaning": "rejected",
+                "password": "testpass123!",
+            },
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Reason", _err_msg(resp))
+
+    def test_rejection_with_reason_succeeds(self):
+        """Rejection with reason creates signature."""
+        resp = _post(
+            self.client,
+            "/api/iso/signatures/",
+            {
+                "document_type": "ncr",
+                "document_id": self.ncr_id,
+                "meaning": "rejected",
+                "password": "testpass123!",
+                "reason": "Insufficient corrective action evidence",
+            },
+        )
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(resp.json()["meaning"], "rejected")
+
+    def test_duplicate_signature_blocked(self):
+        """Same signer+doc+meaning returns 409 (unique constraint)."""
+        _post(
+            self.client,
+            "/api/iso/signatures/",
+            {
+                "document_type": "ncr",
+                "document_id": self.ncr_id,
+                "meaning": "approved",
+                "password": "testpass123!",
+            },
+        )
+        resp = _post(
+            self.client,
+            "/api/iso/signatures/",
+            {
+                "document_type": "ncr",
+                "document_id": self.ncr_id,
+                "meaning": "approved",
+                "password": "testpass123!",
+            },
+        )
+        self.assertEqual(resp.status_code, 409)
+
+    def test_different_meanings_allowed(self):
+        """Same signer+doc with different meanings allowed."""
+        _post(
+            self.client,
+            "/api/iso/signatures/",
+            {
+                "document_type": "ncr",
+                "document_id": self.ncr_id,
+                "meaning": "reviewed",
+                "password": "testpass123!",
+            },
+        )
+        resp = _post(
+            self.client,
+            "/api/iso/signatures/",
+            {
+                "document_type": "ncr",
+                "document_id": self.ncr_id,
+                "meaning": "approved",
+                "password": "testpass123!",
+            },
+        )
+        self.assertEqual(resp.status_code, 201)
+
+    def test_list_signatures(self):
+        """GET /api/iso/signatures/ returns user's signatures."""
+        _post(
+            self.client,
+            "/api/iso/signatures/",
+            {
+                "document_type": "ncr",
+                "document_id": self.ncr_id,
+                "meaning": "approved",
+                "password": "testpass123!",
+            },
+        )
+        resp = self.client.get("/api/iso/signatures/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertGreaterEqual(len(resp.json()), 1)
+
+    def test_list_signatures_filter_by_document(self):
+        """GET /api/iso/signatures/?document_type=ncr&document_id=X filters."""
+        _post(
+            self.client,
+            "/api/iso/signatures/",
+            {
+                "document_type": "ncr",
+                "document_id": self.ncr_id,
+                "meaning": "approved",
+                "password": "testpass123!",
+            },
+        )
+        resp = self.client.get(f"/api/iso/signatures/?document_type=ncr&document_id={self.ncr_id}")
+        data = resp.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["document_id"], self.ncr_id)
+
+    def test_verify_signature_integrity(self):
+        """GET /api/iso/signatures/<id>/verify/ checks hash integrity."""
+        create = _post(
+            self.client,
+            "/api/iso/signatures/",
+            {
+                "document_type": "ncr",
+                "document_id": self.ncr_id,
+                "meaning": "approved",
+                "password": "testpass123!",
+            },
+        )
+        sig_id = create.json()["id"]
+        resp = self.client.get(f"/api/iso/signatures/{sig_id}/verify/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data["is_valid"])
+        self.assertIn("entry_hash", data)
+
+    def test_verify_chain_integrity(self):
+        """GET /api/iso/signatures/verify-chain/ validates full hash chain."""
+        # Create multiple signatures to build a chain
+        _post(
+            self.client,
+            "/api/iso/signatures/",
+            {
+                "document_type": "ncr",
+                "document_id": self.ncr_id,
+                "meaning": "reviewed",
+                "password": "testpass123!",
+            },
+        )
+        _post(
+            self.client,
+            "/api/iso/signatures/",
+            {
+                "document_type": "ncr",
+                "document_id": self.ncr_id,
+                "meaning": "approved",
+                "password": "testpass123!",
+            },
+        )
+        resp = self.client.get("/api/iso/signatures/verify-chain/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data["is_valid"])
+        self.assertGreaterEqual(data["entries_checked"], 2)
+
+    def test_document_not_found(self):
+        """Signing a non-existent document returns 404."""
+        import uuid
+
+        resp = _post(
+            self.client,
+            "/api/iso/signatures/",
+            {
+                "document_type": "ncr",
+                "document_id": str(uuid.uuid4()),
+                "meaning": "approved",
+                "password": "testpass123!",
+            },
+        )
+        self.assertEqual(resp.status_code, 404)
+
+
+# =============================================================================
+# Audit Readiness Scoring (E4)
+# =============================================================================
+
+
+@SECURE_OFF
+class AuditReadinessTest(TestCase):
+    """E4: Audit readiness scoring — deterministic, per-clause RAG."""
+
+    def setUp(self):
+        self.user = _make_team_user("readiness@test.com")
+        self.client.force_login(self.user)
+
+    def test_empty_qms_returns_scores(self):
+        """Empty QMS should return overall score and clause breakdown."""
+        resp = self.client.get("/api/iso/audit-readiness/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("overall_score", data)
+        self.assertIn("overall_rag", data)
+        self.assertIn("clauses", data)
+        self.assertIn("top_findings", data)
+        self.assertIn("interpretation", data)
+        # Should have 12 clauses (4, 5, 6, 7.1.5, 7.2, 7.5, 8.4, 8.7, 9.1.2, 9.2, 9.3, 10.2)
+        self.assertEqual(len(data["clauses"]), 12)
+
+    def test_rag_color_encoding(self):
+        """RAG colors: red/amber/green counts sum to clause count."""
+        resp = self.client.get("/api/iso/audit-readiness/")
+        data = resp.json()
+        total_rag = data["red"] + data["amber"] + data["green"]
+        self.assertEqual(total_rag, 12)
+
+    def test_clause_structure(self):
+        """Each clause has required fields."""
+        resp = self.client.get("/api/iso/audit-readiness/")
+        data = resp.json()
+        for clause in data["clauses"]:
+            self.assertIn("clause", clause)
+            self.assertIn("name", clause)
+            self.assertIn("rag", clause)
+            self.assertIn("detail", clause)
+            self.assertIn("weight", clause)
+            self.assertIn(clause["rag"], ("red", "amber", "green"))
+
+    def test_non_automated_clauses_are_amber(self):
+        """Clauses 4 and 5 (no automated check) should be amber with weight=0."""
+        resp = self.client.get("/api/iso/audit-readiness/")
+        data = resp.json()
+        for clause in data["clauses"]:
+            if clause["clause"] in ("4", "5"):
+                self.assertEqual(clause["rag"], "amber")
+                self.assertEqual(clause["weight"], 0)
+                self.assertIsNone(clause["score"])
+
+    def test_interpretation_structure(self):
+        """Interpretation section has headline, summary, next_actions, methodology."""
+        resp = self.client.get("/api/iso/audit-readiness/")
+        data = resp.json()
+        interp = data["interpretation"]
+        self.assertIn("headline", interp)
+        self.assertIn("summary", interp)
+        self.assertIn("next_actions", interp)
+        self.assertIn("methodology", interp)
+
+    def test_ncr_scoring_improves_with_data(self):
+        """Creating NCRs and closing them improves the §8.7 score."""
+        # Create and close an NCR
+        ncr = _post(self.client, "/api/iso/ncrs/", {"title": "Test NCR", "severity": "minor"})
+        ncr_id = ncr.json()["id"]
+        _put(
+            self.client,
+            f"/api/iso/ncrs/{ncr_id}/",
+            {
+                "status": "investigation",
+                "assigned_to": self.user.id,
+            },
+        )
+        _put(
+            self.client,
+            f"/api/iso/ncrs/{ncr_id}/",
+            {
+                "status": "capa",
+                "corrective_action": "Fixed it",
+            },
+        )
+        _put(
+            self.client,
+            f"/api/iso/ncrs/{ncr_id}/",
+            {
+                "status": "verification",
+                "verification_result": "Verified OK",
+            },
+        )
+        _put(
+            self.client,
+            f"/api/iso/ncrs/{ncr_id}/",
+            {
+                "status": "closed",
+                "approved_by": self.user.id,
+            },
+        )
+
+        resp = self.client.get("/api/iso/audit-readiness/")
+        data = resp.json()
+        ncr_clause = next(c for c in data["clauses"] if c["clause"] == "8.7")
+        self.assertIsNotNone(ncr_clause["score"])
+        self.assertGreaterEqual(ncr_clause["score"], 80)
+
+    def test_risk_scoring_with_registered_risks(self):
+        """Registering risks improves §6.1 score from red baseline."""
+        # Without risks: should be red (score ~30)
+        resp1 = self.client.get("/api/iso/audit-readiness/")
+        risk_before = next(c for c in resp1.json()["clauses"] if c["clause"] == "6")
+        self.assertEqual(risk_before["rag"], "red")
+
+        # Add a risk
+        _post(
+            self.client,
+            "/api/iso/risks/",
+            {
+                "title": "Operational risk",
+                "likelihood": 2,
+                "impact": 3,
+                "mitigation_actions": [{"action": "Monitor weekly", "status": "open"}],
+            },
+        )
+
+        resp2 = self.client.get("/api/iso/audit-readiness/")
+        risk_after = next(c for c in resp2.json()["clauses"] if c["clause"] == "6")
+        self.assertGreater(risk_after["score"], risk_before["score"])
+
+    def test_overall_rag_thresholds(self):
+        """Overall RAG: green ≥80, amber 50-79, red <50."""
+        resp = self.client.get("/api/iso/audit-readiness/")
+        data = resp.json()
+        score = data["overall_score"]
+        rag = data["overall_rag"]
+        if score >= 80:
+            self.assertEqual(rag, "green")
+        elif score >= 50:
+            self.assertEqual(rag, "amber")
+        else:
+            self.assertEqual(rag, "red")
+
+    def test_top_findings_sorted_by_score(self):
+        """Top findings are sorted by score ascending (worst first)."""
+        resp = self.client.get("/api/iso/audit-readiness/")
+        data = resp.json()
+        scores = [f["score"] for f in data["top_findings"]]
+        self.assertEqual(scores, sorted(scores))
+
+
+# =============================================================================
+# SPC → NCR Bridge (B1)
+# =============================================================================
+
+
+@SECURE_OFF
+class StudyRaiseNCRTest(TestCase):
+    """B1: SPC signal → NCR creation with structured description."""
+
+    def setUp(self):
+        self.user = _make_team_user("spcncr@test.com")
+        self.client.force_login(self.user)
+        # Create a project/study
+        from core.models import Project
+
+        self.project = Project.objects.create(
+            title="SPC Control Chart Study",
+            user=self.user,
+        )
+
+    def test_raise_ncr_from_spc(self):
+        """POST /api/iso/study-actions/raise-ncr/ creates NCR with SPC context."""
+        resp = _post(
+            self.client,
+            "/api/iso/study-actions/raise-ncr/",
+            {
+                "project_id": str(self.project.id),
+                "spc_data": {
+                    "chart_type": "I-MR",
+                    "out_of_control": [
+                        {"index": 5, "value": 16.2, "reason": "Above UCL"},
+                    ],
+                    "limits": {"ucl": 15.42, "cl": 10.0, "lcl": 4.58},
+                    "in_control": False,
+                    "statistics": {"cpk": 0.85},
+                },
+            },
+        )
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+        self.assertTrue(data["ok"])
+        self.assertEqual(data["action"], "raise_ncr")
+        ncr = data["ncr"]
+        self.assertIn("I-MR", ncr["description"])
+        self.assertIn("UCL", ncr["description"])
+        self.assertIn("cpk", ncr["description"])
+
+    def test_severity_auto_escalation_cpk(self):
+        """Cpk < 1.0 auto-escalates severity to major."""
+        resp = _post(
+            self.client,
+            "/api/iso/study-actions/raise-ncr/",
+            {
+                "project_id": str(self.project.id),
+                "spc_data": {"statistics": {"cpk": 0.85}},
+            },
+        )
+        self.assertEqual(resp.json()["ncr"]["severity"], "major")
+
+    def test_severity_critical_on_low_cpk(self):
+        """Cpk < 0.67 auto-escalates to critical."""
+        resp = _post(
+            self.client,
+            "/api/iso/study-actions/raise-ncr/",
+            {
+                "project_id": str(self.project.id),
+                "spc_data": {"statistics": {"cpk": 0.5}},
+            },
+        )
+        self.assertEqual(resp.json()["ncr"]["severity"], "critical")
+
+    def test_severity_critical_on_many_ooc(self):
+        """3+ OOC points escalates to critical."""
+        resp = _post(
+            self.client,
+            "/api/iso/study-actions/raise-ncr/",
+            {
+                "project_id": str(self.project.id),
+                "spc_data": {
+                    "out_of_control": [
+                        {"index": 1, "value": 16, "reason": "Above UCL"},
+                        {"index": 5, "value": 17, "reason": "Above UCL"},
+                        {"index": 9, "value": 18, "reason": "Above UCL"},
+                    ],
+                },
+            },
+        )
+        self.assertEqual(resp.json()["ncr"]["severity"], "critical")
+
+    def test_explicit_severity_overrides_auto(self):
+        """Explicit severity in request body is respected."""
+        resp = _post(
+            self.client,
+            "/api/iso/study-actions/raise-ncr/",
+            {
+                "project_id": str(self.project.id),
+                "severity": "minor",
+                "spc_data": {"statistics": {"cpk": 0.5}},
+            },
+        )
+        self.assertEqual(resp.json()["ncr"]["severity"], "minor")
+
+    def test_study_action_recorded(self):
+        """StudyAction record created for traceability."""
+        from core.models import StudyAction as SA
+
+        before = SA.objects.filter(project=self.project).count()
+        _post(
+            self.client,
+            "/api/iso/study-actions/raise-ncr/",
+            {
+                "project_id": str(self.project.id),
+            },
+        )
+        after = SA.objects.filter(project=self.project).count()
+        self.assertEqual(after, before + 1)
+
+    def test_project_id_required(self):
+        """Missing project_id returns 400."""
+        resp = _post(self.client, "/api/iso/study-actions/raise-ncr/", {})
+        self.assertEqual(resp.status_code, 400)
+
+    def test_missing_project_returns_404(self):
+        """Non-existent project_id returns 404."""
+        import uuid
+
+        resp = _post(
+            self.client,
+            "/api/iso/study-actions/raise-ncr/",
+            {
+                "project_id": str(uuid.uuid4()),
+            },
+        )
+        self.assertEqual(resp.status_code, 404)
+
+    def test_ncr_linked_to_project(self):
+        """Created NCR is linked to source project."""
+        resp = _post(
+            self.client,
+            "/api/iso/study-actions/raise-ncr/",
+            {
+                "project_id": str(self.project.id),
+            },
+        )
+        ncr = resp.json()["ncr"]
+        self.assertEqual(ncr["project_id"], str(self.project.id))
+
+
+# =============================================================================
+# FMEA → CAPA Promote (B2)
+# =============================================================================
+
+
+@SECURE_OFF
+class StudyRaiseCAPAFromStudyTest(TestCase):
+    """B2: Study → CAPA creation."""
+
+    def setUp(self):
+        self.user = _make_team_user("studycapa@test.com")
+        self.client.force_login(self.user)
+        from core.models import Project
+
+        self.project = Project.objects.create(
+            title="FMEA Follow-up Study",
+            user=self.user,
+        )
+
+    def test_raise_capa_from_study(self):
+        """POST /api/iso/study-actions/raise-capa/ creates linked CAPA."""
+        resp = _post(
+            self.client,
+            "/api/iso/study-actions/raise-capa/",
+            {
+                "project_id": str(self.project.id),
+                "title": "Address high-RPN failure mode",
+                "description": "FMEA row 12 has RPN > 200",
+            },
+        )
+        self.assertEqual(resp.status_code, 201)
+        data = resp.json()
+        self.assertTrue(data["ok"])
+        self.assertEqual(data["action"], "raise_capa")
+
+    def test_capa_project_id_required(self):
+        """Missing project_id returns 400."""
+        resp = _post(self.client, "/api/iso/study-actions/raise-capa/", {"title": "No project"})
+        self.assertEqual(resp.status_code, 400)
+
+
+# =============================================================================
+# Recurrence Detection — Jaccard Similarity (E3)
+# =============================================================================
+
+
+@SECURE_OFF
+class RecurrenceJaccardTest(TestCase):
+    """E3: CAPA recurrence detection using Jaccard keyword similarity."""
+
+    def setUp(self):
+        self.user = _make_team_user("jaccard@test.com")
+        self.client.force_login(self.user)
+
+    def _create_and_close_capa(self, title, root_cause, source_type=""):
+        capa = _post(
+            self.client,
+            "/api/capa/",
+            {
+                "title": title,
+                "source_type": source_type,
+            },
+        ).json()
+        capa_id = capa["id"]
+        _put(self.client, f"/api/capa/{capa_id}/", {"status": "containment", "containment_action": "Contained"})
+        _put(self.client, f"/api/capa/{capa_id}/", {"status": "investigation", "root_cause": root_cause})
+        _put(
+            self.client,
+            f"/api/capa/{capa_id}/",
+            {
+                "status": "corrective",
+                "corrective_action": "Fix applied",
+                "preventive_action": "Prevention applied",
+            },
+        )
+        _put(
+            self.client,
+            f"/api/capa/{capa_id}/",
+            {
+                "status": "verification",
+                "verification_result": "Verified effective",
+            },
+        )
+        _put(self.client, f"/api/capa/{capa_id}/", {"status": "closed"})
+        return capa_id
+
+    def test_jaccard_detects_similar_root_causes(self):
+        """CAPAs with overlapping root cause keywords are detected."""
+        self._create_and_close_capa("A", "Operator training insufficient for machine setup")
+        self._create_and_close_capa("B", "Training gap in machine setup procedures")
+        capa_id = self._create_and_close_capa("C", "Insufficient training for setup operations")
+        resp = self.client.get(f"/api/capa/{capa_id}/")
+        self.assertTrue(resp.json()["recurrence_check"])
+
+    def test_dissimilar_root_causes_not_flagged(self):
+        """CAPAs with unrelated root causes are NOT flagged."""
+        self._create_and_close_capa("X", "Hydraulic seal degradation from chemical exposure")
+        capa_id = self._create_and_close_capa("Y", "Electrical wiring short circuit in panel")
+        resp = self.client.get(f"/api/capa/{capa_id}/")
+        self.assertFalse(resp.json()["recurrence_check"])
+
+    def test_recurrence_report_clusters(self):
+        """GET /api/capa/recurrence/ returns cluster data."""
+        self._create_and_close_capa("W1", "Welding parameter deviation caused defect")
+        self._create_and_close_capa("W2", "Defect from welding parameter drift")
+        self._create_and_close_capa("U1", "Paint thickness specification exceeded")
+        resp = self.client.get("/api/capa/recurrence/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("total_closed_capas", data)
+        self.assertGreaterEqual(data["total_closed_capas"], 3)
+
+    def test_recurrence_escalation_to_critical(self):
+        """2+ matches escalates priority to critical."""
+        self._create_and_close_capa("M1", "Calibration drift measurement instrument failure")
+        self._create_and_close_capa("M2", "Measurement instrument calibration drift detected")
+        capa_id = self._create_and_close_capa("M3", "Instrument calibration drift causing measurement failure")
+        resp = self.client.get(f"/api/capa/{capa_id}/")
+        self.assertEqual(resp.json()["priority"], "critical")
+
+
+# =============================================================================
+# Review Narrative (E8)
+# =============================================================================
+
+
+@SECURE_OFF
+class ReviewNarrativeTest(TestCase):
+    """E8: Management review narrative generation via Claude."""
+
+    def setUp(self):
+        self.user = _make_team_user("narrative@test.com")
+        self.client.force_login(self.user)
+
+    def test_narrative_requires_review(self):
+        """POST to non-existent review returns 404."""
+        import uuid
+
+        resp = _post(self.client, f"/api/iso/reviews/{uuid.uuid4()}/narrative/", {})
+        self.assertEqual(resp.status_code, 404)
+
+    def test_narrative_with_mock_claude(self):
+        """Narrative endpoint calls Claude and returns structured response."""
+        from unittest.mock import MagicMock
+
+        # Create a management review first
+        review_resp = _post(
+            self.client,
+            "/api/iso/reviews/",
+            {
+                "title": "Q1 2026 Management Review",
+                "meeting_date": "2026-03-15",
+            },
+        )
+        self.assertEqual(review_resp.status_code, 201)
+        review_id = review_resp.json()["id"]
+
+        # Mock the Anthropic client
+        mock_message = MagicMock()
+        mock_message.content = [MagicMock(text="## Overall QMS Health\nThe QMS is performing well.")]
+        mock_message.usage.input_tokens = 500
+        mock_message.usage.output_tokens = 200
+
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = mock_message
+
+        # Patch the function into the module so the local import finds it
+        import svend_config.config as _cfg
+
+        _cfg.get_anthropic_client = lambda: mock_client
+        try:
+            resp = _post(self.client, f"/api/iso/reviews/{review_id}/narrative/", {})
+        finally:
+            if hasattr(_cfg, "get_anthropic_client"):
+                del _cfg.get_anthropic_client
+
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("narrative", data)
+        self.assertEqual(data["review_id"], review_id)
+        self.assertIn("usage", data)
+        self.assertEqual(data["usage"]["input_tokens"], 500)
+        self.assertEqual(data["usage"]["output_tokens"], 200)
+
+
+# =============================================================================
+# User Isolation — New Registers
+# =============================================================================
+
+
+@SECURE_OFF
+class NewRegisterIsolationTest(TestCase):
+    """User isolation: complaints, risks, equipment scoped to owner."""
+
+    def setUp(self):
+        self.user_a = _make_team_user("isoa@test.com")
+        self.user_b = _make_team_user("isob@test.com")
+
+    def test_complaint_isolation(self):
+        """User B cannot see User A's complaints."""
+        self.client.force_login(self.user_a)
+        _post(self.client, "/api/iso/complaints/", {"title": "A's complaint"})
+        self.client.force_login(self.user_b)
+        resp = self.client.get("/api/iso/complaints/")
+        self.assertEqual(len(resp.json()), 0)
+
+    def test_risk_isolation(self):
+        """User B cannot see User A's risks."""
+        self.client.force_login(self.user_a)
+        _post(self.client, "/api/iso/risks/", {"title": "A's risk"})
+        self.client.force_login(self.user_b)
+        resp = self.client.get("/api/iso/risks/")
+        self.assertEqual(len(resp.json()), 0)
+
+    def test_equipment_isolation(self):
+        """User B cannot see User A's equipment."""
+        self.client.force_login(self.user_a)
+        _post(self.client, "/api/iso/equipment/", {"name": "A's caliper"})
+        self.client.force_login(self.user_b)
+        resp = self.client.get("/api/iso/equipment/")
+        self.assertEqual(len(resp.json()), 0)
+
+    def test_complaint_edit_permission(self):
+        """User B cannot edit User A's complaint."""
+        self.client.force_login(self.user_a)
+        create = _post(self.client, "/api/iso/complaints/", {"title": "A's complaint"})
+        cid = create.json()["id"]
+        self.client.force_login(self.user_b)
+        resp = _put(self.client, f"/api/iso/complaints/{cid}/", {"title": "Hijacked"})
+        self.assertIn(resp.status_code, (403, 404))
+
+    def test_risk_edit_permission(self):
+        """User B cannot edit User A's risk."""
+        self.client.force_login(self.user_a)
+        create = _post(self.client, "/api/iso/risks/", {"title": "A's risk"})
+        rid = create.json()["id"]
+        self.client.force_login(self.user_b)
+        resp = _put(self.client, f"/api/iso/risks/{rid}/", {"title": "Hijacked"})
+        self.assertIn(resp.status_code, (403, 404))
+
+    def test_equipment_edit_permission(self):
+        """User B cannot edit User A's equipment."""
+        self.client.force_login(self.user_a)
+        create = _post(self.client, "/api/iso/equipment/", {"name": "A's mic"})
+        eid = create.json()["id"]
+        self.client.force_login(self.user_b)
+        resp = _put(self.client, f"/api/iso/equipment/{eid}/", {"name": "Hijacked"})
+        self.assertIn(resp.status_code, (403, 404))
+
+
+# =============================================================================
+# Tier Gating — New Endpoints
+# =============================================================================
+
+
+@SECURE_OFF
+class NewEndpointTierGatingTest(TestCase):
+    """Free users blocked from new Phase C-E endpoints."""
+
+    def setUp(self):
+        self.free = _make_free_user("freenew@test.com")
+        self.team = _make_team_user("teamnew@test.com")
+
+    def test_free_blocked_from_complaints(self):
+        self.client.force_login(self.free)
+        resp = self.client.get("/api/iso/complaints/")
+        self.assertEqual(resp.status_code, 403)
+
+    def test_free_blocked_from_risks(self):
+        self.client.force_login(self.free)
+        resp = self.client.get("/api/iso/risks/")
+        self.assertEqual(resp.status_code, 403)
+
+    def test_free_blocked_from_equipment(self):
+        self.client.force_login(self.free)
+        resp = self.client.get("/api/iso/equipment/")
+        self.assertEqual(resp.status_code, 403)
+
+    def test_free_blocked_from_signatures(self):
+        self.client.force_login(self.free)
+        resp = self.client.get("/api/iso/signatures/")
+        self.assertEqual(resp.status_code, 403)
+
+    def test_free_blocked_from_audit_readiness(self):
+        self.client.force_login(self.free)
+        resp = self.client.get("/api/iso/audit-readiness/")
+        self.assertEqual(resp.status_code, 403)
+
+    def test_team_allowed_all_new_endpoints(self):
+        self.client.force_login(self.team)
+        for url in [
+            "/api/iso/complaints/",
+            "/api/iso/risks/",
+            "/api/iso/equipment/",
+            "/api/iso/signatures/",
+            "/api/iso/audit-readiness/",
+        ]:
+            resp = self.client.get(url)
+            self.assertIn(resp.status_code, (200,), msg=f"{url} returned {resp.status_code}")
