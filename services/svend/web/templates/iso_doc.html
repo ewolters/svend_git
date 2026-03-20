@@ -371,6 +371,19 @@
 }
 .idoc-add-btn:hover { border-color: var(--accent); color: var(--accent); }
 
+/* Insert strip between sections */
+.idoc-insert-strip { display: flex; align-items: center; justify-content: center; padding: 2px 0; margin: 0 24px; opacity: 0; transition: opacity 0.15s; }
+.idoc-insert-strip:hover, .idoc-insert-strip.open { opacity: 1; }
+.idoc-sections:hover .idoc-insert-strip { opacity: 0.4; }
+.idoc-sections:hover .idoc-insert-strip:hover { opacity: 1; }
+.idoc-insert-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px dashed var(--border); background: var(--bg-card);
+    color: var(--text-dim); cursor: pointer; font-size: 16px; line-height: 26px; text-align: center; transition: all 0.15s; }
+.idoc-insert-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--bg-hover); }
+.idoc-insert-picker { display: none; gap: 4px; align-items: center; flex-wrap: wrap; padding: 6px; background: var(--bg-card);
+    border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+.idoc-insert-strip.open .idoc-insert-picker { display: flex; }
+.idoc-insert-strip.open .idoc-insert-btn { display: none; }
+
 /* Dropdown */
 .idoc-dropdown {
     position: relative;
@@ -680,7 +693,8 @@ function renderSections(sections) {
 
     container.innerHTML = sections.map((sec, i) => {
         const helpText = defaultSections[sec.section_key]?.help || '';
-        return `<div class="idoc-section" data-id="${sec.id}" draggable="true"
+        return _insertStripHtml(i === 0 ? null : sections[i-1].id) +
+        `<div class="idoc-section" data-id="${sec.id}" draggable="true"
                     ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="drop(event)" ondragend="dragEnd(event)">
             <div class="idoc-section-header">
                 <span class="idoc-drag-handle">&#x2630;</span>
@@ -894,18 +908,42 @@ async function saveDoc() {
     }
 }
 
-async function addSection(type) {
+const _SEC_TYPES = [
+    ['paragraph', 'Paragraph'], ['heading', 'Heading'], ['table', 'Table'], ['definition', 'Definition'],
+    ['checklist', 'Checklist'], ['image', 'Image'], ['signature_block', 'Signatures'], ['reference', 'References'],
+];
+
+function _insertStripHtml(afterSecId) {
+    const aid = afterSecId ? `'${afterSecId}'` : 'null';
+    const stripId = afterSecId ? `insert-${afterSecId}` : 'insert-top';
+    return `<div class="idoc-insert-strip" id="${stripId}">
+        <button class="idoc-insert-btn" onclick="toggleInsertPicker('${stripId}')" title="Insert section here">+</button>
+        <div class="idoc-insert-picker">
+            ${_SEC_TYPES.map(([t, l]) => `<button class="idoc-add-btn" onclick="addSection('${t}', ${aid})">${l}</button>`).join('')}
+        </div>
+    </div>`;
+}
+
+function toggleInsertPicker(stripId) {
+    const el = document.getElementById(stripId);
+    if (el) el.classList.toggle('open');
+}
+
+async function addSection(type, afterSecId) {
     if (!currentDoc) return;
     try {
+        const body = { section_type: type, title: '' };
+        if (afterSecId) body.after = afterSecId;
         const resp = await fetch(`/api/iso-docs/${currentDoc.id}/sections/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ section_type: type, title: '' }),
+            body: JSON.stringify(body),
         });
         if (!resp.ok) throw new Error();
-        const sec = await resp.json();
-        currentDoc.sections.push(sec);
+        // Reload full doc to get correct ordering after insert
+        const doc = await fetch(`/api/iso-docs/${currentDoc.id}/`, { credentials: 'include' }).then(r => r.json());
+        currentDoc.sections = doc.sections || [];
         renderSections(currentDoc.sections);
         toast('Section added');
     } catch (e) {
