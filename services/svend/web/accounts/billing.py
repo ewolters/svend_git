@@ -314,9 +314,11 @@ def sync_subscription_from_stripe(subscription_id: str) -> Subscription | None:
             logger.error(f"No user found for customer {stripe_sub.customer}")
             return None
 
-        sub = Subscription.objects.create(
+        # User may already have a subscription from a previous plan — update it
+        # rather than creating a duplicate (subscriptions_user_id_key is unique).
+        sub, _created = Subscription.objects.update_or_create(
             user=user,
-            stripe_subscription_id=subscription_id,
+            defaults={"stripe_subscription_id": subscription_id},
         )
 
     # Update subscription data
@@ -333,7 +335,7 @@ def sync_subscription_from_stripe(subscription_id: str) -> Subscription | None:
     period_end = first_item.get("current_period_end") or getattr(stripe_sub, "current_period_end", None)
     sub.current_period_start = timezone.make_aware(datetime.fromtimestamp(period_start)) if period_start else None
     sub.current_period_end = timezone.make_aware(datetime.fromtimestamp(period_end)) if period_end else None
-    sub.is_cancel_at_period_end = stripe_sub.is_cancel_at_period_end
+    sub.is_cancel_at_period_end = getattr(stripe_sub, "cancel_at_period_end", False)
     sub.save()
 
     # Update user tier based on subscription status and price
