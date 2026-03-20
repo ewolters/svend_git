@@ -7,9 +7,11 @@
 .iso-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .iso-header h1 { margin: 0; font-size: 22px; font-weight: 500; color: var(--text-primary); }
 
-/* Tabs */
-.iso-tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 0; overflow-x: auto; }
-.iso-tab { padding: 10px 20px; background: transparent; border: none; color: var(--text-secondary); cursor: pointer;
+/* Tabs — two-row layout */
+.iso-tab-group { margin-bottom: 24px; }
+.iso-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+.iso-tabs-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); padding: 6px 8px 2px; font-weight: 600; }
+.iso-tab { padding: 10px 16px; background: transparent; border: none; color: var(--text-secondary); cursor: pointer;
     font-size: 13px; font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.2s; text-decoration: none; white-space: nowrap; }
 .iso-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
 .iso-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
@@ -195,18 +197,23 @@ select.iso-input { appearance: none; background-image: url("data:image/svg+xml,%
         <h1>Quality Management System</h1>
     </div>
 
-    <div class="iso-tabs" id="main-tabs">
-        <a class="iso-tab" href="#/dashboard">Dashboard</a>
-        <a class="iso-tab" href="#/ncrs">NCR Tracker</a>
-        <a class="iso-tab" href="#/audits">Internal Audits</a>
-        <a class="iso-tab" href="#/training">Training Matrix</a>
-        <a class="iso-tab" href="#/reviews">Management Reviews</a>
-        <a class="iso-tab" href="#/documents">Document Control</a>
-        <a class="iso-tab" href="#/suppliers">Suppliers</a>
-        <a class="iso-tab" href="#/complaints">Complaints</a>
-        <a class="iso-tab" href="#/risks">Risks</a>
-        <a class="iso-tab" href="#/equipment">Equipment</a>
-        <a class="iso-tab" href="#/audit-readiness">Audit Readiness</a>
+    <div class="iso-tab-group">
+        <div class="iso-tabs">
+            <a class="iso-tab" href="#/dashboard">Dashboard</a>
+            <a class="iso-tab" href="#/ncrs">NCRs</a>
+            <a class="iso-tab" href="#/complaints">Complaints</a>
+            <a class="iso-tab" href="#/audits">Audits</a>
+            <a class="iso-tab" href="#/reviews">Reviews</a>
+            <a class="iso-tab" href="#/audit-readiness">Readiness</a>
+        </div>
+        <div class="iso-tabs" style="border-bottom:none">
+            <span class="iso-tabs-label">Registers</span>
+            <a class="iso-tab" href="#/training">Training</a>
+            <a class="iso-tab" href="#/documents">Documents</a>
+            <a class="iso-tab" href="#/suppliers">Suppliers</a>
+            <a class="iso-tab" href="#/risks">Risks</a>
+            <a class="iso-tab" href="#/equipment">Equipment</a>
+        </div>
     </div>
 
     <div id="panel-dashboard" class="iso-panel"></div>
