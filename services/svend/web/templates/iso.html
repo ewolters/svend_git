@@ -627,7 +627,6 @@ async function loadNCRDetail(id) {
         html += `<div style="display:flex;justify-content:space-between;align-items:start">
             <h2>${escHtml(n.title)}</h2>
             <div style="display:flex;gap:8px">
-                <button class="iso-btn small" onclick="launchRCA('${n.id}')">Launch 5-Why</button>
                 <button class="iso-btn small danger" onclick="deleteNCR('${n.id}')">Delete</button>
             </div></div>`;
 
@@ -663,20 +662,44 @@ async function loadNCRDetail(id) {
         html += `<div><label class="iso-label">Closed</label><span style="font-size:13px">${fmtDate(n.closed_at)}</span></div>`;
         html += '</div>';
 
-        // Text fields
-        const fields = [
-            ['Description', n.description], ['Containment Action', n.containment_action],
-            ['Root Cause', n.root_cause], ['Corrective Action', n.corrective_action],
-            ['Verification Result', n.verification_result],
-        ];
-        fields.forEach(([label, val]) => {
+        // Text fields (description, containment)
+        [['Description', n.description], ['Containment Action', n.containment_action]].forEach(([label, val]) => {
             if (val) html += `<div style="margin:12px 0"><label class="iso-label">${label}</label><div style="font-size:13px;white-space:pre-wrap">${escHtml(val)}</div></div>`;
         });
 
-        // RCA / CAPA links
+        // Integrated Root Cause + Five-Why panel
+        html += `<div id="ncr-rca-panel" style="margin:16px 0;padding:16px;border:1px solid var(--border);border-radius:10px;background:var(--card-bg)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <label class="iso-label" style="margin:0;font-size:14px">Root Cause Analysis</label>`;
         if (n.rca_session_id) {
-            html += `<div style="margin:12px 0"><a href="/app/rca/?session=${n.rca_session_id}" class="iso-btn small" style="text-decoration:none">View RCA Session &rarr;</a></div>`;
+            html += `<a href="/app/rca/?session=${n.rca_session_id}" class="iso-btn small" style="text-decoration:none;font-size:11px">Full RCA Session &rarr;</a>`;
         }
+        html += '</div>';
+
+        if (n.rca_session_id) {
+            // RCA exists — show inline chain (loaded async below)
+            html += `<div id="ncr-rca-chain" style="color:var(--text-dim);font-size:12px">Loading five-why chain...</div>`;
+        } else if (n.root_cause) {
+            // Manual root cause entered, no RCA session
+            html += `<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">Manually entered</div>`;
+            html += `<div style="font-size:13px;white-space:pre-wrap;padding:10px;background:var(--bg-secondary);border-radius:6px;border-left:3px solid var(--accent)">${escHtml(n.root_cause)}</div>`;
+            html += `<button class="iso-btn small" style="margin-top:10px" onclick="launchRCA('${n.id}')">Deepen with AI Five-Why</button>`;
+        } else {
+            // No root cause at all
+            html += `<div style="text-align:center;padding:20px">
+                <div style="color:var(--text-dim);font-size:13px;margin-bottom:10px">No root cause identified yet</div>
+                <button class="iso-btn primary" onclick="launchRCA('${n.id}')">Launch AI Five-Why</button>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:6px">Claude will guide you through structured root cause analysis</div>
+            </div>`;
+        }
+        html += '</div>';
+
+        // Remaining text fields
+        [['Corrective Action', n.corrective_action], ['Verification Result', n.verification_result]].forEach(([label, val]) => {
+            if (val) html += `<div style="margin:12px 0"><label class="iso-label">${label}</label><div style="font-size:13px;white-space:pre-wrap">${escHtml(val)}</div></div>`;
+        });
+
+        // CAPA link
         if (n.capa_report_id) {
             html += `<div style="margin:12px 0"><a href="/app/report/${n.capa_report_id}/" class="iso-btn small" style="text-decoration:none">View CAPA Report &rarr;</a></div>`;
         }
@@ -758,7 +781,7 @@ async function loadNCRDetail(id) {
         // Edit form
         html += '<div class="iso-form" style="margin-top:16px"><h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Edit NCR</h4>';
         html += '<div class="iso-form-grid">';
-        html += `<div><label class="iso-label">Root Cause</label><textarea class="iso-textarea" id="ncr-edit-rc" rows="2">${escHtml(n.root_cause)}</textarea></div>`;
+        html += `<div><label class="iso-label">Root Cause${n.rca_session_id ? ' <span style="font-size:10px;color:var(--accent)">(from Five-Why)</span>' : ''}</label><textarea class="iso-textarea" id="ncr-edit-rc" rows="2">${escHtml(n.root_cause)}</textarea></div>`;
         html += `<div><label class="iso-label">Corrective Action</label><textarea class="iso-textarea" id="ncr-edit-ca" rows="2">${escHtml(n.corrective_action)}</textarea></div>`;
         html += '</div>';
         html += '<div class="iso-form-grid">';
@@ -769,6 +792,11 @@ async function loadNCRDetail(id) {
         html += '</div>';
 
         el.innerHTML = html;
+
+        // Async: load RCA chain inline if session exists
+        if (n.rca_session_id) {
+            loadRCAChainInline(n.id, n.rca_session_id);
+        }
     } catch (e) {
         toast(safeStr(e, 'Unknown error'), true);
     }
@@ -847,9 +875,64 @@ async function deleteNCR(id) {
 async function launchRCA(id) {
     try {
         const r = await apiFetch(`/ncrs/${id}/launch-rca/`, { method: 'POST' });
-        toast('RCA session created');
+        toast('RCA session created — opening five-why');
         window.location.href = `/app/rca/?session=${r.rca_session_id}`;
     } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
+}
+
+async function loadRCAChainInline(ncrId, rcaSessionId) {
+    const el = document.getElementById('ncr-rca-chain');
+    if (!el) return;
+    try {
+        const r = await apiFetch(`/rca/sessions/${rcaSessionId}/`);
+        const session = r.session || r;
+        const chain = session.chain || [];
+        let html = '';
+
+        // Event/incident
+        if (session.event) {
+            html += `<div style="font-size:12px;color:var(--text-secondary);padding:8px 10px;background:var(--bg-secondary);border-radius:6px;margin-bottom:8px">
+                <strong>Incident:</strong> ${escHtml(session.event)}</div>`;
+        }
+
+        // Five-why chain
+        if (chain.length) {
+            html += '<div style="margin-left:8px;border-left:2px solid var(--border);padding-left:14px">';
+            chain.forEach((step, i) => {
+                const color = step.accepted ? '#4ade80' : step.critique ? '#facc15' : 'var(--text-dim)';
+                html += `<div style="margin-bottom:10px;position:relative">
+                    <div style="position:absolute;left:-22px;top:2px;width:14px;height:14px;border-radius:50%;background:${color};
+                        font-size:9px;text-align:center;line-height:14px;color:white;font-weight:700">${i+1}</div>
+                    <div style="font-size:13px;color:var(--text-primary)">${escHtml(step.claim)}</div>`;
+                if (step.critique) {
+                    html += `<div style="font-size:11px;color:var(--text-secondary);margin-top:3px;padding:4px 8px;background:rgba(250,204,21,0.08);border-radius:4px;border-left:2px solid #facc15">
+                        ${escHtml(step.critique)}</div>`;
+                }
+                html += '</div>';
+            });
+            html += '</div>';
+        } else {
+            html += '<div style="font-size:12px;color:var(--text-dim)">Five-why session started — no steps recorded yet</div>';
+        }
+
+        // Root cause conclusion
+        if (session.root_cause) {
+            html += `<div style="margin-top:10px;padding:10px;background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.3);border-radius:6px;border-left:3px solid #f87171">
+                <div style="font-size:11px;font-weight:600;color:#f87171;margin-bottom:4px">ROOT CAUSE IDENTIFIED</div>
+                <div style="font-size:13px;color:var(--text-primary)">${escHtml(session.root_cause)}</div>
+            </div>`;
+        }
+
+        // Status badge
+        const statusColors = {draft:'var(--text-dim)', investigating:'#facc15', root_cause_identified:'#f87171', verified:'#4ade80', closed:'var(--text-dim)'};
+        html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">
+            RCA Status: <span style="color:${statusColors[session.status]||'var(--text-dim)'};font-weight:600">${session.status.replace(/_/g,' ')}</span>
+        </div>`;
+
+        el.innerHTML = html;
+    } catch (e) {
+        el.innerHTML = '<div style="font-size:12px;color:var(--text-dim)">Could not load RCA session</div>';
+    }
 }
 
 // =========================================================================
