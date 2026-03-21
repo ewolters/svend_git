@@ -4809,6 +4809,8 @@ class CustomerComplaint(models.Model):
         "resolved": ["resolution"],
         "closed": ["satisfaction_followup"],
     }
+    # Reopening from closed requires explicit reason
+    REOPEN_REQUIRES = {"resolved": ["reopen_reason"]}
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
@@ -4841,6 +4843,7 @@ class CustomerComplaint(models.Model):
     resolution = models.TextField(blank=True)
     preventive_action = models.TextField(blank=True)
     satisfaction_followup = models.TextField(blank=True, help_text="Customer satisfaction check after resolution")
+    reopen_reason = models.TextField(blank=True, help_text="Required when reopening a closed complaint")
     customer_satisfied = models.BooleanField(null=True, blank=True)
     # Cross-tool links
     ncr = models.ForeignKey(
@@ -4874,6 +4877,12 @@ class CustomerComplaint(models.Model):
                 return False, f"'{field}' is required to transition to '{new_status}'"
             if isinstance(val, str) and not val.strip():
                 return False, f"'{field}' is required to transition to '{new_status}'"
+        # Reopening from closed requires explicit reason
+        if self.status == "closed":
+            for field in self.REOPEN_REQUIRES.get(new_status, []):
+                val = getattr(self, field, None)
+                if not val or (isinstance(val, str) and not val.strip()):
+                    return False, f"'{field}' is required to reopen a closed complaint"
         return True, ""
 
     def to_dict(self):
@@ -4894,6 +4903,7 @@ class CustomerComplaint(models.Model):
             "resolution": self.resolution,
             "preventive_action": self.preventive_action,
             "satisfaction_followup": self.satisfaction_followup,
+            "reopen_reason": self.reopen_reason,
             "customer_satisfied": self.customer_satisfied,
             "ncr_id": str(self.ncr_id) if self.ncr_id else None,
             "capa_id": str(self.capa_id) if self.capa_id else None,

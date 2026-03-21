@@ -3297,7 +3297,7 @@ def complaint_detail(request, complaint_id):
     new_status = data.get("status")
     if new_status and new_status != complaint.status:
         # Pre-set fields that transitions require
-        for field in ["assigned_to", "resolution", "satisfaction_followup"]:
+        for field in ["assigned_to", "resolution", "satisfaction_followup", "reopen_reason"]:
             if field in data:
                 if field == "assigned_to" and data[field]:
                     try:
@@ -3328,6 +3328,7 @@ def complaint_detail(request, complaint_id):
         "resolution",
         "preventive_action",
         "satisfaction_followup",
+        "reopen_reason",
     ]:
         if field in data and field != "status":
             setattr(complaint, field, data[field])

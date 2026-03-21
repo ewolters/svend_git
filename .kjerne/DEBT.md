@@ -19,6 +19,10 @@ Track technical debt here. Review weekly.
 
 [TEMPLATE] workbench_new.html is 10.9K lines — single-file monolith with inline CSS (~1100 lines) and JS (~8000 lines). Not practical to split without a build system, but could extract CSS to a standalone .css file served via WhiteNoise | Added: 2026-03-03 | Priority: P3
 
+### API Error Handling
+
+[QMS] 16+ endpoints in iso_views.py use bare `json.loads(request.body)` without try/except — malformed JSON returns 500 instead of 400. Helper `_parse_json_body()` exists (added 2026-03-21) but not yet adopted across all endpoints. Mechanical migration: replace `data = json.loads(request.body)` with `data, err = _parse_json_body(request); if err: return err` in each view function. | Added: 2026-03-21 | Priority: P2
+
 ### Data Model Migration
 
 [CORE] Phase 3 pending — remove JSON blobs entirely, drop Problem.hypotheses/evidence/dead_ends/probable_causes fields. Blocked until all Problems have core_project FK | Added: 2026-02-06 | Priority: P3
