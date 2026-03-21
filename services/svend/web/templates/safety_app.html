@@ -1,5 +1,5 @@
 {% extends "base_app.html" %}
-{% block title %}HIRARC Safety — SVEND{% endblock %}
+{% block title %}Svend Safety — HIRARC{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -22,261 +22,296 @@
 .safety-panel.active { display: block; }
 
 /* KPI cards */
-.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
 .kpi-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; text-align: center; }
 .kpi-card .kpi-value { font-size: 32px; font-weight: 600; color: var(--text-primary); margin: 4px 0;
     font-family: 'JetBrains Mono', monospace; }
 .kpi-card .kpi-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
-.kpi-card .kpi-sub { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
 
 /* Severity distribution bar */
-.sev-bar-wrap { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
-.sev-bar-wrap h3 { margin: 0 0 10px; font-size: 13px; font-weight: 500; color: var(--text-secondary); }
-.sev-bar { display: flex; height: 28px; border-radius: 6px; overflow: hidden; }
-.sev-bar .seg { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #fff;
-    transition: width 0.4s ease; min-width: 0; }
-.sev-bar .seg-C { background: #cf4444; }
-.sev-bar .seg-H { background: #e07830; }
-.sev-bar .seg-M { background: #d4a537; }
-.sev-bar .seg-L { background: #4a9f6e; }
-.sev-legend { display: flex; gap: 16px; margin-top: 8px; font-size: 11px; color: var(--text-secondary); }
-.sev-legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
-.sev-legend .leg-C::before { background: #cf4444; }
-.sev-legend .leg-H::before { background: #e07830; }
-.sev-legend .leg-M::before { background: #d4a537; }
-.sev-legend .leg-L::before { background: #4a9f6e; }
+.severity-bar-wrap { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 24px; }
+.severity-bar-wrap h3 { margin: 0 0 12px; font-size: 13px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.severity-bar { display: flex; height: 28px; border-radius: 6px; overflow: hidden; }
+.severity-bar .seg { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #fff; min-width: 24px; transition: width 0.3s; }
+.seg-C { background: var(--error); }
+.seg-H { background: #e89547; }
+.seg-M { background: #e8c547; }
+.seg-L { background: var(--accent-primary); }
+.severity-legend { display: flex; gap: 16px; margin-top: 8px; font-size: 11px; color: var(--text-secondary); }
+.severity-legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+.severity-legend .leg-C::before { background: var(--error); }
+.severity-legend .leg-H::before { background: #e89547; }
+.severity-legend .leg-M::before { background: #e8c547; }
+.severity-legend .leg-L::before { background: var(--accent-primary); }
 
 /* Totals row */
 .totals-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
-.total-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; text-align: center; }
-.total-card .total-val { font-size: 22px; font-weight: 600; color: var(--text-primary); font-family: 'JetBrains Mono', monospace; }
-.total-card .total-lbl { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+.total-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+.total-card .total-value { font-size: 24px; font-weight: 600; color: var(--text-primary); font-family: 'JetBrains Mono', monospace; }
+.total-card .total-label { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+/* Gauge */
+.gauge-wrap { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 24px; text-align: center; }
+.gauge-ring { width: 120px; height: 120px; border-radius: 50%; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; }
+.gauge-ring .gauge-val { font-size: 28px; font-weight: 600; color: var(--text-primary); font-family: 'JetBrains Mono', monospace; }
+.gauge-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; }
 
 /* Site filter */
-.site-filter-bar { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px;
-    padding: 10px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
-.site-filter-bar label { font-size: 12px; color: var(--text-secondary); font-weight: 600; white-space: nowrap; }
-.site-filter-bar select { padding: 5px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px;
-    color: var(--text-primary); font-size: 12px; font-family: inherit; }
-.site-filter-bar select:focus { outline: none; border-color: var(--accent-primary); }
+.filter-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+.filter-bar label { font-size: 12px; color: var(--text-secondary); }
+.filter-bar select, .filter-bar input[type="checkbox"] { background: var(--bg-secondary); border: 1px solid var(--border);
+    color: var(--text-primary); padding: 6px 10px; border-radius: 6px; font-size: 12px; }
 
-/* Card list items */
+/* Card list */
 .card-list { display: flex; flex-direction: column; gap: 8px; }
-.card-item { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px;
-    display: flex; align-items: center; gap: 16px; cursor: pointer; transition: all 0.2s; }
-.card-item:hover { border-color: var(--accent-primary); background: var(--bg-hover); }
-.card-item .card-auditor { font-size: 13px; font-weight: 500; color: var(--text-primary); min-width: 120px; }
-.card-item .card-zone { font-size: 12px; color: var(--text-secondary); min-width: 100px; }
-.card-item .card-date { font-size: 12px; color: var(--text-dim); min-width: 90px; font-family: 'JetBrains Mono', monospace; }
-.card-item .card-count { font-size: 12px; color: var(--text-secondary); min-width: 80px; }
-.card-item .card-status { margin-left: auto; font-size: 11px; font-weight: 600; }
+.frontier-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; cursor: pointer; transition: border-color 0.2s; }
+.frontier-card:hover { border-color: var(--accent-primary); }
+.frontier-card.expanded { border-color: var(--accent-primary); }
+.card-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.card-meta { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-primary); }
+.card-badges { display: flex; align-items: center; gap: 6px; }
+.badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.badge-classification { background: var(--bg-tertiary); color: var(--text-secondary); }
+.badge-processed { background: rgba(74,159,110,0.15); color: var(--accent-primary); }
+.badge-unprocessed { background: rgba(208,96,96,0.15); color: var(--error); }
+.badge-sev-C { background: rgba(208,96,96,0.2); color: var(--error); }
+.badge-sev-H { background: rgba(232,149,71,0.2); color: #e89547; }
+.badge-sev-M { background: rgba(232,197,71,0.2); color: #e8c547; }
+.badge-sev-L { background: rgba(74,159,110,0.2); color: var(--accent-primary); }
+.rating-summary { font-size: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
+.sat-pct { font-size: 12px; color: var(--accent-primary); font-weight: 600; }
 
-/* Severity badges */
-.sev-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
-.sev-C { background: rgba(207,68,68,0.2); color: #cf4444; }
-.sev-H { background: rgba(224,120,48,0.2); color: #e07830; }
-.sev-M { background: rgba(212,165,55,0.2); color: #d4a537; }
-.sev-L { background: rgba(74,159,110,0.2); color: #4a9f6e; }
+/* Card detail */
+.card-detail { display: none; margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px; }
+.card-detail.open { display: block; }
+.detail-section { margin-bottom: 20px; }
+.detail-section h4 { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 10px; }
 
-/* Status badges */
-.status-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
-.status-assigned { background: rgba(120,120,120,0.2); color: #aaa; }
-.status-completed { background: rgba(74,159,110,0.35); color: #a8e6cf; }
-.status-missed { background: rgba(207,111,111,0.2); color: #cf6f6f; }
-.status-processed { background: rgba(74,159,110,0.25); color: #6fcf97; }
-.status-unprocessed { background: rgba(232,149,71,0.2); color: #e89547; }
+/* Observation table */
+.obs-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.obs-table th { text-align: left; padding: 6px 8px; color: var(--text-dim); font-weight: 500; border-bottom: 1px solid var(--border); }
+.obs-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); color: var(--text-primary); }
+.obs-table .cat-header td { font-weight: 600; color: var(--accent-primary); background: var(--bg-secondary); }
+.rating-S { color: var(--accent-primary); font-weight: 600; }
+.rating-AR { color: #e89547; font-weight: 600; }
+.rating-U { color: var(--error); font-weight: 600; }
 
-/* Buttons */
-.btn-s { padding: 7px 16px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
-.btn-s.primary { background: var(--accent-primary); color: white; }
-.btn-s.primary:hover { filter: brightness(1.1); }
-.btn-s.secondary { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); }
-.btn-s.secondary:hover { background: var(--bg-hover); }
-.btn-s.danger { background: var(--error); color: white; }
-.btn-s.small { padding: 4px 10px; font-size: 11px; }
-.btn-s.outline { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
-.btn-s.outline:hover { background: var(--bg-hover); color: var(--text-primary); }
+/* 5S detail */
+.five-s-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.five-s-cell { background: var(--bg-secondary); border-radius: 8px; padding: 12px; text-align: center; }
+.five-s-cell .pillar-name { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
+.five-s-cell .pillar-val { font-size: 20px; font-weight: 600; color: var(--text-primary); font-family: 'JetBrains Mono', monospace; }
+
+/* Operator detail */
+.op-field { margin-bottom: 10px; }
+.op-field .op-label { font-size: 11px; color: var(--text-dim); margin-bottom: 2px; }
+.op-field .op-value { font-size: 13px; color: var(--text-primary); }
+
+/* Comfort dots */
+.comfort-dots { display: flex; gap: 6px; align-items: center; }
+.comfort-dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); cursor: pointer; transition: all 0.15s; }
+.comfort-dot.filled { background: var(--accent-primary); border-color: var(--accent-primary); }
+.comfort-dot:hover { border-color: var(--accent-primary); }
+
+/* Pipeline checklist */
+.pipeline-checks { display: flex; gap: 16px; flex-wrap: wrap; }
+.pipeline-check { font-size: 12px; color: var(--text-secondary); }
+.pipeline-check.done { color: var(--accent-primary); }
+.pipeline-check::before { content: '\2610'; margin-right: 4px; }
+.pipeline-check.done::before { content: '\2611'; }
+
+/* Positive obs */
+.pos-obs-list { list-style: none; padding: 0; margin: 0; }
+.pos-obs-list li { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-primary); }
+.pos-obs-list li:last-child { border-bottom: none; }
+.pos-obs-reinforce { color: var(--text-dim); font-style: italic; }
+
+/* Close the loop */
+.close-loop-info { font-size: 13px; color: var(--text-primary); }
+.close-loop-info span { display: block; margin-bottom: 4px; }
 
 /* Modal */
-.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000;
-    justify-content: center; align-items: flex-start; padding-top: 40px; }
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    z-index: 1000; display: none; align-items: flex-start; justify-content: center; padding: 40px 20px; overflow-y: auto; }
 .modal-overlay.open { display: flex; }
-.modal { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 12px;
-    padding: 24px; max-width: 960px; width: 92%; max-height: 85vh; overflow-y: auto; }
-.modal h3 { margin: 0 0 16px; color: var(--text-primary); font-size: 16px; }
-.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+.modal { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 900px;
+    padding: 32px; position: relative; margin-bottom: 40px; }
+.modal-close { position: absolute; top: 16px; right: 16px; background: none; border: none; color: var(--text-secondary);
+    font-size: 20px; cursor: pointer; line-height: 1; }
+.modal-close:hover { color: var(--text-primary); }
+.modal h2 { margin: 0 0 24px; font-size: 18px; font-weight: 600; color: var(--text-primary); }
 
-/* Forms */
-.safety-form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.safety-form .full { grid-column: 1 / -1; }
-.safety-form label { display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;
-    text-transform: uppercase; letter-spacing: 0.5px; }
-.safety-form input, .safety-form select, .safety-form textarea {
-    width: 100%; padding: 8px 12px; background: var(--bg-secondary); border: 1px solid var(--border);
-    border-radius: 6px; color: var(--text-primary); font-size: 13px; font-family: inherit; box-sizing: border-box; }
-.safety-form input:focus, .safety-form select:focus, .safety-form textarea:focus { outline: none; border-color: var(--accent-primary); }
-.safety-form input[type=checkbox] { width: auto; }
-.safety-form input[type=number] { font-family: 'JetBrains Mono', monospace; }
+/* Card form sections */
+.card-section { margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+.card-section:last-of-type { border-bottom: none; }
+.card-section-title { font-size: 13px; font-weight: 600; color: var(--accent-primary); text-transform: uppercase; letter-spacing: 0.8px;
+    margin: 0 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--accent-primary); display: inline-block; }
 
-/* Observation rows */
-.obs-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
-.obs-row { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 12px;
-    display: grid; grid-template-columns: 140px 1fr 60px 60px 1fr 30px; gap: 8px; align-items: center; }
-.obs-row select, .obs-row input, .obs-row textarea { padding: 6px 8px; background: var(--bg-tertiary); border: 1px solid var(--border);
-    border-radius: 4px; color: var(--text-primary); font-size: 12px; font-family: inherit; box-sizing: border-box; }
-.obs-row select:focus, .obs-row input:focus, .obs-row textarea:focus { outline: none; border-color: var(--accent-primary); }
-.obs-remove { background: none; border: none; color: var(--error); cursor: pointer; font-size: 16px; opacity: 0.6; }
-.obs-remove:hover { opacity: 1; }
+/* Form fields */
+.form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.form-group { flex: 1; min-width: 140px; }
+.form-group label { display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
+.form-group select, .form-group input, .form-group textarea {
+    width: 100%; background: var(--bg-secondary); border: 1px solid var(--border); color: var(--text-primary);
+    padding: 8px 10px; border-radius: 6px; font-size: 13px; font-family: inherit; }
+.form-group textarea { resize: vertical; min-height: 60px; }
+.form-group select:focus, .form-group input:focus, .form-group textarea:focus {
+    outline: none; border-color: var(--accent-primary); }
 
-/* 5S tally */
-.tally-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
-.tally-cell { text-align: center; }
-.tally-cell label { display: block; font-size: 10px; color: var(--text-secondary); margin-bottom: 4px; text-transform: uppercase; }
-.tally-cell input { width: 100%; padding: 6px; background: var(--bg-secondary); border: 1px solid var(--border);
-    border-radius: 4px; color: var(--text-primary); font-size: 13px; font-family: 'JetBrains Mono', monospace;
-    text-align: center; box-sizing: border-box; }
+/* Safety observation form rows */
+.obs-form-table { width: 100%; border-collapse: collapse; }
+.obs-form-table th { text-align: left; padding: 6px 8px; font-size: 11px; color: var(--text-dim); font-weight: 500; border-bottom: 1px solid var(--border); }
+.obs-form-table td { padding: 6px 8px; vertical-align: middle; border-bottom: 1px solid var(--border); }
+.obs-form-table .cat-row td { font-weight: 600; color: var(--accent-primary); background: var(--bg-secondary); font-size: 12px; padding: 8px; }
+.obs-form-table .item-text { font-size: 12px; color: var(--text-primary); max-width: 280px; }
+.obs-form-table .sev-select { width: 60px; padding: 4px 6px; font-size: 11px; }
+.obs-form-table .notes-input { width: 100%; padding: 4px 6px; font-size: 11px; background: var(--bg-secondary); border: 1px solid var(--border);
+    color: var(--text-primary); border-radius: 4px; }
 
-/* Schedule */
-.schedule-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.schedule-header h2 { margin: 0; font-size: 18px; color: var(--text-primary); font-weight: 500; }
-.progress-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-.progress-bar { width: 200px; height: 10px; background: var(--bg-secondary); border-radius: 5px; overflow: hidden; }
-.progress-fill { height: 100%; border-radius: 5px; transition: width 0.4s ease; }
-.progress-fill.green { background: var(--accent-primary); }
-.progress-fill.amber { background: #d4a537; }
-.progress-fill.red { background: var(--error); }
-.progress-pct { font-size: 13px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+/* Rating radio group */
+.rating-group { display: flex; gap: 4px; }
+.rating-radio { display: none; }
+.rating-label { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; cursor: pointer; border: 2px solid var(--border); transition: all 0.15s; }
+.rating-label:hover { opacity: 0.8; }
+.rating-label[data-val="S"] { color: var(--accent-primary); }
+.rating-label[data-val="AR"] { color: #e89547; }
+.rating-label[data-val="U"] { color: var(--error); }
+.rating-radio:checked + .rating-label[data-val="S"] { background: var(--accent-primary); color: #fff; border-color: var(--accent-primary); }
+.rating-radio:checked + .rating-label[data-val="AR"] { background: #e89547; color: #fff; border-color: #e89547; }
+.rating-radio:checked + .rating-label[data-val="U"] { background: var(--error); color: #fff; border-color: var(--error); }
 
-/* Assignment list */
-.assign-list { display: flex; flex-direction: column; gap: 6px; }
-.assign-row { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px;
-    display: flex; align-items: center; gap: 16px; font-size: 13px; }
-.assign-row .assign-auditor { color: var(--text-primary); font-weight: 500; min-width: 120px; }
-.assign-row .assign-zone { color: var(--text-secondary); min-width: 100px; }
-.assign-row .assign-date { color: var(--text-dim); font-family: 'JetBrains Mono', monospace; min-width: 90px; }
-.assign-row .assign-status { margin-left: auto; }
+/* 5S toggle */
+.toggle-group { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: 16px; }
+.toggle-btn { padding: 8px 16px; background: var(--bg-secondary); border: none; color: var(--text-secondary);
+    font-size: 12px; cursor: pointer; transition: all 0.15s; }
+.toggle-btn.active { background: var(--accent-primary); color: #fff; }
 
-/* Bulk assignment rows */
-.bulk-rows { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-.bulk-row { display: grid; grid-template-columns: 1fr 1fr 140px 30px; gap: 8px; align-items: center; }
-.bulk-row select, .bulk-row input { padding: 6px 8px; background: var(--bg-secondary); border: 1px solid var(--border);
-    border-radius: 4px; color: var(--text-primary); font-size: 12px; font-family: inherit; box-sizing: border-box; }
+/* 5S tally inputs */
+.tally-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.tally-item { text-align: center; }
+.tally-item label { display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
+.tally-item input { width: 60px; text-align: center; background: var(--bg-secondary); border: 1px solid var(--border);
+    color: var(--text-primary); padding: 8px; border-radius: 6px; font-size: 16px; font-family: 'JetBrains Mono', monospace; }
+
+/* 5S score items */
+.five-s-score-section { margin-bottom: 16px; }
+.five-s-score-section h5 { font-size: 12px; color: var(--accent-primary); margin: 0 0 8px; }
+.score-item { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-size: 12px; color: var(--text-primary); }
+.score-item .score-text { flex: 1; }
+.score-radios { display: flex; gap: 4px; }
+.score-radios input { display: none; }
+.score-radios label { width: 24px; height: 24px; border-radius: 4px; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); color: var(--text-secondary); transition: all 0.15s; }
+.score-radios input:checked + label { background: var(--accent-primary); color: #fff; border-color: var(--accent-primary); }
+
+/* Positive obs form */
+.pos-obs-rows { display: flex; flex-direction: column; gap: 8px; }
+.pos-obs-row { display: flex; gap: 8px; align-items: start; }
+.pos-obs-row input { flex: 1; }
+.pos-obs-row .remove-btn { background: none; border: none; color: var(--error); cursor: pointer; font-size: 16px; padding: 8px; }
+.add-btn { background: var(--bg-secondary); border: 1px solid var(--border); color: var(--accent-primary); padding: 6px 14px;
+    border-radius: 6px; font-size: 12px; cursor: pointer; margin-top: 8px; }
+.add-btn:hover { border-color: var(--accent-primary); }
+
+/* Submit */
+.submit-btn { background: var(--accent-primary); border: none; color: #fff; padding: 12px 32px; border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; transition: opacity 0.15s; }
+.submit-btn:hover { opacity: 0.9; }
+.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Toast */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--accent-primary); color: #fff; padding: 12px 20px;
+    border-radius: 8px; font-size: 13px; z-index: 2000; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+.toast.show { opacity: 1; }
+.toast.error { background: var(--error); }
+
+/* Schedules */
+.schedule-list { display: flex; flex-direction: column; gap: 12px; }
+.schedule-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.schedule-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.schedule-header .week-label { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+.completion-bar { height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden; }
+.completion-fill { height: 100%; background: var(--accent-primary); border-radius: 3px; transition: width 0.3s; }
+.assignment-list { margin-top: 10px; }
+.assignment-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 12px; border-bottom: 1px solid var(--border); }
+.assignment-row:last-child { border-bottom: none; }
+.assignment-status { padding: 2px 8px; border-radius: 8px; font-size: 10px; font-weight: 600; }
+.status-assigned { background: rgba(232,197,71,0.15); color: #e8c547; }
+.status-completed { background: rgba(74,159,110,0.15); color: var(--accent-primary); }
+.status-missed { background: rgba(208,96,96,0.15); color: var(--error); }
+.status-in_progress { background: rgba(232,149,71,0.15); color: #e89547; }
 
 /* FMEA bridge */
-.bridge-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 10px;
-    display: flex; justify-content: space-between; align-items: center; }
-.bridge-card .bridge-info { flex: 1; }
-.bridge-card .bridge-info .bridge-title { font-size: 13px; font-weight: 500; color: var(--text-primary); }
-.bridge-card .bridge-info .bridge-meta { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.fmea-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 8px; }
+.fmea-card .fmea-row { display: flex; justify-content: space-between; align-items: center; }
+.process-btn { background: var(--accent-primary); border: none; color: #fff; padding: 6px 14px; border-radius: 6px;
+    font-size: 12px; cursor: pointer; }
+.process-btn:hover { opacity: 0.9; }
 
-/* Pareto chart */
-.pareto-wrap { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
-.pareto-wrap h3 { margin: 0 0 16px; font-size: 14px; font-weight: 500; color: var(--text-primary); }
-.pareto-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-.pareto-label { font-size: 12px; color: var(--text-secondary); min-width: 130px; text-align: right; }
-.pareto-bar-track { flex: 1; height: 22px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; position: relative; }
-.pareto-bar-fill { height: 100%; background: var(--accent-primary); border-radius: 4px; transition: width 0.4s ease;
-    display: flex; align-items: center; padding-left: 6px; font-size: 11px; font-weight: 600; color: #fff; min-width: 0; }
-.pareto-cum-line { margin-top: 12px; height: 40px; position: relative; }
-.pareto-cum-line .cum-dot { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: var(--warning);
-    transform: translate(-50%, -50%); }
-.pareto-cum-line .cum-label { position: absolute; font-size: 10px; color: var(--warning); transform: translateX(-50%); top: 28px; }
-.pareto-total { font-size: 12px; color: var(--text-dim); margin-top: 12px; text-align: right; }
-
-/* Card detail panel */
-.card-detail { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-top: 16px; }
-.card-detail h3 { margin: 0 0 12px; font-size: 15px; color: var(--text-primary); }
-.card-detail .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px; }
-.card-detail .detail-grid .d-label { color: var(--text-secondary); font-size: 11px; text-transform: uppercase; }
-.card-detail .detail-grid .d-value { color: var(--text-primary); }
-.card-detail .obs-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; }
-.card-detail .obs-table th { text-align: left; padding: 8px 10px; color: var(--text-secondary); font-weight: 500;
-    font-size: 10px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
-.card-detail .obs-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text-primary); }
-
-/* Section header */
-.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.section-header h2 { margin: 0; font-size: 18px; color: var(--text-primary); font-weight: 500; }
+/* Pareto */
+.pareto-chart { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+.pareto-bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.pareto-label { width: 120px; font-size: 12px; color: var(--text-secondary); text-align: right; }
+.pareto-bar-track { flex: 1; height: 24px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden; position: relative; }
+.pareto-bar-fill { height: 100%; background: var(--accent-primary); border-radius: 4px; transition: width 0.3s; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; }
+.pareto-bar-fill span { font-size: 10px; color: #fff; font-weight: 600; }
+.pareto-cum { width: 50px; font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
 
 /* Empty state */
-.empty-state { text-align: center; padding: 60px 20px; color: var(--text-dim); }
-.empty-state p { margin: 0; font-size: 13px; }
-
-/* Operator interaction section */
-.operator-section { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
-.operator-section h4 { margin: 0 0 10px; font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.empty-state { text-align: center; padding: 60px 20px; color: var(--text-dim); font-size: 14px; }
+.empty-state .empty-icon { font-size: 40px; margin-bottom: 8px; opacity: 0.3; }
 
 /* Responsive */
-@media (max-width: 900px) {
+@media (max-width: 768px) {
     .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .five-s-grid { grid-template-columns: repeat(2, 1fr); }
+    .tally-grid { grid-template-columns: repeat(2, 1fr); }
     .totals-row { grid-template-columns: 1fr; }
-    .obs-row { grid-template-columns: 1fr; }
-    .tally-grid { grid-template-columns: repeat(3, 1fr); }
-    .safety-form { grid-template-columns: 1fr; }
 }
 </style>
 {% endblock %}
 
 {% block content %}
 {% verbatim %}
-<div class="safety-app">
-    <!-- Header -->
+<div class="safety-app" id="safetyApp">
     <div class="safety-header">
-        <div style="display:flex;align-items:center;gap:12px;">
-            <h1>HIRARC Safety</h1>
-            <span style="font-size:12px;color:var(--text-dim);">Frontier Card Management</span>
-        </div>
+        <h1>Frontier Card — HIRARC Safety</h1>
         <div class="meta">
-            <span class="badge-count" id="card-count-badge">0 Cards</span>
-            <span class="badge-count" id="zone-count-badge">0 Zones</span>
+            <span class="badge-count" id="cardCount">0 cards</span>
+            <button class="add-btn" onclick="openNewCardModal()" style="margin:0">+ New Card</button>
         </div>
     </div>
 
-    <!-- Tabs -->
-    <div class="safety-tabs" id="main-tabs">
-        <a class="safety-tab active" href="#/dashboard">Dashboard</a>
-        <a class="safety-tab" href="#/cards">Cards</a>
-        <a class="safety-tab" href="#/schedules">Schedules</a>
-        <a class="safety-tab" href="#/fmea-bridge">FMEA Bridge</a>
-        <a class="safety-tab" href="#/pareto">Pareto</a>
+    <div class="safety-tabs">
+        <button class="safety-tab active" data-tab="dashboard">Dashboard</button>
+        <button class="safety-tab" data-tab="cards">Cards</button>
+        <button class="safety-tab" data-tab="schedules">Schedules</button>
+        <button class="safety-tab" data-tab="fmea">FMEA Bridge</button>
+        <button class="safety-tab" data-tab="pareto">Pareto</button>
     </div>
 
-    <!-- ============ DASHBOARD ============ -->
-    <div id="tab-dashboard" class="safety-panel active">
-        <div class="site-filter-bar">
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- TAB 1: DASHBOARD                                               -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div class="safety-panel active" id="panel-dashboard">
+        <div class="filter-bar">
             <label>Site:</label>
-            <select id="dash-site-filter" onchange="loadDashboard()">
-                <option value="">All Sites</option>
-            </select>
+            <select id="dashSiteFilter" onchange="loadDashboard()"><option value="">All Sites</option></select>
         </div>
 
-        <div class="kpi-row" id="kpi-row">
-            <div class="kpi-card">
-                <div class="kpi-label">Audit Completion</div>
-                <div class="kpi-value" id="kpi-completion">--</div>
-                <div class="kpi-sub">%</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-label">Hazards This Month</div>
-                <div class="kpi-value" id="kpi-hazards">--</div>
-                <div class="kpi-sub">at-risk observations</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-label">Unprocessed Cards</div>
-                <div class="kpi-value" id="kpi-unprocessed">--</div>
-                <div class="kpi-sub">awaiting FMEA</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-label">Avg Processing Time</div>
-                <div class="kpi-value" id="kpi-avg-time">--</div>
-                <div class="kpi-sub">hours</div>
-            </div>
+        <div class="kpi-row">
+            <div class="kpi-card"><div class="kpi-label">Audit Completion</div><div class="kpi-value" id="kpiCompletion">—</div></div>
+            <div class="kpi-card"><div class="kpi-label">Hazards This Month</div><div class="kpi-value" id="kpiHazards">—</div></div>
+            <div class="kpi-card"><div class="kpi-label">Unprocessed Cards</div><div class="kpi-value" id="kpiUnprocessed">—</div></div>
+            <div class="kpi-card"><div class="kpi-label">Avg Processing (hrs)</div><div class="kpi-value" id="kpiAvgTime">—</div></div>
+            <div class="kpi-card"><div class="kpi-label">Operator Interaction</div><div class="kpi-value" id="kpiInteraction">—</div></div>
         </div>
 
-        <div class="sev-bar-wrap">
+        <div class="severity-bar-wrap">
             <h3>Severity Distribution</h3>
-            <div class="sev-bar" id="sev-bar"></div>
-            <div class="sev-legend">
+            <div class="severity-bar" id="sevBar"></div>
+            <div class="severity-legend">
                 <span class="leg-C">Critical</span>
                 <span class="leg-H">High</span>
                 <span class="leg-M">Medium</span>
@@ -284,235 +319,238 @@
             </div>
         </div>
 
-        <div class="totals-row" id="totals-row">
-            <div class="total-card">
-                <div class="total-val" id="total-cards">0</div>
-                <div class="total-lbl">Total Cards</div>
+        <div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:24px;">
+            <div class="gauge-wrap">
+                <div class="gauge-ring" id="gaugeRing"><span class="gauge-val" id="gaugeVal">—</span></div>
+                <div class="gauge-label">Satisfactory %</div>
             </div>
-            <div class="total-card">
-                <div class="total-val" id="total-zones">0</div>
-                <div class="total-lbl">Total Zones</div>
-            </div>
-            <div class="total-card">
-                <div class="total-val" id="total-processed">0</div>
-                <div class="total-lbl">Total Processed</div>
+            <div class="totals-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-content:center;">
+                <div class="total-card"><div class="total-value" id="totalCards">0</div><div class="total-label">Total Cards</div></div>
+                <div class="total-card"><div class="total-value" id="totalZones">0</div><div class="total-label">Total Zones</div></div>
+                <div class="total-card"><div class="total-value" id="totalProcessed">0</div><div class="total-label">Total Processed</div></div>
             </div>
         </div>
     </div>
 
-    <!-- ============ CARDS ============ -->
-    <div id="tab-cards" class="safety-panel">
-        <div class="site-filter-bar">
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- TAB 2: CARDS                                                   -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div class="safety-panel" id="panel-cards">
+        <div class="filter-bar">
             <label>Site:</label>
-            <select id="cards-site-filter" onchange="loadCards()">
-                <option value="">All Sites</option>
-            </select>
-            <label style="margin-left:16px;display:flex;align-items:center;gap:6px;font-weight:400;">
-                <input type="checkbox" id="cards-unprocessed-only" onchange="loadCards()" style="accent-color:var(--accent-primary);">
-                Unprocessed only
-            </label>
-            <div style="margin-left:auto;">
-                <button class="btn-s primary" onclick="openCardModal()">Submit Card</button>
-            </div>
+            <select id="cardSiteFilter" onchange="loadCards()"><option value="">All Sites</option></select>
+            <label><input type="checkbox" id="unprocessedOnly" onchange="loadCards()"> Unprocessed only</label>
         </div>
-
-        <div class="card-list" id="cards-list">
-            <div class="empty-state"><p>Loading cards...</p></div>
+        <div class="card-list" id="cardList">
+            <div class="empty-state"><div class="empty-icon">&#128203;</div>No frontier cards yet.</div>
         </div>
-
-        <div id="card-detail-panel"></div>
     </div>
 
-    <!-- ============ SCHEDULES ============ -->
-    <div id="tab-schedules" class="safety-panel">
-        <div class="site-filter-bar">
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- TAB 3: SCHEDULES                                               -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div class="safety-panel" id="panel-schedules">
+        <div class="filter-bar">
             <label>Site:</label>
-            <select id="sched-site-filter" onchange="loadSchedules()">
-                <option value="">All Sites</option>
-            </select>
-            <div style="margin-left:auto;">
-                <button class="btn-s primary" onclick="openScheduleModal()">New Schedule</button>
-            </div>
+            <select id="schedSiteFilter" onchange="loadSchedules()"><option value="">All Sites</option></select>
+            <button class="add-btn" onclick="openNewScheduleModal()" style="margin:0">+ New Schedule</button>
         </div>
-
-        <div id="schedules-list">
-            <div class="empty-state"><p>Loading schedules...</p></div>
+        <div class="schedule-list" id="scheduleList">
+            <div class="empty-state"><div class="empty-icon">&#128197;</div>No schedules yet.</div>
         </div>
     </div>
 
-    <!-- ============ FMEA BRIDGE ============ -->
-    <div id="tab-fmea-bridge" class="safety-panel">
-        <div class="section-header">
-            <h2>FMEA Bridge</h2>
-            <span style="font-size:12px;color:var(--text-dim);">Process frontier cards into FMEA rows</span>
-        </div>
-
-        <div id="bridge-list">
-            <div class="empty-state"><p>Loading unprocessed cards...</p></div>
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- TAB 4: FMEA BRIDGE                                            -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div class="safety-panel" id="panel-fmea">
+        <h3 style="font-size:14px;color:var(--text-primary);margin:0 0 16px;">Unprocessed Cards — Bridge to FMEA</h3>
+        <div id="fmeaList">
+            <div class="empty-state"><div class="empty-icon">&#128279;</div>All cards have been processed.</div>
         </div>
     </div>
 
-    <!-- ============ PARETO ============ -->
-    <div id="tab-pareto" class="safety-panel">
-        <div class="site-filter-bar">
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- TAB 5: PARETO                                                  -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div class="safety-panel" id="panel-pareto">
+        <div class="filter-bar">
             <label>Site:</label>
-            <select id="pareto-site-filter" onchange="loadPareto()">
-                <option value="">All Sites</option>
-            </select>
+            <select id="paretoSiteFilter" onchange="loadPareto()"><option value="">All Sites</option></select>
         </div>
-
-        <div class="pareto-wrap" id="pareto-chart">
-            <h3>5S Pareto Analysis</h3>
-            <div id="pareto-content">
-                <div class="empty-state"><p>Loading pareto data...</p></div>
-            </div>
+        <div class="pareto-chart" id="paretoChart">
+            <div class="empty-state"><div class="empty-icon">&#128202;</div>Minimum 10 audits required for Pareto analysis.</div>
         </div>
     </div>
 
-    <!-- ============ SUBMIT CARD MODAL ============ -->
-    <div class="modal-overlay" id="modal-card">
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- NEW CARD MODAL                                                 -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div class="modal-overlay" id="newCardModal">
         <div class="modal">
-            <h3>Submit Frontier Card</h3>
-            <div class="safety-form" id="card-form">
-                <div>
-                    <label>Site</label>
-                    <select id="cf-site" onchange="loadZonesForSite()">
-                        <option value="">Select site...</option>
-                    </select>
-                </div>
-                <div>
-                    <label>Auditor</label>
-                    <select id="cf-auditor">
-                        <option value="">Select auditor...</option>
-                    </select>
-                </div>
-                <div>
-                    <label>Zone</label>
-                    <select id="cf-zone">
-                        <option value="">Select zone...</option>
-                    </select>
-                </div>
-                <div>
-                    <label>Date</label>
-                    <input type="date" id="cf-date">
-                </div>
+            <button class="modal-close" onclick="closeNewCardModal()">&times;</button>
+            <h2>Frontier Card</h2>
 
-                <!-- Safety Observations -->
-                <div class="full">
-                    <label>Safety Observations</label>
-                    <div class="obs-list" id="obs-list"></div>
-                    <button class="btn-s outline small" onclick="addObsRow()">+ Add Observation</button>
+            <!-- HEADER -->
+            <div class="card-section">
+                <div class="card-section-title">Card Header</div>
+                <div class="form-row">
+                    <div class="form-group"><label>Site</label><select id="ncSite" onchange="loadZonesForSite('ncSite','ncZone');loadAuditorsForSite('ncSite','ncAuditor')"></select></div>
+                    <div class="form-group"><label>Zone</label><select id="ncZone"></select></div>
+                    <div class="form-group"><label>Auditor</label><select id="ncAuditor"></select></div>
                 </div>
-
-                <!-- 5S Tallies -->
-                <div class="full">
-                    <label>5S Tallies</label>
-                    <div class="tally-grid">
-                        <div class="tally-cell"><label>Sort</label><input type="number" id="cf-5s-sort" min="0" value="0"></div>
-                        <div class="tally-cell"><label>Set in Order</label><input type="number" id="cf-5s-set" min="0" value="0"></div>
-                        <div class="tally-cell"><label>Shine</label><input type="number" id="cf-5s-shine" min="0" value="0"></div>
-                        <div class="tally-cell"><label>Standardize</label><input type="number" id="cf-5s-std" min="0" value="0"></div>
-                        <div class="tally-cell"><label>Sustain</label><input type="number" id="cf-5s-sus" min="0" value="0"></div>
-                    </div>
-                </div>
-
-                <!-- Operator Interaction -->
-                <div class="full">
-                    <div class="operator-section">
-                        <h4>Operator Interaction</h4>
-                        <div class="safety-form" style="margin-top:8px;">
-                            <div class="full">
-                                <label>Operator Name</label>
-                                <input type="text" id="cf-op-name" placeholder="Name of operator interviewed">
-                            </div>
-                            <div class="full">
-                                <label>Safety Concern</label>
-                                <textarea id="cf-op-concern" rows="2" placeholder="Any safety concerns raised..."></textarea>
-                            </div>
-                            <div class="full">
-                                <label>Improvement Suggestion</label>
-                                <textarea id="cf-op-improvement" rows="2" placeholder="Suggested improvements..."></textarea>
-                            </div>
-                            <div class="full">
-                                <label>Near-Miss Report</label>
-                                <textarea id="cf-op-nearmiss" rows="2" placeholder="Any near-miss incidents..."></textarea>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Cross-feed -->
-                <div class="full" style="display:flex;align-items:center;gap:12px;">
-                    <label style="margin:0;display:flex;align-items:center;gap:6px;">
-                        <input type="checkbox" id="cf-crossfeed" style="accent-color:var(--accent-primary);">
-                        Cross-feed to other sites
-                    </label>
-                </div>
-                <div class="full">
-                    <label>Cross-feed Notes</label>
-                    <textarea id="cf-crossfeed-notes" rows="2" placeholder="Cross-feed details..."></textarea>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button class="btn-s secondary" onclick="closeModal('modal-card')">Cancel</button>
-                <button class="btn-s primary" onclick="submitCard()">Submit Card</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ============ NEW SCHEDULE MODAL ============ -->
-    <div class="modal-overlay" id="modal-schedule">
-        <div class="modal">
-            <h3>Create Weekly Schedule</h3>
-            <div class="safety-form" id="sched-form">
-                <div>
-                    <label>Site</label>
-                    <select id="sf-site">
-                        <option value="">Select site...</option>
-                    </select>
-                </div>
-                <div>
-                    <label>Week Start Date</label>
-                    <input type="date" id="sf-week-start">
-                </div>
-                <div class="full">
-                    <label>Assignments</label>
-                    <div class="bulk-rows" id="bulk-rows"></div>
-                    <button class="btn-s outline small" onclick="addBulkRow()">+ Add Assignment</button>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button class="btn-s secondary" onclick="closeModal('modal-schedule')">Cancel</button>
-                <button class="btn-s primary" onclick="submitSchedule()">Create Schedule</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ============ FMEA PROCESS MODAL ============ -->
-    <div class="modal-overlay" id="modal-fmea">
-        <div class="modal">
-            <h3>Process Card to FMEA</h3>
-            <div id="fmea-modal-body">
-                <div class="safety-form">
-                    <div class="full">
-                        <label>Card Summary</label>
-                        <div id="fmea-card-summary" style="font-size:13px;color:var(--text-primary);padding:8px;background:var(--bg-secondary);border-radius:6px;"></div>
-                    </div>
-                    <div class="full">
-                        <label>Target FMEA</label>
-                        <select id="fmea-target">
-                            <option value="">Select FMEA...</option>
+                <div class="form-row">
+                    <div class="form-group"><label>Audit Date</label><input type="date" id="ncDate"></div>
+                    <div class="form-group"><label>Shift</label><input type="text" id="ncShift" placeholder="e.g. 1st, 2nd, 3rd"></div>
+                    <div class="form-group"><label>Classification</label>
+                        <select id="ncClassification">
+                            <option value="routine">Routine Frontier</option>
+                            <option value="deep_dive">Deep Dive</option>
+                            <option value="post_incident">Post-Incident</option>
+                            <option value="new_process">New Process/Area</option>
+                            <option value="seasonal">Seasonal/Temporary</option>
                         </select>
                     </div>
                 </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex:3"><label>Why this zone?</label><input type="text" id="ncZoneReason" placeholder="What made you suspicious?"></div>
+                </div>
             </div>
-            <div id="fmea-result" style="display:none;margin-top:12px;padding:12px;background:rgba(74,159,110,0.1);border-radius:8px;font-size:13px;color:var(--accent-primary);"></div>
-            <div class="modal-actions">
-                <button class="btn-s secondary" onclick="closeModal('modal-fmea')">Cancel</button>
-                <button class="btn-s primary" id="btn-process-fmea" onclick="processFmea()">Process to FMEA</button>
+
+            <!-- FRONT: SAFETY OBSERVATIONS -->
+            <div class="card-section">
+                <div class="card-section-title">Front — Safety Observations</div>
+                <table class="obs-form-table" id="obsFormTable">
+                    <thead><tr><th>Item</th><th>Rating</th><th style="width:60px">Severity</th><th style="width:140px">Notes</th></tr></thead>
+                    <tbody id="obsFormBody"></tbody>
+                </table>
             </div>
+
+            <!-- BACK: 5S ASSESSMENT -->
+            <div class="card-section">
+                <div class="card-section-title">Back — 5S Assessment</div>
+                <div class="toggle-group">
+                    <button class="toggle-btn active" onclick="set5sMode('tally',this)">Quick Tally</button>
+                    <button class="toggle-btn" onclick="set5sMode('score',this)">Detailed Score</button>
+                </div>
+                <div id="fiveSsTally">
+                    <div class="tally-grid">
+                        <div class="tally-item"><label>Sort</label><input type="number" min="0" id="tallySort" value="0"></div>
+                        <div class="tally-item"><label>Set in Order</label><input type="number" min="0" id="tallySetInOrder" value="0"></div>
+                        <div class="tally-item"><label>Shine</label><input type="number" min="0" id="tallyShine" value="0"></div>
+                        <div class="tally-item"><label>Standardize</label><input type="number" min="0" id="tallyStandardize" value="0"></div>
+                        <div class="tally-item"><label>Sustain</label><input type="number" min="0" id="tallySustain" value="0"></div>
+                    </div>
+                </div>
+                <div id="fiveSsScore" style="display:none"></div>
+            </div>
+
+            <!-- OPERATOR INTERACTION -->
+            <div class="card-section">
+                <div class="card-section-title">Operator Interaction</div>
+                <div class="form-row">
+                    <div class="form-group"><label>Operator Name</label><input type="text" id="ncOpName"></div>
+                    <div class="form-group"><label>Role</label><input type="text" id="ncOpRole"></div>
+                    <div class="form-group"><label>Tenure</label><input type="text" id="ncOpTenure" placeholder="e.g. 3 years"></div>
+                </div>
+                <div class="form-group" style="margin-bottom:12px">
+                    <label>1. What's the most hazardous thing about working here?</label>
+                    <textarea id="ncOpConcern"></textarea>
+                </div>
+                <div class="form-group" style="margin-bottom:12px">
+                    <label>2. What part of your body is most tired at end of shift?</label>
+                    <textarea id="ncOpErgonomic"></textarea>
+                </div>
+                <div class="form-group" style="margin-bottom:12px">
+                    <label>3. If you could change one thing here, what would it be?</label>
+                    <textarea id="ncOpImprovement"></textarea>
+                </div>
+                <div class="form-group" style="margin-bottom:12px">
+                    <label>4. Has anyone had a close call here recently?</label>
+                    <textarea id="ncOpNearMiss"></textarea>
+                </div>
+                <div class="form-group" style="margin-bottom:12px">
+                    <label>Comfort Level</label>
+                    <div class="comfort-dots" id="ncComfortDots">
+                        <div class="comfort-dot" data-val="1" onclick="setComfort(1)"></div>
+                        <div class="comfort-dot" data-val="2" onclick="setComfort(2)"></div>
+                        <div class="comfort-dot" data-val="3" onclick="setComfort(3)"></div>
+                        <div class="comfort-dot" data-val="4" onclick="setComfort(4)"></div>
+                        <div class="comfort-dot" data-val="5" onclick="setComfort(5)"></div>
+                        <span style="font-size:11px;color:var(--text-dim);margin-left:8px" id="comfortLabel">Not set</span>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom:12px">
+                    <label>Behavior Notes</label>
+                    <textarea id="ncOpBehavior" placeholder="Auditor observation of operator behavior during task"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>5S Issue (operator's #1)</label><input type="text" id="ncOp5sIssue"></div>
+                    <div class="form-group"><label>Quick Win</label><input type="text" id="ncOpQuickWin"></div>
+                </div>
+            </div>
+
+            <!-- POSITIVE OBSERVATIONS -->
+            <div class="card-section">
+                <div class="card-section-title">Positive Observations</div>
+                <div class="pos-obs-rows" id="posObsRows"></div>
+                <button class="add-btn" onclick="addPosObs()">+ Add Observation</button>
+            </div>
+
+            <!-- CLOSE THE LOOP -->
+            <div class="card-section">
+                <div class="card-section-title">Close the Loop</div>
+                <div class="form-row">
+                    <div class="form-group"><label>Method</label>
+                        <select id="ncCloseMethod">
+                            <option value="immediate">Yes, on the spot</option>
+                            <option value="within_24h">Within 24 hours</option>
+                            <option value="pending" selected>Pending</option>
+                            <option value="not_done">Not done</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Follow-up Date</label><input type="date" id="ncCloseFollowup"></div>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="ncCloseNotes" placeholder="Operator response to feedback"></textarea>
+                </div>
+            </div>
+
+            <button class="submit-btn" id="submitCardBtn" onclick="submitCard()">Submit Frontier Card</button>
         </div>
     </div>
+
+    <!-- SCHEDULE MODAL -->
+    <div class="modal-overlay" id="newScheduleModal">
+        <div class="modal" style="max-width:600px">
+            <button class="modal-close" onclick="closeNewScheduleModal()">&times;</button>
+            <h2>New Audit Schedule</h2>
+            <div class="form-row">
+                <div class="form-group"><label>Site</label><select id="nsSite"></select></div>
+                <div class="form-group"><label>Week Starting (Monday)</label><input type="date" id="nsWeek"></div>
+            </div>
+            <div id="nsAssignments" style="margin:16px 0"></div>
+            <button class="add-btn" onclick="addAssignmentRow()">+ Add Assignment</button>
+            <div style="margin-top:16px"><button class="submit-btn" onclick="submitSchedule()">Create Schedule</button></div>
+        </div>
+    </div>
+
+    <!-- FMEA PROCESS MODAL -->
+    <div class="modal-overlay" id="fmeaProcessModal">
+        <div class="modal" style="max-width:500px">
+            <button class="modal-close" onclick="closeFmeaModal()">&times;</button>
+            <h2>Process Card to FMEA</h2>
+            <div class="form-group" style="margin-bottom:16px">
+                <label>Select FMEA</label>
+                <select id="fmeaSelect"></select>
+            </div>
+            <p style="font-size:12px;color:var(--text-secondary);margin-bottom:16px" id="fmeaProcessInfo"></p>
+            <button class="submit-btn" id="fmeaProcessBtn" onclick="processToFmea()">Process</button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
 </div>
 {% endverbatim %}
 {% endblock %}
@@ -520,674 +558,758 @@
 {% block scripts %}
 {% verbatim %}
 <script>
-// ════════════════════════════════════════════════════════════════
-// DATA LAYER
-// ════════════════════════════════════════════════════════════════
 const API = '/api/safety';
-let sitesCache = [];
-let employeesCache = [];
-let currentCardDetailId = null;
-let processingCardId = null;
+const HOSHIN_API = '/api/hoshin';
 
-// ════════════════════════════════════════════════════════════════
-// UTILITIES
-// ════════════════════════════════════════════════════════════════
-function getCookie(name) {
-    const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-    return v ? v.pop() : '';
-}
+function getCookie(name) { const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)'); return v ? v.pop() : ''; }
 
 async function api(path, opts = {}) {
     const resp = await fetch(API + path, {
-        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
-        ...opts,
+        headers: {'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')},
+        ...opts
     });
     return resp.json();
 }
 
-function esc(s) {
-    if (s == null) return '';
-    const d = document.createElement('div');
-    d.textContent = String(s);
-    return d.innerHTML;
+async function hoshinApi(path) {
+    const r = await fetch(HOSHIN_API + path, {
+        headers: {'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')}
+    });
+    return r.json();
 }
 
-function closeModal(id) {
-    document.getElementById(id).classList.remove('open');
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+function toast(msg, isError) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' error' : '');
+    setTimeout(() => t.className = 'toast', 3000);
 }
 
-function sevClass(sev) {
-    return 'sev-' + (sev || 'L');
-}
+// ═══════════════════════════════════════════════════════
+// SAFETY OBSERVATION ITEMS (19 items, 6 categories)
+// ═══════════════════════════════════════════════════════
+const SAFETY_CATEGORIES = [
+    { key: 'body_position', label: 'Body Position & Ergonomics', items: [
+        'Lifting posture (load close, knees bent)',
+        'Reaching above shoulder / below knee',
+        'Repetitive motion or awkward sustained posture',
+        'Workstation height matches task'
+    ]},
+    { key: 'ppe', label: 'PPE Compliance', items: [
+        'Correct PPE for zone/task, good condition',
+        'PPE available at point of use'
+    ]},
+    { key: 'surfaces', label: 'Walking & Working Surfaces', items: [
+        'Trip/slip hazards (cords, spills, debris)',
+        'Guardrails/handrails present & secure',
+        'Floor markings visible & accurate'
+    ]},
+    { key: 'energy', label: 'Energy & Hazardous Materials', items: [
+        'LOTO applied where required',
+        'Electrical panels: 36" clearance',
+        'Chemical containers labeled, contained',
+        'Compressed gas chained/capped'
+    ]},
+    { key: 'emergency', label: 'Emergency Preparedness', items: [
+        'Extinguisher/eyewash accessible',
+        'Exit paths clear & marked',
+        'Spill/first aid kit stocked'
+    ]},
+    { key: 'environmental', label: 'Environmental Conditions', items: [
+        'Lighting adequate for task',
+        'Ventilation/air quality acceptable',
+        'Noise: can converse at arm\'s length?'
+    ]}
+];
 
-function sevLabel(sev) {
-    const map = {C: 'Critical', H: 'High', M: 'Medium', L: 'Low'};
-    return map[sev] || sev || 'Low';
-}
+const FIVE_S_PILLARS = [
+    { key: 'sort', label: 'Sort (Seiri)', items: [
+        'Unnecessary items present', 'Red-tag candidates (unused/obsolete)',
+        '"Just in case" hoarding', 'Personal items outside designated area',
+        'Broken/expired items not removed'
+    ]},
+    { key: 'set_in_order', label: 'Set in Order (Seiton)', items: [
+        'No designated location / no label', 'Shadow board missing or incomplete',
+        'No FIFO / no date on consumables', 'Frequently used item not at ergo height',
+        'No visual min/max indicator', 'Return path unclear (where does this go?)'
+    ]},
+    { key: 'shine', label: 'Shine (Seiso)', items: [
+        'Visible dirt/grime/buildup on equipment', 'No cleaning schedule posted',
+        'Drains/vents/filters blocked or dirty', 'Evidence of pest activity',
+        'Inspection points obscured'
+    ]},
+    { key: 'standardize', label: 'Standardize (Seiketsu)', items: [
+        'No visual work instruction at point of use', 'Color coding inconsistent with facility std',
+        'No "standard condition" photo/reference', 'Zone ownership unclear (who owns this?)',
+        "Can't spot abnormality at a glance"
+    ]},
+    { key: 'sustain', label: 'Sustain (Shitsuke)', items: [
+        'No evidence of prior audits/checks', "Operator can't explain 5S standard here",
+        'No visible improvement tracking', "Zone doesn't recover after disruption"
+    ]}
+];
 
-function fmtDate(d) {
-    if (!d) return '--';
-    return d.substring(0, 10);
-}
-
-// ════════════════════════════════════════════════════════════════
-// HASH ROUTER
-// ════════════════════════════════════════════════════════════════
-function navigate(hash) {
-    if (!hash || hash === '#' || hash === '#/') hash = '#/dashboard';
-    const parts = hash.replace('#/', '').split('/');
-    const route = parts[0];
-
-    document.querySelectorAll('.safety-panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('#main-tabs .safety-tab').forEach(t => t.classList.remove('active'));
-
-    if (route === 'dashboard') {
-        document.getElementById('tab-dashboard').classList.add('active');
-        document.querySelector('#main-tabs [href="#/dashboard"]').classList.add('active');
-        loadDashboard();
-    } else if (route === 'cards') {
-        document.getElementById('tab-cards').classList.add('active');
-        document.querySelector('#main-tabs [href="#/cards"]').classList.add('active');
-        loadCards();
-    } else if (route === 'schedules') {
-        document.getElementById('tab-schedules').classList.add('active');
-        document.querySelector('#main-tabs [href="#/schedules"]').classList.add('active');
-        loadSchedules();
-    } else if (route === 'fmea-bridge') {
-        document.getElementById('tab-fmea-bridge').classList.add('active');
-        document.querySelector('#main-tabs [href="#/fmea-bridge"]').classList.add('active');
-        loadBridge();
-    } else if (route === 'pareto') {
-        document.getElementById('tab-pareto').classList.add('active');
-        document.querySelector('#main-tabs [href="#/pareto"]').classList.add('active');
-        loadPareto();
-    } else {
-        document.getElementById('tab-dashboard').classList.add('active');
-        document.querySelector('#main-tabs [href="#/dashboard"]').classList.add('active');
-        loadDashboard();
-    }
-}
-
-document.addEventListener('click', function(e) {
-    const link = e.target.closest('a[href^="#/"]');
-    if (link) {
-        e.preventDefault();
-        const href = link.getAttribute('href');
-        if (location.hash !== href) {
-            location.hash = href;
-        } else {
-            navigate(href);
-        }
-    }
+// ═══════════════════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════════════════
+document.querySelectorAll('.safety-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.safety-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.safety-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+        const loader = { dashboard: loadDashboard, cards: loadCards, schedules: loadSchedules, fmea: loadFmeaBridge, pareto: loadPareto };
+        if (loader[tab.dataset.tab]) loader[tab.dataset.tab]();
+    });
 });
 
-window.addEventListener('hashchange', () => navigate(location.hash));
+// ═══════════════════════════════════════════════════════
+// SITE LOADING
+// ═══════════════════════════════════════════════════════
+let sites = [], zones = [], employees = [], fmeas = [];
 
-// ════════════════════════════════════════════════════════════════
-// INITIALIZATION
-// ════════════════════════════════════════════════════════════════
-async function init() {
+async function loadSites() {
     try {
-        const [sitesResp, empResp] = await Promise.all([
-            fetch('/api/hoshin/sites/', {headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')}}).then(r => r.json()),
-            fetch('/api/hoshin/employees/', {headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')}}).then(r => r.json()),
-        ]);
-        sitesCache = sitesResp.sites || sitesResp || [];
-        employeesCache = empResp.employees || empResp || [];
-    } catch (e) {
-        console.warn('Failed to load sites/employees:', e);
-        sitesCache = [];
-        employeesCache = [];
-    }
-    populateSiteFilters();
-    populateEmployeeDropdowns();
-    navigate(location.hash || '#/dashboard');
-}
-
-function populateSiteFilters() {
-    const selectors = ['dash-site-filter', 'cards-site-filter', 'sched-site-filter', 'pareto-site-filter', 'cf-site', 'sf-site'];
-    selectors.forEach(id => {
-        const sel = document.getElementById(id);
-        if (!sel) return;
-        const current = sel.value;
-        const isForm = (id === 'cf-site' || id === 'sf-site');
-        sel.innerHTML = isForm
-            ? '<option value="">Select site...</option>'
-            : '<option value="">All Sites</option>';
-        sitesCache.forEach(s => {
-            const name = s.name || s.site_name || s;
-            const val = s.id || s.code || name;
-            sel.innerHTML += `<option value="${esc(val)}">${esc(name)}</option>`;
+        const data = await hoshinApi('/sites/');
+        sites = data.sites || data || [];
+        const selectors = ['dashSiteFilter','cardSiteFilter','schedSiteFilter','paretoSiteFilter','ncSite','nsSite'];
+        selectors.forEach(id => {
+            const sel = document.getElementById(id);
+            if (!sel) return;
+            const isFilter = id !== 'ncSite' && id !== 'nsSite';
+            sel.innerHTML = isFilter ? '<option value="">All Sites</option>' : '<option value="">Select site</option>';
+            sites.forEach(s => { sel.innerHTML += '<option value="'+esc(s.id)+'">'+esc(s.name)+'</option>'; });
         });
-        if (current) sel.value = current;
-    });
+    } catch(e) { console.error('Failed to load sites', e); }
 }
 
-function populateEmployeeDropdowns() {
-    const sel = document.getElementById('cf-auditor');
-    if (!sel) return;
-    sel.innerHTML = '<option value="">Select auditor...</option>';
-    employeesCache.forEach(e => {
-        const name = e.name || (e.first_name + ' ' + e.last_name) || e;
-        const val = e.id || name;
-        sel.innerHTML += `<option value="${esc(val)}">${esc(name)}</option>`;
-    });
-}
-
-// ════════════════════════════════════════════════════════════════
-// DASHBOARD
-// ════════════════════════════════════════════════════════════════
-async function loadDashboard() {
-    const site = document.getElementById('dash-site-filter').value;
-    const qs = site ? '?site=' + encodeURIComponent(site) : '';
+async function loadZonesForSite(siteSelId, zoneSelId) {
+    const siteId = document.getElementById(siteSelId).value;
+    const zSel = document.getElementById(zoneSelId);
+    zSel.innerHTML = '<option value="">Select zone</option>';
+    if (!siteId) return;
     try {
-        const data = await api('/dashboard/' + qs);
-        document.getElementById('kpi-completion').textContent = data.audit_completion_rate != null ? data.audit_completion_rate.toFixed(1) : '--';
-        document.getElementById('kpi-hazards').textContent = data.hazards_this_month != null ? data.hazards_this_month : '--';
-        document.getElementById('kpi-unprocessed').textContent = data.unprocessed_count != null ? data.unprocessed_count : '--';
-        document.getElementById('kpi-avg-time').textContent = data.avg_processing_hours != null ? data.avg_processing_hours.toFixed(1) : '--';
+        const data = await api('/zones/?site=' + siteId);
+        (data.zones || data || []).forEach(z => { zSel.innerHTML += '<option value="'+esc(z.id)+'">'+esc(z.name)+'</option>'; });
+    } catch(e) {}
+}
 
-        // Severity bar
-        const sev = data.severity_distribution || {};
-        const total = (sev.C || 0) + (sev.H || 0) + (sev.M || 0) + (sev.L || 0);
-        if (total > 0) {
-            document.getElementById('sev-bar').innerHTML = ['C','H','M','L'].map(k => {
-                const pct = ((sev[k] || 0) / total * 100);
-                if (pct === 0) return '';
-                return `<div class="seg seg-${k}" style="width:${pct}%">${sev[k]}</div>`;
+async function loadAuditorsForSite(siteSelId, audSelId) {
+    const siteId = document.getElementById(siteSelId).value;
+    const aSel = document.getElementById(audSelId);
+    aSel.innerHTML = '<option value="">Select auditor</option>';
+    if (!siteId) return;
+    try {
+        const data = await hoshinApi('/employees/?site=' + siteId);
+        (data.employees || data || []).forEach(e => { aSel.innerHTML += '<option value="'+esc(e.id)+'">'+esc(e.name)+'</option>'; });
+    } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════
+// TAB 1: DASHBOARD
+// ═══════════════════════════════════════════════════════
+async function loadDashboard() {
+    const siteId = document.getElementById('dashSiteFilter').value;
+    try {
+        const d = await api('/dashboard/' + (siteId ? '?site=' + siteId : ''));
+        document.getElementById('kpiCompletion').textContent = (d.completion_rate != null ? d.completion_rate + '%' : '—');
+        document.getElementById('kpiHazards').textContent = d.hazards_this_month != null ? d.hazards_this_month : '—';
+        document.getElementById('kpiUnprocessed').textContent = d.unprocessed_count != null ? d.unprocessed_count : '—';
+        document.getElementById('kpiAvgTime').textContent = d.avg_processing_hours != null ? d.avg_processing_hours : '—';
+        document.getElementById('kpiInteraction').textContent = d.operator_interaction_rate != null ? d.operator_interaction_rate + '%' : '—';
+
+        // Severity distribution
+        const sev = d.severity_distribution || {};
+        const sevTotal = (sev.C || 0) + (sev.H || 0) + (sev.M || 0) + (sev.L || 0);
+        const bar = document.getElementById('sevBar');
+        if (sevTotal > 0) {
+            bar.innerHTML = ['C','H','M','L'].map(k => {
+                const pct = ((sev[k] || 0) / sevTotal * 100);
+                return pct > 0 ? '<div class="seg seg-'+k+'" style="width:'+pct+'%">'+k+' '+(sev[k]||0)+'</div>' : '';
             }).join('');
         } else {
-            document.getElementById('sev-bar').innerHTML = '<div style="width:100%;text-align:center;font-size:12px;color:var(--text-dim);line-height:28px;">No data</div>';
+            bar.innerHTML = '<div style="width:100%;text-align:center;font-size:11px;color:var(--text-dim);line-height:28px">No data</div>';
+        }
+
+        // Satisfactory gauge
+        const satPct = d.satisfactory_pct;
+        const gaugeRing = document.getElementById('gaugeRing');
+        const gaugeVal = document.getElementById('gaugeVal');
+        if (satPct != null) {
+            gaugeVal.textContent = satPct + '%';
+            const color = satPct >= 80 ? 'var(--accent-primary)' : satPct >= 60 ? '#e8c547' : 'var(--error)';
+            gaugeRing.style.background = 'conic-gradient('+color+' '+satPct*3.6+'deg, var(--bg-tertiary) 0deg)';
+        } else {
+            gaugeVal.textContent = '—';
+            gaugeRing.style.background = 'var(--bg-tertiary)';
         }
 
         // Totals
-        document.getElementById('total-cards').textContent = data.total_cards || 0;
-        document.getElementById('total-zones').textContent = data.total_zones || 0;
-        document.getElementById('total-processed').textContent = data.total_processed || 0;
-
-        // Update badges
-        document.getElementById('card-count-badge').textContent = (data.total_cards || 0) + ' Cards';
-        document.getElementById('zone-count-badge').textContent = (data.total_zones || 0) + ' Zones';
-    } catch (e) {
-        console.error('Dashboard load failed:', e);
-    }
+        document.getElementById('totalCards').textContent = d.total_cards || 0;
+        document.getElementById('totalZones').textContent = d.total_zones || 0;
+        document.getElementById('totalProcessed').textContent = d.total_processed || 0;
+        document.getElementById('cardCount').textContent = (d.total_cards || 0) + ' cards';
+    } catch(e) { console.error('Dashboard load failed', e); }
 }
 
-// ════════════════════════════════════════════════════════════════
-// CARDS
-// ════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+// TAB 2: CARDS
+// ═══════════════════════════════════════════════════════
+let allCards = [];
+
 async function loadCards() {
-    const site = document.getElementById('cards-site-filter').value;
-    const unprocessed = document.getElementById('cards-unprocessed-only').checked;
-    let qs = [];
-    if (site) qs.push('site=' + encodeURIComponent(site));
-    if (unprocessed) qs.push('unprocessed=true');
-    const query = qs.length ? '?' + qs.join('&') : '';
-
+    const siteId = document.getElementById('cardSiteFilter').value;
+    const unproc = document.getElementById('unprocessedOnly').checked;
+    let url = '/cards/?';
+    if (siteId) url += 'site=' + siteId + '&';
+    if (unproc) url += 'unprocessed=1&';
     try {
-        const data = await api('/cards/' + query);
-        const cards = data.cards || data.results || data || [];
-        const container = document.getElementById('cards-list');
+        const d = await api(url);
+        allCards = d.cards || d || [];
+        renderCardList();
+    } catch(e) { console.error('Cards load failed', e); }
+}
 
-        if (!Array.isArray(cards) || cards.length === 0) {
-            container.innerHTML = '<div class="empty-state"><p>No frontier cards found.</p></div>';
-            return;
-        }
+function renderCardList() {
+    const el = document.getElementById('cardList');
+    if (!allCards.length) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128203;</div>No frontier cards found.</div>';
+        return;
+    }
+    el.innerHTML = allCards.map((c, i) => {
+        const obs = c.safety_observations || [];
+        const sCount = obs.filter(o => o.rating === 'S').length;
+        const arCount = obs.filter(o => o.rating === 'AR').length;
+        const uCount = obs.filter(o => o.rating === 'U').length;
+        const satPct = c.satisfactory_pct != null ? c.satisfactory_pct + '%' : '—';
+        const sevBadge = c.highest_severity ? '<span class="badge badge-sev-'+esc(c.highest_severity)+'">'+esc(c.highest_severity)+'</span>' : '';
+        const clf = (c.classification || 'routine').replace(/_/g, ' ');
 
-        container.innerHTML = cards.map(c => {
-            const highSev = c.highest_severity || c.max_severity || 'L';
-            const processed = c.processed || c.is_processed;
-            const atRisk = c.at_risk_count || 0;
-            return `<div class="card-item" onclick="showCardDetail(${esc(c.id)})">
-                <span class="card-auditor">${esc(c.auditor_name || c.auditor || '--')}</span>
-                <span class="card-zone">${esc(c.zone_name || c.zone || '--')}</span>
-                <span class="card-date">${esc(fmtDate(c.date || c.created_at))}</span>
-                <span class="card-count">${atRisk} at-risk</span>
-                <span class="sev-badge ${sevClass(highSev)}">${esc(highSev)}</span>
-                <span class="status-badge ${processed ? 'status-processed' : 'status-unprocessed'}">${processed ? 'Processed' : 'Unprocessed'}</span>
-            </div>`;
-        }).join('');
-    } catch (e) {
-        console.error('Cards load failed:', e);
-        document.getElementById('cards-list').innerHTML = '<div class="empty-state"><p>Failed to load cards.</p></div>';
+        return '<div class="frontier-card" id="card-'+i+'" onclick="toggleCard('+i+')">' +
+            '<div class="card-row">' +
+                '<div class="card-meta">' +
+                    '<span>'+esc(c.audit_date)+'</span>' +
+                    '<span style="color:var(--text-secondary)">'+esc(c.auditor_name)+'</span>' +
+                    '<span style="color:var(--text-dim)">'+esc(c.zone_name)+'</span>' +
+                '</div>' +
+                '<div class="card-badges">' +
+                    '<span class="badge badge-classification">'+esc(clf)+'</span>' +
+                    '<span class="rating-summary">'+sCount+'S / '+arCount+'AR / '+uCount+'U</span>' +
+                    '<span class="sat-pct">'+satPct+'</span>' +
+                    sevBadge +
+                    '<span class="badge '+(c.is_processed?'badge-processed':'badge-unprocessed')+'">'+(c.is_processed?'Processed':'Unprocessed')+'</span>' +
+                '</div>' +
+            '</div>' +
+            '<div class="card-detail" id="detail-'+i+'">' + renderCardDetail(c) + '</div>' +
+        '</div>';
+    }).join('');
+}
+
+function toggleCard(i) {
+    const detail = document.getElementById('detail-' + i);
+    const card = document.getElementById('card-' + i);
+    const isOpen = detail.classList.contains('open');
+    // Close all
+    document.querySelectorAll('.card-detail').forEach(d => d.classList.remove('open'));
+    document.querySelectorAll('.frontier-card').forEach(c => c.classList.remove('expanded'));
+    if (!isOpen) {
+        detail.classList.add('open');
+        card.classList.add('expanded');
     }
 }
 
-async function showCardDetail(cardId) {
-    currentCardDetailId = cardId;
-    try {
-        const data = await api('/cards/' + cardId + '/');
-        const panel = document.getElementById('card-detail-panel');
-        const c = data;
-        const obs = c.observations || [];
-        const tallies = c.five_s_tallies || c.tallies || {};
-        const op = c.operator_interaction || {};
+function renderCardDetail(c) {
+    let html = '';
 
-        let obsRows = obs.map(o => `<tr>
-            <td>${esc(o.category)}</td>
-            <td>${esc(o.item)}</td>
-            <td>${o.at_risk ? '<span class="sev-badge sev-H">At Risk</span>' : 'Safe'}</td>
-            <td><span class="sev-badge ${sevClass(o.severity)}">${esc(o.severity)}</span></td>
-            <td>${esc(o.notes || '')}</td>
-        </tr>`).join('');
-
-        panel.innerHTML = `<div class="card-detail">
-            <h3>Card Detail — ${esc(c.auditor_name || c.auditor || 'Unknown')}</h3>
-            <div class="detail-grid">
-                <div><span class="d-label">Zone</span><div class="d-value">${esc(c.zone_name || c.zone)}</div></div>
-                <div><span class="d-label">Date</span><div class="d-value">${esc(fmtDate(c.date || c.created_at))}</div></div>
-                <div><span class="d-label">Site</span><div class="d-value">${esc(c.site_name || c.site || '--')}</div></div>
-                <div><span class="d-label">Status</span><div class="d-value">${c.processed ? 'Processed' : 'Unprocessed'}</div></div>
-            </div>
-            ${obs.length ? `<table class="obs-table">
-                <thead><tr><th>Category</th><th>Item</th><th>Risk</th><th>Severity</th><th>Notes</th></tr></thead>
-                <tbody>${obsRows}</tbody>
-            </table>` : '<p style="color:var(--text-dim);font-size:12px;margin-top:12px;">No observations recorded.</p>'}
-            ${tallies ? `<div style="margin-top:16px;">
-                <span class="d-label">5S Tallies</span>
-                <div class="tally-grid" style="margin-top:6px;">
-                    <div class="tally-cell"><label>Sort</label><div style="font-size:18px;font-weight:600;color:var(--text-primary);">${tallies.sort || 0}</div></div>
-                    <div class="tally-cell"><label>Set in Order</label><div style="font-size:18px;font-weight:600;color:var(--text-primary);">${tallies.set_in_order || 0}</div></div>
-                    <div class="tally-cell"><label>Shine</label><div style="font-size:18px;font-weight:600;color:var(--text-primary);">${tallies.shine || 0}</div></div>
-                    <div class="tally-cell"><label>Standardize</label><div style="font-size:18px;font-weight:600;color:var(--text-primary);">${tallies.standardize || 0}</div></div>
-                    <div class="tally-cell"><label>Sustain</label><div style="font-size:18px;font-weight:600;color:var(--text-primary);">${tallies.sustain || 0}</div></div>
-                </div>
-            </div>` : ''}
-            ${op.name ? `<div class="operator-section" style="margin-top:16px;">
-                <h4>Operator: ${esc(op.name)}</h4>
-                ${op.concern ? `<p style="font-size:12px;color:var(--text-secondary);"><strong>Concern:</strong> ${esc(op.concern)}</p>` : ''}
-                ${op.improvement ? `<p style="font-size:12px;color:var(--text-secondary);"><strong>Improvement:</strong> ${esc(op.improvement)}</p>` : ''}
-                ${op.near_miss ? `<p style="font-size:12px;color:var(--text-secondary);"><strong>Near-Miss:</strong> ${esc(op.near_miss)}</p>` : ''}
-            </div>` : ''}
-            ${c.cross_feed ? `<p style="font-size:12px;color:var(--accent-primary);margin-top:12px;">Cross-feed: ${esc(c.cross_feed_notes || 'Yes')}</p>` : ''}
-        </div>`;
-    } catch (e) {
-        console.error('Card detail load failed:', e);
-    }
-}
-
-// ════════════════════════════════════════════════════════════════
-// CARD SUBMISSION
-// ════════════════════════════════════════════════════════════════
-let obsCounter = 0;
-
-function openCardModal() {
-    document.getElementById('modal-card').classList.add('open');
-    document.getElementById('cf-date').value = new Date().toISOString().split('T')[0];
-    if (document.getElementById('obs-list').children.length === 0) {
-        addObsRow();
-    }
-}
-
-function addObsRow() {
-    obsCounter++;
-    const id = obsCounter;
-    const row = document.createElement('div');
-    row.className = 'obs-row';
-    row.id = 'obs-' + id;
-    row.innerHTML = `
-        <select data-field="category">
-            <option value="">Category...</option>
-            <option value="Body Position">Body Position</option>
-            <option value="PPE">PPE</option>
-            <option value="Housekeeping">Housekeeping</option>
-            <option value="Energy Control">Energy Control</option>
-            <option value="Chemical">Chemical</option>
-            <option value="Tools">Tools</option>
-        </select>
-        <input type="text" data-field="item" placeholder="Observation item...">
-        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-secondary);white-space:nowrap;">
-            <input type="checkbox" data-field="at_risk" style="accent-color:var(--error);"> Risk
-        </label>
-        <select data-field="severity">
-            <option value="L">L</option>
-            <option value="M">M</option>
-            <option value="H">H</option>
-            <option value="C">C</option>
-        </select>
-        <input type="text" data-field="notes" placeholder="Notes...">
-        <button class="obs-remove" onclick="this.closest('.obs-row').remove()">x</button>
-    `;
-    document.getElementById('obs-list').appendChild(row);
-}
-
-function collectObservations() {
-    const rows = document.querySelectorAll('#obs-list .obs-row');
-    const obs = [];
-    rows.forEach(row => {
-        const cat = row.querySelector('[data-field="category"]').value;
-        const item = row.querySelector('[data-field="item"]').value;
-        if (!cat && !item) return;
-        obs.push({
-            category: cat,
-            item: item,
-            at_risk: row.querySelector('[data-field="at_risk"]').checked,
-            severity: row.querySelector('[data-field="severity"]').value,
-            notes: row.querySelector('[data-field="notes"]').value,
+    // Safety observations table
+    const obs = c.safety_observations || [];
+    if (obs.length) {
+        html += '<div class="detail-section"><h4>Safety Observations</h4><table class="obs-table"><thead><tr><th>Category</th><th>Item</th><th>Rating</th><th>Severity</th><th>Notes</th></tr></thead><tbody>';
+        let lastCat = '';
+        obs.forEach(o => {
+            if (o.category !== lastCat) {
+                lastCat = o.category;
+                const catLabel = SAFETY_CATEGORIES.find(sc => sc.key === o.category);
+                html += '<tr class="cat-header"><td colspan="5">'+ esc(catLabel ? catLabel.label : o.category) +'</td></tr>';
+            }
+            html += '<tr><td></td><td>'+esc(o.item)+'</td><td class="rating-'+esc(o.rating)+'">'+esc(o.rating)+'</td>' +
+                '<td>'+(o.severity ? '<span class="badge badge-sev-'+esc(o.severity)+'">'+esc(o.severity)+'</span>' : '—')+'</td>' +
+                '<td style="color:var(--text-secondary)">'+esc(o.notes || '')+'</td></tr>';
         });
-    });
-    return obs;
-}
-
-async function submitCard() {
-    const payload = {
-        site: document.getElementById('cf-site').value,
-        auditor: document.getElementById('cf-auditor').value,
-        zone: document.getElementById('cf-zone').value,
-        date: document.getElementById('cf-date').value,
-        observations: collectObservations(),
-        five_s_tallies: {
-            sort: parseInt(document.getElementById('cf-5s-sort').value) || 0,
-            set_in_order: parseInt(document.getElementById('cf-5s-set').value) || 0,
-            shine: parseInt(document.getElementById('cf-5s-shine').value) || 0,
-            standardize: parseInt(document.getElementById('cf-5s-std').value) || 0,
-            sustain: parseInt(document.getElementById('cf-5s-sus').value) || 0,
-        },
-        operator_interaction: {
-            name: document.getElementById('cf-op-name').value,
-            concern: document.getElementById('cf-op-concern').value,
-            improvement: document.getElementById('cf-op-improvement').value,
-            near_miss: document.getElementById('cf-op-nearmiss').value,
-        },
-        cross_feed: document.getElementById('cf-crossfeed').checked,
-        cross_feed_notes: document.getElementById('cf-crossfeed-notes').value,
-    };
-
-    try {
-        const result = await api('/cards/', {method: 'POST', body: JSON.stringify(payload)});
-        if (result.error) {
-            alert('Error: ' + (result.message || result.error));
-            return;
-        }
-        closeModal('modal-card');
-        loadCards();
-    } catch (e) {
-        alert('Failed to submit card: ' + e.message);
+        html += '</tbody></table></div>';
     }
-}
 
-async function loadZonesForSite() {
-    const site = document.getElementById('cf-site').value;
-    const sel = document.getElementById('cf-zone');
-    sel.innerHTML = '<option value="">Select zone...</option>';
-    if (!site) return;
-    try {
-        const data = await api('/zones/?site=' + encodeURIComponent(site));
-        const zones = data.zones || data || [];
-        zones.forEach(z => {
-            const name = z.name || z.zone_name || z;
-            const val = z.id || name;
-            sel.innerHTML += `<option value="${esc(val)}">${esc(name)}</option>`;
+    // 5S tallies
+    const tallies = c.five_s_tallies || {};
+    const hasTallies = Object.values(tallies).some(v => v > 0);
+    const scores = c.five_s_scores || [];
+    if (hasTallies) {
+        html += '<div class="detail-section"><h4>5S Tallies</h4><div class="five-s-grid">';
+        ['sort','set_in_order','shine','standardize','sustain'].forEach(p => {
+            const pillar = FIVE_S_PILLARS.find(pp => pp.key === p);
+            html += '<div class="five-s-cell"><div class="pillar-name">'+esc(pillar ? pillar.label.split(' (')[0] : p)+'</div><div class="pillar-val">'+(tallies[p]||0)+'</div></div>';
         });
-    } catch (e) {
-        console.warn('Failed to load zones:', e);
+        html += '</div></div>';
     }
+    if (scores.length) {
+        html += '<div class="detail-section"><h4>5S Detailed Scores (avg: '+(c.five_s_avg_score||'—')+')</h4><table class="obs-table"><thead><tr><th>Pillar</th><th>Item</th><th>Score</th></tr></thead><tbody>';
+        scores.forEach(s => {
+            html += '<tr><td>'+esc(s.pillar)+'</td><td>'+esc(s.item)+'</td><td>'+esc(s.score)+'/5</td></tr>';
+        });
+        html += '</tbody></table></div>';
+    }
+
+    // Operator interaction
+    if (c.operator_name || c.operator_concern) {
+        html += '<div class="detail-section"><h4>Operator Interaction</h4>';
+        if (c.operator_name) html += '<div class="op-field"><span class="op-label">Name / Role / Tenure</span><div class="op-value">'+esc(c.operator_name)+(c.operator_role ? ' — '+esc(c.operator_role) : '')+(c.operator_tenure ? ' ('+esc(c.operator_tenure)+')' : '')+'</div></div>';
+        if (c.operator_concern) html += '<div class="op-field"><span class="op-label">Most hazardous thing?</span><div class="op-value">'+esc(c.operator_concern)+'</div></div>';
+        if (c.operator_ergonomic) html += '<div class="op-field"><span class="op-label">Most tired body part?</span><div class="op-value">'+esc(c.operator_ergonomic)+'</div></div>';
+        if (c.operator_improvement) html += '<div class="op-field"><span class="op-label">One thing to change?</span><div class="op-value">'+esc(c.operator_improvement)+'</div></div>';
+        if (c.operator_near_miss) html += '<div class="op-field"><span class="op-label">Recent close call?</span><div class="op-value">'+esc(c.operator_near_miss)+'</div></div>';
+        if (c.operator_comfort_level) {
+            html += '<div class="op-field"><span class="op-label">Comfort Level</span><div class="comfort-dots">';
+            for (let d = 1; d <= 5; d++) html += '<div class="comfort-dot'+(d <= c.operator_comfort_level ? ' filled' : '')+'"></div>';
+            html += '</div></div>';
+        }
+        if (c.operator_behavior_notes) html += '<div class="op-field"><span class="op-label">Behavior Notes</span><div class="op-value">'+esc(c.operator_behavior_notes)+'</div></div>';
+        if (c.operator_five_s_issue) html += '<div class="op-field"><span class="op-label">5S Issue</span><div class="op-value">'+esc(c.operator_five_s_issue)+'</div></div>';
+        if (c.operator_quick_win) html += '<div class="op-field"><span class="op-label">Quick Win</span><div class="op-value">'+esc(c.operator_quick_win)+'</div></div>';
+        html += '</div>';
+    }
+
+    // Positive observations
+    const posObs = c.positive_observations || [];
+    if (posObs.length) {
+        html += '<div class="detail-section"><h4>Positive Observations</h4><ul class="pos-obs-list">';
+        posObs.forEach(p => {
+            html += '<li>'+esc(p.observation)+(p.reinforce_how ? ' <span class="pos-obs-reinforce">Reinforce: '+esc(p.reinforce_how)+'</span>' : '')+'</li>';
+        });
+        html += '</ul></div>';
+    }
+
+    // Close the loop
+    if (c.close_loop_method && c.close_loop_method !== 'pending') {
+        html += '<div class="detail-section"><h4>Close the Loop</h4><div class="close-loop-info">';
+        const methods = {immediate:'On the spot',within_24h:'Within 24 hours',pending:'Pending',not_done:'Not done'};
+        html += '<span>Method: '+esc(methods[c.close_loop_method]||c.close_loop_method)+'</span>';
+        if (c.close_loop_notes) html += '<span>Notes: '+esc(c.close_loop_notes)+'</span>';
+        if (c.close_loop_followup_date) html += '<span>Follow-up: '+esc(c.close_loop_followup_date)+'</span>';
+        html += '</div></div>';
+    }
+
+    // Pipeline checklist
+    html += '<div class="detail-section"><h4>Pipeline Checklist</h4><div class="pipeline-checks">' +
+        '<span class="pipeline-check'+(c.pipeline_logged?' done':'')+'">Logged</span>' +
+        '<span class="pipeline-check'+(c.pipeline_tallies_entered?' done':'')+'">5S Tallies</span>' +
+        '<span class="pipeline-check'+(c.pipeline_safety_to_fmea?' done':'')+'">Safety to FMEA</span>' +
+        '<span class="pipeline-check'+(c.pipeline_feedback_given?' done':'')+'">Feedback Given</span>' +
+    '</div></div>';
+
+    return html;
 }
 
-// ════════════════════════════════════════════════════════════════
-// SCHEDULES
-// ════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+// TAB 3: SCHEDULES
+// ═══════════════════════════════════════════════════════
 async function loadSchedules() {
-    const site = document.getElementById('sched-site-filter').value;
-    const qs = site ? '?site=' + encodeURIComponent(site) : '';
+    const siteId = document.getElementById('schedSiteFilter').value;
+    let url = '/schedules/';
+    if (siteId) url += '?site=' + siteId;
     try {
-        const data = await api('/schedules/' + qs);
-        const schedules = data.schedules || data.results || data || [];
-        const container = document.getElementById('schedules-list');
-
-        if (!Array.isArray(schedules) || schedules.length === 0) {
-            container.innerHTML = '<div class="empty-state"><p>No schedules found.</p></div>';
+        const d = await api(url);
+        const schedules = d.schedules || d || [];
+        const el = document.getElementById('scheduleList');
+        if (!schedules.length) {
+            el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128197;</div>No schedules found.</div>';
             return;
         }
-
-        container.innerHTML = schedules.map(s => {
-            const rate = s.completion_rate != null ? s.completion_rate : 0;
-            const colorClass = rate >= 95 ? 'green' : rate >= 80 ? 'amber' : 'red';
+        el.innerHTML = schedules.map(s => {
+            const rate = s.completion_rate || 0;
             const assignments = s.assignments || [];
-
-            return `<div style="margin-bottom:24px;">
-                <div class="schedule-header">
-                    <h2>Week of ${esc(fmtDate(s.week_start))}</h2>
-                    <span style="font-size:12px;color:var(--text-dim);">${esc(s.site_name || s.site || '')}</span>
-                </div>
-                <div class="progress-wrap">
-                    <div class="progress-bar">
-                        <div class="progress-fill ${colorClass}" style="width:${rate}%"></div>
-                    </div>
-                    <span class="progress-pct" style="color:var(--${colorClass === 'green' ? 'accent-primary' : colorClass === 'amber' ? 'warning' : 'error'});">${rate.toFixed(1)}%</span>
-                    <span style="font-size:12px;color:var(--text-dim);">completion</span>
-                </div>
-                <div class="assign-list">
-                    ${assignments.map(a => `<div class="assign-row">
-                        <span class="assign-auditor">${esc(a.auditor_name || a.auditor || '--')}</span>
-                        <span class="assign-zone">${esc(a.zone_name || a.zone || '--')}</span>
-                        <span class="assign-date">${esc(fmtDate(a.target_date || a.date))}</span>
-                        <span class="assign-status">
-                            <span class="status-badge status-${a.status || 'assigned'}">${esc(a.status || 'assigned')}</span>
-                        </span>
-                    </div>`).join('')}
-                    ${assignments.length === 0 ? '<div style="font-size:12px;color:var(--text-dim);padding:8px;">No assignments.</div>' : ''}
-                </div>
-            </div>`;
+            return '<div class="schedule-card">' +
+                '<div class="schedule-header"><span class="week-label">Week of '+esc(s.week_start)+'</span><span style="font-size:12px;color:var(--text-secondary)">'+rate+'% complete</span></div>' +
+                '<div class="completion-bar"><div class="completion-fill" style="width:'+rate+'%"></div></div>' +
+                (assignments.length ? '<div class="assignment-list">' + assignments.map(a =>
+                    '<div class="assignment-row"><span>'+esc(a.auditor_name)+' &rarr; '+esc(a.zone_name)+' ('+esc(a.target_date)+')</span>' +
+                    '<span class="assignment-status status-'+esc(a.status)+'">'+esc(a.status)+'</span></div>'
+                ).join('') + '</div>' : '') +
+            '</div>';
         }).join('');
-    } catch (e) {
-        console.error('Schedules load failed:', e);
-        document.getElementById('schedules-list').innerHTML = '<div class="empty-state"><p>Failed to load schedules.</p></div>';
-    }
+    } catch(e) { console.error('Schedules load failed', e); }
 }
 
-function openScheduleModal() {
-    document.getElementById('modal-schedule').classList.add('open');
-    const today = new Date();
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - today.getDay() + 1);
-    document.getElementById('sf-week-start').value = monday.toISOString().split('T')[0];
-    if (document.getElementById('bulk-rows').children.length === 0) {
-        addBulkRow();
-    }
+function openNewScheduleModal() {
+    document.getElementById('newScheduleModal').classList.add('open');
+    const nsSite = document.getElementById('nsSite');
+    nsSite.innerHTML = '<option value="">Select site</option>';
+    sites.forEach(s => { nsSite.innerHTML += '<option value="'+esc(s.id)+'">'+esc(s.name)+'</option>'; });
+    document.getElementById('nsAssignments').innerHTML = '';
 }
+function closeNewScheduleModal() { document.getElementById('newScheduleModal').classList.remove('open'); }
 
-let bulkCounter = 0;
-function addBulkRow() {
-    bulkCounter++;
+function addAssignmentRow() {
+    const container = document.getElementById('nsAssignments');
+    const idx = container.children.length;
     const row = document.createElement('div');
-    row.className = 'bulk-row';
-    row.innerHTML = `
-        <select data-field="auditor">
-            <option value="">Auditor...</option>
-            ${employeesCache.map(e => {
-                const name = e.name || (e.first_name + ' ' + e.last_name) || e;
-                const val = e.id || name;
-                return `<option value="${esc(val)}">${esc(name)}</option>`;
-            }).join('')}
-        </select>
-        <select data-field="zone">
-            <option value="">Zone...</option>
-        </select>
-        <input type="date" data-field="date">
-        <button class="obs-remove" onclick="this.closest('.bulk-row').remove()">x</button>
-    `;
-    document.getElementById('bulk-rows').appendChild(row);
+    row.className = 'form-row';
+    row.innerHTML = '<div class="form-group"><label>Auditor</label><select id="nsAud'+idx+'"></select></div>' +
+        '<div class="form-group"><label>Zone</label><select id="nsZone'+idx+'"></select></div>' +
+        '<div class="form-group"><label>Date</label><input type="date" id="nsDate'+idx+'"></div>' +
+        '<button class="pos-obs-row remove-btn" onclick="this.parentElement.remove()" style="align-self:end;margin-bottom:12px">&times;</button>';
+    container.appendChild(row);
+    // Populate from site
+    const siteId = document.getElementById('nsSite').value;
+    if (siteId) {
+        hoshinApi('/employees/?site='+siteId).then(d => {
+            const sel = document.getElementById('nsAud'+idx);
+            (d.employees||d||[]).forEach(e => { sel.innerHTML += '<option value="'+esc(e.id)+'">'+esc(e.name)+'</option>'; });
+        });
+        api('/zones/?site='+siteId).then(d => {
+            const sel = document.getElementById('nsZone'+idx);
+            (d.zones||d||[]).forEach(z => { sel.innerHTML += '<option value="'+esc(z.id)+'">'+esc(z.name)+'</option>'; });
+        });
+    }
 }
 
 async function submitSchedule() {
-    const rows = document.querySelectorAll('#bulk-rows .bulk-row');
+    const siteId = document.getElementById('nsSite').value;
+    const week = document.getElementById('nsWeek').value;
+    if (!siteId || !week) { toast('Site and week are required', true); return; }
+    const rows = document.getElementById('nsAssignments').children;
     const assignments = [];
-    rows.forEach(row => {
-        const auditor = row.querySelector('[data-field="auditor"]').value;
-        const zone = row.querySelector('[data-field="zone"]').value;
-        const date = row.querySelector('[data-field="date"]').value;
-        if (auditor || zone) {
-            assignments.push({auditor, zone, target_date: date});
+    for (let i = 0; i < rows.length; i++) {
+        const aud = document.getElementById('nsAud'+i);
+        const zone = document.getElementById('nsZone'+i);
+        const date = document.getElementById('nsDate'+i);
+        if (aud && zone && date && aud.value && zone.value && date.value) {
+            assignments.push({auditor_id: aud.value, zone_id: zone.value, target_date: date.value});
         }
+    }
+    try {
+        await api('/schedules/', {method:'POST', body: JSON.stringify({site_id: siteId, week_start: week, assignments})});
+        closeNewScheduleModal();
+        loadSchedules();
+        toast('Schedule created');
+    } catch(e) { toast('Failed to create schedule', true); }
+}
+
+// ═══════════════════════════════════════════════════════
+// TAB 4: FMEA BRIDGE
+// ═══════════════════════════════════════════════════════
+let fmeaProcessCardId = null;
+
+async function loadFmeaBridge() {
+    try {
+        const d = await api('/cards/?unprocessed=1');
+        const cards = d.cards || d || [];
+        const el = document.getElementById('fmeaList');
+        if (!cards.length) {
+            el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128279;</div>All cards have been processed.</div>';
+            return;
+        }
+        el.innerHTML = cards.map(c => {
+            const obs = c.safety_observations || [];
+            const sCount = obs.filter(o => o.rating === 'S').length;
+            const arCount = obs.filter(o => o.rating === 'AR').length;
+            const uCount = obs.filter(o => o.rating === 'U').length;
+            return '<div class="fmea-card"><div class="fmea-row">' +
+                '<div><strong>'+esc(c.audit_date)+'</strong> '+esc(c.zone_name)+' <span style="color:var(--text-secondary)">by '+esc(c.auditor_name)+'</span>' +
+                ' <span class="rating-summary">'+sCount+'S / '+arCount+'AR / '+uCount+'U</span></div>' +
+                '<button class="process-btn" onclick="event.stopPropagation();openFmeaModal(\''+c.id+'\','+arCount+','+uCount+')">Process to FMEA</button>' +
+            '</div></div>';
+        }).join('');
+    } catch(e) { console.error('FMEA bridge load failed', e); }
+}
+
+async function openFmeaModal(cardId, arCount, uCount) {
+    fmeaProcessCardId = cardId;
+    document.getElementById('fmeaProcessModal').classList.add('open');
+    document.getElementById('fmeaProcessInfo').textContent = 'This card has ' + arCount + ' at-risk and ' + uCount + ' unsatisfactory findings to process.';
+    // Load FMEAs
+    try {
+        const d = await fetch('/api/fmea/', {headers:{'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')}}).then(r => r.json());
+        const items = d.fmeas || d || [];
+        const sel = document.getElementById('fmeaSelect');
+        sel.innerHTML = '<option value="">Select FMEA</option>';
+        items.forEach(f => { sel.innerHTML += '<option value="'+esc(f.id)+'">'+esc(f.name || f.title || f.id)+'</option>'; });
+    } catch(e) {}
+}
+function closeFmeaModal() { document.getElementById('fmeaProcessModal').classList.remove('open'); fmeaProcessCardId = null; }
+
+async function processToFmea() {
+    const fmeaId = document.getElementById('fmeaSelect').value;
+    if (!fmeaId || !fmeaProcessCardId) { toast('Select an FMEA', true); return; }
+    const btn = document.getElementById('fmeaProcessBtn');
+    btn.disabled = true;
+    try {
+        await api('/cards/' + fmeaProcessCardId + '/process/', {method:'POST', body: JSON.stringify({fmea_id: fmeaId})});
+        closeFmeaModal();
+        loadFmeaBridge();
+        toast('Card processed to FMEA');
+    } catch(e) { toast('Processing failed', true); } finally { btn.disabled = false; }
+}
+
+// ═══════════════════════════════════════════════════════
+// TAB 5: PARETO
+// ═══════════════════════════════════════════════════════
+async function loadPareto() {
+    const siteId = document.getElementById('paretoSiteFilter').value;
+    if (!siteId) {
+        document.getElementById('paretoChart').innerHTML = '<div class="empty-state"><div class="empty-icon">&#128202;</div>Select a site to view 5S Pareto analysis.</div>';
+        return;
+    }
+    try {
+        const d = await api('/pareto/?site=' + siteId);
+        const el = document.getElementById('paretoChart');
+        if (!d || !d.pareto || !d.pareto.length) {
+            el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128202;</div>Minimum 10 audits required for Pareto analysis. Currently '+esc(String(d.card_count||0))+' cards.</div>';
+            return;
+        }
+        const maxCount = Math.max(...d.pareto.map(p => p.count));
+        el.innerHTML = '<h3 style="font-size:13px;color:var(--text-secondary);margin:0 0 16px;text-transform:uppercase;letter-spacing:0.5px">5S Pareto — '+d.card_count+' Cards, '+d.grand_total+' Total Deficiencies</h3>' +
+            d.pareto.map(p => {
+                const barW = maxCount > 0 ? (p.count / maxCount * 100) : 0;
+                return '<div class="pareto-bar-row">' +
+                    '<div class="pareto-label">'+esc(p.label)+'</div>' +
+                    '<div class="pareto-bar-track"><div class="pareto-bar-fill" style="width:'+barW+'%"><span>'+p.count+'</span></div></div>' +
+                    '<div class="pareto-cum">'+p.cumulative_pct+'%</div>' +
+                '</div>';
+            }).join('');
+    } catch(e) { console.error('Pareto load failed', e); }
+}
+
+// ═══════════════════════════════════════════════════════
+// NEW CARD MODAL
+// ═══════════════════════════════════════════════════════
+let selectedComfort = null;
+let fiveSsMode = 'tally';
+
+function openNewCardModal() {
+    document.getElementById('newCardModal').classList.add('open');
+    document.getElementById('ncDate').value = new Date().toISOString().split('T')[0];
+    selectedComfort = null;
+    updateComfortDisplay();
+    buildObsForm();
+    buildFiveSsScoreForm();
+    document.getElementById('posObsRows').innerHTML = '';
+    fiveSsMode = 'tally';
+    document.getElementById('fiveSsTally').style.display = '';
+    document.getElementById('fiveSsScore').style.display = 'none';
+    // Reset tallies
+    ['tallySort','tallySetInOrder','tallyShine','tallyStandardize','tallySustain'].forEach(id => { document.getElementById(id).value = 0; });
+    // Reset fields
+    ['ncShift','ncZoneReason','ncOpName','ncOpRole','ncOpTenure','ncOpConcern','ncOpErgonomic','ncOpImprovement','ncOpNearMiss','ncOpBehavior','ncOp5sIssue','ncOpQuickWin','ncCloseNotes'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    document.getElementById('ncCloseMethod').value = 'pending';
+    document.getElementById('ncCloseFollowup').value = '';
+    document.getElementById('ncClassification').value = 'routine';
+}
+function closeNewCardModal() { document.getElementById('newCardModal').classList.remove('open'); }
+
+function buildObsForm() {
+    const tbody = document.getElementById('obsFormBody');
+    let html = '';
+    let itemIdx = 0;
+    SAFETY_CATEGORIES.forEach(cat => {
+        html += '<tr class="cat-row"><td colspan="4">'+esc(cat.label)+'</td></tr>';
+        cat.items.forEach(item => {
+            const rid = 'obs_' + itemIdx;
+            html += '<tr><td class="item-text">'+esc(item)+'</td>' +
+                '<td><div class="rating-group">' +
+                    '<input type="radio" class="rating-radio" name="'+rid+'" id="'+rid+'_S" value="S" data-idx="'+itemIdx+'" checked>' +
+                    '<label class="rating-label" data-val="S" for="'+rid+'_S">S</label>' +
+                    '<input type="radio" class="rating-radio" name="'+rid+'" id="'+rid+'_AR" value="AR" data-idx="'+itemIdx+'">' +
+                    '<label class="rating-label" data-val="AR" for="'+rid+'_AR">AR</label>' +
+                    '<input type="radio" class="rating-radio" name="'+rid+'" id="'+rid+'_U" value="U" data-idx="'+itemIdx+'">' +
+                    '<label class="rating-label" data-val="U" for="'+rid+'_U">U</label>' +
+                '</div></td>' +
+                '<td><select class="sev-select form-group" id="sev_'+itemIdx+'" disabled style="opacity:0.3">' +
+                    '<option value="">—</option><option value="C">C</option><option value="H">H</option><option value="M">M</option><option value="L">L</option>' +
+                '</select></td>' +
+                '<td><input class="notes-input" id="notes_'+itemIdx+'" placeholder="Notes"></td></tr>';
+            itemIdx++;
+        });
+    });
+    tbody.innerHTML = html;
+
+    // Wire severity enable/disable
+    tbody.querySelectorAll('.rating-radio').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const idx = this.dataset.idx;
+            const sevSel = document.getElementById('sev_' + idx);
+            if (this.value === 'AR' || this.value === 'U') {
+                sevSel.disabled = false;
+                sevSel.style.opacity = '1';
+            } else {
+                sevSel.disabled = true;
+                sevSel.style.opacity = '0.3';
+                sevSel.value = '';
+            }
+        });
+    });
+}
+
+function buildFiveSsScoreForm() {
+    const el = document.getElementById('fiveSsScore');
+    let html = '';
+    let scoreIdx = 0;
+    FIVE_S_PILLARS.forEach(pillar => {
+        html += '<div class="five-s-score-section"><h5>'+esc(pillar.label)+'</h5>';
+        pillar.items.forEach(item => {
+            const sid = 'fs_' + scoreIdx;
+            html += '<div class="score-item"><span class="score-text">'+esc(item)+'</span><div class="score-radios">';
+            for (let v = 1; v <= 5; v++) {
+                html += '<input type="radio" name="'+sid+'" id="'+sid+'_'+v+'" value="'+v+'"><label for="'+sid+'_'+v+'">'+v+'</label>';
+            }
+            html += '</div></div>';
+            scoreIdx++;
+        });
+        html += '</div>';
+    });
+    el.innerHTML = html;
+}
+
+function set5sMode(mode, btn) {
+    fiveSsMode = mode;
+    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('fiveSsTally').style.display = mode === 'tally' ? '' : 'none';
+    document.getElementById('fiveSsScore').style.display = mode === 'score' ? '' : 'none';
+}
+
+function setComfort(level) {
+    selectedComfort = level;
+    updateComfortDisplay();
+}
+
+function updateComfortDisplay() {
+    const dots = document.querySelectorAll('#ncComfortDots .comfort-dot');
+    const labels = ['Not set','1 — Reluctant/guarded','2','3 — Cooperative','4','5 — Enthusiastic/engaged'];
+    dots.forEach(d => {
+        const v = parseInt(d.dataset.val);
+        d.classList.toggle('filled', selectedComfort !== null && v <= selectedComfort);
+    });
+    document.getElementById('comfortLabel').textContent = selectedComfort ? labels[selectedComfort] : labels[0];
+}
+
+// Positive observations
+function addPosObs() {
+    const container = document.getElementById('posObsRows');
+    const row = document.createElement('div');
+    row.className = 'pos-obs-row';
+    row.innerHTML = '<input type="text" class="pos-obs-input" placeholder="Observation" style="background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);padding:8px 10px;border-radius:6px;font-size:13px">' +
+        '<input type="text" class="pos-reinforce-input" placeholder="Reinforce how" style="background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);padding:8px 10px;border-radius:6px;font-size:13px">' +
+        '<button class="remove-btn" onclick="this.parentElement.remove()">&times;</button>';
+    container.appendChild(row);
+}
+
+// Submit
+async function submitCard() {
+    const btn = document.getElementById('submitCardBtn');
+    btn.disabled = true;
+
+    // Gather header
+    const siteId = document.getElementById('ncSite').value;
+    const zoneId = document.getElementById('ncZone').value;
+    const auditorId = document.getElementById('ncAuditor').value;
+    if (!siteId || !zoneId || !auditorId) { toast('Site, zone, and auditor are required', true); btn.disabled = false; return; }
+
+    // Gather safety observations
+    const observations = [];
+    let itemIdx = 0;
+    SAFETY_CATEGORIES.forEach(cat => {
+        cat.items.forEach(item => {
+            const checked = document.querySelector('input[name="obs_'+itemIdx+'"]:checked');
+            const rating = checked ? checked.value : 'S';
+            const severity = document.getElementById('sev_'+itemIdx).value || null;
+            const notes = document.getElementById('notes_'+itemIdx).value || '';
+            observations.push({ category: cat.key, item, rating, severity: (rating !== 'S') ? severity : null, notes });
+            itemIdx++;
+        });
+    });
+
+    // Gather 5S
+    let tallies = {};
+    let scores = [];
+    if (fiveSsMode === 'tally') {
+        tallies = {
+            sort: parseInt(document.getElementById('tallySort').value) || 0,
+            set_in_order: parseInt(document.getElementById('tallySetInOrder').value) || 0,
+            shine: parseInt(document.getElementById('tallyShine').value) || 0,
+            standardize: parseInt(document.getElementById('tallyStandardize').value) || 0,
+            sustain: parseInt(document.getElementById('tallySustain').value) || 0
+        };
+    } else {
+        let scoreIdx = 0;
+        FIVE_S_PILLARS.forEach(pillar => {
+            pillar.items.forEach(item => {
+                const checked = document.querySelector('input[name="fs_'+scoreIdx+'"]:checked');
+                if (checked) scores.push({ pillar: pillar.key, item, score: parseInt(checked.value) });
+                scoreIdx++;
+            });
+        });
+    }
+
+    // Positive observations
+    const posObs = [];
+    document.querySelectorAll('#posObsRows .pos-obs-row').forEach(row => {
+        const obs = row.querySelector('.pos-obs-input').value.trim();
+        const reinforce = row.querySelector('.pos-reinforce-input').value.trim();
+        if (obs) posObs.push({ observation: obs, reinforce_how: reinforce });
     });
 
     const payload = {
-        site: document.getElementById('sf-site').value,
-        week_start: document.getElementById('sf-week-start').value,
-        assignments: assignments,
+        site_id: siteId,
+        zone_id: zoneId,
+        auditor_id: auditorId,
+        audit_date: document.getElementById('ncDate').value,
+        shift: document.getElementById('ncShift').value,
+        classification: document.getElementById('ncClassification').value,
+        zone_reason: document.getElementById('ncZoneReason').value,
+        safety_observations: observations,
+        five_s_tallies: tallies,
+        five_s_scores: scores,
+        positive_observations: posObs,
+        operator_name: document.getElementById('ncOpName').value,
+        operator_role: document.getElementById('ncOpRole').value,
+        operator_tenure: document.getElementById('ncOpTenure').value,
+        operator_concern: document.getElementById('ncOpConcern').value,
+        operator_ergonomic: document.getElementById('ncOpErgonomic').value,
+        operator_improvement: document.getElementById('ncOpImprovement').value,
+        operator_near_miss: document.getElementById('ncOpNearMiss').value,
+        operator_comfort_level: selectedComfort,
+        operator_behavior_notes: document.getElementById('ncOpBehavior').value,
+        operator_five_s_issue: document.getElementById('ncOp5sIssue').value,
+        operator_quick_win: document.getElementById('ncOpQuickWin').value,
+        close_loop_method: document.getElementById('ncCloseMethod').value,
+        close_loop_notes: document.getElementById('ncCloseNotes').value,
+        close_loop_followup_date: document.getElementById('ncCloseFollowup').value || null
     };
 
     try {
-        const result = await api('/schedules/', {method: 'POST', body: JSON.stringify(payload)});
-        if (result.error) {
-            alert('Error: ' + (result.message || result.error));
-            return;
-        }
-        closeModal('modal-schedule');
-        loadSchedules();
-    } catch (e) {
-        alert('Failed to create schedule: ' + e.message);
-    }
+        const result = await api('/cards/', { method: 'POST', body: JSON.stringify(payload) });
+        if (result.error) { toast(result.message || 'Failed to submit card', true); btn.disabled = false; return; }
+        closeNewCardModal();
+        loadCards();
+        loadDashboard();
+        toast('Frontier card submitted');
+    } catch(e) {
+        toast('Failed to submit card', true);
+    } finally { btn.disabled = false; }
 }
 
-// ════════════════════════════════════════════════════════════════
-// FMEA BRIDGE
-// ════════════════════════════════════════════════════════════════
-async function loadBridge() {
-    try {
-        const data = await api('/cards/?unprocessed=true');
-        const cards = data.cards || data.results || data || [];
-        const container = document.getElementById('bridge-list');
-
-        if (!Array.isArray(cards) || cards.length === 0) {
-            container.innerHTML = '<div class="empty-state"><p>All cards have been processed. No pending FMEA entries.</p></div>';
-            return;
-        }
-
-        container.innerHTML = cards.map(c => {
-            const highSev = c.highest_severity || c.max_severity || 'L';
-            const atRisk = c.at_risk_count || 0;
-            return `<div class="bridge-card">
-                <div class="bridge-info">
-                    <div class="bridge-title">${esc(c.auditor_name || c.auditor || 'Unknown')} — ${esc(c.zone_name || c.zone || '--')}</div>
-                    <div class="bridge-meta">${esc(fmtDate(c.date || c.created_at))} | ${atRisk} at-risk | <span class="sev-badge ${sevClass(highSev)}">${esc(highSev)}</span></div>
-                </div>
-                <button class="btn-s primary small" onclick="openFmeaModal(${c.id}, '${esc(c.auditor_name || c.auditor || '')}', '${esc(c.zone_name || c.zone || '')}', '${esc(fmtDate(c.date || c.created_at))}', ${atRisk})">Process to FMEA</button>
-            </div>`;
-        }).join('');
-    } catch (e) {
-        console.error('Bridge load failed:', e);
-        document.getElementById('bridge-list').innerHTML = '<div class="empty-state"><p>Failed to load unprocessed cards.</p></div>';
-    }
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+async function init() {
+    await loadSites();
+    loadDashboard();
 }
-
-async function openFmeaModal(cardId, auditor, zone, date, atRisk) {
-    processingCardId = cardId;
-    document.getElementById('fmea-card-summary').innerHTML =
-        `<strong>${esc(auditor)}</strong> — ${esc(zone)} (${esc(date)}) | ${atRisk} at-risk observations`;
-    document.getElementById('fmea-result').style.display = 'none';
-    document.getElementById('btn-process-fmea').disabled = false;
-
-    // Load FMEA list
-    const sel = document.getElementById('fmea-target');
-    sel.innerHTML = '<option value="">Loading FMEAs...</option>';
-    try {
-        const resp = await fetch('/api/fmea/', {headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')}});
-        const data = await resp.json();
-        const fmeas = data.fmeas || data.results || data || [];
-        sel.innerHTML = '<option value="">Select FMEA...</option>';
-        fmeas.forEach(f => {
-            const name = f.name || f.title || f.project_name || ('FMEA #' + f.id);
-            sel.innerHTML += `<option value="${esc(f.id)}">${esc(name)}</option>`;
-        });
-    } catch (e) {
-        sel.innerHTML = '<option value="">Failed to load FMEAs</option>';
-    }
-
-    document.getElementById('modal-fmea').classList.add('open');
-}
-
-async function processFmea() {
-    const fmeaId = document.getElementById('fmea-target').value;
-    if (!fmeaId) {
-        alert('Please select a target FMEA.');
-        return;
-    }
-    document.getElementById('btn-process-fmea').disabled = true;
-
-    try {
-        const result = await api('/cards/' + processingCardId + '/process/', {
-            method: 'POST',
-            body: JSON.stringify({fmea_id: fmeaId}),
-        });
-
-        if (result.error) {
-            alert('Error: ' + (result.message || result.error));
-            document.getElementById('btn-process-fmea').disabled = false;
-            return;
-        }
-
-        const resEl = document.getElementById('fmea-result');
-        resEl.style.display = 'block';
-        resEl.textContent = 'Successfully created ' + (result.rows_created || 0) + ' FMEA row(s) from this card.';
-
-        setTimeout(() => {
-            closeModal('modal-fmea');
-            loadBridge();
-        }, 2000);
-    } catch (e) {
-        alert('Failed to process card: ' + e.message);
-        document.getElementById('btn-process-fmea').disabled = false;
-    }
-}
-
-// ════════════════════════════════════════════════════════════════
-// PARETO
-// ════════════════════════════════════════════════════════════════
-async function loadPareto() {
-    const site = document.getElementById('pareto-site-filter').value;
-    const qs = site ? '?site=' + encodeURIComponent(site) : '';
-    try {
-        const data = await api('/pareto/' + qs);
-        const content = document.getElementById('pareto-content');
-
-        if (data.insufficient_data) {
-            content.innerHTML = `<div class="empty-state">
-                <p>Insufficient data for Pareto analysis.</p>
-                <p style="margin-top:8px;font-size:12px;">${data.card_count || 0} cards submitted. Minimum ${data.minimum_required || 10} required.</p>
-            </div>`;
-            return;
-        }
-
-        const items = data.categories || data.items || [];
-        const grandTotal = data.grand_total || items.reduce((s, i) => s + (i.count || 0), 0) || 1;
-        const maxCount = Math.max(...items.map(i => i.count || 0), 1);
-
-        let cumPct = 0;
-        let barsHtml = items.map(item => {
-            const pct = (item.count || 0) / grandTotal * 100;
-            cumPct += pct;
-            const barWidth = (item.count || 0) / maxCount * 100;
-            return `<div class="pareto-bar-row">
-                <span class="pareto-label">${esc(item.category || item.name || item.label)}</span>
-                <div class="pareto-bar-track">
-                    <div class="pareto-bar-fill" style="width:${barWidth}%">${item.count}</div>
-                </div>
-                <span style="font-size:11px;color:var(--text-dim);min-width:50px;text-align:right;">${pct.toFixed(1)}%</span>
-                <span style="font-size:11px;color:var(--warning);min-width:55px;text-align:right;">${cumPct.toFixed(1)}%</span>
-            </div>`;
-        }).join('');
-
-        content.innerHTML = `
-            <div style="display:flex;gap:16px;margin-bottom:12px;font-size:11px;color:var(--text-dim);">
-                <span>Category</span>
-                <span style="margin-left:auto;">Frequency</span>
-                <span style="min-width:50px;text-align:right;">%</span>
-                <span style="min-width:55px;text-align:right;">Cum %</span>
-            </div>
-            ${barsHtml}
-            <div class="pareto-total">Grand Total: ${grandTotal} observations across ${data.card_count || '--'} cards</div>
-        `;
-    } catch (e) {
-        console.error('Pareto load failed:', e);
-        document.getElementById('pareto-content').innerHTML = '<div class="empty-state"><p>Failed to load pareto data.</p></div>';
-    }
-}
-
-// ════════════════════════════════════════════════════════════════
-// BOOT
-// ════════════════════════════════════════════════════════════════
 init();
 </script>
 {% endverbatim %}
