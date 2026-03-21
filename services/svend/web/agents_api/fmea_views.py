@@ -15,7 +15,7 @@ from accounts.permissions import gated_paid
 from core.models import Evidence, EvidenceLink, Hypothesis, Project
 
 from .evidence_bridge import create_tool_evidence
-from .models import FMEA, ActionItem, CAPAReport, FMEARow, RCASession, Site
+from .models import FMEA, ActionItem, CAPAReport, FMEARow, RCASession, Risk, Site
 from .permissions import qms_can_edit, qms_queryset, qms_set_ownership
 
 logger = logging.getLogger(__name__)
@@ -1395,6 +1395,87 @@ def promote_fmea_capa(request, fmea_id, row_id):
 
     logger.info("FMEA %s row %s: promoted to CAPA %s (RPN=%s)", fmea.id, row.id, capa.id, row.rpn)
     return JsonResponse({"success": True, "capa": capa.to_dict()}, status=201)
+
+
+@gated_paid
+@require_http_methods(["POST"])
+def promote_fmea_risk(request, fmea_id, row_id):
+    """Promote an FMEA failure mode to the organizational risk register.
+
+    Normalizes FMEA scores (1-10 scale) to Risk register (1-5 scale):
+    - Severity (1-10) → Impact (1-5): ceil(S / 2)
+    - Occurrence (1-10) → Likelihood (1-5): ceil(O / 2)
+    - Detection score preserved in description for context
+
+    Category auto-mapped from FMEA type:
+    - process FMEA → operational
+    - design FMEA → quality
+    - system FMEA → strategic
+    """
+    fmea = get_object_or_404(qms_queryset(FMEA, request.user)[0], id=fmea_id)
+    row = get_object_or_404(FMEARow, id=row_id, fmea=fmea)
+
+    # Check if already promoted
+    existing = Risk.objects.filter(fmea_row=row).first()
+    if existing:
+        return JsonResponse({"risk": existing.to_dict()})
+
+    import math
+
+    data = {}
+    try:
+        data = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        pass
+
+    # Normalize 1-10 → 1-5 scale
+    impact = min(5, max(1, math.ceil(row.severity / 2)))
+    likelihood = min(5, max(1, math.ceil(row.occurrence / 2)))
+
+    # Category from FMEA type
+    cat_map = {"process": "operational", "design": "quality", "system": "strategic"}
+    category = data.get("category", cat_map.get(fmea.fmea_type, "operational"))
+
+    description = (
+        f"Promoted from FMEA: {fmea.title}\n"
+        f"**Process step:** {row.process_step}\n"
+        f"**Failure mode:** {row.failure_mode}\n"
+        f"**Effect:** {row.effect}\n"
+        f"**FMEA Scores:** S={row.severity} O={row.occurrence} D={row.detection} RPN={row.rpn}\n"
+        f"**Normalized:** Impact={impact}/5 Likelihood={likelihood}/5"
+    )
+    if row.current_controls:
+        description += f"\n**Current controls:** {row.current_controls}"
+    if row.recommended_action:
+        description += f"\n**Recommended action:** {row.recommended_action}"
+
+    risk = Risk(
+        title=data.get("title", "").strip() or f"Risk — {row.failure_mode}"[:300],
+        description=description,
+        risk_type="risk",
+        category=category,
+        likelihood=likelihood,
+        impact=impact,
+        source_type="fmea",
+        fmea=fmea,
+        fmea_row=row,
+        project=fmea.project,
+    )
+    if row.recommended_action:
+        risk.mitigation_actions = [
+            {
+                "action": row.recommended_action,
+                "owner": row.action_owner or "",
+                "status": row.action_status or "not_started",
+            }
+        ]
+    qms_set_ownership(risk, request.user, fmea.site)
+    risk.save()
+
+    logger.info(
+        "FMEA %s row %s: promoted to Risk %s (RPN=%s → score=%s)", fmea.id, row.id, risk.id, row.rpn, risk.risk_score
+    )
+    return JsonResponse({"success": True, "risk": risk.to_dict()}, status=201)
 
 
 # ── FMEA → RCA Bridge (QMS-001 §5.1 Closed Loop) ────────────────────

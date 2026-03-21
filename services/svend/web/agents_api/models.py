@@ -4906,8 +4906,22 @@ class Risk(models.Model):
     review_date = models.DateField(null=True, blank=True, help_text="Next scheduled review")
     review_frequency_months = models.IntegerField(default=3, help_text="How often to review this risk")
     iso_clause = models.CharField(max_length=20, blank=True, default="6.1")
+    source_type = models.CharField(
+        max_length=30,
+        blank=True,
+        default="manual",
+        help_text="How this risk was created: manual, fmea, audit, complaint, spc",
+    )
     # Cross-tool links
     fmea = models.ForeignKey("agents_api.FMEA", on_delete=models.SET_NULL, null=True, blank=True, related_name="risks")
+    fmea_row = models.ForeignKey(
+        "agents_api.FMEARow",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="risks",
+        help_text="Source FMEA failure mode — scores normalized from S/O/D (1-10) to L/I (1-5)",
+    )
     project = models.ForeignKey("core.Project", on_delete=models.SET_NULL, null=True, blank=True, related_name="risks")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -4944,7 +4958,9 @@ class Risk(models.Model):
             "review_date": str(self.review_date) if self.review_date else None,
             "review_frequency_months": self.review_frequency_months,
             "iso_clause": self.iso_clause,
+            "source_type": self.source_type,
             "fmea_id": str(self.fmea_id) if self.fmea_id else None,
+            "fmea_row_id": str(self.fmea_row_id) if self.fmea_row_id else None,
             "project_id": str(self.project_id) if self.project_id else None,
             "site_id": str(self.site_id) if self.site_id else None,
             "created_at": self.created_at.isoformat(),
