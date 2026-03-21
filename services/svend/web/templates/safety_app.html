@@ -260,7 +260,6 @@
 
 /* Empty state */
 .empty-state { text-align: center; padding: 60px 20px; color: var(--text-dim); font-size: 14px; }
-.empty-state .empty-icon { font-size: 40px; margin-bottom: 8px; opacity: 0.3; }
 
 /* Responsive */
 @media (max-width: 768px) {
@@ -342,7 +341,7 @@
             <label><input type="checkbox" id="unprocessedOnly" onchange="loadCards()"> Unprocessed only</label>
         </div>
         <div class="card-list" id="cardList">
-            <div class="empty-state"><div class="empty-icon">&#128203;</div>No frontier cards yet.</div>
+            <div class="empty-state">No frontier cards yet.</div>
         </div>
     </div>
 
@@ -356,7 +355,7 @@
             <button class="add-btn" onclick="openNewScheduleModal()" style="margin:0">+ New Schedule</button>
         </div>
         <div class="schedule-list" id="scheduleList">
-            <div class="empty-state"><div class="empty-icon">&#128197;</div>No schedules yet.</div>
+            <div class="empty-state">No schedules yet.</div>
         </div>
     </div>
 
@@ -366,7 +365,7 @@
     <div class="safety-panel" id="panel-fmea">
         <h3 style="font-size:14px;color:var(--text-primary);margin:0 0 16px;">Unprocessed Cards — Bridge to FMEA</h3>
         <div id="fmeaList">
-            <div class="empty-state"><div class="empty-icon">&#128279;</div>All cards have been processed.</div>
+            <div class="empty-state">All cards have been processed.</div>
         </div>
     </div>
 
@@ -379,7 +378,7 @@
             <select id="paretoSiteFilter" onchange="loadPareto()"><option value="">All Sites</option></select>
         </div>
         <div class="pareto-chart" id="paretoChart">
-            <div class="empty-state"><div class="empty-icon">&#128202;</div>Minimum 10 audits required for Pareto analysis.</div>
+            <div class="empty-state">Minimum 10 audits required for Pareto analysis.</div>
         </div>
     </div>
 
@@ -775,7 +774,7 @@ async function loadCards() {
 function renderCardList() {
     const el = document.getElementById('cardList');
     if (!allCards.length) {
-        el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128203;</div>No frontier cards found.</div>';
+        el.innerHTML = '<div class="empty-state">No frontier cards found.</div>';
         return;
     }
     el.innerHTML = allCards.map((c, i) => {
@@ -923,7 +922,7 @@ async function loadSchedules() {
         const schedules = d.schedules || d || [];
         const el = document.getElementById('scheduleList');
         if (!schedules.length) {
-            el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128197;</div>No schedules found.</div>';
+            el.innerHTML = '<div class="empty-state">No schedules found.</div>';
             return;
         }
         el.innerHTML = schedules.map(s => {
@@ -1007,7 +1006,7 @@ async function loadFmeaBridge() {
         const cards = d.cards || d || [];
         const el = document.getElementById('fmeaList');
         if (!cards.length) {
-            el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128279;</div>All cards have been processed.</div>';
+            el.innerHTML = '<div class="empty-state">All cards have been processed.</div>';
             return;
         }
         el.innerHTML = cards.map(c => {
@@ -1058,14 +1057,14 @@ async function processToFmea() {
 async function loadPareto() {
     const siteId = document.getElementById('paretoSiteFilter').value;
     if (!siteId) {
-        document.getElementById('paretoChart').innerHTML = '<div class="empty-state"><div class="empty-icon">&#128202;</div>Select a site to view 5S Pareto analysis.</div>';
+        document.getElementById('paretoChart').innerHTML = '<div class="empty-state">Select a site to view 5S Pareto analysis.</div>';
         return;
     }
     try {
         const d = await api('/pareto/?site=' + siteId);
         const el = document.getElementById('paretoChart');
         if (!d || !d.pareto || !d.pareto.length) {
-            el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128202;</div>Minimum 10 audits required for Pareto analysis. Currently '+esc(String(d.card_count||0))+' cards.</div>';
+            el.innerHTML = '<div class="empty-state">Minimum 10 audits required for Pareto analysis. Currently '+esc(String(d.card_count||0))+' cards.</div>';
             return;
         }
         const maxCount = Math.max(...d.pareto.map(p => p.count));
