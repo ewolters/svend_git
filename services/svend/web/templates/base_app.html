@@ -1087,26 +1087,19 @@
                     </span>
                     <span class="logo-text">SVEND</span>
                 </a>
-                <nav>
+                <nav id="main-nav">
                     <a href="/app/notebooks/">Notebooks</a>
                     <div class="nav-dropdown">
                         <span class="nav-dropdown-trigger">Analysis</span>
                         <div class="nav-dropdown-menu">
-                            <a href="/app/analysis/">Analysis Workbench</a>
+                            <a href="/app/dsw/">Analysis Workbench</a>
                             <a href="/app/experimenter/">DOE</a>
                             <a href="/app/models/">Models</a>
+                            <a href="/app/forecast/">Forecasting</a>
                         </div>
                     </div>
                     <div class="nav-dropdown">
-                        <span class="nav-dropdown-trigger">Visual</span>
-                        <div class="nav-dropdown-menu">
-                            <a href="/app/whiteboard/">Whiteboard</a>
-                            <a href="/app/vsm/">Value Stream Map</a>
-                            <a href="/app/simulator/">Plant Simulator</a>
-                        </div>
-                    </div>
-                    <div class="nav-dropdown">
-                        <span class="nav-dropdown-trigger">Methods</span>
+                        <span class="nav-dropdown-trigger">Tools</span>
                         <div class="nav-dropdown-menu">
                             <a href="/app/a3/">A3</a>
                             <a href="/app/report/">Reports (CAPA/8D)</a>
@@ -1114,6 +1107,8 @@
                             <a href="/app/rca/">Root Cause</a>
                             <a href="/app/ishikawa/">Ishikawa</a>
                             <a href="/app/ce-matrix/">C&E Matrix</a>
+                            <a href="/app/vsm/">Value Stream Map</a>
+                            <a href="/app/whiteboard/">Whiteboard</a>
                             <a href="/app/calculators/">Operations</a>
                         </div>
                     </div>
@@ -1123,19 +1118,18 @@
                             <a href="/app/iso/#/dashboard">QMS Dashboard</a>
                             <a href="/app/iso/#/ncrs">NCR Tracker</a>
                             <a href="/app/report/">CAPA / 8D Reports</a>
-                            <a href="/app/rca/">Root Cause Analysis</a>
                             <a href="/app/iso/#/audits">Internal Audits</a>
                             <a href="/app/iso/#/training">Training Matrix</a>
                             <a href="/app/iso/#/reviews">Management Reviews</a>
                         </div>
                     </div>
                     <div class="nav-dropdown" id="nav-hoshin-dropdown" style="display:none;">
-                        <span class="nav-dropdown-trigger">Hoshin Kanri</span>
+                        <span class="nav-dropdown-trigger">Hoshin</span>
                         <div class="nav-dropdown-menu">
                             <a href="/app/hoshin/#/dashboard">Dashboard</a>
                             <a href="/app/hoshin/#/projects">Projects</a>
-                            <a href="/app/hoshin/#/sites">Sites</a>
-                            <a href="/app/hoshin/#/calc-library">Calculations</a>
+                            <a href="/app/hoshin/#/resources">Resources</a>
+                            <a href="/app/hoshin/#/x-matrix">X-Matrix</a>
                         </div>
                     </div>
                     <div class="nav-dropdown" id="nav-safety-dropdown" style="display:none;">
@@ -1143,7 +1137,7 @@
                         <div class="nav-dropdown-menu">
                             <a href="/app/safety/#/dashboard">Dashboard</a>
                             <a href="/app/safety/#/cards">Frontier Cards</a>
-                            <a href="/app/safety/#/schedules">Audit Schedules</a>
+                            <a href="/app/safety/#/schedules">Schedules</a>
                             <a href="/app/safety/#/fmea">FMEA Bridge</a>
                             <a href="/app/safety/#/pareto">5S Pareto</a>
                         </div>
@@ -1412,6 +1406,24 @@
                     if (data.features && data.features.safety) {
                         const sNav = document.getElementById('nav-safety-dropdown');
                         if (sNav) sNav.style.display = '';
+                    }
+                    // Safety subdomain: replace nav with minimal safety nav
+                    if (window.location.hostname === 'safety.svend.ai') {
+                        const nav = document.getElementById('main-nav');
+                        if (nav) {
+                            nav.innerHTML = '<a href="/app/safety/#/dashboard">Dashboard</a>' +
+                                '<a href="/app/safety/#/cards">Cards</a>' +
+                                '<a href="/app/safety/#/schedules">Schedules</a>' +
+                                '<a href="/app/safety/#/fmea">FMEA Bridge</a>' +
+                                '<a href="/app/safety/#/pareto">Pareto</a>' +
+                                '<a href="https://svend.ai/app/" style="color:var(--aw-text-dim);font-size:12px;margin-left:auto;">Svend Platform</a>';
+                        }
+                        // Update logo link
+                        const logo = document.querySelector('a.logo');
+                        if (logo) logo.href = '/app/safety/';
+                        // Update logo text
+                        const logoText = document.querySelector('.logo-text');
+                        if (logoText) logoText.textContent = 'SVEND SAFETY';
                     }
                     // Show internal dashboard for staff and org admins
                     if (data.is_internal) {
