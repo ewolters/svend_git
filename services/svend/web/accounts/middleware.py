@@ -132,10 +132,10 @@ class NoCacheDynamicMiddleware:
 
 
 class SafetySubdomainMiddleware:
-    """Route safety.svend.ai root to the safety app template.
+    """Route safety.svend.ai to the safety app.
 
-    Only affects the root path (/) on the safety subdomain.
-    All other paths (API, static, app/*) pass through normally.
+    Redirects root (/) and generic app path (/app/) to /app/safety/.
+    Login, register, API, static, and other paths pass through normally.
     """
 
     def __init__(self, get_response):
@@ -143,7 +143,7 @@ class SafetySubdomainMiddleware:
 
     def __call__(self, request):
         host = request.get_host().split(":")[0]
-        if host == "safety.svend.ai" and request.path == "/":
+        if host == "safety.svend.ai" and request.path in ("/", "/app/"):
             from django.shortcuts import redirect
 
             return redirect("/app/safety/")
