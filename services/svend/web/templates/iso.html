@@ -1002,7 +1002,41 @@ function renderAuditList(el) {
         html += '</tr>';
     });
     html += '</tbody></table>';
+
+    // Clause coverage strip
+    html += '<div id="clause-coverage" style="margin-top:16px"><div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">Loading clause coverage...</div></div>';
+
     el.innerHTML = html;
+
+    // Async: load clause coverage
+    loadClauseCoverage();
+}
+
+async function loadClauseCoverage() {
+    const el = document.getElementById('clause-coverage');
+    if (!el) return;
+    try {
+        const data = await apiFetch('/audits/clause-coverage/');
+        const clauses = ['4','5','6','7','8','9','10'];
+        const names = {4:'Context',5:'Leadership',6:'Planning',7:'Support',8:'Operations',9:'Performance',10:'Improvement'};
+        let html = '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+        clauses.forEach(c => {
+            const info = (data.coverage || []).find(x => x.clause === c) || {};
+            const count = info.audit_count || 0;
+            const findings = info.finding_count || 0;
+            const openF = info.open_findings || 0;
+            const color = count === 0 ? '#f87171' : openF > 0 ? '#facc15' : '#4ade80';
+            const bg = count === 0 ? 'rgba(248,113,113,0.08)' : openF > 0 ? 'rgba(250,204,21,0.08)' : 'rgba(34,197,94,0.08)';
+            html += `<div style="flex:1;min-width:80px;text-align:center;padding:10px;border:1px solid ${color};border-radius:8px;background:${bg}" title="${count} audit(s), ${findings} finding(s), ${openF} open">
+                <div style="font-weight:700;font-family:'JetBrains Mono',monospace;font-size:16px;color:var(--text-primary)">§${c}</div>
+                <div style="font-size:10px;color:var(--text-secondary)">${names[c]||''}</div>
+                <div style="font-size:12px;margin-top:4px;color:${color};font-weight:600">${count > 0 ? count+' audit'+(count>1?'s':'') : 'Not audited'}</div>
+                ${info.last_audit_date ? `<div style="font-size:10px;color:var(--text-dim)">${fmtDate(info.last_audit_date)}</div>` : ''}
+            </div>`;
+        });
+        html += '</div>';
+        el.innerHTML = html;
+    } catch (e) { el.innerHTML = ''; }
 }
 
 async function showAuditForm() {
@@ -1087,10 +1121,10 @@ async function loadAuditDetail(id) {
         }
         html += '</div>';
 
-        // Findings table
+        // Findings table with edit/close controls
         html += '<h4 style="margin:16px 0 8px;font-size:13px;color:var(--text-secondary)">Findings</h4>';
         if (a.findings?.length) {
-            html += '<table class="iso-table"><thead><tr><th>Type</th><th>Description</th><th>Clause</th><th>Status</th><th>NCR</th></tr></thead><tbody>';
+            html += '<table class="iso-table"><thead><tr><th>Type</th><th>Description</th><th>Clause</th><th>Status</th><th>NCR</th><th>Actions</th></tr></thead><tbody>';
             a.findings.forEach(f => {
                 html += '<tr>';
                 html += `<td>${badge(f.finding_type)}</td>`;
@@ -1098,12 +1132,55 @@ async function loadAuditDetail(id) {
                 html += `<td>${escHtml(f.iso_clause || '—')}</td>`;
                 html += `<td>${badge(f.status)}</td>`;
                 html += `<td>${f.ncr_id ? `<a href="#" onclick="event.preventDefault();navigate('ncrs');setTimeout(()=>loadNCRDetail('${f.ncr_id}'),200)" style="color:var(--accent)">View NCR</a>` : '—'}</td>`;
+                html += '<td style="white-space:nowrap">';
+                if (f.status !== 'closed') {
+                    html += `<button class="iso-btn small" onclick="closeFinding('${a.id}','${f.id}')" style="font-size:11px">Close</button> `;
+                    if (f.status === 'open') html += `<button class="iso-btn small" onclick="updateFindingStatus('${a.id}','${f.id}','corrective_action_required')" style="font-size:11px">Req CA</button> `;
+                }
+                html += `<button class="iso-btn small" onclick="deleteFinding('${a.id}','${f.id}')" style="font-size:11px;color:#f87171">&times;</button>`;
+                html += '</td>';
                 html += '</tr>';
+                // Expandable detail row for corrective action / evidence
+                if (f.corrective_action || f.evidence) {
+                    html += `<tr><td colspan="6" style="padding:4px 12px 8px;font-size:12px;color:var(--text-secondary);border-bottom:1px solid var(--border)">`;
+                    if (f.evidence) html += `<strong>Evidence:</strong> ${escHtml(f.evidence)}<br>`;
+                    if (f.corrective_action) html += `<strong>Corrective Action:</strong> ${escHtml(f.corrective_action)}`;
+                    if (f.due_date) html += ` <span style="color:var(--text-dim)">(due ${fmtDate(f.due_date)})</span>`;
+                    html += '</td></tr>';
+                }
             });
             html += '</tbody></table>';
         } else {
             html += '<div style="color:var(--text-dim);font-size:13px;margin-bottom:12px">No findings yet.</div>';
         }
+
+        // Checklist execution section
+        html += '<h4 style="margin:16px 0 8px;font-size:13px;color:var(--text-secondary)">Checklists</h4>';
+        const clResults = a.checklist_results || {};
+        const clIds = Object.keys(clResults);
+        if (clIds.length) {
+            clIds.forEach(clId => {
+                const cl = clResults[clId];
+                const items = cl.items || [];
+                const passed = items.filter(i => i.result === 'pass').length;
+                const failed = items.filter(i => i.result === 'fail').length;
+                const total = items.length;
+                html += `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg)">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <strong style="font-size:13px">${escHtml(cl.checklist_name)}${cl.iso_clause ? ' ('+escHtml(cl.iso_clause)+')' : ''}</strong>
+                        <span style="font-size:12px;color:var(--text-dim)">${passed}/${total} pass${failed ? ', <span style=color:#f87171>'+failed+' fail</span>' : ''}</span>
+                    </div>
+                    <button class="iso-btn small" style="margin-top:6px;font-size:11px" onclick="executeChecklist('${a.id}','${clId}')">Review / Edit</button>
+                </div>`;
+            });
+        }
+        html += `<div style="display:flex;gap:8px;align-items:center">
+            <select class="iso-input" id="checklist-select" style="width:200px;font-size:12px">
+                <option value="">— Select checklist —</option>
+            </select>
+            <button class="iso-btn small" onclick="applyChecklist('${a.id}')">Apply Checklist</button>
+        </div>`;
+        html += `<div id="checklist-exec-area"></div>`;
 
         // Add finding form
         html += `<div class="iso-form" style="margin-top:12px">
@@ -1139,6 +1216,9 @@ async function loadAuditDetail(id) {
 
         html += '</div>';
         el.innerHTML = html;
+
+        // Load checklist dropdown options
+        loadChecklistOptions();
     } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
 }
 
@@ -1166,6 +1246,102 @@ async function addFinding(auditId) {
         toast(msg);
         loadAuditDetail(auditId);
     } catch (e) { toast(safeStr(e, 'Unknown error'), true); }
+}
+
+async function closeFinding(auditId, findingId) {
+    try {
+        await apiFetch(`/audits/${auditId}/findings/${findingId}/`, { method: 'PUT', body: { status: 'closed' } });
+        toast('Finding closed');
+        loadAuditDetail(auditId);
+    } catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+async function updateFindingStatus(auditId, findingId, status) {
+    try {
+        await apiFetch(`/audits/${auditId}/findings/${findingId}/`, { method: 'PUT', body: { status } });
+        toast('Finding updated');
+        loadAuditDetail(auditId);
+    } catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+async function deleteFinding(auditId, findingId) {
+    if (!confirm('Delete this finding?')) return;
+    try {
+        await apiFetch(`/audits/${auditId}/findings/${findingId}/`, { method: 'DELETE' });
+        toast('Finding deleted');
+        loadAuditDetail(auditId);
+    } catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+async function applyChecklist(auditId) {
+    const clId = document.getElementById('checklist-select').value;
+    if (!clId) return toast('Select a checklist first', true);
+    try {
+        const data = await apiFetch(`/audits/${auditId}/apply-checklist/`, { method: 'POST', body: { checklist_id: clId } });
+        renderChecklistExecution(auditId, clId, data);
+    } catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+async function executeChecklist(auditId, clId) {
+    try {
+        const data = await apiFetch(`/audits/${auditId}/apply-checklist/`, { method: 'POST', body: { checklist_id: clId } });
+        renderChecklistExecution(auditId, clId, data);
+    } catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+function renderChecklistExecution(auditId, clId, data) {
+    const el = document.getElementById('checklist-exec-area');
+    let html = `<div style="margin-top:12px;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg)">
+        <h4 style="margin:0 0 10px;font-size:13px">${escHtml(data.checklist_name)}${data.iso_clause ? ' — '+escHtml(data.iso_clause) : ''}</h4>
+        <table class="iso-table" style="font-size:12px"><thead><tr><th>#</th><th>Question</th><th>Result</th><th>Notes</th></tr></thead><tbody>`;
+    (data.items || []).forEach((item, i) => {
+        html += `<tr>
+            <td>${i+1}</td>
+            <td>${escHtml(item.question)}${item.guidance ? '<div style=font-size:11px;color:var(--text-dim)>'+escHtml(item.guidance)+'</div>' : ''}</td>
+            <td><select class="iso-input" id="cl-result-${i}" style="width:70px;font-size:11px;padding:2px 4px">
+                <option value="">—</option>
+                <option value="pass"${item.result==='pass'?' selected':''}>Pass</option>
+                <option value="fail"${item.result==='fail'?' selected':''}>Fail</option>
+                <option value="na"${item.result==='na'?' selected':''}>N/A</option>
+            </select></td>
+            <td><input class="iso-input" id="cl-notes-${i}" value="${escHtml(item.notes||'')}" style="width:150px;font-size:11px;padding:2px 4px" placeholder="Notes"></td>
+        </tr>`;
+    });
+    html += `</tbody></table>
+        <button class="iso-btn primary" style="margin-top:8px" onclick="saveChecklistResults('${auditId}','${clId}',${(data.items||[]).length})">Save Results</button>
+        <button class="iso-btn" style="margin-top:8px" onclick="document.getElementById('checklist-exec-area').innerHTML=''">Close</button>
+    </div>`;
+    el.innerHTML = html;
+}
+
+async function saveChecklistResults(auditId, clId, count) {
+    const results = [];
+    for (let i = 0; i < count; i++) {
+        results.push({
+            question: '', // server already has this from template
+            result: document.getElementById(`cl-result-${i}`).value,
+            notes: document.getElementById(`cl-notes-${i}`).value,
+        });
+    }
+    try {
+        await apiFetch(`/audits/${auditId}/apply-checklist/`, { method: 'POST', body: { checklist_id: clId, results } });
+        toast('Checklist saved');
+        loadAuditDetail(auditId);
+    } catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+async function loadChecklistOptions() {
+    try {
+        const cls = await apiFetch('/checklists/');
+        const sel = document.getElementById('checklist-select');
+        if (!sel) return;
+        cls.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name + (c.iso_clause ? ` (${c.iso_clause})` : '');
+            sel.appendChild(opt);
+        });
+    } catch (e) { /* silent */ }
 }
 
 async function deleteAudit(id) {

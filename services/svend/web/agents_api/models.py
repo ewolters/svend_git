@@ -3768,6 +3768,11 @@ class InternalAudit(models.Model):
     departments = models.JSONField(default=list, blank=True)
     scope = models.TextField(blank=True)
     summary = models.TextField(blank=True)
+    checklist_results = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='{"<checklist_id>": {"checklist_name": str, "items": [{"question", "result", "notes"}], "completed_at": str}}',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -3793,6 +3798,7 @@ class InternalAudit(models.Model):
             "scope": self.scope,
             "summary": self.summary,
             "findings": [f.to_dict() for f in self.findings.all()],
+            "checklist_results": self.checklist_results,
             "created_at": self.created_at.isoformat(),
             "field_changes": [],
         }

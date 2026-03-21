@@ -1122,6 +1122,181 @@ def audit_finding_create(request, audit_id):
     return JsonResponse(result, status=201)
 
 
+@require_team
+@require_http_methods(["PUT", "DELETE"])
+def audit_finding_detail(request, audit_id, finding_id):
+    """Update or delete an audit finding."""
+    qs, tenant, _is_admin = qms_queryset(InternalAudit, request.user)
+    try:
+        audit = qs.get(id=audit_id)
+    except InternalAudit.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+    if not qms_can_edit(request.user, audit, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
+
+    try:
+        finding = audit.findings.get(id=finding_id)
+    except AuditFinding.DoesNotExist:
+        return JsonResponse({"error": "Finding not found"}, status=404)
+
+    if request.method == "DELETE":
+        finding.delete()
+        return JsonResponse({"ok": True})
+
+    data = json.loads(request.body)
+    for field in ["finding_type", "description", "iso_clause", "evidence", "corrective_action", "status"]:
+        if field in data:
+            setattr(finding, field, data[field])
+    if "due_date" in data:
+        finding.due_date = data["due_date"] or None
+    if data.get("status") == "closed":
+        finding.is_resolved = True
+    finding.save()
+    return JsonResponse(finding.to_dict())
+
+
+@require_team
+@require_http_methods(["POST"])
+def audit_apply_checklist(request, audit_id):
+    """Apply a checklist template to an audit — creates findings from check items.
+
+    POST body: {"checklist_id": "uuid"}
+    Returns the checklist items with pass/fail tracking stored in the audit's
+    checklist_results field (JSONField on InternalAudit).
+
+    Or: POST body: {"checklist_id": "uuid", "results": [{"question": "...", "result": "pass|fail|na", "notes": "..."}]}
+    to save execution results.
+    """
+    qs, tenant, _is_admin = qms_queryset(InternalAudit, request.user)
+    try:
+        audit = qs.get(id=audit_id)
+    except InternalAudit.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+    if not qms_can_edit(request.user, audit, tenant):
+        return JsonResponse({"error": "Permission denied"}, status=403)
+
+    data = json.loads(request.body)
+    checklist_id = data.get("checklist_id")
+    if not checklist_id:
+        return JsonResponse({"error": "checklist_id required"}, status=400)
+
+    try:
+        checklist = AuditChecklist.objects.get(id=checklist_id, owner=request.user)
+    except AuditChecklist.DoesNotExist:
+        return JsonResponse({"error": "Checklist not found"}, status=404)
+
+    results = data.get("results")
+    if results is not None:
+        # Save execution results
+        existing = audit.checklist_results or {}
+        existing[str(checklist_id)] = {
+            "checklist_name": checklist.name,
+            "iso_clause": checklist.iso_clause,
+            "items": results,
+            "completed_at": timezone.now().isoformat(),
+        }
+        audit.checklist_results = existing
+        audit.save(update_fields=["checklist_results"])
+        return JsonResponse({"ok": True, "checklist_name": checklist.name})
+
+    # Return checklist items for execution (with any existing results)
+    existing = (audit.checklist_results or {}).get(str(checklist_id), {})
+    items = checklist.check_items or []
+    existing_items = existing.get("items", [])
+
+    # Merge: overlay existing results onto template
+    merged = []
+    for i, item in enumerate(items):
+        entry = {"question": item.get("question", ""), "guidance": item.get("guidance", "")}
+        if i < len(existing_items):
+            entry["result"] = existing_items[i].get("result", "")
+            entry["notes"] = existing_items[i].get("notes", "")
+        else:
+            entry["result"] = ""
+            entry["notes"] = ""
+        merged.append(entry)
+
+    return JsonResponse(
+        {
+            "checklist_id": str(checklist.id),
+            "checklist_name": checklist.name,
+            "iso_clause": checklist.iso_clause,
+            "items": merged,
+            "completed_at": existing.get("completed_at"),
+        }
+    )
+
+
+@require_team
+@require_http_methods(["GET"])
+def audit_clause_coverage(request):
+    """Clause coverage tracking — which ISO clauses have been audited and when.
+
+    Returns a map of clause → {count, last_audit_date, finding_count, open_findings}.
+    """
+    user = request.user
+    qs = qms_queryset(InternalAudit, user)[0]
+    audits = qs.exclude(status="cancelled")
+
+    # All ISO 9001 clauses
+    all_clauses = ["4", "5", "6", "7", "8", "9", "10"]
+    coverage = {}
+
+    for audit in audits:
+        clauses = audit.iso_clauses or []
+        for clause in clauses:
+            key = clause.split(".")[0] if "." in clause else clause
+            if key not in coverage:
+                coverage[key] = {
+                    "clause": key,
+                    "audit_count": 0,
+                    "last_audit_date": None,
+                    "finding_count": 0,
+                    "open_findings": 0,
+                    "audits": [],
+                }
+            coverage[key]["audit_count"] += 1
+            audit_date = str(audit.scheduled_date) if audit.scheduled_date else str(audit.created_at.date())
+            if not coverage[key]["last_audit_date"] or audit_date > coverage[key]["last_audit_date"]:
+                coverage[key]["last_audit_date"] = audit_date
+
+            # Also track at the specific sub-clause level
+            if clause not in coverage:
+                coverage[clause] = {
+                    "clause": clause,
+                    "audit_count": 0,
+                    "last_audit_date": None,
+                    "finding_count": 0,
+                    "open_findings": 0,
+                    "audits": [],
+                }
+            coverage[clause]["audit_count"] += 1
+            if not coverage[clause]["last_audit_date"] or audit_date > coverage[clause]["last_audit_date"]:
+                coverage[clause]["last_audit_date"] = audit_date
+
+    # Count findings per clause
+    for audit in audits:
+        for finding in audit.findings.all():
+            clause = finding.iso_clause
+            if clause and clause in coverage:
+                coverage[clause]["finding_count"] += 1
+                if finding.status != "closed":
+                    coverage[clause]["open_findings"] += 1
+
+    # Fill in missing top-level clauses
+    for clause in all_clauses:
+        if clause not in coverage:
+            coverage[clause] = {
+                "clause": clause,
+                "audit_count": 0,
+                "last_audit_date": None,
+                "finding_count": 0,
+                "open_findings": 0,
+            }
+
+    return JsonResponse({"coverage": sorted(coverage.values(), key=lambda c: c["clause"])})
+
+
 # =========================================================================
 # Audit Checklists
 # =========================================================================

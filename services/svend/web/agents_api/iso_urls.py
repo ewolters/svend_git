@@ -22,6 +22,13 @@ urlpatterns = [
     path("audits/", iso_views.audit_list_create, name="iso_audit_list"),
     path("audits/<uuid:audit_id>/", iso_views.audit_detail, name="iso_audit_detail"),
     path("audits/<uuid:audit_id>/findings/", iso_views.audit_finding_create, name="iso_audit_finding"),
+    path(
+        "audits/<uuid:audit_id>/findings/<uuid:finding_id>/",
+        iso_views.audit_finding_detail,
+        name="iso_audit_finding_detail",
+    ),
+    path("audits/<uuid:audit_id>/apply-checklist/", iso_views.audit_apply_checklist, name="iso_audit_apply_checklist"),
+    path("audits/clause-coverage/", iso_views.audit_clause_coverage, name="iso_audit_clause_coverage"),
     # Audit Checklists
     path("checklists/", iso_views.audit_checklist_list_create, name="iso_checklist_list"),
     path("checklists/<uuid:checklist_id>/", iso_views.audit_checklist_detail, name="iso_checklist_detail"),
