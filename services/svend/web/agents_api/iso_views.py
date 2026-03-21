@@ -1709,11 +1709,44 @@ def review_list_create(request):
         "gap_count": gap_count,
     }
 
+    # Complaint summary (§9.1.2)
+    complaints = qms_queryset(CustomerComplaint, user)[0]
+    open_complaints = complaints.exclude(status="closed")
+    complaint_summary = {
+        "total": complaints.count(),
+        "open": open_complaints.count(),
+        "by_severity": {s: open_complaints.filter(severity=s).count() for s in ["low", "medium", "high", "critical"]},
+    }
+
+    # Risk summary (§6.1)
+    risks = qms_queryset(Risk, user)[0]
+    active_risks = risks.exclude(status="closed")
+    risk_summary = {
+        "total": risks.count(),
+        "active": active_risks.count(),
+        "high_risk": active_risks.filter(risk_score__gte=12).count(),
+        "review_overdue": active_risks.filter(review_date__isnull=False, review_date__lt=date.today()).count(),
+    }
+
+    # Equipment summary (§7.1.5)
+    equipment = qms_queryset(MeasurementEquipment, user)[0]
+    today = date.today()
+    equipment_summary = {
+        "total": equipment.count(),
+        "overdue": equipment.filter(
+            next_calibration_due__isnull=False, next_calibration_due__lt=today, status__in=["in_service", "due"]
+        ).count(),
+        "out_of_cal": equipment.filter(status="out_of_calibration").count(),
+    }
+
     snapshot = {
         "prior_actions": prior_actions,
         "ncr_summary": ncr_summary,
         "audit_summary": audit_summary,
         "training_summary": training_summary,
+        "complaint_summary": complaint_summary,
+        "risk_summary": risk_summary,
+        "equipment_summary": equipment_summary,
         "captured_at": timezone.now().isoformat(),
     }
 

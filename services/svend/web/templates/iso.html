@@ -182,6 +182,8 @@ select.iso-input { appearance: none; background-image: url("data:image/svg+xml,%
     .audit-calendar { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 768px) {
+    .iso-tabs { flex-wrap: wrap; }
+    .iso-tab { font-size: 12px; padding: 8px 12px; }
     .iso-kpis { grid-template-columns: repeat(2, 1fr); }
     .clause-map { grid-template-columns: repeat(3, 1fr); }
     .iso-form-grid, .iso-form-grid.cols-3 { grid-template-columns: 1fr; }
@@ -3025,6 +3027,13 @@ async function loadRiskDetail(id) {
                 <div class="sub">${r.residual_likelihood} × ${r.residual_impact}</div></div>`;
         }
         html += '</div>';
+        // FMEA source link
+        if (r.source_type === 'fmea' && r.fmea_id) {
+            html += `<div style="margin-bottom:12px;padding:8px 12px;background:rgba(250,204,21,0.08);border:1px solid rgba(250,204,21,0.3);border-radius:6px;font-size:12px">
+                <span style="color:var(--text-dim)">Promoted from FMEA</span>
+                <a href="/app/fmea/?id=${r.fmea_id}" style="color:var(--accent);margin-left:8px">View source FMEA &rarr;</a>
+            </div>`;
+        }
         // Edit form
         html += `<div class="iso-form" style="max-width:700px">
             <div class="iso-form-grid">
@@ -3533,6 +3542,10 @@ function showAFEForm() {
         <h4 style="margin:16px 0 8px;font-size:13px;color:var(--text-secondary)">Approval Chain</h4>
         <div id="afe-levels-list"></div>
         <button class="iso-btn" style="margin-top:6px" onclick="addAFELevel()">+ Add Approval Level</button>
+        <h4 style="margin:16px 0 8px;font-size:13px;color:var(--text-secondary)">Pre-Approval Checklist</h4>
+        <select class="iso-input" id="afe-checklist" style="width:300px">
+            <option value="">— None —</option>
+        </select>
         ${siteSelectHtml('afe-site')}
         <div style="margin-top:16px;display:flex;gap:8px">
             <button class="iso-btn primary" onclick="saveAFE()">Create AFE</button>
@@ -3540,6 +3553,11 @@ function showAFEForm() {
         </div>
     </div>`;
     window._afeLevels = [{level_name: 'Site Manager', level_order: 0, cost_threshold: 0}];
+    // Load checklists for AFE form
+    apiFetch('/checklists-v2/').then(cls => {
+        const sel = document.getElementById('afe-checklist');
+        if (sel) cls.forEach(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name + ' [' + (c.category||'general') + ']'; sel.appendChild(o); });
+    }).catch(() => {});
     renderAFELevels();
 }
 
@@ -3576,6 +3594,7 @@ async function saveAFE() {
             business_justification: document.getElementById('afe-justify').value,
             alternatives_considered: document.getElementById('afe-alt').value,
             site_id: siteVal('afe-site'),
+            checklist_id: document.getElementById('afe-checklist')?.value || null,
             approval_levels: (window._afeLevels || []).map((lv, i) => ({...lv, level_order: i})),
         }});
         toast('AFE created');
