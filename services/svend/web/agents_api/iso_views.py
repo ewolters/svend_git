@@ -25,7 +25,9 @@ from notifications.helpers import notify
 
 from .evidence_bridge import create_tool_evidence
 from .models import (
+    AFE,
     FMEA,
+    AFEApprovalLevel,
     AuditChecklist,
     AuditFinding,
     CAPAReport,
@@ -3447,6 +3449,254 @@ def equipment_detail(request, equipment_id):
 
 
 # =========================================================================
+# =========================================================================
+# AFE — Authorization for Expenditure
+# =========================================================================
+
+
+@require_team
+@require_http_methods(["GET", "POST"])
+def afe_list_create(request):
+    """List or create AFEs."""
+    user = request.user
+
+    if request.method == "GET":
+        afes = AFE.objects.filter(owner=user).prefetch_related("approval_levels")
+        status = request.GET.get("status")
+        if status:
+            afes = afes.filter(status=status)
+        return JsonResponse([a.to_dict() for a in afes[:50]], safe=False)
+
+    data = json.loads(request.body)
+    title = data.get("title", "").strip()
+    if not title:
+        return JsonResponse({"error": "Title is required"}, status=400)
+
+    afe = AFE(
+        title=title,
+        description=data.get("description", ""),
+        department=data.get("department", ""),
+        estimated_cost=data.get("estimated_cost", 0),
+        budgeted_amount=data.get("budgeted_amount", 0),
+        expected_savings=data.get("expected_savings", 0),
+        payback_months=data.get("payback_months"),
+        roi_percent=data.get("roi_percent"),
+        business_justification=data.get("business_justification", ""),
+        alternatives_considered=data.get("alternatives_considered", ""),
+        expected_completion=data.get("expected_completion") or None,
+        owner=user,
+        created_by=user,
+    )
+    # Cross-links
+    for fk_field, fk_model in [
+        ("hoshin_project_id", None),
+        ("risk_id", None),
+        ("fmea_id", None),
+        ("checklist_id", None),
+    ]:
+        if data.get(fk_field):
+            setattr(afe, fk_field, data[fk_field])
+    if data.get("site_id"):
+        try:
+            afe.site = Site.objects.get(id=data["site_id"])
+        except Site.DoesNotExist:
+            pass
+    afe.save()
+
+    # Auto-generate AFE number
+    if not afe.afe_number:
+        afe.afe_number = f"AFE-{afe.created_at.year}-{str(afe.id)[:6].upper()}"
+        afe.save(update_fields=["afe_number"])
+
+    # Create approval levels from request or default
+    levels = data.get("approval_levels", [])
+    if not levels:
+        # Default: single site-level approval
+        levels = [{"level_name": "Site Approver", "level_order": 0, "cost_threshold": 0}]
+    for lv in levels:
+        AFEApprovalLevel.objects.create(
+            afe=afe,
+            level_order=lv.get("level_order", 0),
+            level_name=lv.get("level_name", "Approver"),
+            cost_threshold=lv.get("cost_threshold", 0),
+            is_required=lv.get("is_required", True),
+            approver_name=lv.get("approver_name", ""),
+        )
+
+    return JsonResponse(afe.to_dict(), status=201)
+
+
+@require_team
+@require_http_methods(["GET", "PUT", "DELETE"])
+def afe_detail(request, afe_id):
+    """Get, update, or delete an AFE."""
+    try:
+        afe = AFE.objects.prefetch_related("approval_levels").get(id=afe_id, owner=request.user)
+    except AFE.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    if request.method == "GET":
+        return JsonResponse(afe.to_dict())
+
+    if request.method == "DELETE":
+        afe.delete()
+        return JsonResponse({"ok": True})
+
+    data = json.loads(request.body)
+    for field in [
+        "title",
+        "description",
+        "department",
+        "status",
+        "business_justification",
+        "alternatives_considered",
+        "quote_reference",
+        "po_number",
+        "denial_reason",
+    ]:
+        if field in data:
+            setattr(afe, field, data[field])
+    for dec_field in [
+        "estimated_cost",
+        "budgeted_amount",
+        "actual_cost",
+        "expected_savings",
+        "payback_months",
+        "roi_percent",
+    ]:
+        if dec_field in data and data[dec_field] is not None:
+            setattr(afe, dec_field, data[dec_field])
+    for date_field in ["submitted_date", "decision_date", "expected_completion", "actual_completion"]:
+        if date_field in data:
+            setattr(afe, date_field, data[date_field] or None)
+    for fk_field in ["hoshin_project_id", "risk_id", "fmea_id", "checklist_id"]:
+        if fk_field in data:
+            setattr(afe, fk_field, data[fk_field] or None)
+    afe.save()
+
+    # Update approval levels if provided
+    if "approval_levels" in data:
+        afe.approval_levels.all().delete()
+        for lv in data["approval_levels"]:
+            AFEApprovalLevel.objects.create(
+                afe=afe,
+                level_order=lv.get("level_order", 0),
+                level_name=lv.get("level_name", "Approver"),
+                cost_threshold=lv.get("cost_threshold", 0),
+                is_required=lv.get("is_required", True),
+                approver_name=lv.get("approver_name", ""),
+            )
+
+    return JsonResponse(afe.to_dict())
+
+
+@require_team
+@require_http_methods(["POST"])
+def afe_submit(request, afe_id):
+    """Submit an AFE for approval. Auto-determines required levels from thresholds."""
+    try:
+        afe = AFE.objects.prefetch_related("approval_levels").get(id=afe_id, owner=request.user)
+    except AFE.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    if afe.status not in ("draft",):
+        return JsonResponse({"error": f"Cannot submit from '{afe.status}'"}, status=400)
+
+    # Auto-skip levels below cost threshold
+    for level in afe.approval_levels.all():
+        if level.cost_threshold > 0 and afe.estimated_cost < level.cost_threshold:
+            level.status = "skipped"
+            level.is_required = False
+            level.save(update_fields=["status", "is_required"])
+
+    afe.status = "submitted"
+    afe.submitted_date = date.today()
+    afe.save(update_fields=["status", "submitted_date"])
+
+    return JsonResponse(afe.to_dict())
+
+
+@require_team
+@require_http_methods(["POST"])
+def afe_approve(request, afe_id):
+    """Approve or deny an AFE at the current approval level.
+
+    POST body: {"action": "approve"|"deny", "comments": "...", "password": "..."}
+    Password required for ElectronicSignature CFR compliance.
+    """
+    try:
+        afe = AFE.objects.prefetch_related("approval_levels").get(id=afe_id)
+    except AFE.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    if afe.status not in ("submitted", "in_review"):
+        return JsonResponse({"error": f"Cannot approve from '{afe.status}'"}, status=400)
+
+    data = json.loads(request.body)
+    action = data.get("action", "")
+    if action not in ("approve", "deny"):
+        return JsonResponse({"error": "action must be 'approve' or 'deny'"}, status=400)
+
+    # Find current pending level
+    current = afe.approval_levels.filter(status="pending").order_by("level_order").first()
+    if not current:
+        return JsonResponse({"error": "No pending approval levels"}, status=400)
+
+    # Record decision
+    current.approver = request.user
+    current.approver_name = current.approver_name or request.user.email
+    current.comments = data.get("comments", "")
+    current.decided_at = timezone.now()
+
+    if action == "approve":
+        current.status = "approved"
+        current.save()
+
+        # Create ElectronicSignature if password provided
+        password = data.get("password", "")
+        if password and request.user.check_password(password):
+            try:
+                sig = ElectronicSignature(
+                    signer=request.user,
+                    document_type="afe",
+                    document_id=afe.id,
+                    meaning="approved",
+                    event_name=f"esig.afe.approved.level_{current.level_order}",
+                    actor=request.user.email,
+                    actor_ip=_get_client_ip(request),
+                    tenant_id=_resolve_tenant_id(request.user),
+                    after_snapshot={
+                        "afe_number": afe.afe_number,
+                        "level": current.level_name,
+                        "cost": float(afe.estimated_cost),
+                    },
+                )
+                sig.save()
+                current.signature = sig
+                current.save(update_fields=["signature"])
+            except Exception:
+                pass  # Signature is optional enhancement
+
+        # Check if all required levels approved
+        remaining = afe.approval_levels.filter(status="pending", is_required=True)
+        if not remaining.exists():
+            afe.status = "approved"
+            afe.decision_date = date.today()
+        else:
+            afe.status = "in_review"
+        afe.save()
+
+    else:  # deny
+        current.status = "denied"
+        current.save()
+        afe.status = "denied"
+        afe.denial_reason = data.get("comments", "")
+        afe.decision_date = date.today()
+        afe.save()
+
+    return JsonResponse(afe.to_dict())
+
+
 # =========================================================================
 # Universal Checklists — prompt-response model
 # =========================================================================

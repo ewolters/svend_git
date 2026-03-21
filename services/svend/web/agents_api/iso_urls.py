@@ -75,6 +75,11 @@ urlpatterns = [
     path("study-actions/request-doc-update/", iso_views.study_request_doc_update, name="iso_study_request_doc_update"),
     path("study-actions/flag-training-gap/", iso_views.study_flag_training_gap, name="iso_study_flag_training_gap"),
     path("study-actions/flag-fmea-update/", iso_views.study_flag_fmea_update, name="iso_study_flag_fmea_update"),
+    # AFE — Authorization for Expenditure
+    path("afes/", iso_views.afe_list_create, name="afe_list"),
+    path("afes/<uuid:afe_id>/", iso_views.afe_detail, name="afe_detail"),
+    path("afes/<uuid:afe_id>/approve/", iso_views.afe_approve, name="afe_approve"),
+    path("afes/<uuid:afe_id>/submit/", iso_views.afe_submit, name="afe_submit"),
     # Universal Checklists
     path("checklists-v2/", iso_views.checklist_v2_list_create, name="checklist_v2_list"),
     path("checklists-v2/<uuid:cl_id>/", iso_views.checklist_v2_detail, name="checklist_v2_detail"),

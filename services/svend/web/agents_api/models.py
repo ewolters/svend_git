@@ -4969,6 +4969,233 @@ class Risk(models.Model):
 
 
 # =========================================================================
+# AFE — Authorization for Expenditure
+# =========================================================================
+
+
+class AFE(models.Model):
+    """Authorization for Expenditure — capital project approval tracking.
+
+    Flexible N-level approval chain (org-defined, not hardcoded).
+    Links to HoshinProject for ROI tracking, Risk register for justification,
+    FMEA for process risk context. Uses ElectronicSignature for CFR-compliant sign-off.
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        SUBMITTED = "submitted", "Submitted"
+        IN_REVIEW = "in_review", "In Review"
+        APPROVED = "approved", "Approved"
+        DENIED = "denied", "Denied"
+        CANCELLED = "cancelled", "Cancelled"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="afes"
+    )
+    site = models.ForeignKey("agents_api.Site", on_delete=models.SET_NULL, null=True, blank=True, related_name="afes")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="afes_created"
+    )
+
+    # Identification
+    afe_number = models.CharField(max_length=50, blank=True, help_text="e.g. AFE-2026-001 (auto or manual)")
+    title = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+    department = models.CharField(max_length=100, blank=True)
+
+    # Financial
+    estimated_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    budgeted_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    actual_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    expected_savings = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    payback_months = models.DecimalField(max_digits=6, decimal_places=1, null=True, blank=True)
+    roi_percent = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
+
+    # Justification
+    business_justification = models.TextField(blank=True)
+    alternatives_considered = models.TextField(blank=True)
+    quote_reference = models.CharField(max_length=200, blank=True)
+    po_number = models.CharField(max_length=100, blank=True)
+    denial_reason = models.TextField(blank=True)
+
+    # Key dates
+    submitted_date = models.DateField(null=True, blank=True)
+    decision_date = models.DateField(null=True, blank=True)
+    expected_completion = models.DateField(null=True, blank=True)
+    actual_completion = models.DateField(null=True, blank=True)
+
+    # Cross-tool links
+    hoshin_project = models.ForeignKey(
+        "agents_api.HoshinProject", on_delete=models.SET_NULL, null=True, blank=True, related_name="afes"
+    )
+    risk = models.ForeignKey(
+        "agents_api.Risk",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="afes",
+        help_text="Risk register entry that justifies this expenditure",
+    )
+    fmea = models.ForeignKey(
+        "agents_api.FMEA",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="afes",
+    )
+    checklist = models.ForeignKey(
+        "agents_api.Checklist",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="afes",
+        help_text="Pre-approval checklist (safety review, environmental, etc.)",
+    )
+    project = models.ForeignKey("core.Project", on_delete=models.SET_NULL, null=True, blank=True, related_name="afes")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "afes"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"AFE: {self.afe_number or self.title} (${self.estimated_cost})"
+
+    @property
+    def approval_progress(self):
+        """Percentage of required approval levels that are approved."""
+        levels = self.approval_levels.all()
+        if not levels.exists():
+            return 0
+        required = levels.filter(is_required=True)
+        if not required.exists():
+            return 100
+        approved = required.filter(status="approved").count()
+        return int(approved / required.count() * 100)
+
+    @property
+    def current_level(self):
+        """Next approval level that needs action."""
+        return self.approval_levels.filter(status="pending").order_by("level_order").first()
+
+    def to_dict(self):
+        levels = list(self.approval_levels.order_by("level_order"))
+        return {
+            "id": str(self.id),
+            "afe_number": self.afe_number,
+            "title": self.title,
+            "description": self.description,
+            "status": self.status,
+            "department": self.department,
+            "estimated_cost": float(self.estimated_cost),
+            "budgeted_amount": float(self.budgeted_amount),
+            "actual_cost": float(self.actual_cost),
+            "expected_savings": float(self.expected_savings),
+            "payback_months": float(self.payback_months) if self.payback_months else None,
+            "roi_percent": float(self.roi_percent) if self.roi_percent else None,
+            "business_justification": self.business_justification,
+            "alternatives_considered": self.alternatives_considered,
+            "quote_reference": self.quote_reference,
+            "po_number": self.po_number,
+            "denial_reason": self.denial_reason,
+            "submitted_date": str(self.submitted_date) if self.submitted_date else None,
+            "decision_date": str(self.decision_date) if self.decision_date else None,
+            "expected_completion": str(self.expected_completion) if self.expected_completion else None,
+            "actual_completion": str(self.actual_completion) if self.actual_completion else None,
+            "hoshin_project_id": str(self.hoshin_project_id) if self.hoshin_project_id else None,
+            "risk_id": str(self.risk_id) if self.risk_id else None,
+            "fmea_id": str(self.fmea_id) if self.fmea_id else None,
+            "checklist_id": str(self.checklist_id) if self.checklist_id else None,
+            "project_id": str(self.project_id) if self.project_id else None,
+            "site_id": str(self.site_id) if self.site_id else None,
+            "approval_progress": self.approval_progress,
+            "approval_levels": [lv.to_dict() for lv in levels],
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+class AFEApprovalLevel(models.Model):
+    """Single approval step in an AFE's approval chain.
+
+    N levels per AFE, org-defined. Each level can be required or optional,
+    and has a cost threshold that auto-determines if it applies.
+    Sign-off uses ElectronicSignature for CFR compliance.
+    """
+
+    class LevelStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        DENIED = "denied", "Denied"
+        SKIPPED = "skipped", "Skipped (below threshold)"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    afe = models.ForeignKey(AFE, on_delete=models.CASCADE, related_name="approval_levels")
+
+    # Level definition
+    level_order = models.IntegerField(default=0, help_text="0=first approver, 1=second, etc.")
+    level_name = models.CharField(max_length=100, help_text="e.g. Site Manager, BU Director, VP Finance")
+    cost_threshold = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text="This level required when estimated_cost >= threshold. 0 = always required.",
+    )
+    is_required = models.BooleanField(default=True)
+
+    # Approver
+    approver = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="afe_approvals"
+    )
+    approver_name = models.CharField(max_length=200, blank=True, help_text="Display name (for non-users)")
+
+    # Decision
+    status = models.CharField(max_length=20, choices=LevelStatus.choices, default=LevelStatus.PENDING)
+    comments = models.TextField(blank=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+
+    # ElectronicSignature link (CFR compliance)
+    signature = models.ForeignKey(
+        "agents_api.ElectronicSignature",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="afe_approval_levels",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "afe_approval_levels"
+        ordering = ["level_order"]
+        constraints = [
+            models.UniqueConstraint(fields=["afe", "level_order"], name="unique_afe_level_order"),
+        ]
+
+    def __str__(self):
+        return f"{self.level_name} ({self.status})"
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "level_order": self.level_order,
+            "level_name": self.level_name,
+            "cost_threshold": float(self.cost_threshold),
+            "is_required": self.is_required,
+            "approver_id": str(self.approver_id) if self.approver_id else None,
+            "approver_name": self.approver_name,
+            "status": self.status,
+            "comments": self.comments,
+            "decided_at": self.decided_at.isoformat() if self.decided_at else None,
+            "signature_id": str(self.signature_id) if self.signature_id else None,
+        }
+
+
+# =========================================================================
 # C3: Calibration Equipment Register — ISO 9001 §7.1.5
 # =========================================================================
 
