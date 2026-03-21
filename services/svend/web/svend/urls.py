@@ -176,6 +176,7 @@ urlpatterns = [
     path("app/learn/", TemplateView.as_view(template_name="learn.html"), name="learn"),
     path("app/fmea/", TemplateView.as_view(template_name="fmea.html"), name="fmea"),
     path("app/fmea/<uuid:fmea_id>/", TemplateView.as_view(template_name="fmea.html"), name="fmea_edit"),
+    path("app/kanban-cards/", TemplateView.as_view(template_name="kanban_cards.html"), name="kanban_cards"),
     path("app/hoshin/", TemplateView.as_view(template_name="hoshin.html"), name="hoshin"),
     path("app/investigations/", TemplateView.as_view(template_name="investigations.html"), name="investigations"),
     path("app/notebooks/", TemplateView.as_view(template_name="notebooks.html"), name="notebooks"),

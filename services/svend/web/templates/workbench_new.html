@@ -7228,6 +7228,11 @@ async function runStatsAnalysis(analysisType, analysisId, config, outputTitle) {
     } catch (err) { showLoading(false); alert('Analysis failed: ' + safeStr(err, 'Unknown error')); }
 }
 
+function openKanbanCards(data) {
+    sessionStorage.setItem('kanban_card_data', JSON.stringify(data));
+    window.open('/app/kanban-cards/', '_blank');
+}
+
 const DSW_THEME = {
     height: 360,
     paper_bgcolor: 'rgba(0,0,0,0)',
@@ -8020,6 +8025,20 @@ function renderStatsOutput(result, title) {
     // Send narrative/education/diagnostics to the left pane
     renderLeftNarrative(result, title);
     addToSidebarHistory(title, result.plots && result.plots.length > 0);
+
+    // Kanban sizing → Generate Cards bridge
+    if (result.statistics && result.statistics.kanban_cards != null) {
+        const s = result.statistics;
+        const body = document.getElementById('left-upper-body');
+        if (body) {
+            body.innerHTML += `<div style="margin-top:12px;padding:10px;border:1px solid var(--accent,#4A9F6E);border-radius:6px;background:rgba(74,159,110,0.08)">
+                <button onclick="openKanbanCards({reorder_point:${s.total_stock||s.base_stock||0},order_qty:${s.kanban_cards||1}*${s.container_size||1},unit:'EA'})"
+                    style="background:var(--accent,#4A9F6E);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500">
+                    Generate ${s.kanban_cards} Kanban Card${s.kanban_cards>1?'s':''} &rarr;</button>
+                <span style="font-size:12px;color:var(--text-dim,#888);margin-left:8px">${s.kanban_cards} cards × ${s.container_size} units</span>
+            </div>`;
+        }
+    }
 
     // Right pane gets charts only
     let html = '';
