@@ -131,6 +131,25 @@ class NoCacheDynamicMiddleware:
         return response
 
 
+class SafetySubdomainMiddleware:
+    """Route safety.svend.ai root to the safety app template.
+
+    Only affects the root path (/) on the safety subdomain.
+    All other paths (API, static, app/*) pass through normally.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        host = request.get_host().split(":")[0]
+        if host == "safety.svend.ai" and request.path == "/":
+            from django.shortcuts import redirect
+
+            return redirect("/app/safety/")
+        return self.get_response(request)
+
+
 class SiteVisitMiddleware:
     """Track anonymous page visits for site-wide marketing analytics.
 

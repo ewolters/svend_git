@@ -1,0 +1,1194 @@
+{% extends "base_app.html" %}
+{% block title %}HIRARC Safety — SVEND{% endblock %}
+
+{% block extra_head %}
+<style>
+.safety-app { padding: 24px; max-width: 1440px; margin: 0 auto; }
+
+/* Header */
+.safety-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.safety-header h1 { margin: 0; font-size: 22px; font-weight: 500; color: var(--text-primary); }
+.safety-header .meta { display: flex; align-items: center; gap: 8px; }
+.badge-count { padding: 3px 10px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 12px; font-size: 11px; color: var(--text-secondary); }
+
+/* Tab navigation */
+.safety-tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+.safety-tab { padding: 10px 20px; background: transparent; border: none; color: var(--text-secondary); cursor: pointer;
+    font-size: 13px; font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.2s; text-decoration: none; }
+.safety-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
+.safety-tab.active { color: var(--accent-primary); border-bottom-color: var(--accent-primary); }
+.safety-panel { display: none; }
+.safety-panel.active { display: block; }
+
+/* KPI cards */
+.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.kpi-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; text-align: center; }
+.kpi-card .kpi-value { font-size: 32px; font-weight: 600; color: var(--text-primary); margin: 4px 0;
+    font-family: 'JetBrains Mono', monospace; }
+.kpi-card .kpi-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.kpi-card .kpi-sub { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+/* Severity distribution bar */
+.sev-bar-wrap { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+.sev-bar-wrap h3 { margin: 0 0 10px; font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+.sev-bar { display: flex; height: 28px; border-radius: 6px; overflow: hidden; }
+.sev-bar .seg { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #fff;
+    transition: width 0.4s ease; min-width: 0; }
+.sev-bar .seg-C { background: #cf4444; }
+.sev-bar .seg-H { background: #e07830; }
+.sev-bar .seg-M { background: #d4a537; }
+.sev-bar .seg-L { background: #4a9f6e; }
+.sev-legend { display: flex; gap: 16px; margin-top: 8px; font-size: 11px; color: var(--text-secondary); }
+.sev-legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.sev-legend .leg-C::before { background: #cf4444; }
+.sev-legend .leg-H::before { background: #e07830; }
+.sev-legend .leg-M::before { background: #d4a537; }
+.sev-legend .leg-L::before { background: #4a9f6e; }
+
+/* Totals row */
+.totals-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+.total-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; text-align: center; }
+.total-card .total-val { font-size: 22px; font-weight: 600; color: var(--text-primary); font-family: 'JetBrains Mono', monospace; }
+.total-card .total-lbl { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Site filter */
+.site-filter-bar { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
+.site-filter-bar label { font-size: 12px; color: var(--text-secondary); font-weight: 600; white-space: nowrap; }
+.site-filter-bar select { padding: 5px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text-primary); font-size: 12px; font-family: inherit; }
+.site-filter-bar select:focus { outline: none; border-color: var(--accent-primary); }
+
+/* Card list items */
+.card-list { display: flex; flex-direction: column; gap: 8px; }
+.card-item { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px;
+    display: flex; align-items: center; gap: 16px; cursor: pointer; transition: all 0.2s; }
+.card-item:hover { border-color: var(--accent-primary); background: var(--bg-hover); }
+.card-item .card-auditor { font-size: 13px; font-weight: 500; color: var(--text-primary); min-width: 120px; }
+.card-item .card-zone { font-size: 12px; color: var(--text-secondary); min-width: 100px; }
+.card-item .card-date { font-size: 12px; color: var(--text-dim); min-width: 90px; font-family: 'JetBrains Mono', monospace; }
+.card-item .card-count { font-size: 12px; color: var(--text-secondary); min-width: 80px; }
+.card-item .card-status { margin-left: auto; font-size: 11px; font-weight: 600; }
+
+/* Severity badges */
+.sev-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+.sev-C { background: rgba(207,68,68,0.2); color: #cf4444; }
+.sev-H { background: rgba(224,120,48,0.2); color: #e07830; }
+.sev-M { background: rgba(212,165,55,0.2); color: #d4a537; }
+.sev-L { background: rgba(74,159,110,0.2); color: #4a9f6e; }
+
+/* Status badges */
+.status-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+.status-assigned { background: rgba(120,120,120,0.2); color: #aaa; }
+.status-completed { background: rgba(74,159,110,0.35); color: #a8e6cf; }
+.status-missed { background: rgba(207,111,111,0.2); color: #cf6f6f; }
+.status-processed { background: rgba(74,159,110,0.25); color: #6fcf97; }
+.status-unprocessed { background: rgba(232,149,71,0.2); color: #e89547; }
+
+/* Buttons */
+.btn-s { padding: 7px 16px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.btn-s.primary { background: var(--accent-primary); color: white; }
+.btn-s.primary:hover { filter: brightness(1.1); }
+.btn-s.secondary { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); }
+.btn-s.secondary:hover { background: var(--bg-hover); }
+.btn-s.danger { background: var(--error); color: white; }
+.btn-s.small { padding: 4px 10px; font-size: 11px; }
+.btn-s.outline { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
+.btn-s.outline:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000;
+    justify-content: center; align-items: flex-start; padding-top: 40px; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 12px;
+    padding: 24px; max-width: 960px; width: 92%; max-height: 85vh; overflow-y: auto; }
+.modal h3 { margin: 0 0 16px; color: var(--text-primary); font-size: 16px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+/* Forms */
+.safety-form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.safety-form .full { grid-column: 1 / -1; }
+.safety-form label { display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;
+    text-transform: uppercase; letter-spacing: 0.5px; }
+.safety-form input, .safety-form select, .safety-form textarea {
+    width: 100%; padding: 8px 12px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text-primary); font-size: 13px; font-family: inherit; box-sizing: border-box; }
+.safety-form input:focus, .safety-form select:focus, .safety-form textarea:focus { outline: none; border-color: var(--accent-primary); }
+.safety-form input[type=checkbox] { width: auto; }
+.safety-form input[type=number] { font-family: 'JetBrains Mono', monospace; }
+
+/* Observation rows */
+.obs-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.obs-row { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 12px;
+    display: grid; grid-template-columns: 140px 1fr 60px 60px 1fr 30px; gap: 8px; align-items: center; }
+.obs-row select, .obs-row input, .obs-row textarea { padding: 6px 8px; background: var(--bg-tertiary); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text-primary); font-size: 12px; font-family: inherit; box-sizing: border-box; }
+.obs-row select:focus, .obs-row input:focus, .obs-row textarea:focus { outline: none; border-color: var(--accent-primary); }
+.obs-remove { background: none; border: none; color: var(--error); cursor: pointer; font-size: 16px; opacity: 0.6; }
+.obs-remove:hover { opacity: 1; }
+
+/* 5S tally */
+.tally-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.tally-cell { text-align: center; }
+.tally-cell label { display: block; font-size: 10px; color: var(--text-secondary); margin-bottom: 4px; text-transform: uppercase; }
+.tally-cell input { width: 100%; padding: 6px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text-primary); font-size: 13px; font-family: 'JetBrains Mono', monospace;
+    text-align: center; box-sizing: border-box; }
+
+/* Schedule */
+.schedule-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.schedule-header h2 { margin: 0; font-size: 18px; color: var(--text-primary); font-weight: 500; }
+.progress-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.progress-bar { width: 200px; height: 10px; background: var(--bg-secondary); border-radius: 5px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 5px; transition: width 0.4s ease; }
+.progress-fill.green { background: var(--accent-primary); }
+.progress-fill.amber { background: #d4a537; }
+.progress-fill.red { background: var(--error); }
+.progress-pct { font-size: 13px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+
+/* Assignment list */
+.assign-list { display: flex; flex-direction: column; gap: 6px; }
+.assign-row { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px;
+    display: flex; align-items: center; gap: 16px; font-size: 13px; }
+.assign-row .assign-auditor { color: var(--text-primary); font-weight: 500; min-width: 120px; }
+.assign-row .assign-zone { color: var(--text-secondary); min-width: 100px; }
+.assign-row .assign-date { color: var(--text-dim); font-family: 'JetBrains Mono', monospace; min-width: 90px; }
+.assign-row .assign-status { margin-left: auto; }
+
+/* Bulk assignment rows */
+.bulk-rows { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.bulk-row { display: grid; grid-template-columns: 1fr 1fr 140px 30px; gap: 8px; align-items: center; }
+.bulk-row select, .bulk-row input { padding: 6px 8px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text-primary); font-size: 12px; font-family: inherit; box-sizing: border-box; }
+
+/* FMEA bridge */
+.bridge-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 10px;
+    display: flex; justify-content: space-between; align-items: center; }
+.bridge-card .bridge-info { flex: 1; }
+.bridge-card .bridge-info .bridge-title { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+.bridge-card .bridge-info .bridge-meta { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+/* Pareto chart */
+.pareto-wrap { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+.pareto-wrap h3 { margin: 0 0 16px; font-size: 14px; font-weight: 500; color: var(--text-primary); }
+.pareto-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.pareto-label { font-size: 12px; color: var(--text-secondary); min-width: 130px; text-align: right; }
+.pareto-bar-track { flex: 1; height: 22px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; position: relative; }
+.pareto-bar-fill { height: 100%; background: var(--accent-primary); border-radius: 4px; transition: width 0.4s ease;
+    display: flex; align-items: center; padding-left: 6px; font-size: 11px; font-weight: 600; color: #fff; min-width: 0; }
+.pareto-cum-line { margin-top: 12px; height: 40px; position: relative; }
+.pareto-cum-line .cum-dot { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: var(--warning);
+    transform: translate(-50%, -50%); }
+.pareto-cum-line .cum-label { position: absolute; font-size: 10px; color: var(--warning); transform: translateX(-50%); top: 28px; }
+.pareto-total { font-size: 12px; color: var(--text-dim); margin-top: 12px; text-align: right; }
+
+/* Card detail panel */
+.card-detail { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-top: 16px; }
+.card-detail h3 { margin: 0 0 12px; font-size: 15px; color: var(--text-primary); }
+.card-detail .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px; }
+.card-detail .detail-grid .d-label { color: var(--text-secondary); font-size: 11px; text-transform: uppercase; }
+.card-detail .detail-grid .d-value { color: var(--text-primary); }
+.card-detail .obs-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; }
+.card-detail .obs-table th { text-align: left; padding: 8px 10px; color: var(--text-secondary); font-weight: 500;
+    font-size: 10px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.card-detail .obs-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text-primary); }
+
+/* Section header */
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.section-header h2 { margin: 0; font-size: 18px; color: var(--text-primary); font-weight: 500; }
+
+/* Empty state */
+.empty-state { text-align: center; padding: 60px 20px; color: var(--text-dim); }
+.empty-state p { margin: 0; font-size: 13px; }
+
+/* Operator interaction section */
+.operator-section { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+.operator-section h4 { margin: 0 0 10px; font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Responsive */
+@media (max-width: 900px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .totals-row { grid-template-columns: 1fr; }
+    .obs-row { grid-template-columns: 1fr; }
+    .tally-grid { grid-template-columns: repeat(3, 1fr); }
+    .safety-form { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+{% verbatim %}
+<div class="safety-app">
+    <!-- Header -->
+    <div class="safety-header">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <h1>HIRARC Safety</h1>
+            <span style="font-size:12px;color:var(--text-dim);">Frontier Card Management</span>
+        </div>
+        <div class="meta">
+            <span class="badge-count" id="card-count-badge">0 Cards</span>
+            <span class="badge-count" id="zone-count-badge">0 Zones</span>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="safety-tabs" id="main-tabs">
+        <a class="safety-tab active" href="#/dashboard">Dashboard</a>
+        <a class="safety-tab" href="#/cards">Cards</a>
+        <a class="safety-tab" href="#/schedules">Schedules</a>
+        <a class="safety-tab" href="#/fmea-bridge">FMEA Bridge</a>
+        <a class="safety-tab" href="#/pareto">Pareto</a>
+    </div>
+
+    <!-- ============ DASHBOARD ============ -->
+    <div id="tab-dashboard" class="safety-panel active">
+        <div class="site-filter-bar">
+            <label>Site:</label>
+            <select id="dash-site-filter" onchange="loadDashboard()">
+                <option value="">All Sites</option>
+            </select>
+        </div>
+
+        <div class="kpi-row" id="kpi-row">
+            <div class="kpi-card">
+                <div class="kpi-label">Audit Completion</div>
+                <div class="kpi-value" id="kpi-completion">--</div>
+                <div class="kpi-sub">%</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Hazards This Month</div>
+                <div class="kpi-value" id="kpi-hazards">--</div>
+                <div class="kpi-sub">at-risk observations</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Unprocessed Cards</div>
+                <div class="kpi-value" id="kpi-unprocessed">--</div>
+                <div class="kpi-sub">awaiting FMEA</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Avg Processing Time</div>
+                <div class="kpi-value" id="kpi-avg-time">--</div>
+                <div class="kpi-sub">hours</div>
+            </div>
+        </div>
+
+        <div class="sev-bar-wrap">
+            <h3>Severity Distribution</h3>
+            <div class="sev-bar" id="sev-bar"></div>
+            <div class="sev-legend">
+                <span class="leg-C">Critical</span>
+                <span class="leg-H">High</span>
+                <span class="leg-M">Medium</span>
+                <span class="leg-L">Low</span>
+            </div>
+        </div>
+
+        <div class="totals-row" id="totals-row">
+            <div class="total-card">
+                <div class="total-val" id="total-cards">0</div>
+                <div class="total-lbl">Total Cards</div>
+            </div>
+            <div class="total-card">
+                <div class="total-val" id="total-zones">0</div>
+                <div class="total-lbl">Total Zones</div>
+            </div>
+            <div class="total-card">
+                <div class="total-val" id="total-processed">0</div>
+                <div class="total-lbl">Total Processed</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ CARDS ============ -->
+    <div id="tab-cards" class="safety-panel">
+        <div class="site-filter-bar">
+            <label>Site:</label>
+            <select id="cards-site-filter" onchange="loadCards()">
+                <option value="">All Sites</option>
+            </select>
+            <label style="margin-left:16px;display:flex;align-items:center;gap:6px;font-weight:400;">
+                <input type="checkbox" id="cards-unprocessed-only" onchange="loadCards()" style="accent-color:var(--accent-primary);">
+                Unprocessed only
+            </label>
+            <div style="margin-left:auto;">
+                <button class="btn-s primary" onclick="openCardModal()">Submit Card</button>
+            </div>
+        </div>
+
+        <div class="card-list" id="cards-list">
+            <div class="empty-state"><p>Loading cards...</p></div>
+        </div>
+
+        <div id="card-detail-panel"></div>
+    </div>
+
+    <!-- ============ SCHEDULES ============ -->
+    <div id="tab-schedules" class="safety-panel">
+        <div class="site-filter-bar">
+            <label>Site:</label>
+            <select id="sched-site-filter" onchange="loadSchedules()">
+                <option value="">All Sites</option>
+            </select>
+            <div style="margin-left:auto;">
+                <button class="btn-s primary" onclick="openScheduleModal()">New Schedule</button>
+            </div>
+        </div>
+
+        <div id="schedules-list">
+            <div class="empty-state"><p>Loading schedules...</p></div>
+        </div>
+    </div>
+
+    <!-- ============ FMEA BRIDGE ============ -->
+    <div id="tab-fmea-bridge" class="safety-panel">
+        <div class="section-header">
+            <h2>FMEA Bridge</h2>
+            <span style="font-size:12px;color:var(--text-dim);">Process frontier cards into FMEA rows</span>
+        </div>
+
+        <div id="bridge-list">
+            <div class="empty-state"><p>Loading unprocessed cards...</p></div>
+        </div>
+    </div>
+
+    <!-- ============ PARETO ============ -->
+    <div id="tab-pareto" class="safety-panel">
+        <div class="site-filter-bar">
+            <label>Site:</label>
+            <select id="pareto-site-filter" onchange="loadPareto()">
+                <option value="">All Sites</option>
+            </select>
+        </div>
+
+        <div class="pareto-wrap" id="pareto-chart">
+            <h3>5S Pareto Analysis</h3>
+            <div id="pareto-content">
+                <div class="empty-state"><p>Loading pareto data...</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ SUBMIT CARD MODAL ============ -->
+    <div class="modal-overlay" id="modal-card">
+        <div class="modal">
+            <h3>Submit Frontier Card</h3>
+            <div class="safety-form" id="card-form">
+                <div>
+                    <label>Site</label>
+                    <select id="cf-site" onchange="loadZonesForSite()">
+                        <option value="">Select site...</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Auditor</label>
+                    <select id="cf-auditor">
+                        <option value="">Select auditor...</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Zone</label>
+                    <select id="cf-zone">
+                        <option value="">Select zone...</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Date</label>
+                    <input type="date" id="cf-date">
+                </div>
+
+                <!-- Safety Observations -->
+                <div class="full">
+                    <label>Safety Observations</label>
+                    <div class="obs-list" id="obs-list"></div>
+                    <button class="btn-s outline small" onclick="addObsRow()">+ Add Observation</button>
+                </div>
+
+                <!-- 5S Tallies -->
+                <div class="full">
+                    <label>5S Tallies</label>
+                    <div class="tally-grid">
+                        <div class="tally-cell"><label>Sort</label><input type="number" id="cf-5s-sort" min="0" value="0"></div>
+                        <div class="tally-cell"><label>Set in Order</label><input type="number" id="cf-5s-set" min="0" value="0"></div>
+                        <div class="tally-cell"><label>Shine</label><input type="number" id="cf-5s-shine" min="0" value="0"></div>
+                        <div class="tally-cell"><label>Standardize</label><input type="number" id="cf-5s-std" min="0" value="0"></div>
+                        <div class="tally-cell"><label>Sustain</label><input type="number" id="cf-5s-sus" min="0" value="0"></div>
+                    </div>
+                </div>
+
+                <!-- Operator Interaction -->
+                <div class="full">
+                    <div class="operator-section">
+                        <h4>Operator Interaction</h4>
+                        <div class="safety-form" style="margin-top:8px;">
+                            <div class="full">
+                                <label>Operator Name</label>
+                                <input type="text" id="cf-op-name" placeholder="Name of operator interviewed">
+                            </div>
+                            <div class="full">
+                                <label>Safety Concern</label>
+                                <textarea id="cf-op-concern" rows="2" placeholder="Any safety concerns raised..."></textarea>
+                            </div>
+                            <div class="full">
+                                <label>Improvement Suggestion</label>
+                                <textarea id="cf-op-improvement" rows="2" placeholder="Suggested improvements..."></textarea>
+                            </div>
+                            <div class="full">
+                                <label>Near-Miss Report</label>
+                                <textarea id="cf-op-nearmiss" rows="2" placeholder="Any near-miss incidents..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cross-feed -->
+                <div class="full" style="display:flex;align-items:center;gap:12px;">
+                    <label style="margin:0;display:flex;align-items:center;gap:6px;">
+                        <input type="checkbox" id="cf-crossfeed" style="accent-color:var(--accent-primary);">
+                        Cross-feed to other sites
+                    </label>
+                </div>
+                <div class="full">
+                    <label>Cross-feed Notes</label>
+                    <textarea id="cf-crossfeed-notes" rows="2" placeholder="Cross-feed details..."></textarea>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-s secondary" onclick="closeModal('modal-card')">Cancel</button>
+                <button class="btn-s primary" onclick="submitCard()">Submit Card</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ NEW SCHEDULE MODAL ============ -->
+    <div class="modal-overlay" id="modal-schedule">
+        <div class="modal">
+            <h3>Create Weekly Schedule</h3>
+            <div class="safety-form" id="sched-form">
+                <div>
+                    <label>Site</label>
+                    <select id="sf-site">
+                        <option value="">Select site...</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Week Start Date</label>
+                    <input type="date" id="sf-week-start">
+                </div>
+                <div class="full">
+                    <label>Assignments</label>
+                    <div class="bulk-rows" id="bulk-rows"></div>
+                    <button class="btn-s outline small" onclick="addBulkRow()">+ Add Assignment</button>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-s secondary" onclick="closeModal('modal-schedule')">Cancel</button>
+                <button class="btn-s primary" onclick="submitSchedule()">Create Schedule</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ FMEA PROCESS MODAL ============ -->
+    <div class="modal-overlay" id="modal-fmea">
+        <div class="modal">
+            <h3>Process Card to FMEA</h3>
+            <div id="fmea-modal-body">
+                <div class="safety-form">
+                    <div class="full">
+                        <label>Card Summary</label>
+                        <div id="fmea-card-summary" style="font-size:13px;color:var(--text-primary);padding:8px;background:var(--bg-secondary);border-radius:6px;"></div>
+                    </div>
+                    <div class="full">
+                        <label>Target FMEA</label>
+                        <select id="fmea-target">
+                            <option value="">Select FMEA...</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div id="fmea-result" style="display:none;margin-top:12px;padding:12px;background:rgba(74,159,110,0.1);border-radius:8px;font-size:13px;color:var(--accent-primary);"></div>
+            <div class="modal-actions">
+                <button class="btn-s secondary" onclick="closeModal('modal-fmea')">Cancel</button>
+                <button class="btn-s primary" id="btn-process-fmea" onclick="processFmea()">Process to FMEA</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endverbatim %}
+{% endblock %}
+
+{% block scripts %}
+{% verbatim %}
+<script>
+// ════════════════════════════════════════════════════════════════
+// DATA LAYER
+// ════════════════════════════════════════════════════════════════
+const API = '/api/safety';
+let sitesCache = [];
+let employeesCache = [];
+let currentCardDetailId = null;
+let processingCardId = null;
+
+// ════════════════════════════════════════════════════════════════
+// UTILITIES
+// ════════════════════════════════════════════════════════════════
+function getCookie(name) {
+    const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return v ? v.pop() : '';
+}
+
+async function api(path, opts = {}) {
+    const resp = await fetch(API + path, {
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+        ...opts,
+    });
+    return resp.json();
+}
+
+function esc(s) {
+    if (s == null) return '';
+    const d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+}
+
+function sevClass(sev) {
+    return 'sev-' + (sev || 'L');
+}
+
+function sevLabel(sev) {
+    const map = {C: 'Critical', H: 'High', M: 'Medium', L: 'Low'};
+    return map[sev] || sev || 'Low';
+}
+
+function fmtDate(d) {
+    if (!d) return '--';
+    return d.substring(0, 10);
+}
+
+// ════════════════════════════════════════════════════════════════
+// HASH ROUTER
+// ════════════════════════════════════════════════════════════════
+function navigate(hash) {
+    if (!hash || hash === '#' || hash === '#/') hash = '#/dashboard';
+    const parts = hash.replace('#/', '').split('/');
+    const route = parts[0];
+
+    document.querySelectorAll('.safety-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('#main-tabs .safety-tab').forEach(t => t.classList.remove('active'));
+
+    if (route === 'dashboard') {
+        document.getElementById('tab-dashboard').classList.add('active');
+        document.querySelector('#main-tabs [href="#/dashboard"]').classList.add('active');
+        loadDashboard();
+    } else if (route === 'cards') {
+        document.getElementById('tab-cards').classList.add('active');
+        document.querySelector('#main-tabs [href="#/cards"]').classList.add('active');
+        loadCards();
+    } else if (route === 'schedules') {
+        document.getElementById('tab-schedules').classList.add('active');
+        document.querySelector('#main-tabs [href="#/schedules"]').classList.add('active');
+        loadSchedules();
+    } else if (route === 'fmea-bridge') {
+        document.getElementById('tab-fmea-bridge').classList.add('active');
+        document.querySelector('#main-tabs [href="#/fmea-bridge"]').classList.add('active');
+        loadBridge();
+    } else if (route === 'pareto') {
+        document.getElementById('tab-pareto').classList.add('active');
+        document.querySelector('#main-tabs [href="#/pareto"]').classList.add('active');
+        loadPareto();
+    } else {
+        document.getElementById('tab-dashboard').classList.add('active');
+        document.querySelector('#main-tabs [href="#/dashboard"]').classList.add('active');
+        loadDashboard();
+    }
+}
+
+document.addEventListener('click', function(e) {
+    const link = e.target.closest('a[href^="#/"]');
+    if (link) {
+        e.preventDefault();
+        const href = link.getAttribute('href');
+        if (location.hash !== href) {
+            location.hash = href;
+        } else {
+            navigate(href);
+        }
+    }
+});
+
+window.addEventListener('hashchange', () => navigate(location.hash));
+
+// ════════════════════════════════════════════════════════════════
+// INITIALIZATION
+// ════════════════════════════════════════════════════════════════
+async function init() {
+    try {
+        const [sitesResp, empResp] = await Promise.all([
+            fetch('/api/hoshin/sites/', {headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')}}).then(r => r.json()),
+            fetch('/api/hoshin/employees/', {headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')}}).then(r => r.json()),
+        ]);
+        sitesCache = sitesResp.sites || sitesResp || [];
+        employeesCache = empResp.employees || empResp || [];
+    } catch (e) {
+        console.warn('Failed to load sites/employees:', e);
+        sitesCache = [];
+        employeesCache = [];
+    }
+    populateSiteFilters();
+    populateEmployeeDropdowns();
+    navigate(location.hash || '#/dashboard');
+}
+
+function populateSiteFilters() {
+    const selectors = ['dash-site-filter', 'cards-site-filter', 'sched-site-filter', 'pareto-site-filter', 'cf-site', 'sf-site'];
+    selectors.forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        const current = sel.value;
+        const isForm = (id === 'cf-site' || id === 'sf-site');
+        sel.innerHTML = isForm
+            ? '<option value="">Select site...</option>'
+            : '<option value="">All Sites</option>';
+        sitesCache.forEach(s => {
+            const name = s.name || s.site_name || s;
+            const val = s.id || s.code || name;
+            sel.innerHTML += `<option value="${esc(val)}">${esc(name)}</option>`;
+        });
+        if (current) sel.value = current;
+    });
+}
+
+function populateEmployeeDropdowns() {
+    const sel = document.getElementById('cf-auditor');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Select auditor...</option>';
+    employeesCache.forEach(e => {
+        const name = e.name || (e.first_name + ' ' + e.last_name) || e;
+        const val = e.id || name;
+        sel.innerHTML += `<option value="${esc(val)}">${esc(name)}</option>`;
+    });
+}
+
+// ════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ════════════════════════════════════════════════════════════════
+async function loadDashboard() {
+    const site = document.getElementById('dash-site-filter').value;
+    const qs = site ? '?site=' + encodeURIComponent(site) : '';
+    try {
+        const data = await api('/dashboard/' + qs);
+        document.getElementById('kpi-completion').textContent = data.audit_completion_rate != null ? data.audit_completion_rate.toFixed(1) : '--';
+        document.getElementById('kpi-hazards').textContent = data.hazards_this_month != null ? data.hazards_this_month : '--';
+        document.getElementById('kpi-unprocessed').textContent = data.unprocessed_count != null ? data.unprocessed_count : '--';
+        document.getElementById('kpi-avg-time').textContent = data.avg_processing_hours != null ? data.avg_processing_hours.toFixed(1) : '--';
+
+        // Severity bar
+        const sev = data.severity_distribution || {};
+        const total = (sev.C || 0) + (sev.H || 0) + (sev.M || 0) + (sev.L || 0);
+        if (total > 0) {
+            document.getElementById('sev-bar').innerHTML = ['C','H','M','L'].map(k => {
+                const pct = ((sev[k] || 0) / total * 100);
+                if (pct === 0) return '';
+                return `<div class="seg seg-${k}" style="width:${pct}%">${sev[k]}</div>`;
+            }).join('');
+        } else {
+            document.getElementById('sev-bar').innerHTML = '<div style="width:100%;text-align:center;font-size:12px;color:var(--text-dim);line-height:28px;">No data</div>';
+        }
+
+        // Totals
+        document.getElementById('total-cards').textContent = data.total_cards || 0;
+        document.getElementById('total-zones').textContent = data.total_zones || 0;
+        document.getElementById('total-processed').textContent = data.total_processed || 0;
+
+        // Update badges
+        document.getElementById('card-count-badge').textContent = (data.total_cards || 0) + ' Cards';
+        document.getElementById('zone-count-badge').textContent = (data.total_zones || 0) + ' Zones';
+    } catch (e) {
+        console.error('Dashboard load failed:', e);
+    }
+}
+
+// ════════════════════════════════════════════════════════════════
+// CARDS
+// ════════════════════════════════════════════════════════════════
+async function loadCards() {
+    const site = document.getElementById('cards-site-filter').value;
+    const unprocessed = document.getElementById('cards-unprocessed-only').checked;
+    let qs = [];
+    if (site) qs.push('site=' + encodeURIComponent(site));
+    if (unprocessed) qs.push('unprocessed=true');
+    const query = qs.length ? '?' + qs.join('&') : '';
+
+    try {
+        const data = await api('/cards/' + query);
+        const cards = data.cards || data.results || data || [];
+        const container = document.getElementById('cards-list');
+
+        if (!Array.isArray(cards) || cards.length === 0) {
+            container.innerHTML = '<div class="empty-state"><p>No frontier cards found.</p></div>';
+            return;
+        }
+
+        container.innerHTML = cards.map(c => {
+            const highSev = c.highest_severity || c.max_severity || 'L';
+            const processed = c.processed || c.is_processed;
+            const atRisk = c.at_risk_count || 0;
+            return `<div class="card-item" onclick="showCardDetail(${esc(c.id)})">
+                <span class="card-auditor">${esc(c.auditor_name || c.auditor || '--')}</span>
+                <span class="card-zone">${esc(c.zone_name || c.zone || '--')}</span>
+                <span class="card-date">${esc(fmtDate(c.date || c.created_at))}</span>
+                <span class="card-count">${atRisk} at-risk</span>
+                <span class="sev-badge ${sevClass(highSev)}">${esc(highSev)}</span>
+                <span class="status-badge ${processed ? 'status-processed' : 'status-unprocessed'}">${processed ? 'Processed' : 'Unprocessed'}</span>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        console.error('Cards load failed:', e);
+        document.getElementById('cards-list').innerHTML = '<div class="empty-state"><p>Failed to load cards.</p></div>';
+    }
+}
+
+async function showCardDetail(cardId) {
+    currentCardDetailId = cardId;
+    try {
+        const data = await api('/cards/' + cardId + '/');
+        const panel = document.getElementById('card-detail-panel');
+        const c = data;
+        const obs = c.observations || [];
+        const tallies = c.five_s_tallies || c.tallies || {};
+        const op = c.operator_interaction || {};
+
+        let obsRows = obs.map(o => `<tr>
+            <td>${esc(o.category)}</td>
+            <td>${esc(o.item)}</td>
+            <td>${o.at_risk ? '<span class="sev-badge sev-H">At Risk</span>' : 'Safe'}</td>
+            <td><span class="sev-badge ${sevClass(o.severity)}">${esc(o.severity)}</span></td>
+            <td>${esc(o.notes || '')}</td>
+        </tr>`).join('');
+
+        panel.innerHTML = `<div class="card-detail">
+            <h3>Card Detail — ${esc(c.auditor_name || c.auditor || 'Unknown')}</h3>
+            <div class="detail-grid">
+                <div><span class="d-label">Zone</span><div class="d-value">${esc(c.zone_name || c.zone)}</div></div>
+                <div><span class="d-label">Date</span><div class="d-value">${esc(fmtDate(c.date || c.created_at))}</div></div>
+                <div><span class="d-label">Site</span><div class="d-value">${esc(c.site_name || c.site || '--')}</div></div>
+                <div><span class="d-label">Status</span><div class="d-value">${c.processed ? 'Processed' : 'Unprocessed'}</div></div>
+            </div>
+            ${obs.length ? `<table class="obs-table">
+                <thead><tr><th>Category</th><th>Item</th><th>Risk</th><th>Severity</th><th>Notes</th></tr></thead>
+                <tbody>${obsRows}</tbody>
+            </table>` : '<p style="color:var(--text-dim);font-size:12px;margin-top:12px;">No observations recorded.</p>'}
+            ${tallies ? `<div style="margin-top:16px;">
+                <span class="d-label">5S Tallies</span>
+                <div class="tally-grid" style="margin-top:6px;">
+                    <div class="tally-cell"><label>Sort</label><div style="font-size:18px;font-weight:600;color:var(--text-primary);">${tallies.sort || 0}</div></div>
+                    <div class="tally-cell"><label>Set in Order</label><div style="font-size:18px;font-weight:600;color:var(--text-primary);">${tallies.set_in_order || 0}</div></div>
+                    <div class="tally-cell"><label>Shine</label><div style="font-size:18px;font-weight:600;color:var(--text-primary);">${tallies.shine || 0}</div></div>
+                    <div class="tally-cell"><label>Standardize</label><div style="font-size:18px;font-weight:600;color:var(--text-primary);">${tallies.standardize || 0}</div></div>
+                    <div class="tally-cell"><label>Sustain</label><div style="font-size:18px;font-weight:600;color:var(--text-primary);">${tallies.sustain || 0}</div></div>
+                </div>
+            </div>` : ''}
+            ${op.name ? `<div class="operator-section" style="margin-top:16px;">
+                <h4>Operator: ${esc(op.name)}</h4>
+                ${op.concern ? `<p style="font-size:12px;color:var(--text-secondary);"><strong>Concern:</strong> ${esc(op.concern)}</p>` : ''}
+                ${op.improvement ? `<p style="font-size:12px;color:var(--text-secondary);"><strong>Improvement:</strong> ${esc(op.improvement)}</p>` : ''}
+                ${op.near_miss ? `<p style="font-size:12px;color:var(--text-secondary);"><strong>Near-Miss:</strong> ${esc(op.near_miss)}</p>` : ''}
+            </div>` : ''}
+            ${c.cross_feed ? `<p style="font-size:12px;color:var(--accent-primary);margin-top:12px;">Cross-feed: ${esc(c.cross_feed_notes || 'Yes')}</p>` : ''}
+        </div>`;
+    } catch (e) {
+        console.error('Card detail load failed:', e);
+    }
+}
+
+// ════════════════════════════════════════════════════════════════
+// CARD SUBMISSION
+// ════════════════════════════════════════════════════════════════
+let obsCounter = 0;
+
+function openCardModal() {
+    document.getElementById('modal-card').classList.add('open');
+    document.getElementById('cf-date').value = new Date().toISOString().split('T')[0];
+    if (document.getElementById('obs-list').children.length === 0) {
+        addObsRow();
+    }
+}
+
+function addObsRow() {
+    obsCounter++;
+    const id = obsCounter;
+    const row = document.createElement('div');
+    row.className = 'obs-row';
+    row.id = 'obs-' + id;
+    row.innerHTML = `
+        <select data-field="category">
+            <option value="">Category...</option>
+            <option value="Body Position">Body Position</option>
+            <option value="PPE">PPE</option>
+            <option value="Housekeeping">Housekeeping</option>
+            <option value="Energy Control">Energy Control</option>
+            <option value="Chemical">Chemical</option>
+            <option value="Tools">Tools</option>
+        </select>
+        <input type="text" data-field="item" placeholder="Observation item...">
+        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-secondary);white-space:nowrap;">
+            <input type="checkbox" data-field="at_risk" style="accent-color:var(--error);"> Risk
+        </label>
+        <select data-field="severity">
+            <option value="L">L</option>
+            <option value="M">M</option>
+            <option value="H">H</option>
+            <option value="C">C</option>
+        </select>
+        <input type="text" data-field="notes" placeholder="Notes...">
+        <button class="obs-remove" onclick="this.closest('.obs-row').remove()">x</button>
+    `;
+    document.getElementById('obs-list').appendChild(row);
+}
+
+function collectObservations() {
+    const rows = document.querySelectorAll('#obs-list .obs-row');
+    const obs = [];
+    rows.forEach(row => {
+        const cat = row.querySelector('[data-field="category"]').value;
+        const item = row.querySelector('[data-field="item"]').value;
+        if (!cat && !item) return;
+        obs.push({
+            category: cat,
+            item: item,
+            at_risk: row.querySelector('[data-field="at_risk"]').checked,
+            severity: row.querySelector('[data-field="severity"]').value,
+            notes: row.querySelector('[data-field="notes"]').value,
+        });
+    });
+    return obs;
+}
+
+async function submitCard() {
+    const payload = {
+        site: document.getElementById('cf-site').value,
+        auditor: document.getElementById('cf-auditor').value,
+        zone: document.getElementById('cf-zone').value,
+        date: document.getElementById('cf-date').value,
+        observations: collectObservations(),
+        five_s_tallies: {
+            sort: parseInt(document.getElementById('cf-5s-sort').value) || 0,
+            set_in_order: parseInt(document.getElementById('cf-5s-set').value) || 0,
+            shine: parseInt(document.getElementById('cf-5s-shine').value) || 0,
+            standardize: parseInt(document.getElementById('cf-5s-std').value) || 0,
+            sustain: parseInt(document.getElementById('cf-5s-sus').value) || 0,
+        },
+        operator_interaction: {
+            name: document.getElementById('cf-op-name').value,
+            concern: document.getElementById('cf-op-concern').value,
+            improvement: document.getElementById('cf-op-improvement').value,
+            near_miss: document.getElementById('cf-op-nearmiss').value,
+        },
+        cross_feed: document.getElementById('cf-crossfeed').checked,
+        cross_feed_notes: document.getElementById('cf-crossfeed-notes').value,
+    };
+
+    try {
+        const result = await api('/cards/', {method: 'POST', body: JSON.stringify(payload)});
+        if (result.error) {
+            alert('Error: ' + (result.message || result.error));
+            return;
+        }
+        closeModal('modal-card');
+        loadCards();
+    } catch (e) {
+        alert('Failed to submit card: ' + e.message);
+    }
+}
+
+async function loadZonesForSite() {
+    const site = document.getElementById('cf-site').value;
+    const sel = document.getElementById('cf-zone');
+    sel.innerHTML = '<option value="">Select zone...</option>';
+    if (!site) return;
+    try {
+        const data = await api('/zones/?site=' + encodeURIComponent(site));
+        const zones = data.zones || data || [];
+        zones.forEach(z => {
+            const name = z.name || z.zone_name || z;
+            const val = z.id || name;
+            sel.innerHTML += `<option value="${esc(val)}">${esc(name)}</option>`;
+        });
+    } catch (e) {
+        console.warn('Failed to load zones:', e);
+    }
+}
+
+// ════════════════════════════════════════════════════════════════
+// SCHEDULES
+// ════════════════════════════════════════════════════════════════
+async function loadSchedules() {
+    const site = document.getElementById('sched-site-filter').value;
+    const qs = site ? '?site=' + encodeURIComponent(site) : '';
+    try {
+        const data = await api('/schedules/' + qs);
+        const schedules = data.schedules || data.results || data || [];
+        const container = document.getElementById('schedules-list');
+
+        if (!Array.isArray(schedules) || schedules.length === 0) {
+            container.innerHTML = '<div class="empty-state"><p>No schedules found.</p></div>';
+            return;
+        }
+
+        container.innerHTML = schedules.map(s => {
+            const rate = s.completion_rate != null ? s.completion_rate : 0;
+            const colorClass = rate >= 95 ? 'green' : rate >= 80 ? 'amber' : 'red';
+            const assignments = s.assignments || [];
+
+            return `<div style="margin-bottom:24px;">
+                <div class="schedule-header">
+                    <h2>Week of ${esc(fmtDate(s.week_start))}</h2>
+                    <span style="font-size:12px;color:var(--text-dim);">${esc(s.site_name || s.site || '')}</span>
+                </div>
+                <div class="progress-wrap">
+                    <div class="progress-bar">
+                        <div class="progress-fill ${colorClass}" style="width:${rate}%"></div>
+                    </div>
+                    <span class="progress-pct" style="color:var(--${colorClass === 'green' ? 'accent-primary' : colorClass === 'amber' ? 'warning' : 'error'});">${rate.toFixed(1)}%</span>
+                    <span style="font-size:12px;color:var(--text-dim);">completion</span>
+                </div>
+                <div class="assign-list">
+                    ${assignments.map(a => `<div class="assign-row">
+                        <span class="assign-auditor">${esc(a.auditor_name || a.auditor || '--')}</span>
+                        <span class="assign-zone">${esc(a.zone_name || a.zone || '--')}</span>
+                        <span class="assign-date">${esc(fmtDate(a.target_date || a.date))}</span>
+                        <span class="assign-status">
+                            <span class="status-badge status-${a.status || 'assigned'}">${esc(a.status || 'assigned')}</span>
+                        </span>
+                    </div>`).join('')}
+                    ${assignments.length === 0 ? '<div style="font-size:12px;color:var(--text-dim);padding:8px;">No assignments.</div>' : ''}
+                </div>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        console.error('Schedules load failed:', e);
+        document.getElementById('schedules-list').innerHTML = '<div class="empty-state"><p>Failed to load schedules.</p></div>';
+    }
+}
+
+function openScheduleModal() {
+    document.getElementById('modal-schedule').classList.add('open');
+    const today = new Date();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - today.getDay() + 1);
+    document.getElementById('sf-week-start').value = monday.toISOString().split('T')[0];
+    if (document.getElementById('bulk-rows').children.length === 0) {
+        addBulkRow();
+    }
+}
+
+let bulkCounter = 0;
+function addBulkRow() {
+    bulkCounter++;
+    const row = document.createElement('div');
+    row.className = 'bulk-row';
+    row.innerHTML = `
+        <select data-field="auditor">
+            <option value="">Auditor...</option>
+            ${employeesCache.map(e => {
+                const name = e.name || (e.first_name + ' ' + e.last_name) || e;
+                const val = e.id || name;
+                return `<option value="${esc(val)}">${esc(name)}</option>`;
+            }).join('')}
+        </select>
+        <select data-field="zone">
+            <option value="">Zone...</option>
+        </select>
+        <input type="date" data-field="date">
+        <button class="obs-remove" onclick="this.closest('.bulk-row').remove()">x</button>
+    `;
+    document.getElementById('bulk-rows').appendChild(row);
+}
+
+async function submitSchedule() {
+    const rows = document.querySelectorAll('#bulk-rows .bulk-row');
+    const assignments = [];
+    rows.forEach(row => {
+        const auditor = row.querySelector('[data-field="auditor"]').value;
+        const zone = row.querySelector('[data-field="zone"]').value;
+        const date = row.querySelector('[data-field="date"]').value;
+        if (auditor || zone) {
+            assignments.push({auditor, zone, target_date: date});
+        }
+    });
+
+    const payload = {
+        site: document.getElementById('sf-site').value,
+        week_start: document.getElementById('sf-week-start').value,
+        assignments: assignments,
+    };
+
+    try {
+        const result = await api('/schedules/', {method: 'POST', body: JSON.stringify(payload)});
+        if (result.error) {
+            alert('Error: ' + (result.message || result.error));
+            return;
+        }
+        closeModal('modal-schedule');
+        loadSchedules();
+    } catch (e) {
+        alert('Failed to create schedule: ' + e.message);
+    }
+}
+
+// ════════════════════════════════════════════════════════════════
+// FMEA BRIDGE
+// ════════════════════════════════════════════════════════════════
+async function loadBridge() {
+    try {
+        const data = await api('/cards/?unprocessed=true');
+        const cards = data.cards || data.results || data || [];
+        const container = document.getElementById('bridge-list');
+
+        if (!Array.isArray(cards) || cards.length === 0) {
+            container.innerHTML = '<div class="empty-state"><p>All cards have been processed. No pending FMEA entries.</p></div>';
+            return;
+        }
+
+        container.innerHTML = cards.map(c => {
+            const highSev = c.highest_severity || c.max_severity || 'L';
+            const atRisk = c.at_risk_count || 0;
+            return `<div class="bridge-card">
+                <div class="bridge-info">
+                    <div class="bridge-title">${esc(c.auditor_name || c.auditor || 'Unknown')} — ${esc(c.zone_name || c.zone || '--')}</div>
+                    <div class="bridge-meta">${esc(fmtDate(c.date || c.created_at))} | ${atRisk} at-risk | <span class="sev-badge ${sevClass(highSev)}">${esc(highSev)}</span></div>
+                </div>
+                <button class="btn-s primary small" onclick="openFmeaModal(${c.id}, '${esc(c.auditor_name || c.auditor || '')}', '${esc(c.zone_name || c.zone || '')}', '${esc(fmtDate(c.date || c.created_at))}', ${atRisk})">Process to FMEA</button>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        console.error('Bridge load failed:', e);
+        document.getElementById('bridge-list').innerHTML = '<div class="empty-state"><p>Failed to load unprocessed cards.</p></div>';
+    }
+}
+
+async function openFmeaModal(cardId, auditor, zone, date, atRisk) {
+    processingCardId = cardId;
+    document.getElementById('fmea-card-summary').innerHTML =
+        `<strong>${esc(auditor)}</strong> — ${esc(zone)} (${esc(date)}) | ${atRisk} at-risk observations`;
+    document.getElementById('fmea-result').style.display = 'none';
+    document.getElementById('btn-process-fmea').disabled = false;
+
+    // Load FMEA list
+    const sel = document.getElementById('fmea-target');
+    sel.innerHTML = '<option value="">Loading FMEAs...</option>';
+    try {
+        const resp = await fetch('/api/fmea/', {headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')}});
+        const data = await resp.json();
+        const fmeas = data.fmeas || data.results || data || [];
+        sel.innerHTML = '<option value="">Select FMEA...</option>';
+        fmeas.forEach(f => {
+            const name = f.name || f.title || f.project_name || ('FMEA #' + f.id);
+            sel.innerHTML += `<option value="${esc(f.id)}">${esc(name)}</option>`;
+        });
+    } catch (e) {
+        sel.innerHTML = '<option value="">Failed to load FMEAs</option>';
+    }
+
+    document.getElementById('modal-fmea').classList.add('open');
+}
+
+async function processFmea() {
+    const fmeaId = document.getElementById('fmea-target').value;
+    if (!fmeaId) {
+        alert('Please select a target FMEA.');
+        return;
+    }
+    document.getElementById('btn-process-fmea').disabled = true;
+
+    try {
+        const result = await api('/cards/' + processingCardId + '/process/', {
+            method: 'POST',
+            body: JSON.stringify({fmea_id: fmeaId}),
+        });
+
+        if (result.error) {
+            alert('Error: ' + (result.message || result.error));
+            document.getElementById('btn-process-fmea').disabled = false;
+            return;
+        }
+
+        const resEl = document.getElementById('fmea-result');
+        resEl.style.display = 'block';
+        resEl.textContent = 'Successfully created ' + (result.rows_created || 0) + ' FMEA row(s) from this card.';
+
+        setTimeout(() => {
+            closeModal('modal-fmea');
+            loadBridge();
+        }, 2000);
+    } catch (e) {
+        alert('Failed to process card: ' + e.message);
+        document.getElementById('btn-process-fmea').disabled = false;
+    }
+}
+
+// ════════════════════════════════════════════════════════════════
+// PARETO
+// ════════════════════════════════════════════════════════════════
+async function loadPareto() {
+    const site = document.getElementById('pareto-site-filter').value;
+    const qs = site ? '?site=' + encodeURIComponent(site) : '';
+    try {
+        const data = await api('/pareto/' + qs);
+        const content = document.getElementById('pareto-content');
+
+        if (data.insufficient_data) {
+            content.innerHTML = `<div class="empty-state">
+                <p>Insufficient data for Pareto analysis.</p>
+                <p style="margin-top:8px;font-size:12px;">${data.card_count || 0} cards submitted. Minimum ${data.minimum_required || 10} required.</p>
+            </div>`;
+            return;
+        }
+
+        const items = data.categories || data.items || [];
+        const grandTotal = data.grand_total || items.reduce((s, i) => s + (i.count || 0), 0) || 1;
+        const maxCount = Math.max(...items.map(i => i.count || 0), 1);
+
+        let cumPct = 0;
+        let barsHtml = items.map(item => {
+            const pct = (item.count || 0) / grandTotal * 100;
+            cumPct += pct;
+            const barWidth = (item.count || 0) / maxCount * 100;
+            return `<div class="pareto-bar-row">
+                <span class="pareto-label">${esc(item.category || item.name || item.label)}</span>
+                <div class="pareto-bar-track">
+                    <div class="pareto-bar-fill" style="width:${barWidth}%">${item.count}</div>
+                </div>
+                <span style="font-size:11px;color:var(--text-dim);min-width:50px;text-align:right;">${pct.toFixed(1)}%</span>
+                <span style="font-size:11px;color:var(--warning);min-width:55px;text-align:right;">${cumPct.toFixed(1)}%</span>
+            </div>`;
+        }).join('');
+
+        content.innerHTML = `
+            <div style="display:flex;gap:16px;margin-bottom:12px;font-size:11px;color:var(--text-dim);">
+                <span>Category</span>
+                <span style="margin-left:auto;">Frequency</span>
+                <span style="min-width:50px;text-align:right;">%</span>
+                <span style="min-width:55px;text-align:right;">Cum %</span>
+            </div>
+            ${barsHtml}
+            <div class="pareto-total">Grand Total: ${grandTotal} observations across ${data.card_count || '--'} cards</div>
+        `;
+    } catch (e) {
+        console.error('Pareto load failed:', e);
+        document.getElementById('pareto-content').innerHTML = '<div class="empty-state"><p>Failed to load pareto data.</p></div>';
+    }
+}
+
+// ════════════════════════════════════════════════════════════════
+// BOOT
+// ════════════════════════════════════════════════════════════════
+init();
+</script>
+{% endverbatim %}
+{% endblock %}

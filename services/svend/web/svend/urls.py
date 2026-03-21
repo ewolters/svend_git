@@ -159,6 +159,7 @@ urlpatterns = [
     # path("app/knowledge/", TemplateView.as_view(template_name="knowledge.html"), name="knowledge"),  # Disabled - prototype only
     path("app/experimenter/", TemplateView.as_view(template_name="experimenter.html"), name="experimenter"),
     path("app/spc/", RedirectView.as_view(url="/app/dsw/", permanent=True), name="spc"),
+    path("app/safety/", TemplateView.as_view(template_name="safety_app.html"), name="safety_app"),
     # path("app/coder/", TemplateView.as_view(template_name="coder.html"), name="coder"),  # Temporarily disabled
     path("app/a3/", TemplateView.as_view(template_name="a3.html"), name="a3"),
     path("app/a3/<uuid:report_id>/", TemplateView.as_view(template_name="a3.html"), name="a3_edit"),

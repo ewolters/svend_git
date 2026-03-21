@@ -460,13 +460,13 @@ def process_card_to_fmea(card, fmea, user):
             fmea=fmea,
             process_step=f"[{card.zone.name}] {category}",
             failure_mode=item,
-            failure_effect=notes or "At-risk condition observed during Frontier audit",
+            effect=notes or "At-risk condition observed during Frontier audit",
             severity=severity,
             occurrence=5,  # Default — refined during weekly FMEA review
             detection=5,  # Default — refined during weekly FMEA review
             current_controls=f"Frontier Card audit ({card.audit_date})",
             recommended_action="Review and assign control per hierarchy (HIRARC-STD-001 §4.2.3)",
-            responsible=card.auditor.name,
+            action_owner=card.auditor.name,
         )
         created_ids.append(str(row.id))
 
@@ -476,13 +476,13 @@ def process_card_to_fmea(card, fmea, user):
             fmea=fmea,
             process_step=f"[{card.zone.name}] 5S Cross-feed",
             failure_mode="5S deficiency with safety consequence",
-            failure_effect=card.crossfeed_notes,
+            effect=card.crossfeed_notes,
             severity=6,  # Medium default for cross-feed
             occurrence=5,
             detection=5,
             current_controls="5S audit + cross-feed to FMEA",
             recommended_action="Address 5S root cause + implement safety control",
-            responsible=card.auditor.name,
+            action_owner=card.auditor.name,
         )
         created_ids.append(str(row.id))
 
