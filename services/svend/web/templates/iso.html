@@ -1334,16 +1334,35 @@ async function saveChecklistResults(auditId, clId, count) {
 }
 
 async function loadChecklistOptions() {
+    const sel = document.getElementById('checklist-select');
+    if (!sel) return;
     try {
-        const cls = await apiFetch('/checklists/');
-        const sel = document.getElementById('checklist-select');
-        if (!sel) return;
-        cls.forEach(c => {
-            const opt = document.createElement('option');
-            opt.value = c.id;
-            opt.textContent = c.name + (c.iso_clause ? ` (${c.iso_clause})` : '');
-            sel.appendChild(opt);
-        });
+        // Load universal checklists (v2) — prefer these
+        const v2 = await apiFetch('/checklists-v2/').catch(() => []);
+        if (v2.length) {
+            const grp = document.createElement('optgroup');
+            grp.label = 'Checklists';
+            v2.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name + (c.category ? ` [${c.category}]` : '');
+                grp.appendChild(opt);
+            });
+            sel.appendChild(grp);
+        }
+        // Load legacy audit checklists for backward compat
+        const legacy = await apiFetch('/checklists/').catch(() => []);
+        if (legacy.length) {
+            const grp = document.createElement('optgroup');
+            grp.label = 'Legacy Audit Checklists';
+            legacy.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name + (c.iso_clause ? ` (${c.iso_clause})` : '');
+                grp.appendChild(opt);
+            });
+            sel.appendChild(grp);
+        }
     } catch (e) { /* silent */ }
 }
 

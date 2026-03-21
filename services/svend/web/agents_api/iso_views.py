@@ -1182,28 +1182,58 @@ def audit_apply_checklist(request, audit_id):
     if not checklist_id:
         return JsonResponse({"error": "checklist_id required"}, status=400)
 
+    # Try universal Checklist first, fall back to legacy AuditChecklist
+    checklist = None
+    checklist_name = ""
+    checklist_items = []
+    checklist_clause = ""
     try:
-        checklist = AuditChecklist.objects.get(id=checklist_id, owner=request.user)
-    except AuditChecklist.DoesNotExist:
-        return JsonResponse({"error": "Checklist not found"}, status=404)
+        cl = Checklist.objects.get(id=checklist_id, owner=request.user)
+        checklist = cl
+        checklist_name = cl.name
+        checklist_items = cl.items or []
+        checklist_clause = cl.category
+    except Checklist.DoesNotExist:
+        try:
+            legacy = AuditChecklist.objects.get(id=checklist_id, owner=request.user)
+            checklist_name = legacy.name
+            checklist_items = legacy.check_items or []
+            checklist_clause = legacy.iso_clause
+        except AuditChecklist.DoesNotExist:
+            return JsonResponse({"error": "Checklist not found"}, status=404)
 
     results = data.get("results")
     if results is not None:
-        # Save execution results
+        # Save execution results — also create ChecklistExecution if universal checklist
         existing = audit.checklist_results or {}
         existing[str(checklist_id)] = {
-            "checklist_name": checklist.name,
-            "iso_clause": checklist.iso_clause,
+            "checklist_name": checklist_name,
+            "iso_clause": checklist_clause,
             "items": results,
             "completed_at": timezone.now().isoformat(),
         }
         audit.checklist_results = existing
         audit.save(update_fields=["checklist_results"])
-        return JsonResponse({"ok": True, "checklist_name": checklist.name})
+
+        # Mirror to ChecklistExecution for universal checklists
+        if checklist:
+            exec_obj, _ = ChecklistExecution.objects.update_or_create(
+                checklist=checklist,
+                entity_type="audit",
+                entity_id=audit.id,
+                defaults={
+                    "executor": request.user,
+                    "responses": [{"value": r.get("result"), "notes": r.get("notes", "")} for r in results],
+                    "status": "complete",
+                    "completed_at": timezone.now(),
+                },
+            )
+
+        return JsonResponse({"ok": True, "checklist_name": checklist_name})
 
     # Return checklist items for execution (with any existing results)
     existing = (audit.checklist_results or {}).get(str(checklist_id), {})
-    items = checklist.check_items or []
+    items = checklist_items
     existing_items = existing.get("items", [])
 
     # Merge: overlay existing results onto template

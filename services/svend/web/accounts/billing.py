@@ -24,8 +24,9 @@ from .models import Subscription, User
 
 logger = logging.getLogger(__name__)
 
-# Initialize Stripe
+# Initialize Stripe — pin API version to prevent silent field renames (see 2026-03-20 incident)
 stripe.api_key = settings.STRIPE_SECRET_KEY
+stripe.api_version = "2025-12-15.clover"
 
 # Price ID to Tier mapping (includes legacy + all regional prices)
 PRICE_TO_TIER = {
