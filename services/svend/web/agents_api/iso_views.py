@@ -72,6 +72,17 @@ def _parse_date(val):
         return None
 
 
+def _parse_json_body(request):
+    """Safely parse JSON request body, returning (data, error_response).
+
+    Returns (dict, None) on success, (None, JsonResponse) on failure.
+    """
+    try:
+        return json.loads(request.body) if request.body else {}, None
+    except (json.JSONDecodeError, ValueError):
+        return None, JsonResponse({"error": "Invalid JSON in request body"}, status=400)
+
+
 def _log_field_changes(record_type, record_id, record, data, fields, user):
     """Log field-level changes for any QMS record.
 
@@ -297,6 +308,16 @@ def iso_dashboard(request):
         status="in_service",
     ).count()
 
+    # ---- AFE KPIs ----
+    afes_qs = AFE.objects.filter(owner=user)
+    afes_pending = afes_qs.filter(status__in=["submitted", "in_review"]).count()
+    afes_approved = afes_qs.filter(status="approved").count()
+
+    # ---- Checklist Execution KPIs ----
+    cl_execs = ChecklistExecution.objects.filter(executor=user)
+    cl_in_progress = cl_execs.filter(status="in_progress").count()
+    cl_complete = cl_execs.filter(status="complete").count()
+
     # ---- Clause coverage ----
     # Determine which clauses have active records (NCRs, audits, training, docs, reviews)
     active_clauses = set()
@@ -388,6 +409,14 @@ def iso_dashboard(request):
             },
             "warnings": {
                 "major_findings_no_ncr": major_findings_no_ncr,
+            },
+            "afes": {
+                "pending": afes_pending,
+                "approved": afes_approved,
+            },
+            "checklists": {
+                "in_progress": cl_in_progress,
+                "complete": cl_complete,
             },
         }
     )

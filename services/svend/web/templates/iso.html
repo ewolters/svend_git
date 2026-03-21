@@ -386,6 +386,16 @@ async function loadDashboard() {
         html += `<div class="iso-kpi ${evalOver > 0 ? 'warn' : ''}" onclick="navigate('suppliers')">
             <div class="label">Suppliers</div><div class="value">${d.suppliers?.approved || 0}</div>
             <div class="sub">${evalOver} eval${evalOver !== 1 ? 's' : ''} overdue</div></div>`;
+
+        const afePending = d.afes?.pending || 0;
+        html += `<div class="iso-kpi ${afePending > 0 ? 'warn' : ''}" onclick="navigate('afes')">
+            <div class="label">AFEs</div><div class="value">${afePending}</div>
+            <div class="sub">${d.afes?.approved || 0} approved</div></div>`;
+
+        const clInProg = d.checklists?.in_progress || 0;
+        html += `<div class="iso-kpi ${clInProg > 0 ? 'warn' : ''}" onclick="navigate('checklists')">
+            <div class="label">Checklists</div><div class="value">${clInProg}</div>
+            <div class="sub">${d.checklists?.complete || 0} complete</div></div>`;
         html += '</div>';
 
         // NCR severity breakdown + trend
@@ -3655,10 +3665,29 @@ async function loadAFEDetail(id) {
 
         // Links
         html += '<div style="margin-top:12px;font-size:12px;color:var(--text-dim)">';
-        if (a.risk_id) html += `Risk: ${a.risk_id} &nbsp;`;
-        if (a.fmea_id) html += `FMEA: ${a.fmea_id} &nbsp;`;
+        if (a.risk_id) html += `<span onclick="navigate('risks');setTimeout(()=>loadRiskDetail('${a.risk_id}'),200)" style="cursor:pointer;color:var(--accent)">Risk &rarr;</span> &nbsp;`;
+        if (a.fmea_id) html += `<a href="/app/fmea/?id=${a.fmea_id}" style="color:var(--accent)">FMEA &rarr;</a> &nbsp;`;
         if (a.hoshin_project_id) html += `Hoshin: ${a.hoshin_project_id}`;
         html += '</div>';
+
+        // Checklist execution progress (if checklist attached)
+        if (a.checklist_id) {
+            html += `<div id="afe-checklist-progress" style="margin-top:8px;font-size:12px;color:var(--text-dim)">Loading checklist...</div>`;
+            apiFetch(`/checklists-v2/executions/?entity_type=afe&entity_id=${a.id}`).then(execs => {
+                const el2 = document.getElementById('afe-checklist-progress');
+                if (!el2) return;
+                if (execs.length) {
+                    const e = execs[0];
+                    const color = e.status === 'complete' ? '#4ade80' : e.status === 'in_progress' ? '#facc15' : 'var(--text-dim)';
+                    el2.innerHTML = `<div style="padding:8px 10px;border:1px solid ${color};border-radius:6px;background:var(--card-bg)">
+                        <strong>${escHtml(e.checklist_name)}</strong> — <span style="color:${color}">${e.status.replace(/_/g,' ')}</span>
+                        (${e.progress}% | ${e.pass_count} pass, ${e.fail_count} fail)
+                    </div>`;
+                } else {
+                    el2.innerHTML = '<div style="font-size:11px">Pre-approval checklist not yet started</div>';
+                }
+            }).catch(() => {});
+        }
 
         el.innerHTML = html;
     } catch (e) { el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Error'))}</div>`; }
@@ -3669,26 +3698,44 @@ async function submitAFE(id) {
     catch (e) { toast(safeStr(e, 'Error'), true); }
 }
 
-async function approveAFE(id) {
-    const comments = prompt('Comments (optional):') || '';
-    const password = prompt('Enter password for electronic signature:');
-    if (!password) return;
+function showAFESignModal(id, action) {
+    const isApprove = action === 'approve';
+    const el = document.getElementById('panel-afes');
+    const existing = document.getElementById('afe-sign-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'afe-sign-modal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000';
+    modal.innerHTML = `<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:400px;width:100%">
+        <h3 style="margin:0 0 16px;font-size:16px">${isApprove ? 'Approve' : 'Deny'} AFE</h3>
+        <div style="margin-bottom:12px"><label class="iso-label">${isApprove ? 'Comments (optional)' : 'Reason for denial *'}</label>
+            <textarea class="iso-textarea" id="afe-sign-comments" rows="2" placeholder="${isApprove ? 'Optional comments' : 'Required — explain reason'}"></textarea></div>
+        <div style="margin-bottom:16px"><label class="iso-label">Password (electronic signature)</label>
+            <input class="iso-input" type="password" id="afe-sign-password" placeholder="Enter your password"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button class="iso-btn" onclick="document.getElementById('afe-sign-modal').remove()">Cancel</button>
+            <button class="iso-btn ${isApprove ? 'primary' : ''}" style="${isApprove ? '' : 'color:#f87171'}" onclick="submitAFESign('${id}','${action}')">${isApprove ? 'Approve' : 'Deny'}</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('afe-sign-password').focus();
+}
+
+async function submitAFESign(id, action) {
+    const comments = document.getElementById('afe-sign-comments').value;
+    const password = document.getElementById('afe-sign-password').value;
+    if (action === 'deny' && !comments.trim()) { toast('Reason required for denial', true); return; }
+    if (!password) { toast('Password required for electronic signature', true); return; }
+    document.getElementById('afe-sign-modal').remove();
     try {
-        await apiFetch(`/afes/${id}/approve/`, { method: 'POST', body: { action: 'approve', comments, password } });
-        toast('Level approved'); loadAFEDetail(id);
+        await apiFetch(`/afes/${id}/approve/`, { method: 'POST', body: { action, comments, password } });
+        toast(action === 'approve' ? 'Level approved' : 'AFE denied');
+        loadAFEDetail(id);
     } catch (e) { toast(safeStr(e, 'Error'), true); }
 }
 
-async function denyAFE(id) {
-    const comments = prompt('Reason for denial:');
-    if (!comments) return toast('Reason required', true);
-    const password = prompt('Enter password for electronic signature:');
-    if (!password) return;
-    try {
-        await apiFetch(`/afes/${id}/approve/`, { method: 'POST', body: { action: 'deny', comments, password } });
-        toast('AFE denied'); loadAFEDetail(id);
-    } catch (e) { toast(safeStr(e, 'Error'), true); }
-}
+function approveAFE(id) { showAFESignModal(id, 'approve'); }
+function denyAFE(id) { showAFESignModal(id, 'deny'); }
 
 async function deleteAFE(id) {
     if (!confirm('Delete this AFE?')) return;

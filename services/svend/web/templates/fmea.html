@@ -1268,11 +1268,12 @@ function openEditModal(rowId) {
                     </select>
                 </div>
             </div>
-            <div style="margin-top:8px;">
+            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                 ${r.recommended_action ? (tracked
                     ? '<span class="fmea-tracked-badge">Tracked as Action Item</span>'
                     : `<button class="fmea-track-btn" onclick="promoteFmeaAction('${currentFmea.id}', '${r.id}'); return false;">Track as Action Item</button>`
                 ) : '<span style="font-size:12px;color:var(--text-dim);">Add a recommended action to enable tracking</span>'}
+                <button class="fmea-track-btn" onclick="promoteFmeaRisk('${currentFmea.id}', '${r.id}'); return false;" style="background:rgba(250,204,21,0.1);border-color:rgba(250,204,21,0.3);color:#facc15">Promote to Risk Register</button>
             </div>
         </div>
 
@@ -1708,6 +1709,25 @@ async function promoteFmeaAction(fmeaId, rowId) {
     renderRows();
     renderFmeaActionItems(currentActionItems);
     showToast('Action item tracked');
+}
+
+async function promoteFmeaRisk(fmeaId, rowId) {
+    const resp = await fetch(API + fmeaId + '/rows/' + rowId + '/promote-risk/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({}),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+        alert(safeStr(data.error, 'Failed to promote to risk'));
+        return;
+    }
+    if (data.risk) {
+        showToast('Promoted to Risk Register (score: ' + data.risk.risk_score + ')');
+    } else {
+        showToast('Already in Risk Register');
+    }
 }
 
 function renderFmeaActionItems(items) {
