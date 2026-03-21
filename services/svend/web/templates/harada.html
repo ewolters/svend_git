@@ -332,11 +332,15 @@ function showTab(tab) {
 // ============================================================================
 
 async function loadDashboard() {
+    // Clear previous content to prevent duplication on re-render
+    const archEl = document.getElementById('dashboard-archetype');
+    archEl.innerHTML = '';
+
     // Archetype
     const { data: arch } = await api(API + 'archetype/');
-    const archEl = document.getElementById('dashboard-archetype');
+    let archHtml = '';
     if (arch.archetype) {
-        archEl.innerHTML = `<div class="hr-card"><div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Your Archetype</div><div style="font-size:1.1rem;font-weight:600;">${esc(arch.archetype.cluster_label)}</div></div>`;
+        archHtml = `<div class="hr-card"><div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Your Archetype</div><div style="font-size:1.1rem;font-weight:600;">${esc(arch.archetype.cluster_label)}</div></div>`;
     }
 
     // Questionnaire results
@@ -368,10 +372,12 @@ async function loadDashboard() {
         }
 
         resultsHtml += '</div>';
-        archEl.innerHTML += resultsHtml;
+        archHtml += resultsHtml;
     } else if (!arch.archetype) {
-        archEl.innerHTML = `<div class="hr-card" style="color:var(--text-dim);">Take the CI Readiness questionnaire to see your profile.</div>`;
+        archHtml = `<div class="hr-card" style="color:var(--text-dim);">Take the CI Readiness questionnaire to see your profile.</div>`;
     }
+
+    archEl.innerHTML = archHtml;
 
     // Routines streak
     const { data: rh } = await api(API + 'routines/history/?days=7');
