@@ -74,8 +74,8 @@ class FrontierCardModelTest(TestCase):
             site=self.site,
             audit_date=date.today(),
             safety_observations=[
-                {"category": "ppe", "item": "Missing gloves", "at_risk": True, "severity": "H", "notes": ""},
-                {"category": "housekeeping", "item": "Clear walkway", "at_risk": False},
+                {"category": "ppe", "item": "Missing gloves", "rating": "AR", "severity": "H", "notes": ""},
+                {"category": "housekeeping", "item": "Clear walkway", "rating": "S"},
             ],
         )
         self.assertEqual(card.at_risk_count, 1)
@@ -134,15 +134,15 @@ class CardToFMEATest(TestCase):
                 {
                     "category": "energy_control",
                     "item": "LOTO not applied",
-                    "at_risk": True,
+                    "rating": "AR",
                     "severity": "C",
                     "notes": "Press 4",
                 },
-                {"category": "ppe", "item": "Gloves worn", "at_risk": False},
+                {"category": "ppe", "item": "Gloves worn", "rating": "S"},
                 {
                     "category": "housekeeping",
                     "item": "Oil spill",
-                    "at_risk": True,
+                    "rating": "AR",
                     "severity": "M",
                     "notes": "Near press 2",
                 },
@@ -167,7 +167,7 @@ class CardToFMEATest(TestCase):
             site=self.site,
             audit_date=date.today(),
             safety_observations=[
-                {"category": "ppe", "item": "No hard hat", "at_risk": True, "severity": "H"},
+                {"category": "ppe", "item": "No hard hat", "rating": "AR", "severity": "H"},
             ],
             has_safety_crossfeed=True,
             crossfeed_notes="Missing LOTO shadow board = 5S-SET failure + energy hazard",
@@ -181,7 +181,7 @@ class CardToFMEATest(TestCase):
             zone=self.zone,
             site=self.site,
             audit_date=date.today(),
-            safety_observations=[{"category": "ppe", "item": "test", "at_risk": True, "severity": "L"}],
+            safety_observations=[{"category": "ppe", "item": "test", "rating": "AR", "severity": "L"}],
         )
         process_card_to_fmea(card, self.fmea, self.user)
         # Second call should be blocked by the view (model doesn't enforce)
@@ -268,7 +268,7 @@ class SafetyCardAPITest(TestCase):
                 "auditor_id": str(self.employee.id),
                 "zone_id": str(self.zone.id),
                 "safety_observations": [
-                    {"category": "ppe", "item": "No safety glasses", "at_risk": True, "severity": "M"},
+                    {"category": "ppe", "item": "No safety glasses", "rating": "AR", "severity": "M"},
                 ],
                 "five_s_tallies": {"sort": 2, "shine": 1},
                 "operator_name": "Mike",
@@ -332,7 +332,7 @@ class SafetyDashboardAPITest(TestCase):
             site=self.site,
             audit_date=date.today(),
             safety_observations=[
-                {"category": "ppe", "item": "test", "at_risk": True, "severity": "H"},
+                {"category": "ppe", "item": "test", "rating": "AR", "severity": "H"},
             ],
         )
         resp = self.client.get("/api/safety/dashboard/")

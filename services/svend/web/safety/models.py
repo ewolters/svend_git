@@ -1,9 +1,15 @@
 """HIRARC Safety System models.
 
-Implements: Frontier Card observations, audit scheduling, 5S tallies,
+Implements: Frontier Card observations, audit scheduling, 5S assessment,
 card-to-FMEA pipeline, and safety KPI tracking.
 
-Standard: HIRARC-STD-001
+Models aligned to the printed Frontier Card specification:
+- Front: 19 safety observation items across 6 categories (S/AR/U rating)
+- Back: 26 5S deficiency items across 5 pillars (tally mode + 1-5 scoring)
+- Operator interaction with comfort level
+- Close-the-loop tracking
+
+Standard: SAF-001, HIRARC-STD-001
 """
 
 import uuid
@@ -21,6 +27,12 @@ class FrontierZone(models.Model):
 
     Zones are deliberately non-standard: transition areas, overhead,
     below-floor, temporal frontiers (shift changes), hidden infrastructure.
+
+    Zone categories from the Frontier Zone Selector (SAF-001 §6.1):
+    - Transition: dept handoffs, loading dock edges, hallways, stairwells, exits, parking
+    - Hidden Infrastructure: electrical/MCC, utility chases, behind equipment, maintenance cribs, chem storage
+    - Overhead & Below: mezzanine/catwalks, under conveyors, above ceilings, pits, roof access, cable trays
+    - Temporal: shift changeover, seasonal storage, temporary staging, break rooms, training areas, contractor zones
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -35,12 +47,9 @@ class FrontierZone(models.Model):
         max_length=30,
         choices=[
             ("transition", "Transition Zone"),
-            ("overhead", "Overhead / Elevated"),
-            ("below", "Below Floor / Pit"),
-            ("infrastructure", "Hidden Infrastructure"),
-            ("temporal", "Temporal (Shift Change)"),
-            ("contractor", "Contractor Work Zone"),
-            ("storage", "Storage / Warehouse"),
+            ("hidden_infra", "Hidden Infrastructure"),
+            ("overhead_below", "Overhead & Below"),
+            ("temporal", "Temporal Frontier"),
             ("general", "General"),
         ],
         default="general",
@@ -65,7 +74,7 @@ class AuditSchedule(models.Model):
     """Weekly audit schedule — assigns auditors to frontier zones.
 
     Published by Area Manager every Monday. Tracked for completion.
-    HIRARC-STD-001 §5.1: audits are frequent, planned, assigned — not voluntary.
+    SAF-001 §6.3: audits are frequent, planned, assigned — not voluntary.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -148,11 +157,19 @@ class AuditAssignment(models.Model):
 class FrontierCard(models.Model):
     """A completed Frontier Card observation — the primary HI vector.
 
-    Front: 20 safety observation items across 6 categories.
-    Back: 25 5S deficiency tallies across 5 pillars.
-    Interaction: 3 operator questions.
+    Matches the printed Frontier Card specification exactly:
 
-    HIRARC-STD-001 §4.1, §5.2
+    FRONT (Safety): 19 observation items across 6 categories.
+    Each item rated S (Satisfactory), AR (At Risk), or U (Unsatisfactory).
+    At-risk/unsatisfactory findings get severity tag: C/H/M/L.
+
+    BACK (5S): 26 deficiency items across 5 pillars.
+    Two modes: tally (quick card) or 1-5 scoring (detailed audit).
+
+    Operator interaction: 3 required questions + comfort level.
+    Close-the-loop: documented feedback to operator.
+
+    SAF-001 §5
     """
 
     class Severity(models.TextChoices):
@@ -160,6 +177,19 @@ class FrontierCard(models.Model):
         HIGH = "H", "High (7-8)"
         MEDIUM = "M", "Medium (4-6)"
         LOW = "L", "Low (1-3)"
+
+    class AuditClassification(models.TextChoices):
+        ROUTINE = "routine", "Routine Frontier"
+        DEEP_DIVE = "deep_dive", "Deep Dive"
+        POST_INCIDENT = "post_incident", "Post-Incident"
+        NEW_PROCESS = "new_process", "New Process/Area"
+        SEASONAL = "seasonal", "Seasonal/Temporary"
+
+    class CloseLoopMethod(models.TextChoices):
+        IMMEDIATE = "immediate", "Yes, on the spot"
+        WITHIN_24H = "within_24h", "Within 24 hours"
+        PENDING = "pending", "Pending"
+        NOT_DONE = "not_done", "Not done"
 
     SEVERITY_TO_FMEA = {"C": 10, "H": 8, "M": 5, "L": 2}
 
@@ -189,37 +219,113 @@ class FrontierCard(models.Model):
     )
     audit_date = models.DateField()
     shift = models.CharField(max_length=20, blank=True, default="")
-
-    # ── Front: Safety Observations ──
-    # JSON array of findings: [{category, item, at_risk: bool, severity: C/H/M/L, notes}]
-    safety_observations = models.JSONField(
-        default=list,
-        help_text="[{category, item, at_risk, severity, notes}]",
+    classification = models.CharField(
+        max_length=20,
+        choices=AuditClassification.choices,
+        default=AuditClassification.ROUTINE,
+        help_text="Type of frontier audit",
+    )
+    zone_reason = models.CharField(
+        max_length=300,
+        blank=True,
+        default="",
+        help_text="Why this zone? What made you suspicious?",
     )
 
-    # ── Back: 5S Tallies ──
-    # JSON object: {sort: int, set_in_order: int, shine: int, standardize: int, sustain: int}
+    # ── Front: Safety Observations (S/AR/U rating) ──
+    # [{category, item, rating: "S"|"AR"|"U", severity: "C"|"H"|"M"|"L"|null, notes}]
+    safety_observations = models.JSONField(
+        default=list,
+        help_text='[{category, item, rating: "S"|"AR"|"U", severity, notes}]',
+    )
+
+    # ── Back: 5S Assessment ──
+    # Tally mode (quick card): {pillar: deficiency_count}
     five_s_tallies = models.JSONField(
         default=dict,
         help_text="{sort, set_in_order, shine, standardize, sustain} — deficiency counts",
     )
+    # Detailed mode (full audit): [{pillar, item, score: 1-5, notes}]
+    five_s_scores = models.JSONField(
+        default=list,
+        help_text="[{pillar, item, score: 1-5, notes}] — detailed 5S assessment",
+    )
+
+    # ── Positive Observations ──
+    positive_observations = models.JSONField(
+        default=list,
+        help_text="[{observation, reinforce_how}] — safe behaviors to recognize",
+    )
 
     # ── Operator Interaction ──
     operator_name = models.CharField(max_length=255, blank=True, default="")
+    operator_role = models.CharField(max_length=100, blank=True, default="")
+    operator_tenure = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="How long in this area",
+    )
+    # Three required questions (from card)
     operator_concern = models.TextField(
         blank=True,
         default="",
-        help_text="What is your biggest safety concern in this area?",
+        help_text="What's the most hazardous thing about working here?",
+    )
+    operator_ergonomic = models.TextField(
+        blank=True,
+        default="",
+        help_text="What part of your body is most tired at end of shift?",
     )
     operator_improvement = models.TextField(
         blank=True,
         default="",
-        help_text="If you could change one thing to make this area safer, what would it be?",
+        help_text="If you could change one thing here, what would it be?",
     )
     operator_near_miss = models.TextField(
         blank=True,
         default="",
-        help_text="Have you experienced or witnessed any near-misses here recently?",
+        help_text="Has anyone had a close call here recently?",
+    )
+    operator_comfort_level = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="1=Reluctant/guarded, 3=Cooperative, 5=Enthusiastic/engaged",
+    )
+    operator_behavior_notes = models.TextField(
+        blank=True,
+        default="",
+        help_text="Auditor's observation of operator behavior during task",
+    )
+    operator_five_s_issue = models.CharField(
+        max_length=300,
+        blank=True,
+        default="",
+        help_text="Operator's #1 5S issue in the area",
+    )
+    operator_quick_win = models.CharField(
+        max_length=300,
+        blank=True,
+        default="",
+        help_text="Quick win spotted during conversation",
+    )
+
+    # ── Close the Loop ──
+    close_loop_method = models.CharField(
+        max_length=20,
+        choices=CloseLoopMethod.choices,
+        default=CloseLoopMethod.PENDING,
+        help_text="How feedback was delivered to operator",
+    )
+    close_loop_notes = models.TextField(
+        blank=True,
+        default="",
+        help_text="Operator's response to feedback",
+    )
+    close_loop_followup_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Scheduled follow-up date",
     )
 
     # ── Processing status ──
@@ -249,6 +355,12 @@ class FrontierCard(models.Model):
         help_text="UUIDs of FMEARow records created from this card",
     )
 
+    # ── Data pipeline checklist (from card back) ──
+    pipeline_logged = models.BooleanField(default=False, help_text="Card logged to tracking")
+    pipeline_tallies_entered = models.BooleanField(default=False, help_text="5S tallies entered for Pareto")
+    pipeline_safety_to_fmea = models.BooleanField(default=False, help_text="Safety findings entered to FMEA")
+    pipeline_feedback_given = models.BooleanField(default=False, help_text="Feedback given to operator")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -266,11 +378,20 @@ class FrontierCard(models.Model):
 
     @property
     def at_risk_count(self):
-        return sum(1 for o in (self.safety_observations or []) if o.get("at_risk"))
+        """Count observations rated AR (At Risk) or U (Unsatisfactory)."""
+        return sum(1 for o in (self.safety_observations or []) if o.get("rating") in ("AR", "U"))
+
+    @property
+    def satisfactory_count(self):
+        return sum(1 for o in (self.safety_observations or []) if o.get("rating") == "S")
 
     @property
     def highest_severity(self):
-        sevs = [o.get("severity", "L") for o in (self.safety_observations or []) if o.get("at_risk")]
+        sevs = [
+            o.get("severity", "L")
+            for o in (self.safety_observations or [])
+            if o.get("rating") in ("AR", "U") and o.get("severity")
+        ]
         if not sevs:
             return None
         order = {"C": 0, "H": 1, "M": 2, "L": 3}
@@ -280,8 +401,22 @@ class FrontierCard(models.Model):
     def total_five_s_deficiencies(self):
         return sum((self.five_s_tallies or {}).values())
 
+    @property
+    def five_s_avg_score(self):
+        """Average 1-5 score from detailed 5S assessment."""
+        scores = [s.get("score", 0) for s in (self.five_s_scores or []) if s.get("score")]
+        return round(sum(scores) / len(scores), 1) if scores else None
+
+    @property
+    def satisfactory_pct(self):
+        """Percentage of safety observations rated Satisfactory."""
+        total = len(self.safety_observations or [])
+        if not total:
+            return None
+        return round(self.satisfactory_count / total * 100, 1)
+
     def severity_to_fmea_score(self, severity_tag):
-        """Map card severity tag to FMEA severity score (HIRARC-STD-001 §4.2.2)."""
+        """Map card severity tag to FMEA severity score (SAF-001 §4.3.2)."""
         return self.SEVERITY_TO_FMEA.get(severity_tag, 2)
 
     def to_dict(self):
@@ -294,131 +429,263 @@ class FrontierCard(models.Model):
             "site_id": str(self.site_id),
             "audit_date": self.audit_date.isoformat(),
             "shift": self.shift,
+            "classification": self.classification,
+            "zone_reason": self.zone_reason,
             "safety_observations": self.safety_observations,
             "five_s_tallies": self.five_s_tallies,
+            "five_s_scores": self.five_s_scores,
+            "positive_observations": self.positive_observations,
             "operator_name": self.operator_name,
+            "operator_role": self.operator_role,
             "operator_concern": self.operator_concern,
+            "operator_ergonomic": self.operator_ergonomic,
             "operator_improvement": self.operator_improvement,
             "operator_near_miss": self.operator_near_miss,
+            "operator_comfort_level": self.operator_comfort_level,
+            "operator_five_s_issue": self.operator_five_s_issue,
+            "operator_quick_win": self.operator_quick_win,
+            "close_loop_method": self.close_loop_method,
             "at_risk_count": self.at_risk_count,
+            "satisfactory_pct": self.satisfactory_pct,
             "highest_severity": self.highest_severity,
             "total_five_s_deficiencies": self.total_five_s_deficiencies,
+            "five_s_avg_score": self.five_s_avg_score,
             "is_processed": self.is_processed,
             "has_safety_crossfeed": self.has_safety_crossfeed,
             "fmea_rows_created": self.fmea_rows_created,
+            "pipeline_logged": self.pipeline_logged,
+            "pipeline_tallies_entered": self.pipeline_tallies_entered,
+            "pipeline_safety_to_fmea": self.pipeline_safety_to_fmea,
+            "pipeline_feedback_given": self.pipeline_feedback_given,
             "created_at": self.created_at.isoformat(),
         }
 
 
 # =============================================================================
-# SAFETY OBSERVATION CATEGORIES (Reference Data)
+# SAFETY OBSERVATION CATEGORIES — Exact card items
 # =============================================================================
 
-# HIRARC-STD-001 §5.2 — 20 items across 6 categories for the Frontier Card front
+# Front of card: 19 items across 6 categories. Each rated S/AR/U.
 SAFETY_OBSERVATION_CATEGORIES = {
     "body_position": {
         "label": "Body Position & Ergonomics",
         "items": [
-            "Lifting technique (back straight, knees bent)",
-            "Repetitive motion / awkward posture",
-            "Working at height without protection",
-            "Pinch points / caught-between exposure",
+            "Lifting posture (load close, knees bent)",
+            "Reaching above shoulder / below knee",
+            "Repetitive motion or awkward sustained posture",
+            "Workstation height matches task",
         ],
     },
     "ppe": {
-        "label": "Personal Protective Equipment",
+        "label": "PPE Compliance",
         "items": [
-            "Required PPE present and worn correctly",
-            "PPE condition (damaged, expired, improper fit)",
-            "PPE appropriate for the hazard",
+            "Correct PPE for zone/task, good condition",
+            "PPE available at point of use",
         ],
     },
-    "housekeeping": {
-        "label": "Housekeeping & Organization",
+    "surfaces": {
+        "label": "Walking & Working Surfaces",
         "items": [
-            "Walking surfaces clear and dry",
-            "Materials stored properly (no overhead hazards)",
-            "Waste / debris managed",
-            "Emergency exits / paths unobstructed",
+            "Trip/slip hazards (cords, spills, debris)",
+            "Guardrails/handrails present & secure",
+            "Floor markings visible & accurate",
         ],
     },
-    "energy_control": {
-        "label": "Energy Control & Guarding",
+    "energy": {
+        "label": "Energy & Hazardous Materials",
         "items": [
-            "LOTO procedures followed",
-            "Machine guarding in place and functional",
-            "Electrical panels accessible / properly marked",
-            "Compressed gas cylinders secured",
+            "LOTO applied where required",
+            'Electrical panels: 36" clearance',
+            "Chemical containers labeled, contained",
+            "Compressed gas chained/capped",
         ],
     },
-    "chemical_environmental": {
-        "label": "Chemical & Environmental",
+    "emergency": {
+        "label": "Emergency Preparedness",
         "items": [
-            "SDS available for chemicals in use",
-            "Chemical containers labeled",
-            "Ventilation adequate",
-            "Noise levels acceptable / hearing protection available",
+            "Extinguisher/eyewash accessible",
+            "Exit paths clear & marked",
+            "Spill/first aid kit stocked",
         ],
     },
-    "tools_equipment": {
-        "label": "Tools & Equipment",
+    "environmental": {
+        "label": "Environmental Conditions",
         "items": [
-            "Tools in good condition (no jury-rigging)",
-            "Equipment inspection current",
+            "Lighting adequate for task",
+            "Ventilation/air quality acceptable",
+            "Noise: can converse at arm's length?",
         ],
     },
 }
 
-# 5S pillar items for card back (25 total, 5 per pillar)
+# Extended audit adds more items per category (Frontier_Safety_5s_audit.docx)
+SAFETY_OBSERVATION_CATEGORIES_EXTENDED = {
+    "body_position": {
+        "label": "Body Position & Ergonomics",
+        "items": [
+            "Lifting technique (knees bent, load close)",
+            "Reaching above shoulder / below knee",
+            "Repetitive motion patterns observed",
+            "Sustained awkward postures (twisting, bending)",
+            "Workstation height appropriate for task",
+            "Anti-fatigue mats where standing > 2 hrs",
+            "Tool grip size appropriate for operator's hand",
+        ],
+    },
+    "ppe": {
+        "label": "PPE Compliance",
+        "items": [
+            "Correct PPE for the zone/task",
+            "PPE condition (worn, damaged, expired)",
+            "PPE fit (properly sized, adjusted)",
+            "PPE available at point of use",
+            "Signage indicates required PPE",
+        ],
+    },
+    "surfaces": {
+        "label": "Walking & Working Surfaces",
+        "items": [
+            "Floor condition (cracks, holes, uneven)",
+            "Slip/trip hazards (spills, cords, debris)",
+            "Guardrails/handrails present & secure",
+            "Stair treads in good condition",
+            "Floor markings visible and accurate",
+            "Drainage adequate (no standing water)",
+        ],
+    },
+    "energy": {
+        "label": "Energy & Hazardous Materials",
+        "items": [
+            "LOTO applied where required",
+            'Electrical panels: 36" clearance maintained',
+            "Chemical containers labeled (GHS/SDS)",
+            "Secondary containment in place",
+            "Compressed gas cylinders chained/capped",
+            "Hot surfaces guarded/marked",
+        ],
+    },
+    "emergency": {
+        "label": "Emergency Preparedness",
+        "items": [
+            "Fire extinguisher accessible (not blocked)",
+            "Emergency exits clear and marked",
+            "Eyewash/shower functional and accessible",
+            "First aid kit stocked and current",
+            "Emergency contact info posted",
+            "Spill kit available and complete",
+        ],
+    },
+    "environmental": {
+        "label": "Environmental Conditions",
+        "items": [
+            "Lighting adequate for task",
+            "Ventilation / air quality acceptable",
+            "Noise level (can converse at arm's length?)",
+            "Temperature appropriate for work type",
+            "Dust/mist/fume control in place",
+        ],
+    },
+}
+
+
+# Back of card: 26 items across 5 pillars
 FIVE_S_PILLARS = {
     "sort": {
         "label": "Sort (Seiri)",
         "items": [
             "Unnecessary items present",
-            "Red tag items not dispositioned",
-            "Personal items in work area",
-            "Obsolete tools / materials",
-            "Excess inventory beyond kanban",
+            "Red-tag candidates (unused/obsolete)",
+            '"Just in case" hoarding',
+            "Personal items outside designated area",
+            "Broken/expired items not removed",
         ],
     },
     "set_in_order": {
         "label": "Set in Order (Seiton)",
         "items": [
-            "Items not in designated locations",
-            "Shadow boards incomplete",
-            "Labels missing or illegible",
-            "Visual controls absent",
-            "FIFO not maintained",
+            "No designated location / no label",
+            "Shadow board missing or incomplete",
+            "No FIFO / no date on consumables",
+            "Frequently used item not at ergo height",
+            "No visual min/max indicator",
+            "Return path unclear (where does this go?)",
         ],
     },
     "shine": {
         "label": "Shine (Seiso)",
         "items": [
-            "Equipment surfaces dirty",
-            "Fluid leaks present",
-            "Lighting inadequate",
-            "Floors not clean",
+            "Visible dirt/grime/buildup on equipment",
+            "No cleaning schedule posted",
+            "Drains/vents/filters blocked or dirty",
+            "Evidence of pest activity",
             "Inspection points obscured",
         ],
     },
     "standardize": {
         "label": "Standardize (Seiketsu)",
         "items": [
-            "SOPs not posted or outdated",
-            "Color coding inconsistent",
-            "Cleaning schedule not followed",
-            "Zone boundaries unclear",
-            "Audit results not posted",
+            "No visual work instruction at point of use",
+            "Color coding inconsistent with facility std",
+            'No "standard condition" photo/reference',
+            "Zone ownership unclear (who owns this?)",
+            "Can't spot abnormality at a glance",
         ],
     },
     "sustain": {
         "label": "Sustain (Shitsuke)",
         "items": [
-            "Previous audit findings not addressed",
-            "Standards drifting from baseline",
-            "Team engagement declining",
-            "Recognition absent",
-            "Improvement suggestions stale",
+            "No evidence of prior audits/checks",
+            "Operator can't explain 5S standard here",
+            "No visible improvement tracking",
+            "Zone doesn't recover after disruption",
+        ],
+    },
+}
+
+# Frontier Zone Selector categories (from detailed audit form)
+FRONTIER_ZONE_SELECTOR = {
+    "transition": {
+        "label": "Transition Zones",
+        "examples": [
+            "Dept-to-dept handoffs",
+            "Loading dock edges",
+            "Hallway intersections",
+            "Stairwell landings",
+            "Emergency exit paths",
+            "Parking lot borders",
+        ],
+    },
+    "hidden_infra": {
+        "label": "Hidden Infrastructure",
+        "examples": [
+            "Electrical/MCC rooms",
+            "Utility chases/closets",
+            "Behind large equipment",
+            "Maintenance cribs",
+            "Compressed gas storage",
+            "Chemical storage rooms",
+        ],
+    },
+    "overhead_below": {
+        "label": "Overhead & Below",
+        "examples": [
+            "Mezzanine/catwalks",
+            "Under conveyors/tables",
+            "Above drop ceilings",
+            "Pit/trench areas",
+            "Roof access points",
+            "Cable tray routes",
+        ],
+    },
+    "temporal": {
+        "label": "Temporal Frontiers",
+        "examples": [
+            "Shift changeover areas",
+            "Seasonal storage zones",
+            "Temporary staging areas",
+            "Break room/locker areas",
+            "Training/new process areas",
+            "Contractor work zones",
         ],
     },
 }
@@ -430,9 +697,10 @@ FIVE_S_PILLARS = {
 
 
 def process_card_to_fmea(card, fmea, user):
-    """Create FMEA rows from a Frontier Card's at-risk findings.
+    """Create FMEA rows from a Frontier Card's at-risk/unsatisfactory findings.
 
-    HIRARC-STD-001 §4.2.1: Hazard → Risk transformation via FMEA scoring.
+    SAF-001 §4.3.3: Hazard → Risk transformation via FMEA scoring.
+    Only AR (At Risk) and U (Unsatisfactory) rated observations generate FMEA rows.
 
     Args:
         card: FrontierCard instance with safety_observations
@@ -448,7 +716,8 @@ def process_card_to_fmea(card, fmea, user):
 
     created_ids = []
     for obs in card.safety_observations or []:
-        if not obs.get("at_risk"):
+        rating = obs.get("rating", "S")
+        if rating not in ("AR", "U"):
             continue
 
         severity = card.severity_to_fmea_score(obs.get("severity", "L"))
@@ -460,12 +729,13 @@ def process_card_to_fmea(card, fmea, user):
             fmea=fmea,
             process_step=f"[{card.zone.name}] {category}",
             failure_mode=item,
-            effect=notes or "At-risk condition observed during Frontier audit",
+            effect=notes
+            or f"{'Unsatisfactory' if rating == 'U' else 'At-risk'} condition observed during Frontier audit",
             severity=severity,
             occurrence=5,  # Default — refined during weekly FMEA review
             detection=5,  # Default — refined during weekly FMEA review
             current_controls=f"Frontier Card audit ({card.audit_date})",
-            recommended_action="Review and assign control per hierarchy (HIRARC-STD-001 §4.2.3)",
+            recommended_action="Review and assign control per hierarchy (SAF-001 §4.4)",
             action_owner=card.auditor.name,
         )
         created_ids.append(str(row.id))
@@ -491,12 +761,14 @@ def process_card_to_fmea(card, fmea, user):
     card.processed_at = timezone.now()
     card.processed_by = user
     card.fmea_rows_created = created_ids
+    card.pipeline_safety_to_fmea = True
     card.save(
         update_fields=[
             "is_processed",
             "processed_at",
             "processed_by",
             "fmea_rows_created",
+            "pipeline_safety_to_fmea",
             "updated_at",
         ]
     )
@@ -512,7 +784,7 @@ def process_card_to_fmea(card, fmea, user):
 def aggregate_five_s_pareto(site, min_cards=10):
     """Aggregate 5S tallies from Frontier Cards into Pareto data.
 
-    HIRARC-STD-001 §4.3: Stack-rank by frequency for standardization.
+    SAF-001 §4.5: Stack-rank by frequency for standardization.
     Minimum 10 audits required before generating Pareto.
 
     Args:

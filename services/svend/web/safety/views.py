@@ -438,7 +438,6 @@ def safety_dashboard(request):
     now = timezone.now()
     week_ago = now - timedelta(days=7)
     month_ago = now - timedelta(days=30)
-    quarter_ago = now - timedelta(days=90)
 
     # Cards
     all_cards = FrontierCard.objects.filter(site__in=sites)
@@ -474,7 +473,7 @@ def safety_dashboard(request):
     severity_counts = {"C": 0, "H": 0, "M": 0, "L": 0}
     for card in month_cards:
         for obs in card.safety_observations or []:
-            if obs.get("at_risk"):
+            if obs.get("rating") in ("AR", "U"):
                 sev = obs.get("severity", "L")
                 severity_counts[sev] = severity_counts.get(sev, 0) + 1
 
