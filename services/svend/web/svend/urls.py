@@ -130,6 +130,7 @@ urlpatterns = [
     path("login/", TemplateView.as_view(template_name="login.html"), name="login"),
     path("register/", register_view, name="register"),
     path("verify", TemplateView.as_view(template_name="verify_email.html"), name="verify_email"),
+    path("safety/", TemplateView.as_view(template_name="safety_coming_soon.html"), name="safety"),
     path("privacy/", TemplateView.as_view(template_name="privacy.html"), name="privacy"),
     path("terms/", TemplateView.as_view(template_name="terms.html"), name="terms"),
     path("app/", TemplateView.as_view(template_name="dashboard.html"), name="app"),

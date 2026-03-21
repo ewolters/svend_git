@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "agents_api.apps.AgentsApiConfig",
     "workbench",
     "notifications",
+    "safety",
     # ---- Synara Infrastructure (OS layer) ----
     "syn.core.apps.CoreConfig",  # label="syn_core"
     "syn.audit.apps.AuditConfig",  # label="audit"

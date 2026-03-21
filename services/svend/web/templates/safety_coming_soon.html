@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Svend Safety — HIRARC-Grade Safety Management | Coming June 2026</title>
+    <meta name="description" content="Enterprise safety management built on FMEA. Frontier Card audits, hazard-to-risk pipeline, 5S Pareto, management operating system. Replaces DuPont STOP at a fraction of the cost. Included with Svend Enterprise.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://safety.svend.ai/">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://safety.svend.ai/">
+    <meta property="og:title" content="Svend Safety — HIRARC-Grade Safety Management">
+    <meta property="og:description" content="Frontier Card audits → FMEA risk engine → verified controls. Enterprise safety management included with Svend. Coming June 2026.">
+    <meta property="og:site_name" content="Svend">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        :root {
+            --bg: #0a1929;
+            --card: #0f2b3c;
+            --border: rgba(61, 184, 193, 0.2);
+            --text: #e2e8f0;
+            --text-dim: #94a3b8;
+            --amber: #d4a017;
+            --amber-light: #f0d060;
+            --cyan: #3db8c1;
+            --red: #e74c3c;
+            --green: #27ae60;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .hero {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 80px 24px 60px;
+            text-align: center;
+        }
+
+        .badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--amber);
+            border: 1px solid rgba(212, 160, 23, 0.3);
+            padding: 6px 16px;
+            border-radius: 20px;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 20px;
+            letter-spacing: -1px;
+        }
+
+        h1 span { color: var(--amber); }
+
+        .subtitle {
+            font-size: 1.15rem;
+            color: var(--text-dim);
+            line-height: 1.7;
+            max-width: 640px;
+            margin: 0 auto 40px;
+        }
+
+        .subtitle strong { color: var(--text); }
+
+        /* Pipeline visualization */
+        .pipeline {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            margin: 48px 0;
+            flex-wrap: wrap;
+        }
+
+        .pipe-stage {
+            padding: 16px 24px;
+            border-radius: 8px;
+            text-align: center;
+            min-width: 180px;
+        }
+
+        .pipe-stage h3 {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .pipe-stage p {
+            font-size: 12px;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+
+        .pipe-hi { background: rgba(61, 184, 193, 0.08); border: 1px solid rgba(61, 184, 193, 0.25); }
+        .pipe-hi h3 { color: var(--cyan); }
+        .pipe-fmea { background: rgba(212, 160, 23, 0.08); border: 2px solid rgba(212, 160, 23, 0.35); }
+        .pipe-fmea h3 { color: var(--amber); }
+        .pipe-rc { background: rgba(39, 174, 96, 0.08); border: 1px solid rgba(39, 174, 96, 0.25); }
+        .pipe-rc h3 { color: var(--green); }
+
+        .pipe-arrow {
+            font-size: 24px;
+            color: var(--text-dim);
+            padding: 0 12px;
+        }
+
+        /* Features grid */
+        .features {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 24px 60px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+        }
+
+        .feature {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+        }
+
+        .feature h3 {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .feature p {
+            font-size: 13px;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        .feature .tag {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 3px;
+            margin-top: 8px;
+        }
+
+        .tag-exists { background: rgba(39, 174, 96, 0.15); color: var(--green); border: 1px solid rgba(39, 174, 96, 0.3); }
+        .tag-new { background: rgba(212, 160, 23, 0.15); color: var(--amber); border: 1px solid rgba(212, 160, 23, 0.3); }
+        .tag-june { background: rgba(61, 184, 193, 0.15); color: var(--cyan); border: 1px solid rgba(61, 184, 193, 0.3); }
+
+        /* DuPont comparison */
+        .comparison {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 0 24px 60px;
+            text-align: center;
+        }
+
+        .comparison h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+
+        .vs-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .vs-table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid var(--border);
+            color: var(--text-dim);
+        }
+
+        .vs-table td {
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .vs-table .them { color: var(--red); }
+        .vs-table .us { color: var(--green); }
+
+        /* CTA */
+        .cta {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 0 24px 80px;
+            text-align: center;
+        }
+
+        .cta h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .cta p {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 24px;
+        }
+
+        .cta-form {
+            display: flex;
+            gap: 8px;
+            max-width: 420px;
+            margin: 0 auto;
+        }
+
+        .cta-form input {
+            flex: 1;
+            padding: 12px 16px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .cta-form input::placeholder { color: var(--text-dim); }
+
+        .cta-form button {
+            padding: 12px 24px;
+            background: var(--amber);
+            color: #000;
+            border: none;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .cta-form button:hover { background: var(--amber-light); }
+
+        .footer {
+            text-align: center;
+            padding: 24px;
+            font-size: 12px;
+            color: var(--text-dim);
+            border-top: 1px solid var(--border);
+        }
+
+        .footer a { color: var(--cyan); text-decoration: none; }
+
+        @media (max-width: 640px) {
+            h1 { font-size: 2rem; }
+            .pipeline { flex-direction: column; gap: 8px; }
+            .pipe-arrow { transform: rotate(90deg); }
+            .cta-form { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="hero">
+    <div class="badge">Coming June 2026</div>
+    <h1>HIRARC-Grade <span>Safety Management</span></h1>
+    <p class="subtitle">
+        Frontier Card audits feed hazards into your <strong>FMEA risk engine</strong>.
+        Every hazard becomes a scored risk. Every risk gets a control.
+        Every control gets verified. DuPont STOP methodology, rebuilt for modern teams.
+        <strong>Included with Svend Enterprise.</strong>
+    </p>
+
+    <div class="pipeline">
+        <div class="pipe-stage pipe-hi">
+            <h3>Hazard Identification</h3>
+            <p>Frontier Cards, BBSO, Blue Tags, Near-Miss reporting</p>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-stage pipe-fmea">
+            <h3>FMEA Risk Engine</h3>
+            <p>S × O × D = RPN<br>Hazard → scored risk → prioritized action</p>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-stage pipe-rc">
+            <h3>Verified Controls</h3>
+            <p>Hierarchy of controls, revised RPN, closed-loop verification</p>
+        </div>
+    </div>
+</div>
+
+<div class="features">
+    <div class="feature">
+        <h3>Frontier Card Audits</h3>
+        <p>Scheduled, assigned, tracked. 20 safety items + 25 5S checks + operator interaction. D-S-O-I-R methodology adapted from DuPont STOP.</p>
+        <span class="tag tag-new">New — June 2026</span>
+    </div>
+    <div class="feature">
+        <h3>FMEA Risk Engine</h3>
+        <p>Card findings auto-populate FMEA with severity mapping (C/H/M/L → 1-10). RPN scoring, hierarchy of controls, action tracking, revised RPN verification.</p>
+        <span class="tag tag-exists">Already in Svend</span>
+    </div>
+    <div class="feature">
+        <h3>5S Pareto Analysis</h3>
+        <p>Deficiency tallies aggregated across audits. Auto-generated Pareto charts. Cross-feed rule: 5S items with safety consequence enter the FMEA.</p>
+        <span class="tag tag-new">New — June 2026</span>
+    </div>
+    <div class="feature">
+        <h3>Management Operating System</h3>
+        <p>Daily MDI huddle → weekly FMEA review → monthly trends → quarterly strategic review. Tiered governance with role-based ownership.</p>
+        <span class="tag tag-june">Content — June 2026</span>
+    </div>
+    <div class="feature">
+        <h3>CAPA from Safety Findings</h3>
+        <p>High-RPN items trigger corrective action workflow. NCR → containment → RCA → corrective → verification → closure. Full lifecycle tracking.</p>
+        <span class="tag tag-exists">Already in Svend</span>
+    </div>
+    <div class="feature">
+        <h3>Training Matrix</h3>
+        <p>HIRARC program requires 5 training modules. Track completion, certification status, expiry alerts. TWI 4-level competency model.</p>
+        <span class="tag tag-exists">Already in Svend</span>
+    </div>
+    <div class="feature">
+        <h3>Resource Calendar</h3>
+        <p>Auditor scheduling, facilitator workload, over-commitment detection. Gantt chart view. Confirm/decline via email for non-system users.</p>
+        <span class="tag tag-exists">Already in Svend</span>
+    </div>
+    <div class="feature">
+        <h3>Safety KPI Dashboard</h3>
+        <p>Audit completion rate, hazards/month, avg time to FMEA entry, RPN trend, recordable incident rate. Leading + lagging indicators.</p>
+        <span class="tag tag-new">New — June 2026</span>
+    </div>
+    <div class="feature">
+        <h3>Books & Content</h3>
+        <p>Implementation guides, DuPont STOP adaptation playbook, Frontier Card templates, auditor training curriculum. Written by practitioners, not consultants.</p>
+        <span class="tag tag-june">Content — June 2026</span>
+    </div>
+</div>
+
+<div class="comparison">
+    <h2>What you're replacing</h2>
+    <table class="vs-table">
+        <thead>
+            <tr><th></th><th>DuPont STOP</th><th>Svend Safety</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>First-year cost (50 users)</td><td class="them">$80,000+</td><td class="us">Included with Enterprise</td></tr>
+            <tr><td>FMEA integration</td><td class="them">Separate tool</td><td class="us">Built-in, auto-populated</td></tr>
+            <tr><td>CAPA workflow</td><td class="them">Separate tool</td><td class="us">Built-in, full lifecycle</td></tr>
+            <tr><td>5S tracking</td><td class="them">Not included</td><td class="us">Integrated with cross-feed</td></tr>
+            <tr><td>Training management</td><td class="them">Separate tool</td><td class="us">Built-in, competency model</td></tr>
+            <tr><td>Statistical analysis (SPC/DOE)</td><td class="them">Not available</td><td class="us">200+ analyses</td></tr>
+            <tr><td>Hoshin / strategy deployment</td><td class="them">Not available</td><td class="us">X-Matrix, savings tracking</td></tr>
+            <tr><td>Implementation</td><td class="them">Consulting engagement</td><td class="us">Self-service + content</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="cta">
+    <h2>Get notified when we launch</h2>
+    <p>Leave your email and we'll let you know when Svend Safety is ready. Early access starts June 2026.</p>
+    <form class="cta-form" action="/api/safety/waitlist/" method="POST" onsubmit="return submitWaitlist(event)">
+        <input type="email" name="email" placeholder="your@company.com" required>
+        <button type="submit">Notify Me</button>
+    </form>
+    <div id="waitlist-msg" style="margin-top:12px;font-size:13px;display:none;"></div>
+</div>
+
+<div class="footer">
+    <a href="https://svend.ai">Svend</a> — Continuous improvement, quality management, and safety. One platform.<br>
+    &copy; 2026 Kjerne LLC. All rights reserved.
+</div>
+
+<script>
+function submitWaitlist(e) {
+    e.preventDefault();
+    const form = e.target;
+    const email = form.querySelector('input[name="email"]').value;
+    const msg = document.getElementById('waitlist-msg');
+
+    fetch('/api/feedback/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            type: 'safety_waitlist',
+            message: 'Safety waitlist signup: ' + email,
+            email: email,
+            page: 'safety.svend.ai',
+        }),
+    }).then(r => {
+        msg.style.display = 'block';
+        msg.style.color = '#27ae60';
+        msg.textContent = "You're on the list. We'll be in touch.";
+        form.querySelector('input').value = '';
+    }).catch(() => {
+        msg.style.display = 'block';
+        msg.style.color = '#e74c3c';
+        msg.textContent = 'Something went wrong. Try again or email hello@svend.ai.';
+    });
+
+    return false;
+}
+</script>
+
+</body>
+</html>
