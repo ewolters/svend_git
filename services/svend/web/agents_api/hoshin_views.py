@@ -32,8 +32,11 @@ from .hoshin_calculations import (
 )
 from .models import (
     ActionItem,
+    Checklist,
+    ChecklistExecution,
     Employee,
     HoshinProject,
+    ProjectTemplate,
     ResourceCommitment,
     Site,
     SiteAccess,
@@ -1883,4 +1886,166 @@ def hoshin_calendar_facilitators(request):
             "fiscal_year": fiscal_year,
             "facilitators": facilitators,
         }
+    )
+
+
+# =========================================================================
+# Project Templates
+# =========================================================================
+
+
+@require_feature("hoshin_kanri")
+@require_http_methods(["GET", "POST"])
+def template_list_create(request):
+    """List or create project templates."""
+    user = request.user
+
+    if request.method == "GET":
+        templates = ProjectTemplate.objects.filter(owner=user)
+        return JsonResponse([t.to_dict() for t in templates], safe=False)
+
+    data = json.loads(request.body)
+    name = data.get("name", "").strip()
+    if not name:
+        return JsonResponse({"error": "Name is required"}, status=400)
+
+    tpl = ProjectTemplate(
+        owner=user,
+        name=name,
+        description=data.get("description", ""),
+        project_class=data.get("project_class", "project"),
+        project_type=data.get("project_type", "material"),
+        opportunity=data.get("opportunity", "budgeted_new"),
+        calculation_method=data.get("calculation_method", ""),
+        checklist_ids=data.get("checklist_ids", []),
+        default_actions=data.get("default_actions", []),
+    )
+    if data.get("site_id"):
+        try:
+            tpl.site = Site.objects.get(id=data["site_id"])
+        except Site.DoesNotExist:
+            pass
+    tpl.save()
+    return JsonResponse(tpl.to_dict(), status=201)
+
+
+@require_feature("hoshin_kanri")
+@require_http_methods(["GET", "PUT", "DELETE"])
+def template_detail(request, tpl_id):
+    """Get, update, or delete a project template."""
+    try:
+        tpl = ProjectTemplate.objects.get(id=tpl_id, owner=request.user)
+    except ProjectTemplate.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    if request.method == "GET":
+        return JsonResponse(tpl.to_dict())
+
+    if request.method == "DELETE":
+        tpl.delete()
+        return JsonResponse({"ok": True})
+
+    data = json.loads(request.body)
+    for field in [
+        "name",
+        "description",
+        "project_class",
+        "project_type",
+        "opportunity",
+        "calculation_method",
+        "checklist_ids",
+        "default_actions",
+    ]:
+        if field in data:
+            setattr(tpl, field, data[field])
+    tpl.save()
+    return JsonResponse(tpl.to_dict())
+
+
+@require_feature("hoshin_kanri")
+@require_http_methods(["POST"])
+def create_from_template(request):
+    """Create a new Hoshin project from a template.
+
+    POST body: {"template_id": "uuid", "title": "Project Title", "site_id": "uuid", ...overrides}
+
+    Creates core.Project + HoshinProject with template defaults,
+    pre-populates ActionItems, and creates ChecklistExecution stubs
+    for each attached checklist.
+    """
+    data = json.loads(request.body)
+    tpl_id = data.get("template_id")
+    if not tpl_id:
+        return JsonResponse({"error": "template_id required"}, status=400)
+
+    try:
+        tpl = ProjectTemplate.objects.get(id=tpl_id, owner=request.user)
+    except ProjectTemplate.DoesNotExist:
+        return JsonResponse({"error": "Template not found"}, status=404)
+
+    title = data.get("title", "").strip() or f"{tpl.name} — New Project"
+
+    # Create core.Project
+    project = Project.objects.create(
+        title=title,
+        user=request.user,
+    )
+
+    # Create HoshinProject with template defaults
+    site = None
+    if data.get("site_id"):
+        try:
+            site = Site.objects.get(id=data["site_id"])
+        except Site.DoesNotExist:
+            pass
+    elif tpl.site:
+        site = tpl.site
+
+    hoshin = HoshinProject.objects.create(
+        project=project,
+        site=site,
+        project_class=data.get("project_class", tpl.project_class),
+        project_type=data.get("project_type", tpl.project_type),
+        opportunity=data.get("opportunity", tpl.opportunity),
+        calculation_method=data.get("calculation_method", tpl.calculation_method),
+        annual_savings_target=data.get("annual_savings_target", 0),
+    )
+
+    # Pre-populate ActionItems from template
+    for i, action_def in enumerate(tpl.default_actions or []):
+        ActionItem.objects.create(
+            project=project,
+            title=action_def.get("title", f"Action {i + 1}"),
+            description=action_def.get("description", ""),
+            sort_order=action_def.get("sort_order", i),
+            source_type="template",
+            source_id=tpl.id,
+        )
+
+    # Create ChecklistExecution stubs for each attached checklist
+    checklists_attached = []
+    for cl_id in tpl.checklist_ids or []:
+        try:
+            cl = Checklist.objects.get(id=cl_id)
+            ChecklistExecution.objects.create(
+                checklist=cl,
+                executor=request.user,
+                entity_type="project",
+                entity_id=project.id,
+                status="not_started",
+            )
+            checklists_attached.append(cl.name)
+        except Checklist.DoesNotExist:
+            pass
+
+    return JsonResponse(
+        {
+            "success": True,
+            "project_id": str(project.id),
+            "hoshin_id": str(hoshin.id),
+            "template_name": tpl.name,
+            "actions_created": len(tpl.default_actions or []),
+            "checklists_attached": checklists_attached,
+        },
+        status=201,
     )

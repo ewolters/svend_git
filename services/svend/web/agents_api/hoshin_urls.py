@@ -71,4 +71,8 @@ urlpatterns = [
     # Resource Commitments (QMS-002)
     path("commitments/", views.list_create_commitments, name="hoshin_commitments"),
     path("commitments/<uuid:commitment_id>/", views.commitment_detail, name="hoshin_commitment_detail"),
+    # Project Templates
+    path("templates/", views.template_list_create, name="hoshin_templates"),
+    path("templates/<uuid:tpl_id>/", views.template_detail, name="hoshin_template_detail"),
+    path("projects/from-template/", views.create_from_template, name="hoshin_from_template"),
 ]

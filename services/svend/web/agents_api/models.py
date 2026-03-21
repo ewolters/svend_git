@@ -2184,6 +2184,74 @@ class HoshinProject(models.Model):
         }
 
 
+class ProjectTemplate(models.Model):
+    """Reusable template for Hoshin/kaizen projects.
+
+    Bundles default HoshinProject fields + multiple Checklists + default
+    ActionItems. When a user creates a project from template, it clones
+    the Hoshin defaults, creates ChecklistExecution stubs for each attached
+    checklist, and pre-populates ActionItems.
+
+    Checklist and action lists are fully user-defined — no hardcoded items.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="project_templates")
+    site = models.ForeignKey(
+        "agents_api.Site", on_delete=models.SET_NULL, null=True, blank=True, related_name="project_templates"
+    )
+    name = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+
+    # Default Hoshin fields
+    project_class = models.CharField(max_length=20, choices=HoshinProject.ProjectClass.choices, default="project")
+    project_type = models.CharField(max_length=20, choices=HoshinProject.ProjectType.choices, default="material")
+    opportunity = models.CharField(max_length=20, choices=HoshinProject.Opportunity.choices, default="budgeted_new")
+    calculation_method = models.CharField(max_length=30, blank=True)
+
+    # Attached checklists (user-defined, multiple allowed)
+    checklist_ids = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of Checklist UUIDs to auto-attach when creating project from template",
+    )
+
+    # Default action items (cloned into new project)
+    default_actions = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='[{"title": str, "description": str, "sort_order": int, "source_type": "template"}]',
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "project_templates"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "name": self.name,
+            "description": self.description,
+            "project_class": self.project_class,
+            "project_type": self.project_type,
+            "opportunity": self.opportunity,
+            "calculation_method": self.calculation_method,
+            "checklist_ids": self.checklist_ids,
+            "checklist_count": len(self.checklist_ids) if self.checklist_ids else 0,
+            "default_actions": self.default_actions,
+            "action_count": len(self.default_actions) if self.default_actions else 0,
+            "site_id": str(self.site_id) if self.site_id else None,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
 class ActionItem(models.Model):
     """Task/action item with Gantt-style tracking for any project type.
 
