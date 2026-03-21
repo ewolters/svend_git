@@ -11607,6 +11607,22 @@ async function loadWorkbench(id) {
             });
         }
 
+        // Restore left pane narrative
+        if (layout.narrative_html) {
+            const leftBody = document.getElementById('left-upper-body');
+            const leftTitle = document.getElementById('left-upper-title');
+            const empty = document.getElementById('left-upper-empty');
+            if (leftBody) leftBody.innerHTML = layout.narrative_html;
+            if (leftTitle && layout.narrative_title) leftTitle.textContent = layout.narrative_title;
+            if (empty) empty.style.display = 'none';
+        }
+
+        // Restore sidebar history
+        if (layout.history_html) {
+            const historyEl = document.getElementById('sidebar-history');
+            if (historyEl) historyEl.innerHTML = layout.history_html;
+        }
+
         // Load Synara state
         synaraRefresh();
     } catch (err) { console.error('Failed to load workbench:', err); }
@@ -11628,12 +11644,19 @@ function collectOutputTabs() {
 }
 
 function collectSessionState() {
+    // Capture left pane narrative + sidebar history for proper restore
+    const leftBody = document.getElementById('left-upper-body');
+    const leftTitle = document.getElementById('left-upper-title');
+    const historyEl = document.getElementById('sidebar-history');
     return {
         data_file: dswDataFileName,
         data_id: dswDataId,
         cache_key: cacheKey,
         output_tabs: collectOutputTabs(),
         project_id: currentProjectId,
+        narrative_html: leftBody ? leftBody.innerHTML : '',
+        narrative_title: leftTitle ? leftTitle.textContent : '',
+        history_html: historyEl ? historyEl.innerHTML : '',
     };
 }
 
