@@ -205,6 +205,7 @@ select.iso-input { appearance: none; background-image: url("data:image/svg+xml,%
             <a class="iso-tab" href="#/audits">Audits</a>
             <a class="iso-tab" href="#/reviews">Reviews</a>
             <a class="iso-tab" href="#/audit-readiness">Readiness</a>
+            <a class="iso-tab" href="#/afes">AFEs</a>
         </div>
         <div class="iso-tabs" style="border-bottom:none">
             <span class="iso-tabs-label">Registers</span>
@@ -214,6 +215,7 @@ select.iso-input { appearance: none; background-image: url("data:image/svg+xml,%
             <a class="iso-tab" href="#/risks">Risks</a>
             <a class="iso-tab" href="#/equipment">Equipment</a>
             <a class="iso-tab" href="#/checklists">Checklists</a>
+            <a class="iso-tab" href="#/templates">Templates</a>
         </div>
     </div>
 
@@ -229,6 +231,8 @@ select.iso-input { appearance: none; background-image: url("data:image/svg+xml,%
     <div id="panel-equipment" class="iso-panel"></div>
     <div id="panel-audit-readiness" class="iso-panel"></div>
     <div id="panel-checklists" class="iso-panel"></div>
+    <div id="panel-afes" class="iso-panel"></div>
+    <div id="panel-templates" class="iso-panel"></div>
 </div>
 {% endblock %}
 
@@ -290,7 +294,7 @@ function siteBadge(siteId, siteName) {
 // =========================================================================
 // Navigation
 // =========================================================================
-const TABS = ['dashboard', 'ncrs', 'audits', 'training', 'reviews', 'documents', 'suppliers', 'complaints', 'risks', 'equipment', 'audit-readiness', 'checklists'];
+const TABS = ['dashboard', 'ncrs', 'audits', 'training', 'reviews', 'documents', 'suppliers', 'complaints', 'risks', 'equipment', 'audit-readiness', 'checklists', 'afes', 'templates'];
 let currentTab = 'dashboard';
 
 function navigate(tab) {
@@ -312,6 +316,8 @@ function navigate(tab) {
         equipment: loadEquipment,
         'audit-readiness': loadAuditReadiness,
         checklists: loadChecklists,
+        afes: loadAFEs,
+        templates: loadTemplates,
     };
     if (loader[tab]) loader[tab]();
 }
@@ -3462,6 +3468,380 @@ async function deleteChecklist(id) {
     if (!confirm('Delete this checklist?')) return;
     try { await apiFetch(`/checklists-v2/${id}/`, { method: 'DELETE' }); toast('Deleted'); loadChecklists(); }
     catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+// =========================================================================
+// AFE — Authorization for Expenditure
+// =========================================================================
+let afeFilterStatus = '';
+
+async function loadAFEs() {
+    const el = document.getElementById('panel-afes');
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim)">Loading AFEs...</div>';
+    try {
+        let qs = '/afes/';
+        if (afeFilterStatus) qs += `?status=${afeFilterStatus}`;
+        const data = await apiFetch(qs);
+        let html = '<div class="iso-toolbar">';
+        html += `<select class="iso-input" style="width:140px" onchange="afeFilterStatus=this.value;loadAFEs()">
+            <option value="">All Statuses</option>
+            ${['draft','submitted','in_review','approved','denied','cancelled'].map(s => `<option value="${s}"${afeFilterStatus===s?' selected':''}>${s.replace(/_/g,' ')}</option>`).join('')}
+        </select>`;
+        html += '<div style="flex:1"></div>';
+        html += '<button class="iso-btn primary" onclick="showAFEForm()">+ New AFE</button>';
+        html += '</div>';
+        if (!data.length) {
+            html += '<div style="text-align:center;padding:60px;color:var(--text-dim)">No AFEs yet</div>';
+        } else {
+            html += '<table class="iso-table"><thead><tr><th>AFE #</th><th>Title</th><th>Status</th><th>Est. Cost</th><th>ROI</th><th>Approval</th><th>Created</th></tr></thead><tbody>';
+            data.forEach(a => {
+                const pct = a.approval_progress;
+                const barColor = pct >= 100 ? '#4ade80' : pct > 0 ? '#facc15' : 'var(--border)';
+                html += `<tr style="cursor:pointer" onclick="loadAFEDetail('${a.id}')">
+                    <td style="font-family:'JetBrains Mono',monospace;font-size:12px">${escHtml(a.afe_number||'—')}</td>
+                    <td>${escHtml(a.title)}</td>
+                    <td>${badge(a.status, a.status.replace(/_/g,' '))}</td>
+                    <td style="font-family:'JetBrains Mono',monospace">$${Number(a.estimated_cost).toLocaleString()}</td>
+                    <td>${a.roi_percent ? a.roi_percent+'%' : '—'}</td>
+                    <td><div style="width:60px;height:6px;background:var(--bg-secondary);border-radius:3px;overflow:hidden">
+                        <div style="width:${pct}%;height:100%;background:${barColor}"></div></div>
+                        <span style="font-size:10px;color:var(--text-dim)">${pct}%</span></td>
+                    <td>${fmtDate(a.created_at)}</td></tr>`;
+            });
+            html += '</tbody></table>';
+        }
+        el.innerHTML = html;
+    } catch (e) { el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Error'))}</div>`; }
+}
+
+function showAFEForm() {
+    const el = document.getElementById('panel-afes');
+    el.innerHTML = `<div class="iso-form" style="max-width:800px">
+        <h3 style="margin:0 0 16px">New Authorization for Expenditure</h3>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">Title *</label><input class="iso-input" id="afe-title" placeholder="Equipment purchase, facility upgrade, etc."></div>
+            <div><label class="iso-label">Department</label><input class="iso-input" id="afe-dept"></div>
+            <div><label class="iso-label">Estimated Cost ($)</label><input class="iso-input" id="afe-cost" type="number" step="0.01" value="0"></div>
+            <div><label class="iso-label">Budgeted Amount ($)</label><input class="iso-input" id="afe-budget" type="number" step="0.01" value="0"></div>
+            <div><label class="iso-label">Expected Savings ($)</label><input class="iso-input" id="afe-savings" type="number" step="0.01" value="0"></div>
+            <div><label class="iso-label">Payback (months)</label><input class="iso-input" id="afe-payback" type="number" step="0.1"></div>
+            <div><label class="iso-label">ROI %</label><input class="iso-input" id="afe-roi" type="number" step="0.01"></div>
+            <div><label class="iso-label">Expected Completion</label><input class="iso-input" id="afe-completion" type="date"></div>
+        </div>
+        <div style="margin-top:12px"><label class="iso-label">Business Justification</label><textarea class="iso-textarea" id="afe-justify" rows="3"></textarea></div>
+        <div style="margin-top:12px"><label class="iso-label">Alternatives Considered</label><textarea class="iso-textarea" id="afe-alt" rows="2"></textarea></div>
+        <h4 style="margin:16px 0 8px;font-size:13px;color:var(--text-secondary)">Approval Chain</h4>
+        <div id="afe-levels-list"></div>
+        <button class="iso-btn" style="margin-top:6px" onclick="addAFELevel()">+ Add Approval Level</button>
+        ${siteSelectHtml('afe-site')}
+        <div style="margin-top:16px;display:flex;gap:8px">
+            <button class="iso-btn primary" onclick="saveAFE()">Create AFE</button>
+            <button class="iso-btn" onclick="loadAFEs()">Cancel</button>
+        </div>
+    </div>`;
+    window._afeLevels = [{level_name: 'Site Manager', level_order: 0, cost_threshold: 0}];
+    renderAFELevels();
+}
+
+function renderAFELevels() {
+    const el = document.getElementById('afe-levels-list');
+    if (!el) return;
+    el.innerHTML = (window._afeLevels || []).map((lv, i) => `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+        <span style="font-weight:700;color:var(--text-dim);min-width:20px">${i+1}</span>
+        <input class="iso-input" value="${escHtml(lv.level_name)}" placeholder="Level name" onchange="window._afeLevels[${i}].level_name=this.value" style="flex:1">
+        <input class="iso-input" type="number" value="${lv.cost_threshold}" placeholder="Threshold $" onchange="window._afeLevels[${i}].cost_threshold=parseFloat(this.value)||0" style="width:120px" title="Required when cost >= this amount (0 = always)">
+        <button onclick="window._afeLevels.splice(${i},1);renderAFELevels()" style="background:none;border:none;color:#f87171;cursor:pointer;font-size:16px">&times;</button>
+    </div>`).join('');
+}
+
+function addAFELevel() {
+    if (!window._afeLevels) window._afeLevels = [];
+    const n = window._afeLevels.length;
+    window._afeLevels.push({level_name: '', level_order: n, cost_threshold: 0});
+    renderAFELevels();
+}
+
+async function saveAFE() {
+    const title = document.getElementById('afe-title').value.trim();
+    if (!title) { toast('Title is required', true); return; }
+    try {
+        await apiFetch('/afes/', { method: 'POST', body: {
+            title, department: document.getElementById('afe-dept').value,
+            estimated_cost: parseFloat(document.getElementById('afe-cost').value) || 0,
+            budgeted_amount: parseFloat(document.getElementById('afe-budget').value) || 0,
+            expected_savings: parseFloat(document.getElementById('afe-savings').value) || 0,
+            payback_months: parseFloat(document.getElementById('afe-payback').value) || null,
+            roi_percent: parseFloat(document.getElementById('afe-roi').value) || null,
+            expected_completion: document.getElementById('afe-completion').value || null,
+            business_justification: document.getElementById('afe-justify').value,
+            alternatives_considered: document.getElementById('afe-alt').value,
+            site_id: siteVal('afe-site'),
+            approval_levels: (window._afeLevels || []).map((lv, i) => ({...lv, level_order: i})),
+        }});
+        toast('AFE created');
+        loadAFEs();
+    } catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+async function loadAFEDetail(id) {
+    const el = document.getElementById('panel-afes');
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim)">Loading...</div>';
+    try {
+        const a = await apiFetch(`/afes/${id}/`);
+        let html = `<div style="margin-bottom:12px"><button class="iso-btn" onclick="loadAFEs()">&larr; Back</button>
+            <span style="margin-left:12px;font-size:18px;font-weight:600">${escHtml(a.afe_number||'')} ${escHtml(a.title)}</span>
+            ${badge(a.status, a.status.replace(/_/g,' '))}</div>`;
+
+        // Financial summary
+        html += '<div class="iso-kpis" style="margin-bottom:16px">';
+        html += `<div class="iso-kpi"><div class="label">Est. Cost</div><div class="value">$${Number(a.estimated_cost).toLocaleString()}</div></div>`;
+        html += `<div class="iso-kpi"><div class="label">Budgeted</div><div class="value">$${Number(a.budgeted_amount).toLocaleString()}</div></div>`;
+        html += `<div class="iso-kpi"><div class="label">Exp. Savings</div><div class="value">$${Number(a.expected_savings).toLocaleString()}</div></div>`;
+        html += `<div class="iso-kpi"><div class="label">ROI</div><div class="value">${a.roi_percent ? a.roi_percent+'%' : '—'}</div></div>`;
+        html += `<div class="iso-kpi"><div class="label">Payback</div><div class="value">${a.payback_months ? a.payback_months+'mo' : '—'}</div></div>`;
+        html += '</div>';
+
+        // Justification
+        if (a.business_justification) html += `<div style="margin:12px 0"><label class="iso-label">Business Justification</label><div style="font-size:13px;white-space:pre-wrap">${escHtml(a.business_justification)}</div></div>`;
+        if (a.alternatives_considered) html += `<div style="margin:12px 0"><label class="iso-label">Alternatives Considered</label><div style="font-size:13px;white-space:pre-wrap">${escHtml(a.alternatives_considered)}</div></div>`;
+
+        // Approval chain
+        html += '<h4 style="margin:16px 0 8px;font-size:13px;color:var(--text-secondary)">Approval Chain</h4>';
+        html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">';
+        (a.approval_levels || []).forEach(lv => {
+            const color = lv.status === 'approved' ? '#4ade80' : lv.status === 'denied' ? '#f87171' : lv.status === 'skipped' ? 'var(--text-dim)' : '#facc15';
+            const bg = lv.status === 'approved' ? 'rgba(34,197,94,0.08)' : lv.status === 'denied' ? 'rgba(248,113,113,0.08)' : 'var(--card-bg)';
+            html += `<div style="flex:1;min-width:160px;padding:12px;border:1px solid ${color};border-radius:8px;background:${bg}">
+                <div style="font-size:12px;font-weight:600;color:var(--text-primary)">${escHtml(lv.level_name)}</div>
+                <div style="font-size:11px;color:${color};font-weight:600;margin:4px 0">${lv.status.toUpperCase()}</div>
+                ${lv.approver_name ? `<div style="font-size:11px;color:var(--text-dim)">${escHtml(lv.approver_name)}</div>` : ''}
+                ${lv.decided_at ? `<div style="font-size:10px;color:var(--text-dim)">${fmtDate(lv.decided_at)}</div>` : ''}
+                ${lv.comments ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:4px">${escHtml(lv.comments)}</div>` : ''}
+                ${lv.cost_threshold > 0 ? `<div style="font-size:10px;color:var(--text-dim)">Threshold: $${Number(lv.cost_threshold).toLocaleString()}</div>` : ''}
+            </div>`;
+        });
+        html += '</div>';
+
+        // Action buttons
+        html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+        if (a.status === 'draft') {
+            html += `<button class="iso-btn primary" onclick="submitAFE('${a.id}')">Submit for Approval</button>`;
+        }
+        if (a.status === 'submitted' || a.status === 'in_review') {
+            html += `<button class="iso-btn primary" onclick="approveAFE('${a.id}')">Approve Current Level</button>`;
+            html += `<button class="iso-btn" style="color:#f87171" onclick="denyAFE('${a.id}')">Deny</button>`;
+        }
+        html += `<button class="iso-btn" style="margin-left:auto;color:#f87171" onclick="deleteAFE('${a.id}')">Delete</button>`;
+        html += '</div>';
+
+        // Links
+        html += '<div style="margin-top:12px;font-size:12px;color:var(--text-dim)">';
+        if (a.risk_id) html += `Risk: ${a.risk_id} &nbsp;`;
+        if (a.fmea_id) html += `FMEA: ${a.fmea_id} &nbsp;`;
+        if (a.hoshin_project_id) html += `Hoshin: ${a.hoshin_project_id}`;
+        html += '</div>';
+
+        el.innerHTML = html;
+    } catch (e) { el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Error'))}</div>`; }
+}
+
+async function submitAFE(id) {
+    try { await apiFetch(`/afes/${id}/submit/`, { method: 'POST' }); toast('AFE submitted'); loadAFEDetail(id); }
+    catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+async function approveAFE(id) {
+    const comments = prompt('Comments (optional):') || '';
+    const password = prompt('Enter password for electronic signature:');
+    if (!password) return;
+    try {
+        await apiFetch(`/afes/${id}/approve/`, { method: 'POST', body: { action: 'approve', comments, password } });
+        toast('Level approved'); loadAFEDetail(id);
+    } catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+async function denyAFE(id) {
+    const comments = prompt('Reason for denial:');
+    if (!comments) return toast('Reason required', true);
+    const password = prompt('Enter password for electronic signature:');
+    if (!password) return;
+    try {
+        await apiFetch(`/afes/${id}/approve/`, { method: 'POST', body: { action: 'deny', comments, password } });
+        toast('AFE denied'); loadAFEDetail(id);
+    } catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+async function deleteAFE(id) {
+    if (!confirm('Delete this AFE?')) return;
+    try { await apiFetch(`/afes/${id}/`, { method: 'DELETE' }); toast('Deleted'); loadAFEs(); }
+    catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+// =========================================================================
+// Project Templates
+// =========================================================================
+
+async function loadTemplates() {
+    const el = document.getElementById('panel-templates');
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim)">Loading templates...</div>';
+    try {
+        const data = await apiFetch('/hoshin/templates/').catch(() => []);
+        let html = '<div class="iso-toolbar">';
+        html += '<div style="flex:1"></div>';
+        html += '<button class="iso-btn primary" onclick="showTemplateForm()">+ New Template</button>';
+        html += '</div>';
+        if (!data.length) {
+            html += '<div style="text-align:center;padding:60px;color:var(--text-dim)">No project templates yet. Create one to standardize kaizen events and projects.</div>';
+        } else {
+            html += '<table class="iso-table"><thead><tr><th>Name</th><th>Class</th><th>Type</th><th>Checklists</th><th>Actions</th><th>Created</th></tr></thead><tbody>';
+            data.forEach(t => {
+                html += `<tr style="cursor:pointer" onclick="loadTemplateDetail('${t.id}')">
+                    <td>${escHtml(t.name)}</td>
+                    <td>${badge(t.project_class, t.project_class)}</td>
+                    <td>${escHtml(t.project_type)}</td>
+                    <td>${t.checklist_count}</td>
+                    <td>${t.action_count}</td>
+                    <td>${fmtDate(t.created_at)}</td></tr>`;
+            });
+            html += '</tbody></table>';
+        }
+        el.innerHTML = html;
+    } catch (e) { el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Error'))}</div>`; }
+}
+
+function showTemplateForm(existing) {
+    const el = document.getElementById('panel-templates');
+    const isEdit = !!existing;
+    el.innerHTML = `<div class="iso-form" style="max-width:800px">
+        <h3 style="margin:0 0 16px">${isEdit ? 'Edit' : 'New'} Project Template</h3>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">Name *</label><input class="iso-input" id="tpl-name" value="${escHtml(existing?.name||'')}" placeholder="e.g. Standard Kaizen Event"></div>
+            <div><label class="iso-label">Class</label><select class="iso-input" id="tpl-class">
+                <option value="kaizen"${(existing?.project_class||'kaizen')==='kaizen'?' selected':''}>Kaizen Event</option>
+                <option value="project"${existing?.project_class==='project'?' selected':''}>Extended Project</option></select></div>
+            <div><label class="iso-label">Type</label><select class="iso-input" id="tpl-type">
+                ${['material','labor','quality','throughput','energy','safety','other'].map(t => `<option value="${t}"${(existing?.project_type||'material')===t?' selected':''}>${t}</option>`).join('')}</select></div>
+            <div><label class="iso-label">Calc Method</label><input class="iso-input" id="tpl-calc" value="${escHtml(existing?.calculation_method||'')}" placeholder="e.g. waste_pct"></div>
+        </div>
+        <div style="margin-top:12px"><label class="iso-label">Description</label><textarea class="iso-textarea" id="tpl-desc" rows="2">${escHtml(existing?.description||'')}</textarea></div>
+        <h4 style="margin:16px 0 8px;font-size:13px;color:var(--text-secondary)">Attached Checklists</h4>
+        <div id="tpl-checklists-area">Loading checklists...</div>
+        <h4 style="margin:16px 0 8px;font-size:13px;color:var(--text-secondary)">Default Action Items</h4>
+        <div id="tpl-actions-list"></div>
+        <button class="iso-btn" style="margin-top:6px" onclick="addTemplateAction()">+ Add Action</button>
+        <div style="margin-top:16px;display:flex;gap:8px">
+            <button class="iso-btn primary" onclick="saveTemplate(${isEdit ? "'"+existing.id+"'" : 'null'})">${isEdit ? 'Save' : 'Create'}</button>
+            <button class="iso-btn" onclick="loadTemplates()">Cancel</button>
+        </div>
+    </div>`;
+    window._tplActions = (existing?.default_actions || []).map(a => ({...a}));
+    window._tplChecklistIds = new Set(existing?.checklist_ids || []);
+    renderTemplateActions();
+    loadTemplateChecklists();
+}
+
+async function loadTemplateChecklists() {
+    const el = document.getElementById('tpl-checklists-area');
+    if (!el) return;
+    try {
+        const cls = await apiFetch('/checklists-v2/');
+        el.innerHTML = cls.map(c => `<label style="display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:13px;cursor:pointer">
+            <input type="checkbox" value="${c.id}" ${window._tplChecklistIds.has(c.id)?'checked':''} onchange="this.checked?window._tplChecklistIds.add('${c.id}'):window._tplChecklistIds.delete('${c.id}')">
+            ${escHtml(c.name)} <span style="font-size:11px;color:var(--text-dim)">[${c.category||'general'}] ${c.item_count} items</span>
+        </label>`).join('') || '<div style="font-size:12px;color:var(--text-dim)">No checklists available. Create some in the Checklists tab first.</div>';
+    } catch (e) { el.innerHTML = '<div style="font-size:12px;color:var(--text-dim)">Could not load checklists</div>'; }
+}
+
+function renderTemplateActions() {
+    const el = document.getElementById('tpl-actions-list');
+    if (!el) return;
+    el.innerHTML = (window._tplActions || []).map((a, i) => `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+        <span style="font-weight:700;color:var(--text-dim);min-width:20px">${i+1}</span>
+        <input class="iso-input" value="${escHtml(a.title||'')}" placeholder="Action title" onchange="window._tplActions[${i}].title=this.value" style="flex:1">
+        <input class="iso-input" value="${escHtml(a.description||'')}" placeholder="Description" onchange="window._tplActions[${i}].description=this.value" style="flex:1">
+        <button onclick="window._tplActions.splice(${i},1);renderTemplateActions()" style="background:none;border:none;color:#f87171;cursor:pointer;font-size:16px">&times;</button>
+    </div>`).join('');
+}
+
+function addTemplateAction() {
+    if (!window._tplActions) window._tplActions = [];
+    window._tplActions.push({title: '', description: '', sort_order: window._tplActions.length});
+    renderTemplateActions();
+}
+
+async function saveTemplate(existingId) {
+    const name = document.getElementById('tpl-name').value.trim();
+    if (!name) { toast('Name is required', true); return; }
+    const body = {
+        name, description: document.getElementById('tpl-desc').value,
+        project_class: document.getElementById('tpl-class').value,
+        project_type: document.getElementById('tpl-type').value,
+        calculation_method: document.getElementById('tpl-calc').value,
+        checklist_ids: [...(window._tplChecklistIds || [])],
+        default_actions: (window._tplActions || []).map((a, i) => ({...a, sort_order: i})),
+    };
+    try {
+        if (existingId) {
+            await apiFetch(`/hoshin/templates/${existingId}/`, { method: 'PUT', body });
+            toast('Template updated');
+        } else {
+            await apiFetch('/hoshin/templates/', { method: 'POST', body });
+            toast('Template created');
+        }
+        loadTemplates();
+    } catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+async function loadTemplateDetail(id) {
+    const el = document.getElementById('panel-templates');
+    try {
+        const t = await apiFetch(`/hoshin/templates/${id}/`);
+        let html = `<div style="margin-bottom:12px"><button class="iso-btn" onclick="loadTemplates()">&larr; Back</button>
+            <span style="margin-left:12px;font-size:18px;font-weight:600">${escHtml(t.name)}</span>
+            ${badge(t.project_class, t.project_class)}</div>`;
+        if (t.description) html += `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">${escHtml(t.description)}</div>`;
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">Type</label><span style="font-size:13px">${escHtml(t.project_type)}</span></div>`;
+        html += `<div><label class="iso-label">Calc Method</label><span style="font-size:13px">${escHtml(t.calculation_method||'—')}</span></div>`;
+        html += `<div><label class="iso-label">Checklists</label><span style="font-size:13px">${t.checklist_count} attached</span></div>`;
+        html += '</div>';
+        // Actions
+        if (t.default_actions?.length) {
+            html += '<h4 style="margin:16px 0 8px;font-size:13px;color:var(--text-secondary)">Default Actions</h4>';
+            html += '<table class="iso-table"><thead><tr><th>#</th><th>Title</th><th>Description</th></tr></thead><tbody>';
+            t.default_actions.forEach((a, i) => {
+                html += `<tr><td>${i+1}</td><td>${escHtml(a.title)}</td><td>${escHtml(a.description||'—')}</td></tr>`;
+            });
+            html += '</tbody></table>';
+        }
+        html += `<div style="margin-top:16px;display:flex;gap:8px">
+            <button class="iso-btn primary" onclick="createFromTemplate('${t.id}','${escHtml(t.name)}')">Create Project from Template</button>
+            <button class="iso-btn" onclick="editTemplate('${t.id}')">Edit</button>
+            <button class="iso-btn" style="color:#f87171" onclick="deleteTemplate_('${t.id}')">Delete</button>
+        </div>`;
+        el.innerHTML = html;
+    } catch (e) { el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Error'))}</div>`; }
+}
+
+async function editTemplate(id) {
+    try { const t = await apiFetch(`/hoshin/templates/${id}/`); showTemplateForm(t); }
+    catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+async function deleteTemplate_(id) {
+    if (!confirm('Delete this template?')) return;
+    try { await apiFetch(`/hoshin/templates/${id}/`, { method: 'DELETE' }); toast('Deleted'); loadTemplates(); }
+    catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+async function createFromTemplate(tplId, tplName) {
+    const title = prompt(`Project title (from template "${tplName}"):`, `${tplName} — ${new Date().toLocaleDateString()}`);
+    if (!title) return;
+    try {
+        const result = await apiFetch('/hoshin/projects/from-template/', { method: 'POST', body: { template_id: tplId, title } });
+        toast(`Project created: ${result.actions_created} actions, ${result.checklists_attached.length} checklists`);
+        loadTemplates();
+    } catch (e) { toast(safeStr(e, 'Error'), true); }
 }
 
 </script>
