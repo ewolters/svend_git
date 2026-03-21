@@ -1120,6 +1120,18 @@ def audit_finding_create(request, audit_id):
         finding.save(update_fields=["ncr"])
         ncr_id = str(ncr.id)
 
+    # NTF-001: notify audit owner of new finding
+    if audit.owner and audit.owner != request.user:
+        nc_label = " (NCR auto-created)" if ncr_id else ""
+        notify(
+            recipient=audit.owner,
+            notification_type="audit_finding",
+            title=f"Audit finding added: {audit.title}",
+            message=f"{finding.get_finding_type_display()}: {finding.description[:200]}{nc_label}",
+            entity_type="audit",
+            entity_id=audit.id,
+        )
+
     result = finding.to_dict()
     if ncr_id:
         result["ncr_id"] = ncr_id
@@ -1156,6 +1168,18 @@ def audit_finding_detail(request, audit_id, finding_id):
     if data.get("status") == "closed":
         finding.is_resolved = True
     finding.save()
+
+    # NTF-001: notify audit owner when finding closed
+    if data.get("status") == "closed" and audit.owner and audit.owner != request.user:
+        notify(
+            recipient=audit.owner,
+            notification_type="audit_finding",
+            title=f"Audit finding closed: {audit.title}",
+            message=f"{finding.description[:200]} — closed by {request.user.email}",
+            entity_type="audit",
+            entity_id=audit.id,
+        )
+
     return JsonResponse(finding.to_dict())
 
 
@@ -3238,6 +3262,27 @@ def complaint_detail(request, complaint_id):
         complaint.date_received = data["date_received"]
 
     complaint.save()
+
+    # NTF-001: notify on key complaint transitions
+    if new_status == "acknowledged" and complaint.assigned_to:
+        notify(
+            recipient=complaint.assigned_to,
+            notification_type="complaint_assigned",
+            title=f"Complaint assigned to you: {complaint.title}",
+            message=f"Customer complaint '{complaint.title}' ({complaint.severity}) has been assigned to you for investigation.",
+            entity_type="complaint",
+            entity_id=complaint.id,
+        )
+    elif new_status == "resolved" and complaint.owner and complaint.owner != request.user:
+        notify(
+            recipient=complaint.owner,
+            notification_type="complaint_status",
+            title=f"Complaint resolved: {complaint.title}",
+            message=f"Resolution: {complaint.resolution[:200] if complaint.resolution else '—'}",
+            entity_type="complaint",
+            entity_id=complaint.id,
+        )
+
     return JsonResponse(complaint.to_dict())
 
 
@@ -3613,6 +3658,18 @@ def afe_submit(request, afe_id):
     afe.submitted_date = date.today()
     afe.save(update_fields=["status", "submitted_date"])
 
+    # NTF-001: notify first pending approver(s)
+    first_level = afe.approval_levels.filter(status="pending").order_by("level_order").first()
+    if first_level and first_level.approver:
+        notify(
+            recipient=first_level.approver,
+            notification_type="afe_approval",
+            title=f"AFE requires your approval: {afe.afe_number}",
+            message=f"{afe.title} — ${afe.estimated_cost:,.2f}. {first_level.level_name} approval requested.",
+            entity_type="afe",
+            entity_id=afe.id,
+        )
+
     return JsonResponse(afe.to_dict())
 
 
@@ -3682,9 +3739,41 @@ def afe_approve(request, afe_id):
         if not remaining.exists():
             afe.status = "approved"
             afe.decision_date = date.today()
+            # NTF-001: notify requestor of full approval
+            if afe.owner:
+                notify(
+                    recipient=afe.owner,
+                    notification_type="afe_approval",
+                    title=f"AFE Approved: {afe.afe_number}",
+                    message=f"Your AFE '{afe.title}' (${afe.estimated_cost:,.2f}) has been fully approved.",
+                    entity_type="afe",
+                    entity_id=afe.id,
+                )
         else:
             afe.status = "in_review"
+            # NTF-001: notify next approver in chain
+            next_level = remaining.order_by("level_order").first()
+            if next_level and next_level.approver:
+                notify(
+                    recipient=next_level.approver,
+                    notification_type="afe_approval",
+                    title=f"AFE requires your approval: {afe.afe_number}",
+                    message=f"{afe.title} — ${afe.estimated_cost:,.2f}. {next_level.level_name} approval requested.",
+                    entity_type="afe",
+                    entity_id=afe.id,
+                )
         afe.save()
+
+        # NTF-001: notify requestor of level approval progress
+        if afe.owner and afe.owner != request.user:
+            notify(
+                recipient=afe.owner,
+                notification_type="afe_approval",
+                title=f"AFE {afe.afe_number}: {current.level_name} approved",
+                message=f"Approved by {request.user.email}. Progress: {afe.approval_progress}%.",
+                entity_type="afe",
+                entity_id=afe.id,
+            )
 
     else:  # deny
         current.status = "denied"
@@ -3693,6 +3782,17 @@ def afe_approve(request, afe_id):
         afe.denial_reason = data.get("comments", "")
         afe.decision_date = date.today()
         afe.save()
+
+        # NTF-001: notify requestor of denial
+        if afe.owner:
+            notify(
+                recipient=afe.owner,
+                notification_type="afe_approval",
+                title=f"AFE Denied: {afe.afe_number}",
+                message=f"Denied by {request.user.email} at {current.level_name}: {afe.denial_reason}",
+                entity_type="afe",
+                entity_id=afe.id,
+            )
 
     return JsonResponse(afe.to_dict())
 
@@ -3833,6 +3933,20 @@ def checklist_execute(request):
         elif answered >= total:
             execution.status = "complete"
             execution.completed_at = timezone.now()
+
+            # NTF-001: notify checklist owner on completion
+            if cl.owner and cl.owner != request.user:
+                fails = execution.fail_count
+                oos = execution.out_of_spec_count
+                alert = f" ({fails} fail, {oos} out-of-spec)" if fails or oos else ""
+                notify(
+                    recipient=cl.owner,
+                    notification_type="checklist_complete",
+                    title=f"Checklist completed: {cl.name}",
+                    message=f"Executed by {request.user.email} on {entity_type}/{entity_id}{alert}",
+                    entity_type=entity_type,
+                    entity_id=entity_id,
+                )
         else:
             execution.status = "in_progress"
 
