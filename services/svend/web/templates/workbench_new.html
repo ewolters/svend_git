@@ -1257,6 +1257,20 @@
             </div>
             <div class="ribbon-divider"></div>
             <div class="ribbon-group">
+                <div class="ribbon-group-label">Time Series</div>
+                <div class="ribbon-buttons">
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="window.open('/app/forecast/','_blank')" title="ARIMA/SARIMA time series forecasting">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="2 17 8 11 12 15 16 9"/>
+                            <polyline points="16 9 22 5" stroke-dasharray="2,2"/>
+                            <polyline points="16 9 16 4 M16 4 21 4" opacity="0.4"/>
+                        </svg>
+                        <span>Forecast</span>
+                    </button>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="ribbon-group">
                 <div class="ribbon-group-label">Models</div>
                 <div class="ribbon-buttons">
                     <button class="ribbon-btn ribbon-btn-lg" onclick="openSaveModelDialog()" title="Save a trained model for reuse">
