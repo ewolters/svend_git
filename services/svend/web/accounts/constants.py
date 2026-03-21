@@ -50,6 +50,7 @@ TIER_FEATURES = {
         "collaboration": False,  # No team features
         "forge_api": False,  # No synthetic data API
         "hoshin_kanri": False,  # No CI project management
+        "safety": False,  # No HIRARC safety management
         "priority_support": False,
     },
     Tier.FOUNDER: {
@@ -60,6 +61,7 @@ TIER_FEATURES = {
         "collaboration": False,
         "forge_api": True,
         "hoshin_kanri": False,
+        "safety": False,
         "priority_support": True,  # Legacy founders get priority
     },
     Tier.PRO: {
@@ -70,6 +72,7 @@ TIER_FEATURES = {
         "collaboration": False,
         "forge_api": True,
         "hoshin_kanri": False,
+        "safety": False,
         "priority_support": False,
     },
     Tier.TEAM: {
@@ -80,6 +83,7 @@ TIER_FEATURES = {
         "collaboration": True,  # Team collaboration
         "forge_api": True,
         "hoshin_kanri": False,
+        "safety": False,
         "priority_support": True,
     },
     Tier.ENTERPRISE: {
@@ -90,6 +94,7 @@ TIER_FEATURES = {
         "collaboration": True,
         "forge_api": True,
         "hoshin_kanri": True,  # Hoshin Kanri CI project management
+        "safety": True,  # HIRARC safety management
         "priority_support": True,
     },
 }
