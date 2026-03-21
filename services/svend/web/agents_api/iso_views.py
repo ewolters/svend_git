@@ -60,6 +60,18 @@ from .permissions import qms_can_edit, qms_queryset, qms_set_ownership
 logger = logging.getLogger(__name__)
 
 
+def _parse_date(val):
+    """Parse a date string (ISO format) to date object, or return None."""
+    if not val:
+        return None
+    if isinstance(val, date):
+        return val
+    try:
+        return date.fromisoformat(str(val))
+    except (ValueError, TypeError):
+        return None
+
+
 def _log_field_changes(record_type, record_id, record, data, fields, user):
     """Log field-level changes for any QMS record.
 
@@ -2805,6 +2817,7 @@ _SIGNABLE_MODELS = {
     "audit": (InternalAudit, "owner"),
     "training": (TrainingRecord, "requirement__owner"),
     "fmea": (FMEA, "owner"),
+    "afe": (AFE, "owner"),
 }
 
 
@@ -3423,8 +3436,8 @@ def equipment_list_create(request):
         equipment_type=data.get("equipment_type", "other"),
         location=data.get("location", ""),
         calibration_interval_months=data.get("calibration_interval_months", 12),
-        last_calibration_date=data.get("last_calibration_date"),
-        next_calibration_due=data.get("next_calibration_due"),
+        last_calibration_date=_parse_date(data.get("last_calibration_date")),
+        next_calibration_due=_parse_date(data.get("next_calibration_due")),
         calibration_provider=data.get("calibration_provider", ""),
         measurement_range=data.get("measurement_range", ""),
         resolution=data.get("resolution", ""),
@@ -3483,9 +3496,9 @@ def equipment_detail(request, equipment_id):
     if "calibration_interval_months" in data:
         eq.calibration_interval_months = data["calibration_interval_months"]
     if "last_calibration_date" in data:
-        eq.last_calibration_date = data["last_calibration_date"]
+        eq.last_calibration_date = _parse_date(data["last_calibration_date"])
     if "next_calibration_due" in data:
-        eq.next_calibration_due = data["next_calibration_due"]
+        eq.next_calibration_due = _parse_date(data["next_calibration_due"])
     if "gage_studies" in data:
         eq.gage_studies = data["gage_studies"]
 
@@ -3681,8 +3694,10 @@ def afe_approve(request, afe_id):
     POST body: {"action": "approve"|"deny", "comments": "...", "password": "..."}
     Password required for ElectronicSignature CFR compliance.
     """
+    # Tenant-scoped lookup — users can only approve AFEs in their org
+    qs, tenant, _is_admin = qms_queryset(AFE, request.user)
     try:
-        afe = AFE.objects.prefetch_related("approval_levels").get(id=afe_id)
+        afe = qs.prefetch_related("approval_levels").get(id=afe_id)
     except AFE.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
 
@@ -3698,6 +3713,14 @@ def afe_approve(request, afe_id):
     current = afe.approval_levels.filter(status="pending").order_by("level_order").first()
     if not current:
         return JsonResponse({"error": "No pending approval levels"}, status=400)
+
+    # Verify approver identity — cannot approve own AFE, must be designated or unassigned
+    if afe.owner == request.user:
+        return JsonResponse({"error": "Cannot approve your own AFE"}, status=403)
+    if current.approver and current.approver != request.user:
+        return JsonResponse(
+            {"error": f"This level is assigned to {current.approver_name or 'another approver'}"}, status=403
+        )
 
     # Record decision
     current.approver = request.user

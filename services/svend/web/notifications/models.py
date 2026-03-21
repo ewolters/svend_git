@@ -39,6 +39,12 @@ class NotificationType(models.TextChoices):
     DIARY_REMINDER = "diary_reminder", "Daily Diary Reminder"
     GOAL_DUE = "goal_due", "Goal Approaching Deadline"
     HANSEI_DUE = "hansei_due", "Hansei Kai Reflection Due"
+    # Phase C-E QMS features
+    AFE_APPROVAL = "afe_approval", "AFE Approval"
+    COMPLAINT_ASSIGNED = "complaint_assigned", "Complaint Assigned"
+    COMPLAINT_STATUS = "complaint_status", "Complaint Status Change"
+    AUDIT_FINDING = "audit_finding", "Audit Finding"
+    CHECKLIST_COMPLETE = "checklist_complete", "Checklist Completed"
 
 
 # Fields that are immutable after creation (NTF-001 §4.4)
