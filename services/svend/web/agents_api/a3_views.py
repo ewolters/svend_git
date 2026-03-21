@@ -234,6 +234,19 @@ def update_a3_report(request, report_id):
     if "imported_from" in data:
         report.imported_from = data["imported_from"]
 
+    # Invalidate stale critique when PDCA sections are edited
+    a3_sections = {
+        "background",
+        "current_condition",
+        "goal",
+        "root_cause",
+        "countermeasures",
+        "implementation_plan",
+        "follow_up",
+    }
+    if any(f in data for f in a3_sections) and report.last_critique:
+        report.last_critique = {}
+
     report.save()
 
     # Evidence hooks — root_cause and follow_up
@@ -902,7 +915,7 @@ def export_a3_pdf(request, report_id):
         weak_or_missing = [
             k
             for k, v in sections.items()
-            if isinstance(v, dict) and v.get("rating", "").strip("[]") in ("WEAK", "MISSING")
+            if isinstance(v, dict) and v.get("rating", "").strip("[]").upper() in ("WEAK", "MISSING")
         ]
         if weak_or_missing:
             return JsonResponse(

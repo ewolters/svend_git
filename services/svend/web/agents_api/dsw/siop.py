@@ -2107,6 +2107,8 @@ def _run_inventory_policy_wizard(df, config):
         return {"plots": [], "summary": "Error: demand_col required", "statistics": {}}
 
     work = df.copy()
+    if len(work) == 0:
+        return {"plots": [], "summary": "Error: no data rows", "statistics": {"total_items": 0}}
     work["_value"] = work[value_col].astype(float)
     work["_demand"] = work[demand_col].astype(float)
     if demand_std_col and demand_std_col in df.columns:
@@ -2116,7 +2118,14 @@ def _run_inventory_policy_wizard(df, config):
 
     # ABC classification
     work = work.sort_values("_value", ascending=False)
-    work["_cum_pct"] = work["_value"].cumsum() / work["_value"].sum() * 100
+    total_value = work["_value"].sum()
+    if total_value == 0:
+        return {
+            "plots": [],
+            "summary": "Error: total value is zero — check value_col",
+            "statistics": {"total_items": len(work)},
+        }
+    work["_cum_pct"] = work["_value"].cumsum() / total_value * 100
     work["abc_class"] = "C"
     work.loc[work["_cum_pct"] <= 80, "abc_class"] = "A"
     work.loc[(work["_cum_pct"] > 80) & (work["_cum_pct"] <= 95), "abc_class"] = "B"

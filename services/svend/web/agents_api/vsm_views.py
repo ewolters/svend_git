@@ -884,15 +884,27 @@ def approve_proposal(request, vsm_id):
             burst = b
             break
 
+    # Duplicate check — prevent approving same burst twice
+    if burst_id:
+        existing = HoshinProject.objects.filter(source_vsm=vsm, source_burst_id=burst_id).first()
+        if existing:
+            return JsonResponse(
+                {"error": "This proposal has already been approved", "hoshin_id": str(existing.id)}, status=409
+            )
+
     title = data.get("title", "").strip()
     if not title:
-        title = f"CI — {burst.get('text', 'VSM Improvement') if burst else 'VSM Improvement'}"[:300]
+        burst_text = burst.get("text", "VSM Improvement") if burst else "VSM Improvement"
+        title = f"CI — {burst_text}"[:300]
 
     project = Project.objects.create(title=title, user=request.user)
 
+    # VSM may not have a site field — derive from project context
+    site = getattr(vsm, "site", None)
+
     hoshin = HoshinProject.objects.create(
         project=project,
-        site=vsm.site,
+        site=site,
         project_class=data.get("project_class", "kaizen"),
         project_type=data.get("project_type", "material"),
         opportunity="budgeted_new",
