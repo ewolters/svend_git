@@ -16,6 +16,7 @@ urlpatterns = [
     path("<uuid:vsm_id>/future-state/", vsm_views.create_future_state, name="vsm_future_state"),
     path("<uuid:vsm_id>/compare/", vsm_views.compare_vsm, name="vsm_compare"),
     path("<uuid:vsm_id>/generate-proposals/", vsm_views.generate_proposals, name="vsm_generate_proposals"),
+    path("<uuid:vsm_id>/approve-proposal/", vsm_views.approve_proposal, name="vsm_approve_proposal"),
     # Intelligence Layer (Phase 3)
     path("<uuid:vsm_id>/waste-analysis/", vsm_views.waste_analysis, name="vsm_waste_analysis"),
 ]

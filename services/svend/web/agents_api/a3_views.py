@@ -690,6 +690,10 @@ Critique these A3 sections. Return as JSON with ratings and feedback per section
     else:
         result["raw_content"] = content
 
+    # Save critique for publish gate
+    report.last_critique = result
+    report.save(update_fields=["last_critique"])
+
     return JsonResponse(result)
 
 
@@ -884,6 +888,32 @@ def export_a3_pdf(request, report_id):
     from io import BytesIO
 
     report = get_object_or_404(qms_queryset(A3Report, request.user)[0], id=report_id)
+
+    # A3 publish gate: check if critique has been run and passed
+    # Gate is advisory — can be bypassed with ?force=1, but logs the bypass
+    last_critique = getattr(report, "last_critique", None) or {}
+    if not request.GET.get("force"):
+        sections = last_critique.get("sections", {})
+        if not sections:
+            return JsonResponse(
+                {"error": "A3 has not been critiqued yet. Run critique before exporting, or add ?force=1 to bypass."},
+                status=400,
+            )
+        weak_or_missing = [
+            k
+            for k, v in sections.items()
+            if isinstance(v, dict) and v.get("rating", "").strip("[]") in ("WEAK", "MISSING")
+        ]
+        if weak_or_missing:
+            return JsonResponse(
+                {
+                    "error": f"A3 has {len(weak_or_missing)} section(s) rated WEAK or MISSING: {', '.join(weak_or_missing)}. "
+                    f"Address these before exporting, or add ?force=1 to bypass.",
+                    "weak_sections": weak_or_missing,
+                },
+                status=400,
+            )
+
     diagrams = report.embedded_diagrams or {}
 
     try:

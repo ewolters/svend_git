@@ -376,6 +376,7 @@ ANALYSIS_REGISTRY = {
     ("siop", "epei"): _entry("siop", CAT_SIOP, False),
     ("siop", "rop_simulation"): _entry("siop", CAT_SIOP, False),
     ("siop", "mrp_netting"): _entry("siop", CAT_SIOP, False),
+    ("siop", "inventory_policy_wizard"): _entry("siop", CAT_SIOP, False),
 }
 
 

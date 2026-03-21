@@ -103,6 +103,7 @@ def run_siop(df, analysis_id, config):
         "epei": _run_epei,
         "rop_simulation": _run_rop_simulation,
         "mrp_netting": _run_mrp_netting,
+        "inventory_policy_wizard": _run_inventory_policy_wizard,
     }
 
     handler = dispatch.get(analysis_id)
@@ -2047,3 +2048,173 @@ def _float(config, key, default=None):
         return float(val)
     except (TypeError, ValueError):
         return default
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 11. INVENTORY POLICY WIZARD — ABC → differentiated SS + EOQ + Kanban
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _sf(val, default=0.0):
+    if val is None:
+        return default
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return default
+
+
+def _run_inventory_policy_wizard(df, config):
+    """Chain ABC classification → per-class safety stock + EOQ + kanban sizing.
+
+    Applies differentiated service levels by ABC class:
+    - Class A (high value): 99% service level
+    - Class B (medium value): 95% service level
+    - Class C (low value): 90% service level
+
+    Config:
+        value_col: str — column for item value/revenue
+        demand_col: str — column for demand per period
+        demand_std_col: str — column for demand std dev (optional)
+        lead_time: float — replenishment lead time in periods
+        container_size: float — units per kanban container (default 1)
+        holding_cost_pct: float — annual holding cost as % of unit cost (default 0.25)
+        order_cost: float — cost per order (default 100)
+        a_service: float — Class A target SL (default 0.99)
+        b_service: float — Class B target SL (default 0.95)
+        c_service: float — Class C target SL (default 0.90)
+    """
+    from scipy import stats as sp_stats
+
+    value_col = config.get("value_col", "")
+    demand_col = config.get("demand_col", "")
+    demand_std_col = config.get("demand_std_col", "")
+    lead_time = _sf(config.get("lead_time"), 14)
+    container_size = _sf(config.get("container_size"), 1)
+    holding_pct = _sf(config.get("holding_cost_pct"), 0.25)
+    order_cost = _sf(config.get("order_cost"), 100)
+
+    service_levels = {
+        "A": _sf(config.get("a_service"), 0.99),
+        "B": _sf(config.get("b_service"), 0.95),
+        "C": _sf(config.get("c_service"), 0.90),
+    }
+
+    # Validate columns
+    if not value_col or value_col not in df.columns:
+        return {"plots": [], "summary": "Error: value_col required", "statistics": {}}
+    if not demand_col or demand_col not in df.columns:
+        return {"plots": [], "summary": "Error: demand_col required", "statistics": {}}
+
+    work = df.copy()
+    work["_value"] = work[value_col].astype(float)
+    work["_demand"] = work[demand_col].astype(float)
+    if demand_std_col and demand_std_col in df.columns:
+        work["_demand_std"] = work[demand_std_col].astype(float)
+    else:
+        work["_demand_std"] = work["_demand"] * 0.2  # default 20% CV
+
+    # ABC classification
+    work = work.sort_values("_value", ascending=False)
+    work["_cum_pct"] = work["_value"].cumsum() / work["_value"].sum() * 100
+    work["abc_class"] = "C"
+    work.loc[work["_cum_pct"] <= 80, "abc_class"] = "A"
+    work.loc[(work["_cum_pct"] > 80) & (work["_cum_pct"] <= 95), "abc_class"] = "B"
+
+    # Per-item policy calculation
+    policies = []
+    for _, row in work.iterrows():
+        cls = row["abc_class"]
+        sl = service_levels[cls]
+        z = sp_stats.norm.ppf(sl)
+        demand = row["_demand"]
+        demand_std = row["_demand_std"]
+        unit_cost = row["_value"] / max(demand, 1) if demand > 0 else row["_value"]
+
+        # Safety stock
+        ss = z * demand_std * math.sqrt(lead_time)
+        rop = demand * lead_time + ss
+
+        # EOQ
+        annual_demand = demand * 12  # assume monthly demand
+        holding_cost = unit_cost * holding_pct
+        eoq = math.sqrt(2 * annual_demand * order_cost / max(holding_cost, 0.01))
+
+        # Kanban cards
+        kanban_cards = math.ceil((demand * lead_time * (1 + ss / max(demand * lead_time, 1))) / max(container_size, 1))
+
+        policies.append(
+            {
+                "abc_class": cls,
+                "service_level": sl,
+                "demand": round(demand, 1),
+                "safety_stock": round(ss, 1),
+                "reorder_point": round(rop, 1),
+                "eoq": round(eoq, 1),
+                "kanban_cards": kanban_cards,
+                "z_score": round(z, 2),
+            }
+        )
+
+    work["_policy"] = policies
+
+    # Aggregate by class
+    class_summary = {}
+    for cls in ["A", "B", "C"]:
+        cls_items = [p for p in policies if p["abc_class"] == cls]
+        if cls_items:
+            class_summary[cls] = {
+                "count": len(cls_items),
+                "service_level": service_levels[cls],
+                "avg_safety_stock": round(np.mean([p["safety_stock"] for p in cls_items]), 1),
+                "avg_eoq": round(np.mean([p["eoq"] for p in cls_items]), 1),
+                "total_kanban_cards": sum(p["kanban_cards"] for p in cls_items),
+                "avg_reorder_point": round(np.mean([p["reorder_point"] for p in cls_items]), 1),
+            }
+
+    total_cards = sum(p["kanban_cards"] for p in policies)
+
+    # Build summary
+    summary_parts = [
+        "<<COLOR:accent>>Inventory Policy Wizard<</COLOR>>",
+        f"<<COLOR:title>>Differentiated policy across {len(policies)} SKUs<</COLOR>>",
+    ]
+    for cls in ["A", "B", "C"]:
+        if cls in class_summary:
+            s = class_summary[cls]
+            summary_parts.append(
+                f"<<COLOR:highlight>>Class {cls}<</COLOR>> ({s['count']} items, {int(s['service_level'] * 100)}% SL): "
+                f"avg SS={s['avg_safety_stock']}, avg EOQ={s['avg_eoq']}, "
+                f"total kanban cards={s['total_kanban_cards']}"
+            )
+    summary_parts.append(f"\n<<COLOR:accent>>Total kanban cards: {total_cards}<</COLOR>>")
+
+    return {
+        "plots": [],  # Could add class comparison charts
+        "summary": "\n".join(summary_parts),
+        "guide_observation": f"Policy wizard: {len(policies)} items classified, {total_cards} kanban cards needed",
+        "statistics": {
+            "total_items": len(policies),
+            "class_summary": class_summary,
+            "total_kanban_cards": total_cards,
+            "service_levels": service_levels,
+            "lead_time": lead_time,
+            "container_size": container_size,
+            "policies": policies[:100],  # Cap for response size
+        },
+        "narrative": {
+            "verdict": f"Inventory policy for {len(policies)} SKUs: {total_cards} kanban cards across 3 service tiers",
+            "body": (
+                f"Applied differentiated service levels by ABC class. "
+                f"Class A ({service_levels['A']:.0%} SL) gets tighter safety stock; "
+                f"Class C ({service_levels['C']:.0%} SL) allows more stockout risk. "
+                f"Total system inventory: {total_cards} kanban containers."
+            ),
+            "next_steps": (
+                "1. Review Class A items individually — high value warrants item-level tuning\n"
+                "2. Run Demand Profile on volatile items to validate safety stock assumptions\n"
+                "3. Generate kanban cards for all items → print and deploy\n"
+                "4. Set up SPC monitoring on Class A consumption to detect demand shifts"
+            ),
+        },
+    }

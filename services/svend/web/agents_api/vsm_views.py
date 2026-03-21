@@ -21,7 +21,7 @@ from accounts.permissions import gated_paid, require_feature
 from core.models import Project
 
 from .hoshin_calculations import estimate_savings_monte_carlo
-from .models import ValueStreamMap
+from .models import HoshinProject, ValueStreamMap
 
 logger = logging.getLogger(__name__)
 
@@ -854,4 +854,66 @@ def generate_proposals(request, vsm_id):
                 "labor_rate": labor_rate,
             },
         }
+    )
+
+
+@require_feature("hoshin_kanri")
+@require_http_methods(["POST"])
+def approve_proposal(request, vsm_id):
+    """Approve a VSM DOWNTIME waste proposal → auto-create HoshinProject with pre-calculated ROI.
+
+    POST body: {
+        "burst_id": "string",
+        "title": "optional override",
+        "project_type": "material|labor|quality|...",
+        "annual_savings_target": float,
+        "calculation_method": "direct|time_reduction|headcount",
+    }
+    """
+    from core.models.project import Project
+
+    vsm = get_object_or_404(ValueStreamMap, id=vsm_id, owner=request.user)
+
+    data = json.loads(request.body) if request.body else {}
+    burst_id = data.get("burst_id", "")
+
+    # Find the burst in VSM kaizen_bursts
+    burst = None
+    for b in vsm.kaizen_bursts or []:
+        if str(b.get("id", "")) == burst_id:
+            burst = b
+            break
+
+    title = data.get("title", "").strip()
+    if not title:
+        title = f"CI — {burst.get('text', 'VSM Improvement') if burst else 'VSM Improvement'}"[:300]
+
+    project = Project.objects.create(title=title, user=request.user)
+
+    hoshin = HoshinProject.objects.create(
+        project=project,
+        site=vsm.site,
+        project_class=data.get("project_class", "kaizen"),
+        project_type=data.get("project_type", "material"),
+        opportunity="budgeted_new",
+        hoshin_status="proposed",
+        annual_savings_target=data.get("annual_savings_target", 0),
+        calculation_method=data.get("calculation_method", "direct"),
+        source_vsm=vsm,
+        source_burst_id=burst_id,
+    )
+
+    logger.info(
+        "VSM %s: proposal approved → HoshinProject %s (savings=$%s)", vsm.id, hoshin.id, hoshin.annual_savings_target
+    )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "project_id": str(project.id),
+            "hoshin_id": str(hoshin.id),
+            "title": title,
+            "annual_savings_target": float(hoshin.annual_savings_target),
+        },
+        status=201,
     )

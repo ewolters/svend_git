@@ -625,6 +625,13 @@ class A3Report(models.Model):
         default=dict, blank=True, help_text="Embedded SVG diagrams: {section: [{id, svg, board_name, room_code}]}"
     )
 
+    # LLM critique result (publish gate)
+    last_critique = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Last critique result: {sections: {field: {rating, feedback}}, overall, logical_flow}",
+    )
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
