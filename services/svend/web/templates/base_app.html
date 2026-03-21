@@ -1138,6 +1138,16 @@
                             <a href="/app/hoshin/#/calc-library">Calculations</a>
                         </div>
                     </div>
+                    <div class="nav-dropdown" id="nav-safety-dropdown" style="display:none;">
+                        <span class="nav-dropdown-trigger">Safety</span>
+                        <div class="nav-dropdown-menu">
+                            <a href="/app/safety/#/dashboard">Dashboard</a>
+                            <a href="/app/safety/#/cards">Frontier Cards</a>
+                            <a href="/app/safety/#/schedules">Audit Schedules</a>
+                            <a href="/app/safety/#/fmea">FMEA Bridge</a>
+                            <a href="/app/safety/#/pareto">5S Pareto</a>
+                        </div>
+                    </div>
                     <a href="/app/learn/">Learn</a>
                     <a href="/internal/dashboard/" id="nav-internal" style="display:none;">Internal</a>
                     <div class="user-info">
@@ -1398,6 +1408,10 @@
                     if (data.features && data.features.hoshin_kanri) {
                         const hNav = document.getElementById('nav-hoshin-dropdown');
                         if (hNav) hNav.style.display = '';
+                    }
+                    if (data.features && data.features.safety) {
+                        const sNav = document.getElementById('nav-safety-dropdown');
+                        if (sNav) sNav.style.display = '';
                     }
                     // Show internal dashboard for staff and org admins
                     if (data.is_internal) {
