@@ -3838,6 +3838,7 @@ const analysisMenus = {
             { id: 'epei', name: 'EPEI', desc: 'Every Part Every Interval scheduling' },
             { id: 'rop_simulation', name: 'ROP Simulation', desc: 'Monte Carlo (s,Q) policy simulation' },
             { id: 'mrp_netting', name: 'MRP Netting', desc: 'Gross-to-net requirements explosion' },
+            { id: 'inventory_policy_wizard', name: 'Inventory Policy Wizard', desc: 'ABC → differentiated SS + EOQ + Kanban per class' },
         ]
     }
 };
@@ -7918,6 +7919,54 @@ function generateConfigForm(type, id) {
                             <option value="fixed">Fixed Quantity</option>
                             <option value="eoq">EOQ</option>
                         </select>
+                    </div>
+                </div>
+            `;
+        }
+        if (id === 'inventory_policy_wizard') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Value/revenue column:</label>
+                        <select id="cfg-value_col">${numCols}</select>
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Demand column:</label>
+                        <select id="cfg-demand_col">${numCols}</select>
+                    </div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Demand std dev column (optional):</label>
+                        <select id="cfg-demand_std_col"><option value="">Auto (20% CV)</option>${numCols}</select>
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Lead time (periods):</label>
+                        <input type="number" id="cfg-lead_time" value="14" min="1" step="1">
+                    </div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Container size:</label>
+                        <input type="number" id="cfg-container_size" value="1" min="1">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Order cost ($):</label>
+                        <input type="number" id="cfg-order_cost" value="100" min="0" step="10">
+                    </div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Class A service level:</label>
+                        <input type="number" id="cfg-a_service" value="0.99" min="0.5" max="1" step="0.01">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Class B service level:</label>
+                        <input type="number" id="cfg-b_service" value="0.95" min="0.5" max="1" step="0.01">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Class C service level:</label>
+                        <input type="number" id="cfg-c_service" value="0.90" min="0.5" max="1" step="0.01">
                     </div>
                 </div>
             `;
