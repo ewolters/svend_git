@@ -3450,6 +3450,10 @@ function renderProposalCards(proposals) {
                 <span style="font-size:0.7rem; color:var(--text-dim); margin-left:0.25rem;">(90% CI, median $${Math.round(p.median_savings || p.estimated_annual_savings || 0).toLocaleString()})</span>
                 ${p.p_positive > 0 ? `<span style="font-size:0.7rem; color:var(--success); margin-left:0.5rem;">${Math.round(p.p_positive * 100)}% chance of positive ROI</span>` : ''}
             </div>
+            <button class="btn btn-primary" style="margin-top:0.5rem;font-size:0.75rem;padding:0.3rem 0.8rem;background:var(--accent);border-color:var(--accent);"
+                onclick="approveProposal('${p.burst_id||''}', '${(p.suggested_title||'').replace(/'/g,'\\&#39;')}', ${Math.round(p.median_savings || p.estimated_annual_savings || 0)}, '${p.suggested_method||'direct'}', '${p.suggested_type||'material'}')">
+                Approve → Hoshin Project
+            </button>
         </div>
     `).join('');
 }
@@ -3488,6 +3492,36 @@ async function createSelectedProposals() {
         alert(`Created ${data.created} CI project(s). View them in Hoshin Kanri.`);
     } catch (err) {
         alert('Error creating projects: ' + safeStr(err, 'Unknown error'));
+    }
+}
+
+async function approveProposal(burstId, title, savingsTarget, calcMethod, projectType) {
+    try {
+        const response = await fetch(`/api/vsm/${vsmId}/approve-proposal/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                burst_id: burstId,
+                title: title,
+                annual_savings_target: savingsTarget,
+                calculation_method: calcMethod,
+                project_type: projectType,
+            }),
+        });
+        const data = await response.json();
+        if (response.status === 409) {
+            alert('This proposal has already been approved.');
+            return;
+        }
+        if (!response.ok) {
+            alert(safeStr(data.error, 'Failed to approve proposal.'));
+            return;
+        }
+        closeProposalModal();
+        alert(`Hoshin project created: ${data.title}\nSavings target: $${data.annual_savings_target.toLocaleString()}/yr\n\nView in Hoshin Kanri.`);
+    } catch (err) {
+        alert('Error: ' + safeStr(err, 'Unknown error'));
     }
 }
 
