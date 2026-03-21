@@ -5101,6 +5101,176 @@ class AuditChecklist(models.Model):
 
 
 # =============================================================================
+# Universal Checklists — prompt-response model (Gawande-style)
+# =============================================================================
+
+
+class Checklist(models.Model):
+    """Reusable checklist template with typed prompt-response items.
+
+    Follows checklist science (Gawande): each item is a specific prompt with
+    an expected response type. Supports READ-DO and DO-CONFIRM patterns.
+    Attachable to any entity (audit, project, kaizen, equipment, training, etc.).
+
+    Item schema:
+    [
+        {
+            "prompt": "Verify torque spec meets drawing requirement",
+            "response_type": "pass_fail_na",   # yes_no | pass_fail_na | text | numeric | select | file | signature
+            "guidance": "Reference drawing 12345-A rev C",  # optional help text
+            "options": ["Option A", "Option B"],             # for select type only
+            "required": true,                                 # is response mandatory
+            "unit": "Nm",                                     # for numeric type
+            "accept_min": 10.0,                               # for numeric — auto-flag out of spec
+            "accept_max": 15.0,
+        }
+    ]
+    """
+
+    class ChecklistType(models.TextChoices):
+        READ_DO = "read_do", "Read-Do"
+        DO_CONFIRM = "do_confirm", "Do-Confirm"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="checklists")
+    site = models.ForeignKey(
+        "agents_api.Site", on_delete=models.SET_NULL, null=True, blank=True, related_name="checklists"
+    )
+    name = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    checklist_type = models.CharField(max_length=20, choices=ChecklistType.choices, default=ChecklistType.READ_DO)
+    category = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Grouping: audit, kaizen, safety, equipment, training, project, general",
+    )
+    version = models.CharField(max_length=20, default="1.0")
+    items = models.JSONField(default=list, help_text="Array of typed prompt-response items")
+    is_template = models.BooleanField(default=True, help_text="Templates are reusable; non-templates are one-offs")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "checklists"
+        ordering = ["category", "name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.category or 'general'})"
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "name": self.name,
+            "description": self.description,
+            "checklist_type": self.checklist_type,
+            "category": self.category,
+            "version": self.version,
+            "items": self.items,
+            "item_count": len(self.items) if self.items else 0,
+            "is_template": self.is_template,
+            "site_id": str(self.site_id) if self.site_id else None,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+class ChecklistExecution(models.Model):
+    """Instance of executing a checklist against a specific entity.
+
+    Links a Checklist template to any entity (audit, project, NCR, equipment, etc.)
+    via entity_type + entity_id. Stores responses per item with evidence files.
+
+    Response schema (matches items array by index):
+    [
+        {
+            "value": "pass" | "fail" | "na" | "yes" | "no" | "text..." | 42.5 | null,
+            "notes": "Operator comment",
+            "file_ids": ["uuid", ...],    # evidence photos/documents
+            "responded_by": "user@email",
+            "responded_at": "ISO timestamp",
+            "out_of_spec": false,          # auto-computed for numeric with accept_min/max
+        }
+    ]
+    """
+
+    class Status(models.TextChoices):
+        NOT_STARTED = "not_started", "Not Started"
+        IN_PROGRESS = "in_progress", "In Progress"
+        COMPLETE = "complete", "Complete"
+        BLOCKED = "blocked", "Blocked"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    checklist = models.ForeignKey(Checklist, on_delete=models.CASCADE, related_name="executions")
+    executor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="checklist_executions"
+    )
+    # Generic entity link — any module can use checklists
+    entity_type = models.CharField(
+        max_length=30,
+        db_index=True,
+        help_text="audit, project, kaizen, ncr, capa, equipment, training, supplier, document, general",
+    )
+    entity_id = models.UUIDField(db_index=True, help_text="UUID of the linked entity")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.NOT_STARTED)
+    responses = models.JSONField(default=list, help_text="Array of responses matching checklist items by index")
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "checklist_executions"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["entity_type", "entity_id"], name="idx_clexec_entity"),
+        ]
+
+    def __str__(self):
+        return f"Execution of {self.checklist.name} on {self.entity_type}/{self.entity_id}"
+
+    @property
+    def progress(self):
+        """Fraction of items with a non-null response."""
+        if not self.responses:
+            return 0
+        answered = sum(1 for r in self.responses if r.get("value") is not None)
+        total = len(self.checklist.items) if self.checklist.items else 1
+        return round(answered / total * 100)
+
+    @property
+    def pass_count(self):
+        return sum(1 for r in (self.responses or []) if r.get("value") in ("pass", "yes"))
+
+    @property
+    def fail_count(self):
+        return sum(1 for r in (self.responses or []) if r.get("value") in ("fail", "no"))
+
+    @property
+    def out_of_spec_count(self):
+        return sum(1 for r in (self.responses or []) if r.get("out_of_spec"))
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "checklist_id": str(self.checklist_id),
+            "checklist_name": self.checklist.name,
+            "checklist_type": self.checklist.checklist_type,
+            "entity_type": self.entity_type,
+            "entity_id": str(self.entity_id),
+            "executor_id": str(self.executor_id) if self.executor_id else None,
+            "status": self.status,
+            "responses": self.responses,
+            "progress": self.progress,
+            "pass_count": self.pass_count,
+            "fail_count": self.fail_count,
+            "out_of_spec_count": self.out_of_spec_count,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "created_at": self.created_at.isoformat(),
+        }
+
+
+# =============================================================================
 # ISO Document Creator (structured authoring)
 # =============================================================================
 

@@ -213,6 +213,7 @@ select.iso-input { appearance: none; background-image: url("data:image/svg+xml,%
             <a class="iso-tab" href="#/suppliers">Suppliers</a>
             <a class="iso-tab" href="#/risks">Risks</a>
             <a class="iso-tab" href="#/equipment">Equipment</a>
+            <a class="iso-tab" href="#/checklists">Checklists</a>
         </div>
     </div>
 
@@ -227,6 +228,7 @@ select.iso-input { appearance: none; background-image: url("data:image/svg+xml,%
     <div id="panel-risks" class="iso-panel"></div>
     <div id="panel-equipment" class="iso-panel"></div>
     <div id="panel-audit-readiness" class="iso-panel"></div>
+    <div id="panel-checklists" class="iso-panel"></div>
 </div>
 {% endblock %}
 
@@ -288,7 +290,7 @@ function siteBadge(siteId, siteName) {
 // =========================================================================
 // Navigation
 // =========================================================================
-const TABS = ['dashboard', 'ncrs', 'audits', 'training', 'reviews', 'documents', 'suppliers', 'complaints', 'risks', 'equipment', 'audit-readiness'];
+const TABS = ['dashboard', 'ncrs', 'audits', 'training', 'reviews', 'documents', 'suppliers', 'complaints', 'risks', 'equipment', 'audit-readiness', 'checklists'];
 let currentTab = 'dashboard';
 
 function navigate(tab) {
@@ -309,6 +311,7 @@ function navigate(tab) {
         risks: loadRisks,
         equipment: loadEquipment,
         'audit-readiness': loadAuditReadiness,
+        checklists: loadChecklists,
     };
     if (loader[tab]) loader[tab]();
 }
@@ -3271,6 +3274,175 @@ async function loadAuditReadiness() {
         }
         el.innerHTML = html;
     } catch (e) { el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Unknown error'))}</div>`; }
+}
+
+// =========================================================================
+// Universal Checklists tab
+// =========================================================================
+const RESPONSE_TYPES = [
+    ['yes_no', 'Yes / No'], ['pass_fail_na', 'Pass / Fail / N/A'], ['text', 'Text'],
+    ['numeric', 'Numeric'], ['select', 'Multiple Choice'], ['file', 'File / Photo'], ['signature', 'Signature'],
+];
+let clFilterCat = '';
+
+async function loadChecklists() {
+    const el = document.getElementById('panel-checklists');
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim)">Loading checklists...</div>';
+    try {
+        let qs = '/checklists-v2/';
+        if (clFilterCat) qs += `?category=${clFilterCat}`;
+        const data = await apiFetch(qs);
+        let html = '<div class="iso-toolbar">';
+        html += `<select class="iso-input" style="width:140px" onchange="clFilterCat=this.value;loadChecklists()">
+            <option value="">All Categories</option>
+            ${['audit','kaizen','safety','equipment','training','project','general'].map(c => `<option value="${c}"${clFilterCat===c?' selected':''}>${c}</option>`).join('')}
+        </select>`;
+        html += '<div style="flex:1"></div>';
+        html += '<button class="iso-btn primary" onclick="showChecklistBuilder()">+ New Checklist</button>';
+        html += '</div>';
+        if (!data.length) {
+            html += '<div style="text-align:center;padding:60px;color:var(--text-dim)">No checklists yet. Create one to get started.</div>';
+        } else {
+            html += '<table class="iso-table"><thead><tr><th>Name</th><th>Category</th><th>Type</th><th>Items</th><th>Version</th><th>Created</th></tr></thead><tbody>';
+            data.forEach(c => {
+                html += `<tr style="cursor:pointer" onclick="loadChecklistDetail('${c.id}')">
+                    <td>${escHtml(c.name)}</td><td>${badge(c.category||'general', c.category||'general')}</td>
+                    <td style="font-size:12px">${c.checklist_type==='read_do'?'Read-Do':'Do-Confirm'}</td>
+                    <td>${c.item_count}</td><td style="font-size:12px">${escHtml(c.version)}</td>
+                    <td>${fmtDate(c.created_at)}</td></tr>`;
+            });
+            html += '</tbody></table>';
+        }
+        el.innerHTML = html;
+    } catch (e) { el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Error'))}</div>`; }
+}
+
+function showChecklistBuilder(existing) {
+    const el = document.getElementById('panel-checklists');
+    const items = existing?.items || [];
+    const isEdit = !!existing;
+    let html = `<div class="iso-form" style="max-width:800px">
+        <h3 style="margin:0 0 16px">${isEdit ? 'Edit' : 'New'} Checklist</h3>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">Name *</label><input class="iso-input" id="cl-name" value="${escHtml(existing?.name||'')}"></div>
+            <div><label class="iso-label">Category</label><select class="iso-input" id="cl-cat">
+                ${['general','audit','kaizen','safety','equipment','training','project'].map(c => `<option value="${c}"${(existing?.category||'general')===c?' selected':''}>${c}</option>`).join('')}</select></div>
+            <div><label class="iso-label">Type</label><select class="iso-input" id="cl-type">
+                <option value="read_do"${existing?.checklist_type==='read_do'?' selected':''}>Read-Do (read step, then do it)</option>
+                <option value="do_confirm"${existing?.checklist_type==='do_confirm'?' selected':''}>Do-Confirm (do from memory, confirm with list)</option></select></div>
+            <div><label class="iso-label">Version</label><input class="iso-input" id="cl-ver" value="${escHtml(existing?.version||'1.0')}"></div>
+        </div>
+        <div style="margin-top:12px"><label class="iso-label">Description</label><textarea class="iso-textarea" id="cl-desc" rows="2">${escHtml(existing?.description||'')}</textarea></div>
+        <h4 style="margin:16px 0 8px;font-size:13px;color:var(--text-secondary)">Checklist Items</h4>
+        <div id="cl-items-list"></div>
+        <button class="iso-btn" style="margin-top:8px" onclick="addChecklistItem()">+ Add Item</button>
+        <div style="margin-top:16px;display:flex;gap:8px">
+            <button class="iso-btn primary" onclick="saveChecklist(${isEdit ? "'"+existing.id+"'" : 'null'})">${isEdit ? 'Save' : 'Create'}</button>
+            <button class="iso-btn" onclick="loadChecklists()">Cancel</button>
+        </div>
+    </div>`;
+    el.innerHTML = html;
+    // Render existing items
+    window._clItems = items.map(i => ({...i}));
+    renderChecklistItems();
+}
+
+function renderChecklistItems() {
+    const el = document.getElementById('cl-items-list');
+    if (!el) return;
+    el.innerHTML = (window._clItems || []).map((item, i) => `<div style="display:flex;gap:8px;align-items:start;margin-bottom:8px;padding:10px;background:var(--bg-secondary);border-radius:6px">
+        <span style="font-weight:700;color:var(--text-dim);min-width:24px;padding-top:6px">${i+1}</span>
+        <div style="flex:1">
+            <input class="iso-input" value="${escHtml(item.prompt||'')}" placeholder="Prompt / question" onchange="window._clItems[${i}].prompt=this.value" style="margin-bottom:4px">
+            <div style="display:flex;gap:6px">
+                <select class="iso-input" style="width:140px;font-size:11px" onchange="window._clItems[${i}].response_type=this.value;renderChecklistItems()">
+                    ${RESPONSE_TYPES.map(([v,l]) => `<option value="${v}"${(item.response_type||'pass_fail_na')===v?' selected':''}>${l}</option>`).join('')}
+                </select>
+                <input class="iso-input" value="${escHtml(item.guidance||'')}" placeholder="Guidance / reference" onchange="window._clItems[${i}].guidance=this.value" style="flex:1;font-size:11px">
+                <label style="font-size:11px;display:flex;align-items:center;gap:4px;white-space:nowrap">
+                    <input type="checkbox" ${item.required!==false?'checked':''} onchange="window._clItems[${i}].required=this.checked"> Req
+                </label>
+            </div>
+            ${item.response_type==='numeric'?`<div style="display:flex;gap:6px;margin-top:4px">
+                <input class="iso-input" type="number" step="any" value="${item.accept_min??''}" placeholder="Min" onchange="window._clItems[${i}].accept_min=parseFloat(this.value)||null" style="width:80px;font-size:11px">
+                <input class="iso-input" type="number" step="any" value="${item.accept_max??''}" placeholder="Max" onchange="window._clItems[${i}].accept_max=parseFloat(this.value)||null" style="width:80px;font-size:11px">
+                <input class="iso-input" value="${escHtml(item.unit||'')}" placeholder="Unit" onchange="window._clItems[${i}].unit=this.value" style="width:60px;font-size:11px">
+            </div>`:''}
+            ${item.response_type==='select'?`<input class="iso-input" value="${escHtml((item.options||[]).join(', '))}" placeholder="Options (comma-separated)" onchange="window._clItems[${i}].options=this.value.split(',').map(s=>s.trim()).filter(Boolean)" style="margin-top:4px;font-size:11px">`:''}
+        </div>
+        <button onclick="window._clItems.splice(${i},1);renderChecklistItems()" style="background:none;border:none;color:#f87171;cursor:pointer;font-size:18px;padding:4px">&times;</button>
+    </div>`).join('');
+}
+
+function addChecklistItem() {
+    if (!window._clItems) window._clItems = [];
+    window._clItems.push({prompt: '', response_type: 'pass_fail_na', guidance: '', required: true});
+    renderChecklistItems();
+    // Focus the new item's prompt input
+    setTimeout(() => {
+        const inputs = document.querySelectorAll('#cl-items-list input[placeholder="Prompt / question"]');
+        if (inputs.length) inputs[inputs.length-1].focus();
+    }, 50);
+}
+
+async function saveChecklist(existingId) {
+    const name = document.getElementById('cl-name').value.trim();
+    if (!name) { toast('Name is required', true); return; }
+    const body = {
+        name, description: document.getElementById('cl-desc').value,
+        checklist_type: document.getElementById('cl-type').value,
+        category: document.getElementById('cl-cat').value,
+        version: document.getElementById('cl-ver').value,
+        items: window._clItems || [],
+    };
+    try {
+        if (existingId) {
+            await apiFetch(`/checklists-v2/${existingId}/`, { method: 'PUT', body });
+            toast('Checklist updated');
+        } else {
+            await apiFetch('/checklists-v2/', { method: 'POST', body });
+            toast('Checklist created');
+        }
+        loadChecklists();
+    } catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+async function loadChecklistDetail(id) {
+    const el = document.getElementById('panel-checklists');
+    try {
+        const cl = await apiFetch(`/checklists-v2/${id}/`);
+        let html = `<div style="margin-bottom:12px"><button class="iso-btn" onclick="loadChecklists()">&larr; Back</button>
+            <span style="margin-left:12px;font-size:18px;font-weight:600">${escHtml(cl.name)}</span>
+            ${badge(cl.category||'general', cl.category||'general')}
+            <span style="font-size:12px;color:var(--text-dim);margin-left:8px">${cl.checklist_type==='read_do'?'Read-Do':'Do-Confirm'} v${escHtml(cl.version)}</span></div>`;
+        if (cl.description) html += `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">${escHtml(cl.description)}</div>`;
+        // Items preview
+        html += '<table class="iso-table"><thead><tr><th>#</th><th>Prompt</th><th>Response Type</th><th>Required</th></tr></thead><tbody>';
+        (cl.items || []).forEach((item, i) => {
+            html += `<tr><td>${i+1}</td><td>${escHtml(item.prompt)}${item.guidance?'<div style=font-size:11px;color:var(--text-dim)>'+escHtml(item.guidance)+'</div>':''}</td>
+                <td>${escHtml((RESPONSE_TYPES.find(r=>r[0]===item.response_type)||['','—'])[1])}${item.response_type==='numeric'&&item.unit?' ('+escHtml(item.unit)+')':''}${item.response_type==='numeric'&&(item.accept_min!=null||item.accept_max!=null)?' <span style=font-size:10px;color:var(--text-dim)>['+((item.accept_min??'—')+' – '+(item.accept_max??'—'))+']</span>':''}</td>
+                <td>${item.required!==false?'Yes':'—'}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        html += `<div style="margin-top:16px;display:flex;gap:8px">
+            <button class="iso-btn primary" onclick="editChecklist('${cl.id}')">Edit</button>
+            <button class="iso-btn" style="color:#f87171" onclick="deleteChecklist('${cl.id}')">Delete</button>
+        </div>`;
+        el.innerHTML = html;
+    } catch (e) { el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(safeStr(e, 'Error'))}</div>`; }
+}
+
+async function editChecklist(id) {
+    try {
+        const cl = await apiFetch(`/checklists-v2/${id}/`);
+        showChecklistBuilder(cl);
+    } catch (e) { toast(safeStr(e, 'Error'), true); }
+}
+
+async function deleteChecklist(id) {
+    if (!confirm('Delete this checklist?')) return;
+    try { await apiFetch(`/checklists-v2/${id}/`, { method: 'DELETE' }); toast('Deleted'); loadChecklists(); }
+    catch (e) { toast(safeStr(e, 'Error'), true); }
 }
 
 </script>

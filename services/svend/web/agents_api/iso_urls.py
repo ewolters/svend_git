@@ -75,4 +75,14 @@ urlpatterns = [
     path("study-actions/request-doc-update/", iso_views.study_request_doc_update, name="iso_study_request_doc_update"),
     path("study-actions/flag-training-gap/", iso_views.study_flag_training_gap, name="iso_study_flag_training_gap"),
     path("study-actions/flag-fmea-update/", iso_views.study_flag_fmea_update, name="iso_study_flag_fmea_update"),
+    # Universal Checklists
+    path("checklists-v2/", iso_views.checklist_v2_list_create, name="checklist_v2_list"),
+    path("checklists-v2/<uuid:cl_id>/", iso_views.checklist_v2_detail, name="checklist_v2_detail"),
+    path("checklists-v2/execute/", iso_views.checklist_execute, name="checklist_execute"),
+    path(
+        "checklists-v2/executions/<uuid:exec_id>/",
+        iso_views.checklist_execution_detail,
+        name="checklist_execution_detail",
+    ),
+    path("checklists-v2/executions/", iso_views.checklist_execution_list, name="checklist_execution_list"),
 ]

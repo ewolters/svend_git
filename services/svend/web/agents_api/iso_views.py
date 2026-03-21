@@ -29,6 +29,8 @@ from .models import (
     AuditChecklist,
     AuditFinding,
     CAPAReport,
+    Checklist,
+    ChecklistExecution,
     ControlledDocument,
     CustomerComplaint,
     DocumentRevision,
@@ -3415,6 +3417,198 @@ def equipment_detail(request, equipment_id):
 
 
 # =========================================================================
+# =========================================================================
+# Universal Checklists — prompt-response model
+# =========================================================================
+
+
+@require_team
+@require_http_methods(["GET", "POST"])
+def checklist_v2_list_create(request):
+    """List or create universal checklists."""
+    user = request.user
+
+    if request.method == "GET":
+        checklists = Checklist.objects.filter(owner=user)
+        cat = request.GET.get("category")
+        if cat:
+            checklists = checklists.filter(category=cat)
+        return JsonResponse([c.to_dict() for c in checklists[:100]], safe=False)
+
+    data = json.loads(request.body)
+    name = data.get("name", "").strip()
+    if not name:
+        return JsonResponse({"error": "Name is required"}, status=400)
+
+    cl = Checklist(
+        owner=user,
+        name=name,
+        description=data.get("description", ""),
+        checklist_type=data.get("checklist_type", "read_do"),
+        category=data.get("category", "general"),
+        version=data.get("version", "1.0"),
+        items=data.get("items", []),
+    )
+    if data.get("site_id"):
+        try:
+            cl.site = Site.objects.get(id=data["site_id"])
+        except Site.DoesNotExist:
+            pass
+    cl.save()
+    return JsonResponse(cl.to_dict(), status=201)
+
+
+@require_team
+@require_http_methods(["GET", "PUT", "DELETE"])
+def checklist_v2_detail(request, cl_id):
+    """Get, update, or delete a checklist."""
+    try:
+        cl = Checklist.objects.get(id=cl_id, owner=request.user)
+    except Checklist.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    if request.method == "GET":
+        return JsonResponse(cl.to_dict())
+
+    if request.method == "DELETE":
+        cl.delete()
+        return JsonResponse({"ok": True})
+
+    data = json.loads(request.body)
+    for field in ["name", "description", "checklist_type", "category", "version", "items"]:
+        if field in data:
+            setattr(cl, field, data[field])
+    cl.save()
+    return JsonResponse(cl.to_dict())
+
+
+@require_team
+@require_http_methods(["POST"])
+def checklist_execute(request):
+    """Start or continue a checklist execution against an entity.
+
+    POST body:
+    {
+        "checklist_id": "uuid",
+        "entity_type": "audit|project|kaizen|ncr|capa|equipment|...",
+        "entity_id": "uuid",
+        "responses": [{"value": "pass", "notes": "...", "file_ids": [...]}]  // optional — save responses
+    }
+    """
+    data = json.loads(request.body)
+    checklist_id = data.get("checklist_id")
+    entity_type = data.get("entity_type", "")
+    entity_id = data.get("entity_id", "")
+
+    if not checklist_id or not entity_type or not entity_id:
+        return JsonResponse({"error": "checklist_id, entity_type, and entity_id are required"}, status=400)
+
+    try:
+        cl = Checklist.objects.get(id=checklist_id, owner=request.user)
+    except Checklist.DoesNotExist:
+        return JsonResponse({"error": "Checklist not found"}, status=404)
+
+    # Get or create execution
+    execution, created = ChecklistExecution.objects.get_or_create(
+        checklist=cl,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        defaults={"executor": request.user, "status": "not_started"},
+    )
+
+    responses = data.get("responses")
+    if responses is not None:
+        # Save responses — auto-compute out_of_spec for numeric items
+        items = cl.items or []
+        for i, resp in enumerate(responses):
+            if i < len(items) and items[i].get("response_type") == "numeric":
+                val = resp.get("value")
+                if val is not None:
+                    try:
+                        num_val = float(val)
+                        accept_min = items[i].get("accept_min")
+                        accept_max = items[i].get("accept_max")
+                        oos = False
+                        if accept_min is not None and num_val < accept_min:
+                            oos = True
+                        if accept_max is not None and num_val > accept_max:
+                            oos = True
+                        resp["out_of_spec"] = oos
+                    except (ValueError, TypeError):
+                        pass
+            # Stamp responder
+            if resp.get("value") is not None:
+                resp["responded_by"] = request.user.email
+                resp["responded_at"] = timezone.now().isoformat()
+
+        execution.responses = responses
+
+        # Update status based on completion
+        answered = sum(1 for r in responses if r.get("value") is not None)
+        total = len(items)
+        if not execution.started_at:
+            execution.started_at = timezone.now()
+        if answered == 0:
+            execution.status = "not_started"
+        elif answered >= total:
+            execution.status = "complete"
+            execution.completed_at = timezone.now()
+        else:
+            execution.status = "in_progress"
+
+        execution.save()
+        return JsonResponse(execution.to_dict())
+
+    # No responses — return current state with checklist items merged
+    result = execution.to_dict()
+    result["items"] = cl.items
+    return JsonResponse(result)
+
+
+@require_team
+@require_http_methods(["GET", "PUT", "DELETE"])
+def checklist_execution_detail(request, exec_id):
+    """Get, update, or delete a checklist execution."""
+    try:
+        execution = ChecklistExecution.objects.select_related("checklist").get(id=exec_id, executor=request.user)
+    except ChecklistExecution.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    if request.method == "GET":
+        result = execution.to_dict()
+        result["items"] = execution.checklist.items
+        return JsonResponse(result)
+
+    if request.method == "DELETE":
+        execution.delete()
+        return JsonResponse({"ok": True})
+
+    # PUT — update responses
+    data = json.loads(request.body)
+    if "responses" in data:
+        execution.responses = data["responses"]
+    if "status" in data:
+        execution.status = data["status"]
+        if data["status"] == "complete" and not execution.completed_at:
+            execution.completed_at = timezone.now()
+    execution.save()
+    return JsonResponse(execution.to_dict())
+
+
+@require_team
+@require_http_methods(["GET"])
+def checklist_execution_list(request):
+    """List executions, optionally filtered by entity_type + entity_id."""
+    qs = ChecklistExecution.objects.filter(executor=request.user).select_related("checklist")
+    entity_type = request.GET.get("entity_type")
+    entity_id = request.GET.get("entity_id")
+    if entity_type:
+        qs = qs.filter(entity_type=entity_type)
+    if entity_id:
+        qs = qs.filter(entity_id=entity_id)
+    return JsonResponse([e.to_dict() for e in qs[:50]], safe=False)
+
+
 # E4: Audit Readiness Scoring — ISO 9001 Full Clause Coverage
 # =========================================================================
 
