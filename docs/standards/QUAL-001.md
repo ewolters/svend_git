@@ -264,7 +264,7 @@ Required fields (from `standardize.py:REQUIRED_FIELDS`):
 ## **7. DATA QUALITY**
 
 <!-- assert: Analysis functions validate input data for minimum rows, required columns, and type correctness | check=qual-input-validation -->
-<!-- impl: agents_api/dsw/dispatch.py:run_analysis -->
+<!-- impl: agents_api/analysis/dispatch.py:run_analysis -->
 <!-- test: syn.audit.tests.test_output_quality.InputValidationTest.test_row_limit_enforced -->
 
 ### 7.1 Input Validation
@@ -296,7 +296,7 @@ When DSW input validation rejects an analysis request, a quality record MUST be 
 **Event:** `quality.analysis_rejected` — payload includes `reason`, `analysis_type`, `analysis_id`.
 
 <!-- assert: DSW validation rejections create audit trail quality records | check=qual-rejection-logging -->
-<!-- impl: agents_api/dsw/dispatch.py:_log_rejection -->
+<!-- impl: agents_api/analysis/dispatch.py:_log_rejection -->
 <!-- test: syn.audit.tests.test_quality_records.QualityRejectionLoggingTest.test_invalid_json_creates_entry -->
 <!-- test: syn.audit.tests.test_quality_records.QualityRejectionLoggingTest.test_no_data_creates_entry -->
 <!-- test: syn.audit.tests.test_quality_records.QualityRejectionLoggingTest.test_unknown_type_creates_entry -->

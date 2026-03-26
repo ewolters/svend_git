@@ -57,27 +57,27 @@ def _run_analysis(analysis_type, analysis_id, config, data_dict):
     df = pd.DataFrame(data_dict) if data_dict else pd.DataFrame()
 
     if analysis_type == "stats":
-        from agents_api.dsw.stats import run_statistical_analysis
+        from agents_api.analysis.stats import run_statistical_analysis
 
         return run_statistical_analysis(df, analysis_id, config)
     elif analysis_type == "bayesian":
-        from agents_api.dsw.bayesian import run_bayesian_analysis
+        from agents_api.analysis.bayesian import run_bayesian_analysis
 
         return run_bayesian_analysis(df, analysis_id, config)
     elif analysis_type == "spc":
-        from agents_api.dsw.spc import run_spc_analysis
+        from agents_api.analysis.spc import run_spc_analysis
 
         return run_spc_analysis(df, analysis_id, config)
     elif analysis_type == "reliability":
-        from agents_api.dsw.reliability import run_reliability_analysis
+        from agents_api.analysis.reliability import run_reliability_analysis
 
         return run_reliability_analysis(df, analysis_id, config)
     elif analysis_type == "ml":
-        from agents_api.dsw.ml import run_ml_analysis
+        from agents_api.analysis.ml import run_ml_analysis
 
         return run_ml_analysis(df, analysis_id, config, user=None)
     elif analysis_type == "simulation":
-        from agents_api.dsw.simulation import run_simulation
+        from agents_api.analysis.simulation import run_simulation
 
         return run_simulation(df, analysis_id, config, user=None)
     else:
@@ -103,9 +103,7 @@ class GoldenFileTest(TestCase):
         self.assertIsNotNone(case, f"No calibration case for {case_id}")
 
         # Run the analysis using case data
-        result = _run_analysis(
-            case.analysis_type, case.analysis_id, case.config, case.data
-        )
+        result = _run_analysis(case.analysis_type, case.analysis_id, case.config, case.data)
         self.assertIsNotNone(result, f"{case_id}: analysis returned None")
 
         # Check each expected value
@@ -138,17 +136,12 @@ class GoldenFileTest(TestCase):
                 tolerance = float(spec["tolerance"])
                 deviation = abs(actual_f - expected_f)
                 if deviation > tolerance:
-                    failures.append(
-                        f"  {key}: |{actual_f:.6f} - {expected_f}| = {deviation:.6f} > {tolerance}"
-                    )
+                    failures.append(f"  {key}: |{actual_f:.6f} - {expected_f}| = {deviation:.6f} > {tolerance}")
             except (TypeError, ValueError):
                 failures.append(f"  {key}: cannot compare {actual} vs {spec['value']}")
 
         if failures:
-            self.fail(
-                f"Golden file {golden_path.name} ({case_id}) failed:\n"
-                + "\n".join(failures)
-            )
+            self.fail(f"Golden file {golden_path.name} ({case_id}) failed:\n" + "\n".join(failures))
 
 
 def _make_golden_test(golden_path):
@@ -227,6 +220,4 @@ class GoldenFileInventoryTest(TestCase):
             covered.add(data.get("analysis_id", ""))
 
         missing = priority_1 - covered
-        self.assertEqual(
-            missing, set(), f"Priority 1 analyses without golden files: {missing}"
-        )
+        self.assertEqual(missing, set(), f"Priority 1 analyses without golden files: {missing}")

@@ -14,7 +14,7 @@ from django.test import TestCase
 
 def _run_stats(analysis_id, config, data_dict):
     """Run stats analysis, catching exceptions as the HTTP dispatch layer would."""
-    from agents_api.dsw.stats import run_statistical_analysis
+    from agents_api.analysis.stats import run_statistical_analysis
 
     df = pd.DataFrame(data_dict)
     try:
@@ -24,7 +24,7 @@ def _run_stats(analysis_id, config, data_dict):
 
 
 def _run_spc(analysis_id, config, data_dict):
-    from agents_api.dsw.spc import run_spc_analysis
+    from agents_api.analysis.spc import run_spc_analysis
 
     df = pd.DataFrame(data_dict)
     try:
@@ -34,7 +34,7 @@ def _run_spc(analysis_id, config, data_dict):
 
 
 def _run_bayesian(analysis_id, config, data_dict):
-    from agents_api.dsw.bayesian import run_bayesian_analysis
+    from agents_api.analysis.bayesian import run_bayesian_analysis
 
     df = pd.DataFrame(data_dict)
     try:
@@ -69,24 +69,18 @@ class EmptyDataTest(TestCase):
 
     def test_anova_empty(self):
         # Known: crashes with empty data (scipy.stats.f_oneway rejects empty groups)
-        result = _run_stats(
-            "anova", {"response": "v", "factor": "g"}, {"v": [], "g": []}
-        )
+        result = _run_stats("anova", {"response": "v", "factor": "g"}, {"v": [], "g": []})
         self.assertIsInstance(result, dict)
         # Bug: should return graceful error, currently throws exception
         self.assertIn("error", result)
 
     def test_correlation_empty(self):
-        result = _run_stats(
-            "correlation", {"variables": ["x", "y"]}, {"x": [], "y": []}
-        )
+        result = _run_stats("correlation", {"variables": ["x", "y"]}, {"x": [], "y": []})
         self.assertIsInstance(result, dict)
 
     def test_regression_empty(self):
         # Known: crashes with empty data (sklearn rejects empty arrays)
-        result = _run_stats(
-            "regression", {"response": "y", "predictors": ["x"]}, {"x": [], "y": []}
-        )
+        result = _run_stats("regression", {"response": "y", "predictors": ["x"]}, {"x": [], "y": []})
         self.assertIsInstance(result, dict)
         self.assertIn("error", result)
 
@@ -116,9 +110,7 @@ class SingleObservationTest(TestCase):
         self.assertIsInstance(result, dict)
 
     def test_ttest2_single_per_group(self):
-        result = _run_stats(
-            "ttest2", {"var1": "a", "var2": "b"}, {"a": [1.0], "b": [2.0]}
-        )
+        result = _run_stats("ttest2", {"var1": "a", "var2": "b"}, {"a": [1.0], "b": [2.0]})
         self.assertIsInstance(result, dict)
 
     def test_descriptive_single(self):
@@ -131,9 +123,7 @@ class SingleObservationTest(TestCase):
 
     def test_correlation_two_points(self):
         """Correlation with exactly 2 points — degenerate but shouldn't crash."""
-        result = _run_stats(
-            "correlation", {"variables": ["x", "y"]}, {"x": [1.0, 2.0], "y": [3.0, 4.0]}
-        )
+        result = _run_stats("correlation", {"variables": ["x", "y"]}, {"x": [1.0, 2.0], "y": [3.0, 4.0]})
         self.assertIsInstance(result, dict)
 
     def test_imr_single(self):
@@ -173,9 +163,7 @@ class ConstantValueTest(TestCase):
     def test_anova_constant_within_groups(self):
         values = [10.0] * 30 + [20.0] * 30 + [30.0] * 30
         groups = ["A"] * 30 + ["B"] * 30 + ["C"] * 30
-        result = _run_stats(
-            "anova", {"response": "v", "factor": "g"}, {"v": values, "g": groups}
-        )
+        result = _run_stats("anova", {"response": "v", "factor": "g"}, {"v": values, "g": groups})
         self.assertIsInstance(result, dict)
 
     def test_correlation_constant_x(self):
@@ -192,9 +180,7 @@ class ConstantValueTest(TestCase):
     def test_regression_constant_predictor(self):
         x = [1.0] * 50
         y = list(np.random.RandomState(99).normal(0, 1, 50))
-        result = _run_stats(
-            "regression", {"response": "y", "predictors": ["x"]}, {"x": x, "y": y}
-        )
+        result = _run_stats("regression", {"response": "y", "predictors": ["x"]}, {"x": x, "y": y})
         self.assertIsInstance(result, dict)
 
     def test_imr_constant(self):
@@ -203,9 +189,7 @@ class ConstantValueTest(TestCase):
 
     def test_capability_constant(self):
         """Constant process → Cp/Cpk = infinity (or very large). Should not crash."""
-        result = _run_spc(
-            "capability", {"measurement": "x", "lsl": 40, "usl": 60}, {"x": [50.0] * 50}
-        )
+        result = _run_spc("capability", {"measurement": "x", "lsl": 40, "usl": 60}, {"x": [50.0] * 50})
         self.assertIsInstance(result, dict)
 
 
@@ -278,9 +262,7 @@ class InfHandlingTest(TestCase):
         x = rng.normal(0, 1, 50).tolist()
         y = rng.normal(0, 1, 50).tolist()
         y[0] = float("inf")
-        result = _run_stats(
-            "regression", {"response": "y", "predictors": ["x"]}, {"x": x, "y": y}
-        )
+        result = _run_stats("regression", {"response": "y", "predictors": ["x"]}, {"x": x, "y": y})
         self.assertIsInstance(result, dict)
         self.assertIn("error", result)
 
@@ -307,27 +289,21 @@ class ExtremeValueTest(TestCase):
         rng = np.random.RandomState(85)
         x = (rng.normal(0, 1, 100) * 1e10).tolist()
         y = (rng.normal(0, 1, 100) * 1e10).tolist()
-        result = _run_stats(
-            "regression", {"response": "y", "predictors": ["x"]}, {"x": x, "y": y}
-        )
+        result = _run_stats("regression", {"response": "y", "predictors": ["x"]}, {"x": x, "y": y})
         self.assertIsInstance(result, dict)
 
     def test_capability_tight_limits(self):
         """Spec limits very close to mean — low Cp/Cpk."""
         rng = np.random.RandomState(86)
         data = rng.normal(50, 10, 100).tolist()
-        result = _run_spc(
-            "capability", {"measurement": "x", "lsl": 49, "usl": 51}, {"x": data}
-        )
+        result = _run_spc("capability", {"measurement": "x", "lsl": 49, "usl": 51}, {"x": data})
         self.assertIsInstance(result, dict)
 
     def test_capability_wide_limits(self):
         """Spec limits very far from data — very high Cp."""
         rng = np.random.RandomState(87)
         data = rng.normal(50, 1, 100).tolist()
-        result = _run_spc(
-            "capability", {"measurement": "x", "lsl": 0, "usl": 100}, {"x": data}
-        )
+        result = _run_spc("capability", {"measurement": "x", "lsl": 0, "usl": 100}, {"x": data})
         self.assertIsInstance(result, dict)
 
 
@@ -373,9 +349,7 @@ class MinimumSampleSizeTest(TestCase):
 
     def test_chi2_single_cell(self):
         """Chi-square with 1x1 contingency — degenerate."""
-        result = _run_stats(
-            "chi2", {"var1": "a", "var2": "b"}, {"a": ["yes"], "b": ["no"]}
-        )
+        result = _run_stats("chi2", {"var1": "a", "var2": "b"}, {"a": ["yes"], "b": ["no"]})
         self.assertIsInstance(result, dict)
 
     def test_chi2_two_by_two(self):

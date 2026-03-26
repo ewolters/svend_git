@@ -47,48 +47,48 @@ def _run_analysis(analysis_type, analysis_id, df=None, config=None):
         config = {}
 
     if analysis_type == "stats":
-        from agents_api.dsw.stats import run_statistical_analysis
+        from agents_api.analysis.stats import run_statistical_analysis
 
         result = run_statistical_analysis(df, analysis_id, config)
     elif analysis_type == "spc":
-        from agents_api.dsw.spc import run_spc_analysis
+        from agents_api.analysis.spc import run_spc_analysis
 
         result = run_spc_analysis(df, analysis_id, config)
     elif analysis_type == "ml":
-        from agents_api.dsw.ml import run_ml_analysis
+        from agents_api.analysis.ml import run_ml_analysis
 
         result = run_ml_analysis(df, analysis_id, config, user=None)
     elif analysis_type == "viz":
-        from agents_api.dsw.viz import run_visualization
+        from agents_api.analysis.viz import run_visualization
 
         result = run_visualization(df, analysis_id, config)
     elif analysis_type == "bayesian":
-        from agents_api.dsw.bayesian import run_bayesian_analysis
+        from agents_api.analysis.bayesian import run_bayesian_analysis
 
         result = run_bayesian_analysis(df, analysis_id, config)
     elif analysis_type == "reliability":
-        from agents_api.dsw.reliability import run_reliability_analysis
+        from agents_api.analysis.reliability import run_reliability_analysis
 
         result = run_reliability_analysis(df, analysis_id, config)
     elif analysis_type == "simulation":
-        from agents_api.dsw.simulation import run_simulation
+        from agents_api.analysis.simulation import run_simulation
 
         result = run_simulation(df, analysis_id, config, user=None)
     elif analysis_type == "d_type":
-        from agents_api.dsw.d_type import run_d_type
+        from agents_api.analysis.d_type import run_d_type
 
         result = run_d_type(df, analysis_id, config)
     else:
         result = {"summary": "test"}
 
-    from agents_api.dsw.standardize import standardize_output
+    from agents_api.analysis.standardize import standardize_output
 
     return standardize_output(result, analysis_type, analysis_id)
 
 
 def _assert_quality_output(test_case, result, label, require_education=True):
     """Shared quality assertions for any analysis result (QUAL-001 §6.1)."""
-    from agents_api.dsw.standardize import REQUIRED_FIELDS
+    from agents_api.analysis.standardize import REQUIRED_FIELDS
 
     # All required fields present
     for field in REQUIRED_FIELDS:
@@ -105,9 +105,7 @@ def _assert_quality_output(test_case, result, label, require_education=True):
     # Charts have defaults applied (QUAL-001 §6.2 / QUAL-001 §8.1 /6)
     for plot in result.get("plots", []):
         if isinstance(plot, dict) and "layout" in plot:
-            test_case.assertIn(
-                "height", plot["layout"], f"{label}: chart missing height"
-            )
+            test_case.assertIn("height", plot["layout"], f"{label}: chart missing height")
             test_case.assertEqual(
                 plot["layout"].get("paper_bgcolor"),
                 "rgba(0,0,0,0)",
@@ -115,9 +113,7 @@ def _assert_quality_output(test_case, result, label, require_education=True):
             )
     # Education present (when required)
     if require_education:
-        test_case.assertIsNotNone(
-            result.get("education"), f"{label}: missing education"
-        )
+        test_case.assertIsNotNone(result.get("education"), f"{label}: missing education")
 
 
 # ── §4: Canonical Output Schema ──────────────────────────────────────────
@@ -128,7 +124,7 @@ class CanonicalSchemaTest(SimpleTestCase):
 
     def test_required_fields_present(self):
         """All required fields present after standardize_output()."""
-        from agents_api.dsw.standardize import REQUIRED_FIELDS, standardize_output
+        from agents_api.analysis.standardize import REQUIRED_FIELDS, standardize_output
 
         result = standardize_output({"summary": "Test result"}, "stats", "ttest")
         for field in REQUIRED_FIELDS:
@@ -138,7 +134,7 @@ class CanonicalSchemaTest(SimpleTestCase):
 
     def test_field_types_correct(self):
         """Required fields have correct types after standardize_output()."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output({"summary": "Test"}, "stats", "ttest")
         self.assertIsInstance(result["summary"], str)
@@ -149,13 +145,11 @@ class CanonicalSchemaTest(SimpleTestCase):
         self.assertIsInstance(result["_analysis_id"], str)
         # narrative should be dict or None, never str
         if result["narrative"] is not None:
-            self.assertIsInstance(
-                result["narrative"], dict, "narrative must be dict, not str"
-            )
+            self.assertIsInstance(result["narrative"], dict, "narrative must be dict, not str")
 
     def test_conditional_evidence_grade(self):
         """evidence_grade populated when p_value exists in statistics."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output(
             {
@@ -172,8 +166,8 @@ class CanonicalSchemaTest(SimpleTestCase):
 
     def test_conditional_what_if(self):
         """what_if populated for tier 1/2 analyses."""
-        from agents_api.dsw.registry import ANALYSIS_REGISTRY
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.registry import ANALYSIS_REGISTRY
+        from agents_api.analysis.standardize import standardize_output
 
         for (atype, aid), entry in ANALYSIS_REGISTRY.items():
             if entry.get("what_if_tier", 0) >= 1:
@@ -193,7 +187,7 @@ class NarrativeQualityTest(SimpleTestCase):
 
     def test_string_narrative_normalized(self):
         """String narrative is converted to dict by post-processor."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output(
             {
@@ -203,35 +197,29 @@ class NarrativeQualityTest(SimpleTestCase):
             "stats",
             "ttest",
         )
-        self.assertIsInstance(
-            result["narrative"], dict, "String narrative not normalized to dict"
-        )
+        self.assertIsInstance(result["narrative"], dict, "String narrative not normalized to dict")
         self.assertIn("verdict", result["narrative"])
 
     def test_narrative_is_dict(self):
         """Narrative is always dict after standardization (never str or None when summary exists)."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
-        result = standardize_output(
-            {"summary": "A meaningful test summary line"}, "stats", "ttest"
-        )
+        result = standardize_output({"summary": "A meaningful test summary line"}, "stats", "ttest")
         self.assertIsNotNone(result["narrative"])
         self.assertIsInstance(result["narrative"], dict)
 
     def test_narrative_has_required_keys(self):
         """Narrative dict has verdict, body, next_steps, chart_guidance."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
-        result = standardize_output(
-            {"summary": "A meaningful test summary"}, "stats", "ttest"
-        )
+        result = standardize_output({"summary": "A meaningful test summary"}, "stats", "ttest")
         nar = result["narrative"]
         for key in ("verdict", "body", "next_steps", "chart_guidance"):
             self.assertIn(key, nar, f"Narrative missing key: {key}")
 
     def test_verdict_minimum_length(self):
         """Narrative verdict is at least 10 characters."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output(
             {"summary": "This is a sufficiently long summary for testing purposes."},
@@ -239,13 +227,11 @@ class NarrativeQualityTest(SimpleTestCase):
             "ttest",
         )
         verdict = result["narrative"]["verdict"]
-        self.assertGreaterEqual(
-            len(verdict), 10, f"Verdict too short: '{verdict}' ({len(verdict)} chars)"
-        )
+        self.assertGreaterEqual(len(verdict), 10, f"Verdict too short: '{verdict}' ({len(verdict)} chars)")
 
     def test_verdict_no_color_tags(self):
         """Narrative verdict has no <<COLOR:>> tags."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output(
             {"summary": "<<COLOR:accent>>Important<<</COLOR>>> result with color tags"},
@@ -257,21 +243,17 @@ class NarrativeQualityTest(SimpleTestCase):
 
     def test_guide_observation_bounds(self):
         """guide_observation is 10-300 chars when summary exists."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         long_summary = "A " * 200  # 400 chars
         result = standardize_output({"summary": long_summary}, "stats", "ttest")
         obs = result["guide_observation"]
-        self.assertGreaterEqual(
-            len(obs), 10, f"guide_observation too short: {len(obs)} chars"
-        )
-        self.assertLessEqual(
-            len(obs), 300, f"guide_observation too long: {len(obs)} chars"
-        )
+        self.assertGreaterEqual(len(obs), 10, f"guide_observation too short: {len(obs)} chars")
+        self.assertLessEqual(len(obs), 300, f"guide_observation too long: {len(obs)} chars")
 
     def test_guide_observation_no_color_tags(self):
         """guide_observation has no <<COLOR:>> tags."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output(
             {"summary": "<<COLOR:title>>RESULT<</COLOR>> with tags everywhere"},
@@ -290,7 +272,7 @@ class ChartOutputTest(SimpleTestCase):
 
     def test_height_standard(self):
         """Single-panel chart gets 300px height."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"layout": {}, "data": []}
         apply_chart_defaults(plot)
@@ -298,7 +280,7 @@ class ChartOutputTest(SimpleTestCase):
 
     def test_height_multi_panel(self):
         """Multi-panel chart (with yaxis2) gets 350px height."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"layout": {"yaxis2": {"title": "secondary"}}, "data": []}
         apply_chart_defaults(plot)
@@ -306,7 +288,7 @@ class ChartOutputTest(SimpleTestCase):
 
     def test_margins(self):
         """Chart margins match standard {l:60, r:20, t:40, b:60}."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"layout": {}, "data": []}
         apply_chart_defaults(plot)
@@ -315,7 +297,7 @@ class ChartOutputTest(SimpleTestCase):
 
     def test_transparent_backgrounds(self):
         """paper_bgcolor and plot_bgcolor are transparent."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"layout": {}, "data": []}
         apply_chart_defaults(plot)
@@ -324,7 +306,7 @@ class ChartOutputTest(SimpleTestCase):
 
     def test_legend_defaults(self):
         """Legend is horizontal, bottom-left, y=-0.25."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"layout": {}, "data": []}
         apply_chart_defaults(plot)
@@ -335,8 +317,8 @@ class ChartOutputTest(SimpleTestCase):
 
     def test_trace_colors_from_palette(self):
         """Traces get SVEND_COLORS when no explicit color set."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
-        from agents_api.dsw.common import SVEND_COLORS
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.common import SVEND_COLORS
 
         plot = {
             "layout": {},
@@ -368,18 +350,16 @@ class ChartOutputTest(SimpleTestCase):
 
     def test_grid_colors(self):
         """Axes have standard gridcolor and zerolinecolor."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"layout": {}, "data": []}
         apply_chart_defaults(plot)
         self.assertEqual(plot["layout"]["xaxis"]["gridcolor"], "rgba(128,128,128,0.15)")
-        self.assertEqual(
-            plot["layout"]["yaxis"]["zerolinecolor"], "rgba(128,128,128,0.25)"
-        )
+        self.assertEqual(plot["layout"]["yaxis"]["zerolinecolor"], "rgba(128,128,128,0.25)")
 
     def test_font(self):
         """Font is Inter, system-ui, sans-serif at size 12."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"layout": {}, "data": []}
         apply_chart_defaults(plot)
@@ -394,9 +374,7 @@ class ChartOutputTest(SimpleTestCase):
 
         np.random.seed(42)
         df = pd.DataFrame({"x": np.random.normal(50, 2, 100)})
-        result = _run_analysis(
-            "spc", "capability", df, {"column": "x", "usl": 56, "lsl": 44}
-        )
+        result = _run_analysis("spc", "capability", df, {"column": "x", "usl": 56, "lsl": 44})
         plots = result.get("plots", [])
         for plot in plots:
             if isinstance(plot, dict) and "layout" in plot:
@@ -417,7 +395,7 @@ class EducationQualityTest(SimpleTestCase):
 
     def test_title_minimum_length(self):
         """Education titles are at least 15 characters."""
-        from agents_api.dsw.education import EDUCATION_CONTENT
+        from agents_api.analysis.education import EDUCATION_CONTENT
 
         for key, entry in EDUCATION_CONTENT.items():
             title = entry.get("title", "")
@@ -429,7 +407,7 @@ class EducationQualityTest(SimpleTestCase):
 
     def test_content_minimum_depth(self):
         """Education content is at least 200 characters."""
-        from agents_api.dsw.education import EDUCATION_CONTENT
+        from agents_api.analysis.education import EDUCATION_CONTENT
 
         for key, entry in EDUCATION_CONTENT.items():
             content = entry.get("content", "")
@@ -441,20 +419,18 @@ class EducationQualityTest(SimpleTestCase):
 
     def test_dl_structure(self):
         """Education content contains <dl>, <dt>, <dd> HTML structure."""
-        from agents_api.dsw.education import EDUCATION_CONTENT
+        from agents_api.analysis.education import EDUCATION_CONTENT
 
         for key, entry in EDUCATION_CONTENT.items():
             content = entry.get("content", "")
-            self.assertIn(
-                "<dl>", content, f"Education for {key} missing <dl> structure"
-            )
+            self.assertIn("<dl>", content, f"Education for {key} missing <dl> structure")
             self.assertIn("<dt>", content, f"Education for {key} missing <dt> elements")
             self.assertIn("<dd>", content, f"Education for {key} missing <dd> elements")
 
     def test_all_analyses_have_education(self):
         """Every registered analysis has non-None education after standardization."""
-        from agents_api.dsw.registry import ANALYSIS_REGISTRY
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.registry import ANALYSIS_REGISTRY
+        from agents_api.analysis.standardize import standardize_output
 
         missing = []
         for atype, aid in ANALYSIS_REGISTRY:
@@ -469,7 +445,7 @@ class EducationQualityTest(SimpleTestCase):
 
     def test_education_has_required_fields(self):
         """Education entries have both title and content keys."""
-        from agents_api.dsw.education import EDUCATION_CONTENT
+        from agents_api.analysis.education import EDUCATION_CONTENT
 
         for key, entry in EDUCATION_CONTENT.items():
             self.assertIn("title", entry, f"Education for {key} missing 'title'")
@@ -486,7 +462,7 @@ class EvidenceGradeTest(SimpleTestCase):
 
     def test_grade_values_valid(self):
         """_evidence_grade returns one of the valid grade strings."""
-        from agents_api.dsw.common import _evidence_grade
+        from agents_api.analysis.common import _evidence_grade
 
         for p in (0.001, 0.01, 0.03, 0.05, 0.1, 0.5):
             result = _evidence_grade(p)
@@ -499,7 +475,7 @@ class EvidenceGradeTest(SimpleTestCase):
 
     def test_pvalue_triggers_grade(self):
         """standardize_output sets evidence_grade when p_value in statistics."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output(
             {
@@ -517,60 +493,38 @@ class EvidenceGradeTest(SimpleTestCase):
 
     def test_cohens_d_thresholds(self):
         """Effect classification thresholds for Cohen's d match standard."""
-        from agents_api.dsw.standardize import _classify_effect
+        from agents_api.analysis.standardize import _classify_effect
 
-        self.assertEqual(
-            _classify_effect({"statistics": {"cohens_d": 0.1}}), "negligible"
-        )
+        self.assertEqual(_classify_effect({"statistics": {"cohens_d": 0.1}}), "negligible")
         self.assertEqual(_classify_effect({"statistics": {"cohens_d": 0.3}}), "small")
         self.assertEqual(_classify_effect({"statistics": {"cohens_d": 0.6}}), "medium")
         self.assertEqual(_classify_effect({"statistics": {"cohens_d": 0.9}}), "large")
 
     def test_eta_squared_thresholds(self):
         """Effect classification thresholds for eta-squared match standard."""
-        from agents_api.dsw.standardize import _classify_effect
+        from agents_api.analysis.standardize import _classify_effect
 
-        self.assertEqual(
-            _classify_effect({"statistics": {"eta_squared": 0.005}}), "negligible"
-        )
-        self.assertEqual(
-            _classify_effect({"statistics": {"eta_squared": 0.03}}), "small"
-        )
-        self.assertEqual(
-            _classify_effect({"statistics": {"eta_squared": 0.08}}), "medium"
-        )
-        self.assertEqual(
-            _classify_effect({"statistics": {"eta_squared": 0.16}}), "large"
-        )
+        self.assertEqual(_classify_effect({"statistics": {"eta_squared": 0.005}}), "negligible")
+        self.assertEqual(_classify_effect({"statistics": {"eta_squared": 0.03}}), "small")
+        self.assertEqual(_classify_effect({"statistics": {"eta_squared": 0.08}}), "medium")
+        self.assertEqual(_classify_effect({"statistics": {"eta_squared": 0.16}}), "large")
 
     def test_r_thresholds(self):
         """Effect classification thresholds for r match standard."""
-        from agents_api.dsw.standardize import _classify_effect
+        from agents_api.analysis.standardize import _classify_effect
 
-        self.assertEqual(
-            _classify_effect({"statistics": {"effect_size_r": 0.05}}), "negligible"
-        )
-        self.assertEqual(
-            _classify_effect({"statistics": {"effect_size_r": 0.15}}), "small"
-        )
-        self.assertEqual(
-            _classify_effect({"statistics": {"effect_size_r": 0.35}}), "medium"
-        )
-        self.assertEqual(
-            _classify_effect({"statistics": {"effect_size_r": 0.6}}), "large"
-        )
+        self.assertEqual(_classify_effect({"statistics": {"effect_size_r": 0.05}}), "negligible")
+        self.assertEqual(_classify_effect({"statistics": {"effect_size_r": 0.15}}), "small")
+        self.assertEqual(_classify_effect({"statistics": {"effect_size_r": 0.35}}), "medium")
+        self.assertEqual(_classify_effect({"statistics": {"effect_size_r": 0.6}}), "large")
 
     def test_r_squared_thresholds(self):
         """Effect classification thresholds for R-squared match standard."""
-        from agents_api.dsw.standardize import _classify_effect
+        from agents_api.analysis.standardize import _classify_effect
 
-        self.assertEqual(
-            _classify_effect({"statistics": {"r_squared": 0.01}}), "negligible"
-        )
+        self.assertEqual(_classify_effect({"statistics": {"r_squared": 0.01}}), "negligible")
         self.assertEqual(_classify_effect({"statistics": {"r_squared": 0.05}}), "small")
-        self.assertEqual(
-            _classify_effect({"statistics": {"r_squared": 0.15}}), "medium"
-        )
+        self.assertEqual(_classify_effect({"statistics": {"r_squared": 0.15}}), "medium")
         self.assertEqual(_classify_effect({"statistics": {"r_squared": 0.3}}), "large")
 
 
@@ -579,7 +533,7 @@ class BayesianShadowTest(SimpleTestCase):
 
     def test_minimum_fields(self):
         """Bayesian shadow has bf10 and bf_label when populated."""
-        from agents_api.dsw.common import _bayesian_shadow
+        from agents_api.analysis.common import _bayesian_shadow
 
         # Chi2 shadow — one of the auto-generatable types
         shadow = _bayesian_shadow("chi2", chi2_stat=10.0, dof=3, n_obs=100)
@@ -589,7 +543,7 @@ class BayesianShadowTest(SimpleTestCase):
 
     def test_bf10_is_numeric(self):
         """bf10 is a numeric value."""
-        from agents_api.dsw.common import _bayesian_shadow
+        from agents_api.analysis.common import _bayesian_shadow
 
         shadow = _bayesian_shadow("proportion", x=60, n=100, p0=0.5)
         if shadow is not None:
@@ -601,7 +555,7 @@ class BayesianShadowTest(SimpleTestCase):
 
     def test_shadow_types_produce_output(self):
         """Known shadow types produce non-None output with valid inputs."""
-        from agents_api.dsw.common import _bayesian_shadow
+        from agents_api.analysis.common import _bayesian_shadow
 
         cases = [
             ("chi2", {"chi2_stat": 15.0, "dof": 4, "n_obs": 200}),
@@ -611,9 +565,7 @@ class BayesianShadowTest(SimpleTestCase):
         ]
         for shadow_type, kwargs in cases:
             shadow = _bayesian_shadow(shadow_type, **kwargs)
-            self.assertIsNotNone(
-                shadow, f"Shadow type '{shadow_type}' returned None with valid inputs"
-            )
+            self.assertIsNotNone(shadow, f"Shadow type '{shadow_type}' returned None with valid inputs")
 
 
 # ── §9: What-If Interactivity ─────────────────────────────────────────────
@@ -624,7 +576,7 @@ class WhatIfSchemaTest(SimpleTestCase):
 
     def test_schema_fields_present(self):
         """what_if has type, parameters, endpoint, recompute_fields."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         # Use a tier 1 analysis with power_explorer legacy
         result = standardize_output(
@@ -647,7 +599,7 @@ class WhatIfSchemaTest(SimpleTestCase):
 
     def test_parameter_fields(self):
         """Each parameter has name, label, min, max, step, value."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output(
             {
@@ -670,7 +622,7 @@ class WhatIfSchemaTest(SimpleTestCase):
 
     def test_parameter_constraints(self):
         """min < max, step > 0, value in [min, max] for all parameters."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output(
             {
@@ -691,9 +643,7 @@ class WhatIfSchemaTest(SimpleTestCase):
                 p["max"],
                 f"Parameter '{p['name']}': min ({p['min']}) >= max ({p['max']})",
             )
-            self.assertGreater(
-                p["step"], 0, f"Parameter '{p['name']}': step ({p['step']}) <= 0"
-            )
+            self.assertGreater(p["step"], 0, f"Parameter '{p['name']}': step ({p['step']}) <= 0")
             self.assertGreaterEqual(
                 p["value"],
                 p["min"],
@@ -707,7 +657,7 @@ class WhatIfSchemaTest(SimpleTestCase):
 
     def test_tier1_has_parameters(self):
         """Tier 1 analyses with legacy patterns produce non-empty parameters."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output(
             {
@@ -724,13 +674,11 @@ class WhatIfSchemaTest(SimpleTestCase):
         )
         wi = result.get("what_if")
         self.assertIsNotNone(wi)
-        self.assertGreater(
-            len(wi["parameters"]), 0, "Tier 1 what_if has empty parameters"
-        )
+        self.assertGreater(len(wi["parameters"]), 0, "Tier 1 what_if has empty parameters")
 
     def test_regression_what_if_has_client_model(self):
         """Regression what_if from what_if_data includes client_model."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output(
             {
@@ -775,9 +723,7 @@ class DiagnosticsTest(SimpleTestCase):
                 "after": np.random.normal(55, 5, 30),
             }
         )
-        result = _run_analysis(
-            "stats", "ttest", df, {"var1": "before", "mu": 50, "alpha": 0.05}
-        )
+        result = _run_analysis("stats", "ttest", df, {"var1": "before", "mu": 50, "alpha": 0.05})
         for diag in result.get("diagnostics", []):
             if isinstance(diag, dict):
                 # Accept both canonical 'status' and alternative 'result'
@@ -791,7 +737,7 @@ class DiagnosticsTest(SimpleTestCase):
 
     def test_diagnostics_is_list(self):
         """diagnostics is always a list after standardization."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output({"summary": "test"}, "stats", "ttest")
         self.assertIsInstance(result["diagnostics"], list)
@@ -803,13 +749,9 @@ class DiagnosticsTest(SimpleTestCase):
 
         np.random.seed(42)
         df = pd.DataFrame({"x": np.random.normal(50, 5, 30)})
-        result = _run_analysis(
-            "stats", "ttest", df, {"var1": "x", "mu": 50, "alpha": 0.05}
-        )
+        result = _run_analysis("stats", "ttest", df, {"var1": "x", "mu": 50, "alpha": 0.05})
         for diag in result.get("diagnostics", []):
-            self.assertIsInstance(
-                diag, dict, f"Diagnostic entry is not a dict: {type(diag)}"
-            )
+            self.assertIsInstance(diag, dict, f"Diagnostic entry is not a dict: {type(diag)}")
 
 
 # ── Integration ───────────────────────────────────────────────────────────
@@ -825,25 +767,19 @@ class IntegrationTest(SimpleTestCase):
 
         np.random.seed(42)
         df = pd.DataFrame({"x": np.random.normal(50, 2, 100)})
-        result = _run_analysis(
-            "spc", "capability", df, {"column": "x", "usl": 56, "lsl": 44}
-        )
+        result = _run_analysis("spc", "capability", df, {"column": "x", "usl": 56, "lsl": 44})
 
         # Education
         edu = result.get("education")
         self.assertIsNotNone(edu, "Cpk missing education")
-        self.assertGreaterEqual(
-            len(edu.get("content", "")), 200, "Cpk education content too shallow"
-        )
+        self.assertGreaterEqual(len(edu.get("content", "")), 200, "Cpk education content too shallow")
         self.assertIn("<dl>", edu.get("content", ""))
 
         # Narrative
         nar = result.get("narrative")
         self.assertIsNotNone(nar, "Cpk missing narrative")
         self.assertIsInstance(nar, dict, "Cpk narrative is not dict")
-        self.assertGreaterEqual(
-            len(nar.get("verdict", "")), 10, "Cpk verdict too short"
-        )
+        self.assertGreaterEqual(len(nar.get("verdict", "")), 10, "Cpk verdict too short")
 
         # Charts
         plots = result.get("plots", [])
@@ -860,9 +796,7 @@ class IntegrationTest(SimpleTestCase):
 
         np.random.seed(42)
         df = pd.DataFrame({"values": np.random.normal(52, 5, 30)})
-        result = _run_analysis(
-            "stats", "ttest", df, {"var1": "values", "mu": 50, "alpha": 0.05}
-        )
+        result = _run_analysis("stats", "ttest", df, {"var1": "values", "mu": 50, "alpha": 0.05})
 
         self.assertIsNotNone(result.get("education"), "t-test missing education")
         self.assertIsNotNone(result.get("narrative"), "t-test missing narrative")
@@ -888,9 +822,7 @@ class IntegrationTest(SimpleTestCase):
         np.random.seed(42)
         x = np.random.normal(0, 1, 50)
         df = pd.DataFrame({"x": x, "y": 2 * x + np.random.normal(0, 0.5, 50)})
-        result = _run_analysis(
-            "stats", "regression", df, {"predictors": ["x"], "response": "y"}
-        )
+        result = _run_analysis("stats", "regression", df, {"predictors": ["x"], "response": "y"})
 
         self.assertIsNotNone(result.get("education"), "Regression missing education")
         self.assertIsNotNone(result.get("narrative"), "Regression missing narrative")
@@ -949,7 +881,7 @@ class RegistryStructureTest(SimpleTestCase):
 
     def test_all_entries_have_required_keys(self):
         """Every registry entry has all 9 required metadata keys."""
-        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.analysis.registry import ANALYSIS_REGISTRY
 
         for (atype, aid), entry in ANALYSIS_REGISTRY.items():
             missing = self.REQUIRED_KEYS - set(entry.keys())
@@ -957,7 +889,7 @@ class RegistryStructureTest(SimpleTestCase):
 
     def test_shadow_types_valid(self):
         """shadow_type is None or one of the known types."""
-        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.analysis.registry import ANALYSIS_REGISTRY
 
         for (atype, aid), entry in ANALYSIS_REGISTRY.items():
             self.assertIn(
@@ -968,7 +900,7 @@ class RegistryStructureTest(SimpleTestCase):
 
     def test_what_if_tier_valid(self):
         """what_if_tier is 0, 1, or 2."""
-        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.analysis.registry import ANALYSIS_REGISTRY
 
         for (atype, aid), entry in ANALYSIS_REGISTRY.items():
             self.assertIn(
@@ -979,7 +911,7 @@ class RegistryStructureTest(SimpleTestCase):
 
     def test_module_names_valid(self):
         """module field matches a known engine module."""
-        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.analysis.registry import ANALYSIS_REGISTRY
 
         for (atype, aid), entry in ANALYSIS_REGISTRY.items():
             self.assertIn(
@@ -990,7 +922,7 @@ class RegistryStructureTest(SimpleTestCase):
 
     def test_boolean_fields_are_bool(self):
         """has_pvalue, has_narrative, has_education, has_charts are booleans."""
-        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.analysis.registry import ANALYSIS_REGISTRY
 
         bool_fields = ("has_pvalue", "has_narrative", "has_education", "has_charts")
         for (atype, aid), entry in ANALYSIS_REGISTRY.items():
@@ -1003,7 +935,7 @@ class RegistryStructureTest(SimpleTestCase):
 
     def test_analysis_type_matches_key(self):
         """Registry key (analysis_type, _) matches entry module for core types."""
-        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.analysis.registry import ANALYSIS_REGISTRY
 
         # Core types where atype == module
         core_types = {
@@ -1026,7 +958,7 @@ class RegistryStructureTest(SimpleTestCase):
 
     def test_registry_not_empty(self):
         """Registry has a substantial number of entries (200+)."""
-        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.analysis.registry import ANALYSIS_REGISTRY
 
         self.assertGreaterEqual(
             len(ANALYSIS_REGISTRY),
@@ -1040,15 +972,11 @@ class RegistryStructureTest(SimpleTestCase):
         QUAL-001 §8.1: analyses with has_pvalue=True MUST produce statistics.p_value.
         This is a coverage tracking test — warns but doesn't fail if coverage < 60%.
         """
-        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.analysis.registry import ANALYSIS_REGISTRY
 
         missing = []
         for (atype, aid), entry in ANALYSIS_REGISTRY.items():
-            if (
-                entry["has_pvalue"]
-                and not entry["effect_type"]
-                and not entry["shadow_type"]
-            ):
+            if entry["has_pvalue"] and not entry["effect_type"] and not entry["shadow_type"]:
                 missing.append(f"{atype}/{aid}")
         total_pval = sum(1 for e in ANALYSIS_REGISTRY.values() if e["has_pvalue"])
         if total_pval > 0:
@@ -1070,7 +998,7 @@ class BoundsValidationTest(SimpleTestCase):
 
     def test_pvalue_clamped_to_01(self):
         """p_value outside [0, 1] is clamped."""
-        from agents_api.dsw.standardize import _validate_statistics_bounds
+        from agents_api.analysis.standardize import _validate_statistics_bounds
 
         result = {"p_value": 1.5}
         _validate_statistics_bounds(result)
@@ -1078,7 +1006,7 @@ class BoundsValidationTest(SimpleTestCase):
 
     def test_pvalue_negative_clamped(self):
         """Negative p_value is clamped to 0."""
-        from agents_api.dsw.standardize import _validate_statistics_bounds
+        from agents_api.analysis.standardize import _validate_statistics_bounds
 
         result = {"p_value": -0.1}
         _validate_statistics_bounds(result)
@@ -1086,7 +1014,7 @@ class BoundsValidationTest(SimpleTestCase):
 
     def test_correlation_bounds(self):
         """correlation outside [-1, 1] is clamped."""
-        from agents_api.dsw.standardize import _validate_statistics_bounds
+        from agents_api.analysis.standardize import _validate_statistics_bounds
 
         result = {"correlation": 1.3}
         _validate_statistics_bounds(result)
@@ -1098,7 +1026,7 @@ class BoundsValidationTest(SimpleTestCase):
 
     def test_r_squared_bounds(self):
         """R² outside [0, 1] is clamped."""
-        from agents_api.dsw.standardize import _validate_statistics_bounds
+        from agents_api.analysis.standardize import _validate_statistics_bounds
 
         result = {"r_squared": 1.2}
         _validate_statistics_bounds(result)
@@ -1110,7 +1038,7 @@ class BoundsValidationTest(SimpleTestCase):
 
     def test_nan_replaced_with_none(self):
         """NaN values are replaced with None."""
-        from agents_api.dsw.standardize import _validate_statistics_bounds
+        from agents_api.analysis.standardize import _validate_statistics_bounds
 
         result = {"p_value": float("nan")}
         _validate_statistics_bounds(result)
@@ -1118,7 +1046,7 @@ class BoundsValidationTest(SimpleTestCase):
 
     def test_inf_replaced_with_none(self):
         """Infinity values are replaced with None."""
-        from agents_api.dsw.standardize import _validate_statistics_bounds
+        from agents_api.analysis.standardize import _validate_statistics_bounds
 
         result = {"correlation": float("inf")}
         _validate_statistics_bounds(result)
@@ -1126,7 +1054,7 @@ class BoundsValidationTest(SimpleTestCase):
 
     def test_bf10_must_be_positive(self):
         """bf10 must be positive and finite."""
-        from agents_api.dsw.standardize import _validate_statistics_bounds
+        from agents_api.analysis.standardize import _validate_statistics_bounds
 
         result = {"bf10": -1.0}
         _validate_statistics_bounds(result)
@@ -1138,7 +1066,7 @@ class BoundsValidationTest(SimpleTestCase):
 
     def test_finite_metrics(self):
         """Metrics like cpk, cohens_d must be finite."""
-        from agents_api.dsw.standardize import _validate_statistics_bounds
+        from agents_api.analysis.standardize import _validate_statistics_bounds
 
         for key in ("cp", "cpk", "pp", "ppk", "cohens_d", "cohens_f"):
             result = {key: float("inf")}
@@ -1147,7 +1075,7 @@ class BoundsValidationTest(SimpleTestCase):
 
     def test_nested_statistics_dict(self):
         """Bounds validation also applies to nested 'statistics' dict."""
-        from agents_api.dsw.standardize import _validate_statistics_bounds
+        from agents_api.analysis.standardize import _validate_statistics_bounds
 
         result = {"statistics": {"p_value": 1.5, "r_squared": -0.3}}
         _validate_statistics_bounds(result)
@@ -1156,7 +1084,7 @@ class BoundsValidationTest(SimpleTestCase):
 
     def test_valid_values_unchanged(self):
         """Values within bounds are not modified."""
-        from agents_api.dsw.standardize import _validate_statistics_bounds
+        from agents_api.analysis.standardize import _validate_statistics_bounds
 
         result = {"p_value": 0.05, "correlation": -0.7, "r_squared": 0.85}
         _validate_statistics_bounds(result)
@@ -1190,9 +1118,7 @@ class DispatchPipelineTest(SimpleTestCase):
 
         np.random.seed(42)
         df = pd.DataFrame({"x": np.random.normal(50, 2, 100)})
-        result = _run_analysis(
-            "spc", "capability", df, {"column": "x", "usl": 56, "lsl": 44}
-        )
+        result = _run_analysis("spc", "capability", df, {"column": "x", "usl": 56, "lsl": 44})
         self.assertEqual(result["_analysis_type"], "spc")
         self.assertEqual(result["_analysis_id"], "capability")
 
@@ -1206,9 +1132,7 @@ class DispatchPipelineTest(SimpleTestCase):
         result = _run_analysis("viz", "histogram", df, {"var": "x", "bins": 20})
         self.assertEqual(result["_analysis_type"], "viz")
         self.assertEqual(result["_analysis_id"], "histogram")
-        self.assertGreater(
-            len(result.get("plots", [])), 0, "Histogram should produce plots"
-        )
+        self.assertGreater(len(result.get("plots", [])), 0, "Histogram should produce plots")
 
     def test_ml_routing(self):
         """ML analysis routes to ml module and returns standardized output."""
@@ -1239,7 +1163,7 @@ class DispatchPipelineTest(SimpleTestCase):
 
     def test_standardize_always_applied(self):
         """Every routed result has _analysis_type and _analysis_id tags."""
-        from agents_api.dsw.standardize import REQUIRED_FIELDS, standardize_output
+        from agents_api.analysis.standardize import REQUIRED_FIELDS, standardize_output
 
         result = standardize_output({"summary": "mock"}, "stats", "anova")
         self.assertEqual(result["_analysis_type"], "stats")
@@ -1249,14 +1173,14 @@ class DispatchPipelineTest(SimpleTestCase):
 
     def test_non_dict_result_passthrough(self):
         """Non-dict results pass through standardize_output unchanged."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output("not a dict", "stats", "ttest")
         self.assertEqual(result, "not a dict")
 
     def test_empty_result_gets_defaults(self):
         """Empty dict gets all required fields with defaults."""
-        from agents_api.dsw.standardize import REQUIRED_FIELDS, standardize_output
+        from agents_api.analysis.standardize import REQUIRED_FIELDS, standardize_output
 
         result = standardize_output({}, "stats", "ttest")
         for field in REQUIRED_FIELDS:
@@ -1299,17 +1223,15 @@ class SPCCapabilityPostProcessTest(SimpleTestCase):
 
     def test_education_injected(self):
         """standardize_output injects education for spc/capability."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         resp = self._build_mock_capability_response()
         result = standardize_output(resp, "spc", "capability")
-        self.assertIsNotNone(
-            result.get("education"), "Education not injected for spc/capability"
-        )
+        self.assertIsNotNone(result.get("education"), "Education not injected for spc/capability")
 
     def test_narrative_normalized(self):
         """String summary produces dict narrative."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         resp = self._build_mock_capability_response()
         result = standardize_output(resp, "spc", "capability")
@@ -1320,7 +1242,7 @@ class SPCCapabilityPostProcessTest(SimpleTestCase):
 
     def test_charts_get_defaults(self):
         """Charts from capability response get chart_defaults applied."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         resp = self._build_mock_capability_response()
         result = standardize_output(resp, "spc", "capability")
@@ -1331,7 +1253,7 @@ class SPCCapabilityPostProcessTest(SimpleTestCase):
 
     def test_all_required_fields_present(self):
         """SPC capability response has all required fields after standardization."""
-        from agents_api.dsw.standardize import REQUIRED_FIELDS, standardize_output
+        from agents_api.analysis.standardize import REQUIRED_FIELDS, standardize_output
 
         resp = self._build_mock_capability_response()
         result = standardize_output(resp, "spc", "capability")
@@ -1358,15 +1280,10 @@ class BayesianEngineTest(SimpleTestCase):
             }
         )
         try:
-            result = _run_analysis(
-                "bayesian", "bayes_ttest", df, {"var1": "group_a", "var2": "group_b"}
-            )
+            result = _run_analysis("bayesian", "bayes_ttest", df, {"var1": "group_a", "var2": "group_b"})
             _assert_quality_output(self, result, "bayes_ttest")
         except Exception as e:
-            if (
-                "not found" not in str(e).lower()
-                and "not implemented" not in str(e).lower()
-            ):
+            if "not found" not in str(e).lower() and "not implemented" not in str(e).lower():
                 raise
 
     def test_bayes_regression_pipeline(self):
@@ -1378,15 +1295,10 @@ class BayesianEngineTest(SimpleTestCase):
         x = np.random.normal(0, 1, 50)
         df = pd.DataFrame({"x": x, "y": 2 * x + np.random.normal(0, 0.5, 50)})
         try:
-            result = _run_analysis(
-                "bayesian", "bayes_regression", df, {"target": "y", "features": ["x"]}
-            )
+            result = _run_analysis("bayesian", "bayes_regression", df, {"target": "y", "features": ["x"]})
             _assert_quality_output(self, result, "bayes_regression")
         except Exception as e:
-            if (
-                "not found" not in str(e).lower()
-                and "not implemented" not in str(e).lower()
-            ):
+            if "not found" not in str(e).lower() and "not implemented" not in str(e).lower():
                 raise
 
 
@@ -1406,15 +1318,10 @@ class ReliabilityEngineTest(SimpleTestCase):
             }
         )
         try:
-            result = _run_analysis(
-                "reliability", "weibull", df, {"time": "time", "censor": "censor"}
-            )
+            result = _run_analysis("reliability", "weibull", df, {"time": "time", "censor": "censor"})
             _assert_quality_output(self, result, "weibull")
         except Exception as e:
-            if (
-                "not found" not in str(e).lower()
-                and "not implemented" not in str(e).lower()
-            ):
+            if "not found" not in str(e).lower() and "not implemented" not in str(e).lower():
                 raise
 
     def test_kaplan_meier_pipeline(self):
@@ -1430,15 +1337,10 @@ class ReliabilityEngineTest(SimpleTestCase):
             }
         )
         try:
-            result = _run_analysis(
-                "reliability", "kaplan_meier", df, {"time": "time", "event": "event"}
-            )
+            result = _run_analysis("reliability", "kaplan_meier", df, {"time": "time", "event": "event"})
             _assert_quality_output(self, result, "kaplan_meier")
         except Exception as e:
-            if (
-                "not found" not in str(e).lower()
-                and "not implemented" not in str(e).lower()
-            ):
+            if "not found" not in str(e).lower() and "not implemented" not in str(e).lower():
                 raise
 
 
@@ -1453,9 +1355,7 @@ class VizEngineTest(SimpleTestCase):
         np.random.seed(42)
         df = pd.DataFrame({"x": np.random.normal(100, 15, 200)})
         result = _run_analysis("viz", "histogram", df, {"var": "x", "bins": 20})
-        self.assertGreater(
-            len(result.get("plots", [])), 0, "Histogram should produce plots"
-        )
+        self.assertGreater(len(result.get("plots", [])), 0, "Histogram should produce plots")
         _assert_quality_output(self, result, "histogram")
 
     def test_boxplot_pipeline(self):
@@ -1471,9 +1371,7 @@ class VizEngineTest(SimpleTestCase):
             }
         )
         result = _run_analysis("viz", "boxplot", df, {"var": "value", "by": "group"})
-        self.assertGreater(
-            len(result.get("plots", [])), 0, "Boxplot should produce plots"
-        )
+        self.assertGreater(len(result.get("plots", [])), 0, "Boxplot should produce plots")
         _assert_quality_output(self, result, "boxplot")
 
     def test_scatter_pipeline(self):
@@ -1489,9 +1387,7 @@ class VizEngineTest(SimpleTestCase):
             }
         )
         result = _run_analysis("viz", "scatter", df, {"x": "x", "y": "y"})
-        self.assertGreater(
-            len(result.get("plots", [])), 0, "Scatter should produce plots"
-        )
+        self.assertGreater(len(result.get("plots", [])), 0, "Scatter should produce plots")
         _assert_quality_output(self, result, "scatter")
 
 
@@ -1532,17 +1428,11 @@ class MLEngineTest(SimpleTestCase):
         np.random.seed(42)
         df = pd.DataFrame(
             {
-                "x": np.concatenate(
-                    [np.random.normal(0, 1, 50), np.random.normal(5, 1, 50)]
-                ),
-                "y": np.concatenate(
-                    [np.random.normal(0, 1, 50), np.random.normal(5, 1, 50)]
-                ),
+                "x": np.concatenate([np.random.normal(0, 1, 50), np.random.normal(5, 1, 50)]),
+                "y": np.concatenate([np.random.normal(0, 1, 50), np.random.normal(5, 1, 50)]),
             }
         )
-        result = _run_analysis(
-            "ml", "clustering", df, {"features": ["x", "y"], "n_clusters": 2}
-        )
+        result = _run_analysis("ml", "clustering", df, {"features": ["x", "y"], "n_clusters": 2})
         _assert_quality_output(self, result, "clustering")
 
     def test_pca_pipeline(self):
@@ -1591,10 +1481,7 @@ class SimulationEngineTest(SimpleTestCase):
             result = _run_analysis("simulation", "monte_carlo", df, config)
             _assert_quality_output(self, result, "monte_carlo", require_education=False)
         except Exception as e:
-            if (
-                "not found" not in str(e).lower()
-                and "not implemented" not in str(e).lower()
-            ):
+            if "not found" not in str(e).lower() and "not implemented" not in str(e).lower():
                 raise
 
 
@@ -1622,10 +1509,7 @@ class DTypeEngineTest(SimpleTestCase):
             )
             _assert_quality_output(self, result, "d_chart")
         except Exception as e:
-            if (
-                "not found" not in str(e).lower()
-                and "not implemented" not in str(e).lower()
-            ):
+            if "not found" not in str(e).lower() and "not implemented" not in str(e).lower():
                 raise
 
 
@@ -1643,15 +1527,11 @@ class StatsEngineBreadthTest(SimpleTestCase):
         np.random.seed(42)
         df = pd.DataFrame(
             {
-                "value": np.concatenate(
-                    [np.random.normal(m, 3, 30) for m in [50, 55, 60]]
-                ),
+                "value": np.concatenate([np.random.normal(m, 3, 30) for m in [50, 55, 60]]),
                 "group": ["A"] * 30 + ["B"] * 30 + ["C"] * 30,
             }
         )
-        result = _run_analysis(
-            "stats", "anova", df, {"var1": "value", "groupby": "group"}
-        )
+        result = _run_analysis("stats", "anova", df, {"var1": "value", "groupby": "group"})
         _assert_quality_output(self, result, "anova")
         # ANOVA has p-value → evidence grade expected
         if result.get("statistics", {}).get("p_value") is not None:
@@ -1672,9 +1552,7 @@ class StatsEngineBreadthTest(SimpleTestCase):
                 "category2": np.random.choice(["X", "Y"], 200),
             }
         )
-        result = _run_analysis(
-            "stats", "chi_square", df, {"var1": "category1", "var2": "category2"}
-        )
+        result = _run_analysis("stats", "chi_square", df, {"var1": "category1", "var2": "category2"})
         _assert_quality_output(self, result, "chi_square", require_education=False)
 
     def test_correlation_pipeline(self):
@@ -1706,15 +1584,11 @@ class StatsEngineBreadthTest(SimpleTestCase):
         np.random.seed(42)
         df = pd.DataFrame(
             {
-                "value": np.concatenate(
-                    [np.random.normal(50, 5, 30), np.random.normal(55, 5, 30)]
-                ),
+                "value": np.concatenate([np.random.normal(50, 5, 30), np.random.normal(55, 5, 30)]),
                 "group": ["A"] * 30 + ["B"] * 30,
             }
         )
-        result = _run_analysis(
-            "stats", "mann_whitney", df, {"var": "value", "group_var": "group"}
-        )
+        result = _run_analysis("stats", "mann_whitney", df, {"var": "value", "group_var": "group"})
         _assert_quality_output(self, result, "mann_whitney")
 
     def test_paired_ttest_pipeline(self):
@@ -1729,9 +1603,7 @@ class StatsEngineBreadthTest(SimpleTestCase):
                 "after": np.random.normal(55, 5, 30),
             }
         )
-        result = _run_analysis(
-            "stats", "paired_ttest", df, {"var1": "before", "var2": "after"}
-        )
+        result = _run_analysis("stats", "paired_ttest", df, {"var1": "before", "var2": "after"})
         _assert_quality_output(self, result, "paired_ttest", require_education=False)
 
     def test_descriptive_pipeline(self):
@@ -1776,9 +1648,7 @@ class SPCEngineBreadthTest(SimpleTestCase):
                 "subgroup": [i // 5 for i in range(125)],
             }
         )
-        result = _run_analysis(
-            "spc", "xbar_r", df, {"column": "x", "subgroup_column": "subgroup"}
-        )
+        result = _run_analysis("spc", "xbar_r", df, {"column": "x", "subgroup_column": "subgroup"})
         _assert_quality_output(self, result, "xbar_r")
 
 
@@ -1790,11 +1660,9 @@ class FrontendContractTest(SimpleTestCase):
 
     def test_narrative_dict_renderable(self):
         """Dict narrative has string values in verdict/body/next_steps/chart_guidance."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
-        result = standardize_output(
-            {"summary": "A meaningful test summary for rendering."}, "stats", "ttest"
-        )
+        result = standardize_output({"summary": "A meaningful test summary for rendering."}, "stats", "ttest")
         nar = result["narrative"]
         for key in ("verdict", "body", "next_steps", "chart_guidance"):
             val = nar.get(key)
@@ -1805,7 +1673,7 @@ class FrontendContractTest(SimpleTestCase):
 
     def test_evidence_grade_is_string(self):
         """evidence_grade stored as string (not dict) after standardization."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output(
             {
@@ -1817,21 +1685,17 @@ class FrontendContractTest(SimpleTestCase):
         )
         eg = result.get("evidence_grade")
         if eg is not None:
-            self.assertIsInstance(
-                eg, str, f"evidence_grade is {type(eg)}, expected str"
-            )
+            self.assertIsInstance(eg, str, f"evidence_grade is {type(eg)}, expected str")
 
     def test_education_dict_renderable(self):
         """Education dict has string title and HTML content."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output({"summary": "test"}, "stats", "ttest")
         edu = result.get("education")
         if edu is not None:
             self.assertIsInstance(edu.get("title"), str, "education.title must be str")
-            self.assertIsInstance(
-                edu.get("content"), str, "education.content must be str"
-            )
+            self.assertIsInstance(edu.get("content"), str, "education.content must be str")
 
     def test_plots_have_plotly_structure(self):
         """Each plot dict has data (list) and layout (dict) for Plotly rendering."""
@@ -1840,9 +1704,7 @@ class FrontendContractTest(SimpleTestCase):
 
         np.random.seed(42)
         df = pd.DataFrame({"x": np.random.normal(50, 2, 100)})
-        result = _run_analysis(
-            "spc", "capability", df, {"column": "x", "usl": 56, "lsl": 44}
-        )
+        result = _run_analysis("spc", "capability", df, {"column": "x", "usl": 56, "lsl": 44})
         for plot in result.get("plots", []):
             if isinstance(plot, dict):
                 self.assertIn("data", plot, "Plot missing 'data' key")
@@ -1862,13 +1724,11 @@ class FrontendContractTest(SimpleTestCase):
             if isinstance(diag, dict):
                 has_label = bool(diag.get("test") or diag.get("name"))
                 has_detail = bool(diag.get("detail") or diag.get("message"))
-                self.assertTrue(
-                    has_label or has_detail, f"Diagnostic entry not renderable: {diag}"
-                )
+                self.assertTrue(has_label or has_detail, f"Diagnostic entry not renderable: {diag}")
 
     def test_what_if_js_compatible(self):
         """what_if parameters have JS-compatible numeric types."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output(
             {
@@ -1893,12 +1753,8 @@ class FrontendContractTest(SimpleTestCase):
                         (int, float),
                         f"what_if param '{p['name']}'.{num_key} is {type(val)}",
                     )
-                    self.assertFalse(
-                        math.isnan(val), f"what_if param '{p['name']}'.{num_key} is NaN"
-                    )
-                    self.assertFalse(
-                        math.isinf(val), f"what_if param '{p['name']}'.{num_key} is Inf"
-                    )
+                    self.assertFalse(math.isnan(val), f"what_if param '{p['name']}'.{num_key} is NaN")
+                    self.assertFalse(math.isinf(val), f"what_if param '{p['name']}'.{num_key} is Inf")
 
 
 # ── DSW-002 §5: Narrative Cleanliness ────────────────────────────────────
@@ -1909,7 +1765,7 @@ class NarrativeCleanlinessTest(SimpleTestCase):
 
     def test_narrative_returns_dict(self):
         """_narrative() returns a dict with 4 canonical keys."""
-        from agents_api.dsw.common import _narrative
+        from agents_api.analysis.common import _narrative
 
         n = _narrative("Process is capable", "Cpk = 1.45, well above 1.33 threshold.")
         self.assertIsInstance(n, dict)
@@ -1918,14 +1774,14 @@ class NarrativeCleanlinessTest(SimpleTestCase):
 
     def test_narrative_verdict_is_plain_text(self):
         """_narrative() verdict contains no HTML tags."""
-        from agents_api.dsw.common import _narrative
+        from agents_api.analysis.common import _narrative
 
         n = _narrative("Significant difference found", "p = 0.003")
         self.assertNotRegex(n["verdict"], r"<[^>]+>", "HTML tags in verdict")
 
     def test_narrative_body_is_plain_text(self):
         """_narrative() body contains no HTML tags."""
-        from agents_api.dsw.common import _narrative
+        from agents_api.analysis.common import _narrative
 
         n = _narrative("Result", "The body text should be <b>plain</b>.")
         # _narrative now passes through as-is — the input should not have HTML.
@@ -1935,7 +1791,7 @@ class NarrativeCleanlinessTest(SimpleTestCase):
 
     def test_narrative_no_box_drawing(self):
         """_narrative() output has no box-drawing characters."""
-        from agents_api.dsw.common import _narrative
+        from agents_api.analysis.common import _narrative
 
         n = _narrative("Result", "Clean body", "Next step", "Chart note")
         for key, val in n.items():
@@ -1944,7 +1800,7 @@ class NarrativeCleanlinessTest(SimpleTestCase):
 
     def test_narrative_next_steps_defaults_empty(self):
         """_narrative() defaults next_steps to empty string when None."""
-        from agents_api.dsw.common import _narrative
+        from agents_api.analysis.common import _narrative
 
         n = _narrative("Verdict", "Body")
         self.assertEqual(n["next_steps"], "")
@@ -1952,7 +1808,7 @@ class NarrativeCleanlinessTest(SimpleTestCase):
 
     def test_narrative_preserves_content(self):
         """_narrative() preserves the input content exactly."""
-        from agents_api.dsw.common import _narrative
+        from agents_api.analysis.common import _narrative
 
         n = _narrative("V", "B", "N", "C")
         self.assertEqual(n["verdict"], "V")
@@ -1966,38 +1822,30 @@ class NarrativeFromSummaryTest(SimpleTestCase):
 
     def test_strips_html_tags(self):
         """HTML tags are removed from summary input."""
-        from agents_api.dsw.standardize import _narrative_from_summary
+        from agents_api.analysis.standardize import _narrative_from_summary
 
-        n = _narrative_from_summary(
-            '<div class="dsw-verdict">Good</div><p>Body text</p>'
-        )
-        self.assertNotRegex(
-            n["verdict"], r"<[^>]+>", "HTML tags not stripped from verdict"
-        )
+        n = _narrative_from_summary('<div class="dsw-verdict">Good</div><p>Body text</p>')
+        self.assertNotRegex(n["verdict"], r"<[^>]+>", "HTML tags not stripped from verdict")
         self.assertNotRegex(n["body"], r"<[^>]+>", "HTML tags not stripped from body")
 
     def test_strips_box_drawing(self):
         """Box-drawing characters (═, ─, etc.) are removed."""
-        from agents_api.dsw.standardize import _narrative_from_summary
+        from agents_api.analysis.standardize import _narrative_from_summary
 
-        n = _narrative_from_summary(
-            "═══ Result ═══\n─── Details ───\nActual content here"
-        )
+        n = _narrative_from_summary("═══ Result ═══\n─── Details ───\nActual content here")
         for key in ("verdict", "body"):
-            self.assertNotRegex(
-                n[key], r"[═─│╔╗╚╝╠╣╬]", f"Box chars in {key}: {n[key]}"
-            )
+            self.assertNotRegex(n[key], r"[═─│╔╗╚╝╠╣╬]", f"Box chars in {key}: {n[key]}")
 
     def test_strips_color_tags(self):
         """<<COLOR:>> tags are removed."""
-        from agents_api.dsw.standardize import _narrative_from_summary
+        from agents_api.analysis.standardize import _narrative_from_summary
 
         n = _narrative_from_summary("<<COLOR:accent>>Important<</COLOR>> result")
         self.assertNotIn("<<COLOR:", n["verdict"])
 
     def test_skips_separator_lines(self):
         """Lines that are only dashes/equals/underscores are dropped."""
-        from agents_api.dsw.standardize import _narrative_from_summary
+        from agents_api.analysis.standardize import _narrative_from_summary
 
         n = _narrative_from_summary("Verdict line\n----------\n======\nBody content")
         self.assertNotIn("---", n["body"], "Separator line not skipped")
@@ -2005,7 +1853,7 @@ class NarrativeFromSummaryTest(SimpleTestCase):
 
     def test_never_returns_none(self):
         """_narrative_from_summary() always returns a dict, never None."""
-        from agents_api.dsw.standardize import _narrative_from_summary
+        from agents_api.analysis.standardize import _narrative_from_summary
 
         # Empty input
         n = _narrative_from_summary("")
@@ -2019,17 +1867,15 @@ class NarrativeFromSummaryTest(SimpleTestCase):
 
     def test_preserves_meaningful_content(self):
         """Meaningful text survives all the stripping."""
-        from agents_api.dsw.standardize import _narrative_from_summary
+        from agents_api.analysis.standardize import _narrative_from_summary
 
-        n = _narrative_from_summary(
-            "Process is capable\nCpk = 1.45 exceeds 1.33 threshold"
-        )
+        n = _narrative_from_summary("Process is capable\nCpk = 1.45 exceeds 1.33 threshold")
         self.assertEqual(n["verdict"], "Process is capable")
         self.assertIn("Cpk = 1.45", n["body"])
 
     def test_empty_summary_returns_empty_dict(self):
         """Empty or whitespace summary returns dict with empty strings."""
-        from agents_api.dsw.standardize import _narrative_from_summary
+        from agents_api.analysis.standardize import _narrative_from_summary
 
         n = _narrative_from_summary("   \n  \n  ")
         self.assertEqual(n["verdict"], "")
@@ -2041,7 +1887,7 @@ class NarrativeNoneGuardTest(SimpleTestCase):
 
     def test_narrative_never_none_empty_input(self):
         """Narrative is dict even with empty result input."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output({}, "stats", "ttest")
         self.assertIsNotNone(result["narrative"])
@@ -2049,7 +1895,7 @@ class NarrativeNoneGuardTest(SimpleTestCase):
 
     def test_narrative_never_none_no_summary(self):
         """Narrative is dict when no summary provided."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output({"plots": []}, "stats", "ttest")
         self.assertIsNotNone(result["narrative"])
@@ -2057,7 +1903,7 @@ class NarrativeNoneGuardTest(SimpleTestCase):
 
     def test_narrative_dict_has_all_keys(self):
         """Narrative dict always has all 4 canonical keys."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output({"summary": "Test"}, "stats", "ttest")
         nar = result["narrative"]
@@ -2066,19 +1912,17 @@ class NarrativeNoneGuardTest(SimpleTestCase):
 
     def test_narrative_values_are_strings(self):
         """All narrative values are strings (never None inside the dict)."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output({"summary": "Test summary line"}, "stats", "ttest")
         nar = result["narrative"]
         for key in ("verdict", "body", "next_steps", "chart_guidance"):
-            self.assertIsInstance(
-                nar[key], str, f"narrative.{key} is {type(nar[key])}, not str"
-            )
+            self.assertIsInstance(nar[key], str, f"narrative.{key} is {type(nar[key])}, not str")
 
     def test_dict_narrative_passed_through(self):
         """Dict narrative from _narrative() passes through standardize_output() unchanged."""
-        from agents_api.dsw.common import _narrative
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.common import _narrative
+        from agents_api.analysis.standardize import standardize_output
 
         original = _narrative("Good result", "Body text", "Next step", "Chart guidance")
         result = standardize_output(
@@ -2097,8 +1941,8 @@ class EducationCoverageEnforcementTest(SimpleTestCase):
 
     def test_has_education_analyses_have_entry(self):
         """Analyses with has_education=True in registry have education content."""
-        from agents_api.dsw.education import EDUCATION_CONTENT
-        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.analysis.education import EDUCATION_CONTENT
+        from agents_api.analysis.registry import ANALYSIS_REGISTRY
 
         missing = []
         for (atype, aid), entry in ANALYSIS_REGISTRY.items():
@@ -2114,17 +1958,15 @@ class EducationCoverageEnforcementTest(SimpleTestCase):
 
     def test_education_entries_reference_valid_analyses(self):
         """All education entries reference analyses that exist in the registry."""
-        from agents_api.dsw.education import EDUCATION_CONTENT
-        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.analysis.education import EDUCATION_CONTENT
+        from agents_api.analysis.registry import ANALYSIS_REGISTRY
 
         orphaned = []
         for key in EDUCATION_CONTENT:
             if key not in ANALYSIS_REGISTRY:
                 orphaned.append(f"{key[0]}/{key[1]}")
         if orphaned:
-            self.fail(
-                f"Education entries for non-existent analyses: {', '.join(orphaned[:10])}"
-            )
+            self.fail(f"Education entries for non-existent analyses: {', '.join(orphaned[:10])}")
 
 
 # ── Bayesian SPC Behavioral Tests ───────────────────────────────────────
@@ -2150,15 +1992,9 @@ class BayesSPCCapabilityTest(SimpleTestCase):
         edu = result.get("education")
         self.assertIsNotNone(edu, "bayes_spc_capability missing education")
         self.assertIsInstance(edu, dict)
-        self.assertGreaterEqual(
-            len(edu.get("title", "")), 15, "Education title too short"
-        )
-        self.assertGreaterEqual(
-            len(edu.get("content", "")), 200, "Education content too shallow"
-        )
-        self.assertIn(
-            "<dl>", edu.get("content", ""), "Education missing <dl> structure"
-        )
+        self.assertGreaterEqual(len(edu.get("title", "")), 15, "Education title too short")
+        self.assertGreaterEqual(len(edu.get("content", "")), 200, "Education content too shallow")
+        self.assertIn("<dl>", edu.get("content", ""), "Education missing <dl> structure")
 
         # Narrative is dict (not HTML string, not None)
         nar = result.get("narrative")
@@ -2168,9 +2004,7 @@ class BayesSPCCapabilityTest(SimpleTestCase):
             self.assertIn(key, nar, f"Narrative missing key: {key}")
 
         # Charts produced
-        self.assertGreater(
-            len(result.get("plots", [])), 0, "Should produce at least one chart"
-        )
+        self.assertGreater(len(result.get("plots", [])), 0, "Should produce at least one chart")
 
     def test_bayes_spc_capability_error_on_no_spec(self):
         """bayes_spc_capability returns error when no spec limits provided."""
@@ -2179,13 +2013,9 @@ class BayesSPCCapabilityTest(SimpleTestCase):
 
         np.random.seed(42)
         df = pd.DataFrame({"measurement": np.random.normal(50, 2, 60)})
-        result = _run_analysis(
-            "viz", "bayes_spc_capability", df, {"measurement": "measurement"}
-        )
+        result = _run_analysis("viz", "bayes_spc_capability", df, {"measurement": "measurement"})
         summary = result.get("summary", "")
-        self.assertIn(
-            "spec limit", summary.lower(), "Should report missing spec limits"
-        )
+        self.assertIn("spec limit", summary.lower(), "Should report missing spec limits")
 
 
 class BayesSPCControlTest(SimpleTestCase):
@@ -2208,9 +2038,7 @@ class BayesSPCControlTest(SimpleTestCase):
         edu = result.get("education")
         self.assertIsNotNone(edu, "bayes_spc_control missing education")
         self.assertIsInstance(edu, dict)
-        self.assertGreaterEqual(
-            len(edu.get("content", "")), 200, "Education too shallow"
-        )
+        self.assertGreaterEqual(len(edu.get("content", "")), 200, "Education too shallow")
 
         # Narrative is dict
         nar = result.get("narrative")
@@ -2218,9 +2046,7 @@ class BayesSPCControlTest(SimpleTestCase):
         self.assertIsInstance(nar, dict)
 
         # Charts produced
-        self.assertGreater(
-            len(result.get("plots", [])), 0, "Should produce control chart"
-        )
+        self.assertGreater(len(result.get("plots", [])), 0, "Should produce control chart")
 
     def test_bayes_spc_control_chart_styling(self):
         """Charts from bayes_spc_control have standard defaults applied."""
@@ -2255,9 +2081,7 @@ class BayesSPCChangepointTest(SimpleTestCase):
 
         np.random.seed(42)
         # Data with an intentional shift at observation 50
-        data = np.concatenate(
-            [np.random.normal(50, 2, 50), np.random.normal(55, 2, 50)]
-        )
+        data = np.concatenate([np.random.normal(50, 2, 50), np.random.normal(55, 2, 50)])
         df = pd.DataFrame({"measurement": data})
         result = _run_analysis(
             "viz",
@@ -2273,9 +2097,7 @@ class BayesSPCChangepointTest(SimpleTestCase):
         edu = result.get("education")
         self.assertIsNotNone(edu, "bayes_spc_changepoint missing education")
         self.assertIsInstance(edu, dict)
-        self.assertGreaterEqual(
-            len(edu.get("content", "")), 200, "Education too shallow"
-        )
+        self.assertGreaterEqual(len(edu.get("content", "")), 200, "Education too shallow")
 
         # Narrative is dict
         nar = result.get("narrative")
@@ -2283,6 +2105,4 @@ class BayesSPCChangepointTest(SimpleTestCase):
         self.assertIsInstance(nar, dict)
 
         # Charts produced
-        self.assertGreater(
-            len(result.get("plots", [])), 0, "Should produce changepoint chart"
-        )
+        self.assertGreater(len(result.get("plots", [])), 0, "Should produce changepoint chart")

@@ -21,5 +21,9 @@ urlpatterns = [
     path("models/", views.available_models, name="experimenter_models"),
     # Saved designs
     path("designs/", views.saved_designs, name="experimenter_saved_designs"),
-    path("designs/<uuid:design_id>/", views.saved_design_detail, name="experimenter_saved_design_detail"),
+    path(
+        "designs/<uuid:design_id>/",
+        views.saved_design_detail,
+        name="experimenter_saved_design_detail",
+    ),
 ]

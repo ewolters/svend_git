@@ -15,7 +15,7 @@ from django.test import TestCase
 
 def _run(analysis_id, config, data_dict):
     """Run Bayesian analysis — no exception masking (TST-001 §11.6)."""
-    from agents_api.dsw.bayesian import run_bayesian_analysis
+    from agents_api.analysis.bayesian import run_bayesian_analysis
 
     df = pd.DataFrame(data_dict)
     return run_bayesian_analysis(df, analysis_id, config)
@@ -283,9 +283,7 @@ class BayesianReliabilityCoverageTest(TestCase):
 
     def test_bayes_rul(self):
         # Remaining useful life prediction
-        deg = [
-            100 - 0.5 * i + np.random.RandomState(42).normal(0, 1) for i in range(40)
-        ]
+        deg = [100 - 0.5 * i + np.random.RandomState(42).normal(0, 1) for i in range(40)]
         r = _run(
             "bayes_rul",
             {"measurement": "y", "threshold": 50},

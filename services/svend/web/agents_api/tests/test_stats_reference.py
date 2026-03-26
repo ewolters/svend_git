@@ -17,7 +17,7 @@ from sklearn.linear_model import LinearRegression
 
 def _svend_stats(analysis_id, config, data_dict):
     """Run a Svend stats analysis."""
-    from agents_api.dsw.stats import run_statistical_analysis
+    from agents_api.analysis.stats import run_statistical_analysis
 
     df = pd.DataFrame(data_dict)
     return run_statistical_analysis(df, analysis_id, config)
@@ -25,7 +25,7 @@ def _svend_stats(analysis_id, config, data_dict):
 
 def _svend_spc(analysis_id, config, data_dict):
     """Run a Svend SPC analysis."""
-    from agents_api.dsw.spc import run_spc_analysis
+    from agents_api.analysis.spc import run_spc_analysis
 
     df = pd.DataFrame(data_dict)
     return run_spc_analysis(df, analysis_id, config)
@@ -33,7 +33,7 @@ def _svend_spc(analysis_id, config, data_dict):
 
 def _svend_bayesian(analysis_id, config, data_dict):
     """Run a Svend Bayesian analysis."""
-    from agents_api.dsw.bayesian import run_bayesian_analysis
+    from agents_api.analysis.bayesian import run_bayesian_analysis
 
     df = pd.DataFrame(data_dict)
     return run_bayesian_analysis(df, analysis_id, config)
@@ -50,9 +50,7 @@ class TTestReferenceTest(TestCase):
         ref_stat, ref_p = sp_stats.ttest_1samp(data, 100)
 
         # Svend
-        result = _svend_stats(
-            "ttest", {"var1": "x", "mu": 100, "conf": 95}, {"x": data.tolist()}
-        )
+        result = _svend_stats("ttest", {"var1": "x", "mu": 100, "conf": 95}, {"x": data.tolist()})
         svend_p = result["statistics"]["p_value"]
 
         self.assertAlmostEqual(
@@ -68,9 +66,7 @@ class TTestReferenceTest(TestCase):
 
         ref_stat, ref_p = sp_stats.ttest_1samp(data, 100)
 
-        result = _svend_stats(
-            "ttest", {"var1": "x", "mu": 100, "conf": 95}, {"x": data.tolist()}
-        )
+        result = _svend_stats("ttest", {"var1": "x", "mu": 100, "conf": 95}, {"x": data.tolist()})
         svend_p = result["statistics"]["p_value"]
 
         self.assertAlmostEqual(
@@ -91,9 +87,7 @@ class TTest2ReferenceTest(TestCase):
 
         ref_stat, ref_p = sp_stats.ttest_ind(a, b)
 
-        result = _svend_stats(
-            "ttest2", {"var1": "a", "var2": "b"}, {"a": a.tolist(), "b": b.tolist()}
-        )
+        result = _svend_stats("ttest2", {"var1": "a", "var2": "b"}, {"a": a.tolist(), "b": b.tolist()})
         svend_p = result["statistics"]["p_value"]
 
         self.assertAlmostEqual(
@@ -113,9 +107,7 @@ class TTest2ReferenceTest(TestCase):
         pooled_std = np.sqrt((np.var(a, ddof=1) + np.var(b, ddof=1)) / 2)
         ref_d = abs(np.mean(a) - np.mean(b)) / pooled_std
 
-        result = _svend_stats(
-            "ttest2", {"var1": "a", "var2": "b"}, {"a": a.tolist(), "b": b.tolist()}
-        )
+        result = _svend_stats("ttest2", {"var1": "a", "var2": "b"}, {"a": a.tolist(), "b": b.tolist()})
         svend_d = abs(result["statistics"]["cohens_d"])
 
         self.assertAlmostEqual(
@@ -172,9 +164,7 @@ class CorrelationReferenceTest(TestCase):
 
         ref_r, ref_p = sp_stats.pearsonr(x, y)
 
-        result = _svend_stats(
-            "correlation", {"variables": ["x", "y"]}, {"x": x.tolist(), "y": y.tolist()}
-        )
+        result = _svend_stats("correlation", {"variables": ["x", "y"]}, {"x": x.tolist(), "y": y.tolist()})
 
         # Svend uses stats keys like "r(x,y)" and "p(x,y)"
         svend_r = result["statistics"]["r(x,y)"]
@@ -377,7 +367,7 @@ class WeibullReferenceTest(TestCase):
         ref_shape, _, ref_scale = sp_stats.weibull_min.fit(data, floc=0)
 
         # Weibull runs through reliability module, not stats
-        from agents_api.dsw.reliability import run_reliability_analysis
+        from agents_api.analysis.reliability import run_reliability_analysis
 
         df = pd.DataFrame({"t": data.tolist()})
         result = run_reliability_analysis(df, "weibull", {"time": "t"})

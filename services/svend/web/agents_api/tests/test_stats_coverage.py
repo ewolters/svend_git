@@ -15,7 +15,7 @@ from django.test import TestCase
 
 def _run(analysis_id, config, data_dict):
     """Run stats analysis — no exception masking (TST-001 §11.6)."""
-    from agents_api.dsw.stats import run_statistical_analysis
+    from agents_api.analysis.stats import run_statistical_analysis
 
     df = pd.DataFrame(data_dict)
     return run_statistical_analysis(df, analysis_id, config)
@@ -327,9 +327,7 @@ class RegressionCoverageTest(TestCase):
 
     def test_nonlinear_regression(self):
         x = list(np.linspace(0.1, 10, 50))
-        y = [
-            3 * np.exp(-0.5 * xi) + np.random.RandomState(42).normal(0, 0.1) for xi in x
-        ]
+        y = [3 * np.exp(-0.5 * xi) + np.random.RandomState(42).normal(0, 0.1) for xi in x]
         r = _run(
             "nonlinear_regression",
             {"var_x": "x", "var_y": "y", "model": "exponential"},
@@ -700,8 +698,7 @@ class AdvancedMSATest(TestCase):
         subjects = list(range(1, 16)) * 2
         raters = ["R1"] * 15 + ["R2"] * 15
         vals = list(np.random.RandomState(42).normal(5, 1, 15)) + [
-            x + np.random.RandomState(43).normal(0, 0.5)
-            for x in np.random.RandomState(42).normal(5, 1, 15)
+            x + np.random.RandomState(43).normal(0, 0.5) for x in np.random.RandomState(42).normal(5, 1, 15)
         ]
         r = _run(
             "icc",
@@ -760,23 +757,14 @@ class AdvancedTimeSeriesTest(TestCase):
         _check_schema(self, r)
 
     def test_decomposition(self):
-        ts = list(
-            np.sin(np.linspace(0, 4 * np.pi, 48)) * 10
-            + np.random.RandomState(42).normal(0, 1, 48)
-            + 50
-        )
+        ts = list(np.sin(np.linspace(0, 4 * np.pi, 48)) * 10 + np.random.RandomState(42).normal(0, 1, 48) + 50)
         r = _run("decomposition", {"var": "y", "period": 12}, {"y": ts})
         _check_schema(self, r)
 
     def test_granger(self):
         x = list(np.random.RandomState(42).normal(0, 1, 50))
-        y = [0] + [
-            0.5 * x[i - 1] + np.random.RandomState(43).normal(0, 0.5)
-            for i in range(1, 50)
-        ]
-        r = _run(
-            "granger", {"var_x": "x", "var_y": "y", "max_lag": 3}, {"x": x, "y": y}
-        )
+        y = [0] + [0.5 * x[i - 1] + np.random.RandomState(43).normal(0, 0.5) for i in range(1, 50)]
+        r = _run("granger", {"var_x": "x", "var_y": "y", "max_lag": 3}, {"x": x, "y": y})
         _check_schema(self, r)
 
     def test_changepoint(self):
@@ -917,9 +905,7 @@ class ExploratoryCoverageTest(TestCase):
 
     def test_mixture_model(self):
         # Bimodal data
-        mix = list(np.random.RandomState(42).normal(50, 5, 25)) + list(
-            np.random.RandomState(43).normal(80, 5, 25)
-        )
+        mix = list(np.random.RandomState(42).normal(50, 5, 25)) + list(np.random.RandomState(43).normal(80, 5, 25))
         r = _run("mixture_model", {"var1": "x", "n_components": 2}, {"x": mix})
         _check_schema(self, r)
 

@@ -2367,4 +2367,4 @@ _extend(
 
 
 # Advanced modules loaded via import (SPC, ML, Reliability, Viz, Bayesian, etc.)
-import agents_api.dsw.education_advanced  # noqa: F401, E402
+from . import advanced  # noqa: F401, E402

@@ -20,7 +20,7 @@ CAUSES_40 = np.random.RandomState(45).choice([1, 2, 3], 40).tolist()
 
 def _run(analysis_id, config, data_dict):
     """Run reliability analysis — no exception masking (TST-001 §11.6)."""
-    from agents_api.dsw.reliability import run_reliability_analysis
+    from agents_api.analysis.reliability import run_reliability_analysis
 
     df = pd.DataFrame(data_dict)
     return run_reliability_analysis(df, analysis_id, config)

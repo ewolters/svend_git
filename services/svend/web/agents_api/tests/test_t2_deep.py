@@ -37,10 +37,7 @@ _rng44 = np.random.RandomState(44)
 X1 = list(_rng42.normal(0, 1, N))
 X2 = list(_rng43.normal(0, 1, N))
 X3 = list(_rng44.normal(0, 1, N))
-Y_REG = [
-    2 * x1 + 0.5 * x2 + np.random.RandomState(45).normal(0, 0.5)
-    for x1, x2 in zip(X1, X2)
-]
+Y_REG = [2 * x1 + 0.5 * x2 + np.random.RandomState(45).normal(0, 0.5) for x1, x2 in zip(X1, X2)]
 Y_CLS = [1 if y > 0 else 0 for y in Y_REG]
 DATES = pd.date_range("2020-01-01", periods=N, freq="D").strftime("%Y-%m-%d").tolist()
 GROUPS_AB = (["A"] * 30) + (["B"] * 30)
@@ -68,7 +65,7 @@ class VizDeepCoverageTest(TestCase):
 
     def _run(self, analysis_id, config, data_dict):
         """Run viz analysis — no exception masking (TST-001 §11.6)."""
-        from agents_api.dsw.viz import run_visualization
+        from agents_api.analysis.viz import run_visualization
 
         df = pd.DataFrame(data_dict)
         return run_visualization(df, analysis_id, config)
@@ -642,9 +639,7 @@ class ExperimenterDeepTest(TestCase):
         self.assertIn("power_curve", data)
 
     def test_power_invalid_json(self):
-        res = self.c.post(
-            "/api/experimenter/power/", "not json", content_type="text/plain"
-        )
+        res = self.c.post("/api/experimenter/power/", "not json", content_type="text/plain")
         self.assertEqual(res.status_code, 400)
 
     # --- design experiment ---
@@ -904,9 +899,7 @@ class SPCDeepTest(TestCase):
 
     def test_chart_xbar_r(self):
         subgroups = [SPC_DATA[i : i + 5] for i in range(0, 25, 5)]
-        res = self._post(
-            "/api/spc/chart/", {"chart_type": "X-bar R", "data": subgroups}
-        )
+        res = self._post("/api/spc/chart/", {"chart_type": "X-bar R", "data": subgroups})
         self.assertEqual(res.status_code, 200)
 
     def test_chart_p(self):
@@ -936,21 +929,15 @@ class SPCDeepTest(TestCase):
         self.assertEqual(res.status_code, 400)
 
     def test_chart_imr_wrong_format(self):
-        res = self._post(
-            "/api/spc/chart/", {"chart_type": "I-MR", "data": [[1, 2], [3, 4]]}
-        )
+        res = self._post("/api/spc/chart/", {"chart_type": "I-MR", "data": [[1, 2], [3, 4]]})
         self.assertEqual(res.status_code, 400)
 
     def test_chart_xbar_r_wrong_format(self):
-        res = self._post(
-            "/api/spc/chart/", {"chart_type": "X-bar R", "data": [1, 2, 3]}
-        )
+        res = self._post("/api/spc/chart/", {"chart_type": "X-bar R", "data": [1, 2, 3]})
         self.assertEqual(res.status_code, 400)
 
     def test_chart_p_no_samples(self):
-        res = self._post(
-            "/api/spc/chart/", {"chart_type": "p", "data": [3, 5], "sample_sizes": []}
-        )
+        res = self._post("/api/spc/chart/", {"chart_type": "p", "data": [3, 5], "sample_sizes": []})
         self.assertEqual(res.status_code, 400)
 
     def test_chart_invalid_json(self):
@@ -966,17 +953,13 @@ class SPCDeepTest(TestCase):
 
     # --- recommend chart ---
     def test_recommend_continuous_individual(self):
-        res = self._post(
-            "/api/spc/chart/recommend/", {"data_type": "continuous", "subgroup_size": 1}
-        )
+        res = self._post("/api/spc/chart/recommend/", {"data_type": "continuous", "subgroup_size": 1})
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertIn("recommended", data)
 
     def test_recommend_continuous_subgroup(self):
-        res = self._post(
-            "/api/spc/chart/recommend/", {"data_type": "continuous", "subgroup_size": 5}
-        )
+        res = self._post("/api/spc/chart/recommend/", {"data_type": "continuous", "subgroup_size": 5})
         self.assertEqual(res.status_code, 200)
 
     def test_recommend_attribute(self):
@@ -988,9 +971,7 @@ class SPCDeepTest(TestCase):
 
     # --- capability study ---
     def test_capability(self):
-        res = self._post(
-            "/api/spc/capability/", {"data": SPC_DATA, "usl": 56, "lsl": 44}
-        )
+        res = self._post("/api/spc/capability/", {"data": SPC_DATA, "usl": 56, "lsl": 44})
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertTrue(data.get("success"))
@@ -1306,7 +1287,7 @@ class MLDeepCoverageTest(TestCase):
 
     def _run(self, analysis_id, config, data_dict):
         """Run ML analysis — no exception masking (TST-001 §11.6)."""
-        from agents_api.dsw.ml import run_ml_analysis
+        from agents_api.analysis.ml import run_ml_analysis
 
         df = pd.DataFrame(data_dict)
         return run_ml_analysis(df, analysis_id, config, user=None)
@@ -1480,19 +1461,17 @@ class VizHelperFunctionsTest(TestCase):
     """Test internal helper functions in viz.py."""
 
     def test_nig_posterior_update(self):
-        from agents_api.dsw.viz import _nig_posterior_update
+        from agents_api.analysis.viz import _nig_posterior_update
 
         data = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-        mu_n, nu_n, alpha_n, beta_n = _nig_posterior_update(
-            data, mu0=3.0, nu0=1.0, alpha0=2.0, beta0=1.0
-        )
+        mu_n, nu_n, alpha_n, beta_n = _nig_posterior_update(data, mu0=3.0, nu0=1.0, alpha0=2.0, beta0=1.0)
         self.assertIsInstance(mu_n, float)
         self.assertIsInstance(nu_n, float)
         self.assertGreater(alpha_n, 2.0)
         self.assertGreater(beta_n, 0.0)
 
     def test_nig_sample(self):
-        from agents_api.dsw.viz import _nig_sample
+        from agents_api.analysis.viz import _nig_sample
 
         mu_samples, sigma_samples = _nig_sample(3.0, 6.0, 4.5, 2.0, n_samples=100)
         self.assertEqual(len(mu_samples), 100)
@@ -1500,7 +1479,7 @@ class VizHelperFunctionsTest(TestCase):
         self.assertTrue(np.all(sigma_samples > 0))
 
     def test_cpk_from_params_two_sided(self):
-        from agents_api.dsw.viz import _cpk_from_params
+        from agents_api.analysis.viz import _cpk_from_params
 
         mu = np.array([50.0, 51.0])
         sigma = np.array([2.0, 2.0])
@@ -1509,19 +1488,19 @@ class VizHelperFunctionsTest(TestCase):
         self.assertTrue(np.all(cpk > 0))
 
     def test_cpk_from_params_one_sided_usl(self):
-        from agents_api.dsw.viz import _cpk_from_params
+        from agents_api.analysis.viz import _cpk_from_params
 
         cpk = _cpk_from_params(np.array([50.0]), np.array([2.0]), usl=56, lsl=None)
         self.assertTrue(cpk[0] > 0)
 
     def test_cpk_from_params_one_sided_lsl(self):
-        from agents_api.dsw.viz import _cpk_from_params
+        from agents_api.analysis.viz import _cpk_from_params
 
         cpk = _cpk_from_params(np.array([50.0]), np.array([2.0]), usl=None, lsl=44)
         self.assertTrue(cpk[0] > 0)
 
     def test_cpk_from_params_no_spec(self):
-        from agents_api.dsw.viz import _cpk_from_params
+        from agents_api.analysis.viz import _cpk_from_params
 
         cpk = _cpk_from_params(np.array([50.0]), np.array([2.0]), usl=None, lsl=None)
         self.assertEqual(cpk[0], 0.0)

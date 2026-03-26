@@ -103,7 +103,7 @@ class DTypeCoverageTest(TestCase):
     """D-Type analyses — factor divergence via Jensen-Shannon Divergence."""
 
     def _run(self, analysis_id, config, data_dict):
-        from agents_api.dsw.d_type import run_d_type
+        from agents_api.analysis.d_type import run_d_type
 
         df = pd.DataFrame(data_dict)
         return run_d_type(df, analysis_id, config)
@@ -235,7 +235,7 @@ class SimulationCoverageTest(TestCase):
     """Simulation — tolerance stackup and variance propagation."""
 
     def _run(self, analysis_id, config, data_dict):
-        from agents_api.dsw.simulation import run_simulation
+        from agents_api.analysis.simulation import run_simulation
 
         df = pd.DataFrame(data_dict)
         return run_simulation(df, analysis_id, config, user=None)
@@ -391,9 +391,7 @@ class InterventionalSHAPCoverageTest(TestCase):
         from agents_api.analysis.ishap import run_interventional_shap
 
         df = pd.DataFrame(data_dict)
-        return run_interventional_shap(
-            df, analysis_id, config, model=model, model_features=model_features
-        )
+        return run_interventional_shap(df, analysis_id, config, model=model, model_features=model_features)
 
     def test_ishap_no_model(self):
         """Without a model, ishap should return an error message gracefully."""

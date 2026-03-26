@@ -15,7 +15,7 @@ from django.test import TestCase
 
 def _run(analysis_id, config, data_dict):
     """Run SPC analysis — no exception masking (TST-001 §11.6)."""
-    from agents_api.dsw.spc import run_spc_analysis
+    from agents_api.analysis.spc import run_spc_analysis
 
     df = pd.DataFrame(data_dict)
     return run_spc_analysis(df, analysis_id, config)
@@ -165,9 +165,7 @@ class SPCChartCoverageTest(TestCase):
     def test_degradation_capability(self):
         # Degradation over time
         time_vals = list(range(100))
-        deg_vals = [
-            50 + 0.1 * t + np.random.RandomState(42).normal(0, 1) for t in time_vals
-        ]
+        deg_vals = [50 + 0.1 * t + np.random.RandomState(42).normal(0, 1) for t in time_vals]
         r = _run(
             "degradation_capability",
             {"measurement": "y", "time": "t", "lsl": 40, "usl": 60},
@@ -243,7 +241,7 @@ class NelsonRulesTest(TestCase):
     """Test _spc_nelson_rules directly."""
 
     def test_rule1_beyond_limits(self):
-        from agents_api.dsw.spc import _spc_nelson_rules
+        from agents_api.analysis.spc import _spc_nelson_rules
 
         data = [50.0] * 20
         data[10] = 100.0  # Way beyond UCL
@@ -251,7 +249,7 @@ class NelsonRulesTest(TestCase):
         self.assertIn(10, ooc)
 
     def test_no_violations_in_control(self):
-        from agents_api.dsw.spc import _spc_nelson_rules
+        from agents_api.analysis.spc import _spc_nelson_rules
 
         np.random.seed(42)
         data = list(np.random.normal(50, 3, 20))

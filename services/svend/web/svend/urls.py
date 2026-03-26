@@ -139,14 +139,10 @@ urlpatterns = [
         TemplateView.as_view(template_name="safety_coming_soon.html"),
         name="safety",
     ),
-    path(
-        "privacy/", TemplateView.as_view(template_name="privacy.html"), name="privacy"
-    ),
+    path("privacy/", TemplateView.as_view(template_name="privacy.html"), name="privacy"),
     path("terms/", TemplateView.as_view(template_name="terms.html"), name="terms"),
     path("app/", TemplateView.as_view(template_name="dashboard.html"), name="app"),
-    path(
-        "app/dsw/", TemplateView.as_view(template_name="workbench_new.html"), name="dsw"
-    ),
+    path("app/dsw/", TemplateView.as_view(template_name="workbench_new.html"), name="dsw"),
     # Legacy redirect: /app/analysis/ serves old analysis workbench
     path(
         "app/analysis/",
@@ -158,12 +154,8 @@ urlpatterns = [
         TemplateView.as_view(template_name="workflows.html"),
         name="workflows",
     ),
-    path(
-        "app/triage/", TemplateView.as_view(template_name="triage.html"), name="triage"
-    ),
-    path(
-        "app/forge/", TemplateView.as_view(template_name="forge.html"), name="forge_ui"
-    ),
+    path("app/triage/", TemplateView.as_view(template_name="triage.html"), name="triage"),
+    path("app/forge/", TemplateView.as_view(template_name="forge.html"), name="forge_ui"),
     path(
         "app/whiteboard/",
         TemplateView.as_view(template_name="whiteboard.html"),
@@ -174,9 +166,7 @@ urlpatterns = [
         TemplateView.as_view(template_name="whiteboard.html"),
         name="whiteboard_room",
     ),
-    path(
-        "app/whiteboard/guest/<str:token>/", guest_board_view, name="whiteboard_guest"
-    ),
+    path("app/whiteboard/guest/<str:token>/", guest_board_view, name="whiteboard_guest"),
     path("app/vsm/", TemplateView.as_view(template_name="vsm.html"), name="vsm"),
     path(
         "app/vsm/<uuid:vsm_id>/",
@@ -203,9 +193,7 @@ urlpatterns = [
         TemplateView.as_view(template_name="settings.html"),
         name="settings",
     ),
-    path(
-        "app/models/", TemplateView.as_view(template_name="models.html"), name="models"
-    ),
+    path("app/models/", TemplateView.as_view(template_name="models.html"), name="models"),
     path(
         "app/forecast/",
         TemplateView.as_view(template_name="forecast.html"),
@@ -232,7 +220,7 @@ urlpatterns = [
         TemplateView.as_view(template_name="experimenter.html"),
         name="experimenter",
     ),
-    path("app/spc/", RedirectView.as_view(url="/app/dsw/", permanent=True), name="spc"),
+    path("app/spc/", RedirectView.as_view(url="/app/analysis/", permanent=True), name="spc"),
     path(
         "app/safety/",
         TemplateView.as_view(template_name="safety_app.html"),
@@ -245,9 +233,7 @@ urlpatterns = [
         TemplateView.as_view(template_name="a3.html"),
         name="a3_edit",
     ),
-    path(
-        "app/report/", TemplateView.as_view(template_name="report.html"), name="report"
-    ),
+    path("app/report/", TemplateView.as_view(template_name="report.html"), name="report"),
     path(
         "app/report/<uuid:report_id>/",
         TemplateView.as_view(template_name="report.html"),
@@ -291,9 +277,7 @@ urlpatterns = [
         TemplateView.as_view(template_name="kanban_cards.html"),
         name="kanban_cards",
     ),
-    path(
-        "app/hoshin/", TemplateView.as_view(template_name="hoshin.html"), name="hoshin"
-    ),
+    path("app/hoshin/", TemplateView.as_view(template_name="hoshin.html"), name="hoshin"),
     path(
         "app/investigations/",
         TemplateView.as_view(template_name="investigations.html"),
@@ -466,62 +450,36 @@ urlpatterns = [
     path("api/experimenter/", include("agents_api.experimenter_urls")),
     path("api/spc/", include("agents_api.spc_urls")),
     path("api/synara/", include("agents_api.synara_urls")),
-    path(
-        "api/whiteboard/", include("agents_api.whiteboard_urls")
-    ),  # Collaborative whiteboards
+    path("api/whiteboard/", include("agents_api.whiteboard_urls")),  # Collaborative whiteboards
     path("api/guide/", include("agents_api.guide_urls")),  # AI guide (rate-limited)
     path("api/a3/", include("agents_api.a3_urls")),  # A3 problem-solving reports
     path("api/reports/", include("agents_api.report_urls")),  # CAPA, 8D reports
     path("api/vsm/", include("agents_api.vsm_urls")),  # Value Stream Mapping
     path("api/plantsim/", include("agents_api.plantsim_urls")),  # Plant Simulator (DES)
-    path(
-        "api/learn/", include("agents_api.learn_urls")
-    ),  # Learning module & certification
+    path("api/learn/", include("agents_api.learn_urls")),  # Learning module & certification
     path("api/rca/", include("agents_api.rca_urls")),  # Root cause analysis critique
-    path(
-        "api/ishikawa/", include("agents_api.ishikawa_urls")
-    ),  # Ishikawa (fishbone) diagrams
+    path("api/ishikawa/", include("agents_api.ishikawa_urls")),  # Ishikawa (fishbone) diagrams
     path("api/ce/", include("agents_api.ce_urls")),  # Cause & Effect matrices
-    path(
-        "api/fmea/", include("agents_api.fmea_urls")
-    ),  # FMEA with Bayesian evidence linking
-    path(
-        "api/hoshin/", include("agents_api.hoshin_urls")
-    ),  # Hoshin Kanri CI (Enterprise)
-    path(
-        "api/qms/", include("agents_api.qms_urls")
-    ),  # QMS cross-module dashboard (Phase 3)
+    path("api/fmea/", include("agents_api.fmea_urls")),  # FMEA with Bayesian evidence linking
+    path("api/hoshin/", include("agents_api.hoshin_urls")),  # Hoshin Kanri CI (Enterprise)
+    path("api/qms/", include("agents_api.qms_urls")),  # QMS cross-module dashboard (Phase 3)
     path("api/iso/", include("agents_api.iso_urls")),  # ISO 9001 QMS (Team/Enterprise)
     path("api/notifications/", include("notifications.urls")),  # NTF-001
     path("api/safety/", include("safety.urls")),  # HIRARC Safety (Enterprise)
     path("api/privacy/", include("accounts.privacy_urls")),  # PRIV-001 (SOC 2 P1.8)
-    path(
-        "api/capa/", include("agents_api.capa_urls")
-    ),  # CAPA standalone (ISO 10.2, FEAT-004)
+    path("api/capa/", include("agents_api.capa_urls")),  # CAPA standalone (ISO 10.2, FEAT-004)
     path("api/iso-docs/", include("agents_api.iso_doc_urls")),  # ISO Document Creator
-    path(
-        "api/actions/", include("agents_api.action_urls")
-    ),  # Shared action item update/delete
+    path("api/actions/", include("agents_api.action_urls")),  # Shared action item update/delete
     path(
         "api/investigations/", include("agents_api.investigation_urls")
     ),  # Investigation lifecycle (CANON-002) — deprecated
-    path(
-        "api/notebooks/", include("agents_api.notebook_urls")
-    ),  # Notebook lifecycle (NB-001)
-    path(
-        "api/harada/", include("agents_api.harada_urls")
-    ),  # Harada Method (questionnaire, goals, routines, diary)
-    path(
-        "api/core/", include("core.urls")
-    ),  # Projects, hypotheses, evidence, knowledge graph
+    path("api/notebooks/", include("agents_api.notebook_urls")),  # Notebook lifecycle (NB-001)
+    path("api/harada/", include("agents_api.harada_urls")),  # Harada Method (questionnaire, goals, routines, diary)
+    path("api/core/", include("core.urls")),  # Projects, hypotheses, evidence, knowledge graph
     path("api/workbench/", include("workbench.urls")),
     path("chat/", include("chat.urls")),
-    path(
-        "action/<str:token>/", include("agents_api.token_urls")
-    ),  # ActionToken (QMS-002, no auth)
-    path(
-        "ntf/<str:token>/", include("notifications.token_urls")
-    ),  # NotificationToken (NTF-001 §5.2, no auth)
+    path("action/<str:token>/", include("agents_api.token_urls")),  # ActionToken (QMS-002, no auth)
+    path("ntf/<str:token>/", include("notifications.token_urls")),  # NotificationToken (NTF-001 §5.2, no auth)
     path("", include("accounts.urls")),  # Billing endpoints
     # Password reset
     path(

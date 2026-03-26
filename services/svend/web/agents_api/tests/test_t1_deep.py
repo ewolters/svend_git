@@ -31,10 +31,7 @@ _Y_CLS = [1 if x > 0 else 0 for x in _X1]
 _Y_MULTI = ["A"] * 30 + ["B"] * 30 + ["C"] * 20
 
 # Regression data
-_Y_REG = [
-    2.0 * x1 + 0.5 * x2 + np.random.RandomState(99).normal(0, 0.3)
-    for x1, x2 in zip(_X1, _X2)
-]
+_Y_REG = [2.0 * x1 + 0.5 * x2 + np.random.RandomState(99).normal(0, 0.3) for x1, x2 in zip(_X1, _X2)]
 
 # Reliability / time-to-failure data
 _FAILURE_TIMES = list(np.random.RandomState(42).exponential(100, 50))
@@ -73,44 +70,44 @@ class SanitizeDeep(TestCase):
     """Deep coverage for sanitize_for_json and _strip_non_serializable."""
 
     def test_sanitize_numpy_integer(self):
-        from agents_api.dsw.common import sanitize_for_json
+        from agents_api.analysis.common import sanitize_for_json
 
         self.assertIsInstance(sanitize_for_json(np.int64(42)), int)
 
     def test_sanitize_numpy_float(self):
-        from agents_api.dsw.common import sanitize_for_json
+        from agents_api.analysis.common import sanitize_for_json
 
         self.assertIsInstance(sanitize_for_json(np.float64(3.14)), float)
 
     def test_sanitize_numpy_bool(self):
-        from agents_api.dsw.common import sanitize_for_json
+        from agents_api.analysis.common import sanitize_for_json
 
         self.assertIsInstance(sanitize_for_json(np.bool_(True)), bool)
 
     def test_sanitize_numpy_nan_float(self):
-        from agents_api.dsw.common import sanitize_for_json
+        from agents_api.analysis.common import sanitize_for_json
 
         self.assertIsNone(sanitize_for_json(np.float64(float("nan"))))
 
     def test_sanitize_numpy_inf_float(self):
-        from agents_api.dsw.common import sanitize_for_json
+        from agents_api.analysis.common import sanitize_for_json
 
         self.assertIsNone(sanitize_for_json(np.float64(float("inf"))))
 
     def test_sanitize_nested_list(self):
-        from agents_api.dsw.common import sanitize_for_json
+        from agents_api.analysis.common import sanitize_for_json
 
         r = sanitize_for_json([1, [2, float("nan")], 3])
         self.assertEqual(r, [1, [2, None], 3])
 
     def test_sanitize_tuple(self):
-        from agents_api.dsw.common import sanitize_for_json
+        from agents_api.analysis.common import sanitize_for_json
 
         r = sanitize_for_json((1, 2, float("inf")))
         self.assertEqual(r, [1, 2, None])
 
     def test_sanitize_object_with_dict(self):
-        from agents_api.dsw.common import sanitize_for_json
+        from agents_api.analysis.common import sanitize_for_json
 
         class Obj:
             def __init__(self):
@@ -120,7 +117,7 @@ class SanitizeDeep(TestCase):
         self.assertEqual(r["val"], 42)
 
     def test_sanitize_fallback_str(self):
-        from agents_api.dsw.common import sanitize_for_json
+        from agents_api.analysis.common import sanitize_for_json
 
         r = sanitize_for_json(set([1, 2]))
         self.assertIsInstance(r, str)
@@ -128,7 +125,7 @@ class SanitizeDeep(TestCase):
     def test_strip_non_serializable_sklearn_object(self):
         from sklearn.preprocessing import StandardScaler
 
-        from agents_api.dsw.common import _strip_non_serializable
+        from agents_api.analysis.common import _strip_non_serializable
 
         scaler = StandardScaler()
         r = _strip_non_serializable(scaler)
@@ -136,35 +133,33 @@ class SanitizeDeep(TestCase):
         self.assertIsInstance(r, (dict, str))
 
     def test_strip_numpy_array(self):
-        from agents_api.dsw.common import _strip_non_serializable
+        from agents_api.analysis.common import _strip_non_serializable
 
         r = _strip_non_serializable(np.array([1, 2, 3]))
         self.assertEqual(r, [1, 2, 3])
 
     def test_strip_nested_dict_with_nan(self):
-        from agents_api.dsw.common import _strip_non_serializable
+        from agents_api.analysis.common import _strip_non_serializable
 
         r = _strip_non_serializable({"a": np.float64(float("nan"))})
         # _strip_non_serializable converts np.floating NaN to None
         # but only if the float check triggers — np.float64 NaN goes through
         # the np.floating branch which returns None for NaN
-        self.assertTrue(
-            r["a"] is None or (isinstance(r["a"], float) and np.isnan(r["a"]))
-        )
+        self.assertTrue(r["a"] is None or (isinstance(r["a"], float) and np.isnan(r["a"])))
 
 
 class RgbaTest(TestCase):
     """Tests for _rgba() color converter."""
 
     def test_rgba_default_alpha(self):
-        from agents_api.dsw.common import _rgba
+        from agents_api.analysis.common import _rgba
 
         r = _rgba("#4a9f6e")
         self.assertIn("rgba(", r)
         self.assertIn("0.15", r)
 
     def test_rgba_custom_alpha(self):
-        from agents_api.dsw.common import _rgba
+        from agents_api.analysis.common import _rgba
 
         r = _rgba("#ff0000", alpha=0.5)
         self.assertIn("255", r)
@@ -175,7 +170,7 @@ class CleanForMLTest(TestCase):
     """Tests for _clean_for_ml()."""
 
     def test_classification_target_encoded(self):
-        from agents_api.dsw.common import _clean_for_ml
+        from agents_api.analysis.common import _clean_for_ml
 
         df = _cls_df()
         X, y, label_map = _clean_for_ml(df, "target")
@@ -183,7 +178,7 @@ class CleanForMLTest(TestCase):
         self.assertEqual(len(y), _N)
 
     def test_categorical_target(self):
-        from agents_api.dsw.common import _clean_for_ml
+        from agents_api.analysis.common import _clean_for_ml
 
         df = _multi_df()
         X, y, label_map = _clean_for_ml(df, "target")
@@ -191,14 +186,14 @@ class CleanForMLTest(TestCase):
         self.assertEqual(len(label_map), 3)
 
     def test_regression_target_no_label_map(self):
-        from agents_api.dsw.common import _clean_for_ml
+        from agents_api.analysis.common import _clean_for_ml
 
         df = _reg_df()
         X, y, label_map = _clean_for_ml(df, "target")
         self.assertIsNone(label_map)
 
     def test_handles_missing_values(self):
-        from agents_api.dsw.common import _clean_for_ml
+        from agents_api.analysis.common import _clean_for_ml
 
         df = _cls_df()
         df.loc[0, "x1"] = np.nan
@@ -207,7 +202,7 @@ class CleanForMLTest(TestCase):
         self.assertFalse(X.isna().any().any())
 
     def test_handles_missing_target(self):
-        from agents_api.dsw.common import _clean_for_ml
+        from agents_api.analysis.common import _clean_for_ml
 
         df = _cls_df()
         df.loc[0, "target"] = np.nan
@@ -215,7 +210,7 @@ class CleanForMLTest(TestCase):
         self.assertEqual(len(X), _N - 1)
 
     def test_categorical_features_encoded(self):
-        from agents_api.dsw.common import _clean_for_ml
+        from agents_api.analysis.common import _clean_for_ml
 
         df = pd.DataFrame(
             {
@@ -232,7 +227,7 @@ class StratifiedSplitTest(TestCase):
     """Tests for _stratified_split() and _stratified_split_3way()."""
 
     def test_basic_split(self):
-        from agents_api.dsw.common import _clean_for_ml, _stratified_split
+        from agents_api.analysis.common import _clean_for_ml, _stratified_split
 
         df = _cls_df()
         X, y, _ = _clean_for_ml(df, "target")
@@ -242,7 +237,7 @@ class StratifiedSplitTest(TestCase):
         self.assertEqual(len(X_tr) + len(X_te), len(X))
 
     def test_split_preserves_classes(self):
-        from agents_api.dsw.common import _clean_for_ml, _stratified_split
+        from agents_api.analysis.common import _clean_for_ml, _stratified_split
 
         df = _cls_df()
         X, y, _ = _clean_for_ml(df, "target")
@@ -250,7 +245,7 @@ class StratifiedSplitTest(TestCase):
         self.assertEqual(set(y_te.unique()), set(y.unique()))
 
     def test_multiclass_split(self):
-        from agents_api.dsw.common import _clean_for_ml, _stratified_split
+        from agents_api.analysis.common import _clean_for_ml, _stratified_split
 
         df = _multi_df()
         X, y, _ = _clean_for_ml(df, "target")
@@ -259,7 +254,7 @@ class StratifiedSplitTest(TestCase):
         self.assertGreater(len(X_te), 0)
 
     def test_custom_test_size(self):
-        from agents_api.dsw.common import _clean_for_ml, _stratified_split
+        from agents_api.analysis.common import _clean_for_ml, _stratified_split
 
         df = _cls_df()
         X, y, _ = _clean_for_ml(df, "target")
@@ -268,7 +263,7 @@ class StratifiedSplitTest(TestCase):
         self.assertAlmostEqual(len(X_te), expected_test, delta=3)
 
     def test_3way_split(self):
-        from agents_api.dsw.common import _clean_for_ml, _stratified_split_3way
+        from agents_api.analysis.common import _clean_for_ml, _stratified_split_3way
 
         df = _cls_df()
         X, y, _ = _clean_for_ml(df, "target")
@@ -283,7 +278,7 @@ class AutoTrainTest(TestCase):
     """Tests for _auto_train() full pipeline."""
 
     def test_classification_auto_detect(self):
-        from agents_api.dsw.common import _auto_train, _clean_for_ml
+        from agents_api.analysis.common import _auto_train, _clean_for_ml
 
         df = _cls_df()
         X, y, _ = _clean_for_ml(df, "target")
@@ -295,17 +290,15 @@ class AutoTrainTest(TestCase):
         self.assertGreater(len(importances), 0)
 
     def test_classification_explicit_task(self):
-        from agents_api.dsw.common import _auto_train, _clean_for_ml
+        from agents_api.analysis.common import _auto_train, _clean_for_ml
 
         df = _cls_df()
         X, y, _ = _clean_for_ml(df, "target")
-        model, metrics, importances, task, X_te, y_te, y_pred = _auto_train(
-            X, y, task="classification"
-        )
+        model, metrics, importances, task, X_te, y_te, y_pred = _auto_train(X, y, task="classification")
         self.assertEqual(task, "classification")
 
     def test_regression_auto_detect(self):
-        from agents_api.dsw.common import _auto_train, _clean_for_ml
+        from agents_api.analysis.common import _auto_train, _clean_for_ml
 
         df = _reg_df()
         X, y, _ = _clean_for_ml(df, "target")
@@ -317,17 +310,15 @@ class AutoTrainTest(TestCase):
         self.assertIn("reliability_warnings", metrics)
 
     def test_regression_explicit_task(self):
-        from agents_api.dsw.common import _auto_train, _clean_for_ml
+        from agents_api.analysis.common import _auto_train, _clean_for_ml
 
         df = _reg_df()
         X, y, _ = _clean_for_ml(df, "target")
-        model, metrics, importances, task, X_te, y_te, y_pred = _auto_train(
-            X, y, task="regression"
-        )
+        model, metrics, importances, task, X_te, y_te, y_pred = _auto_train(X, y, task="regression")
         self.assertEqual(task, "regression")
 
     def test_multiclass(self):
-        from agents_api.dsw.common import _auto_train, _clean_for_ml
+        from agents_api.analysis.common import _auto_train, _clean_for_ml
 
         df = _multi_df()
         X, y, _ = _clean_for_ml(df, "target")
@@ -340,7 +331,7 @@ class ClassificationReliabilityTest(TestCase):
     """Tests for _classification_reliability()."""
 
     def test_basic_binary(self):
-        from agents_api.dsw.common import _classification_reliability
+        from agents_api.analysis.common import _classification_reliability
 
         y_full = pd.Series([0] * 40 + [1] * 40)
         y_test = pd.Series([0] * 10 + [1] * 10)
@@ -353,7 +344,7 @@ class ClassificationReliabilityTest(TestCase):
         self.assertIn("per_class", r)
 
     def test_near_perfect_accuracy_warning(self):
-        from agents_api.dsw.common import _classification_reliability
+        from agents_api.analysis.common import _classification_reliability
 
         y_full = pd.Series([0] * 40 + [1] * 40)
         y_test = pd.Series([0] * 10 + [1] * 10)
@@ -365,7 +356,7 @@ class ClassificationReliabilityTest(TestCase):
         self.assertIn("critical", levels)
 
     def test_majority_baseline_match(self):
-        from agents_api.dsw.common import _classification_reliability
+        from agents_api.analysis.common import _classification_reliability
 
         y_full = pd.Series([0] * 70 + [1] * 10)
         y_test = pd.Series([0] * 7 + [1] * 3)
@@ -376,7 +367,7 @@ class ClassificationReliabilityTest(TestCase):
         self.assertIn("reliability_warnings", r)
 
     def test_severe_imbalance_warning(self):
-        from agents_api.dsw.common import _classification_reliability
+        from agents_api.analysis.common import _classification_reliability
 
         y_full = pd.Series([0] * 85 + [1] * 15)
         y_test = pd.Series([0] * 17 + [1] * 3)
@@ -384,15 +375,10 @@ class ClassificationReliabilityTest(TestCase):
         metrics = {"accuracy": 1.0}
         r = _classification_reliability(y_full, y_test, y_pred, metrics)
         warnings = r["reliability_warnings"]
-        self.assertTrue(
-            any(
-                "imbalance" in m.lower() or "majority" in m.lower()
-                for m in [w["msg"] for w in warnings]
-            )
-        )
+        self.assertTrue(any("imbalance" in m.lower() or "majority" in m.lower() for m in [w["msg"] for w in warnings]))
 
     def test_missing_classes_in_test(self):
-        from agents_api.dsw.common import _classification_reliability
+        from agents_api.analysis.common import _classification_reliability
 
         y_full = pd.Series([0] * 40 + [1] * 40)
         y_test = pd.Series([0] * 20)
@@ -403,7 +389,7 @@ class ClassificationReliabilityTest(TestCase):
         self.assertTrue(any("missing" in w["msg"].lower() for w in warnings))
 
     def test_minority_recall_warning(self):
-        from agents_api.dsw.common import _classification_reliability
+        from agents_api.analysis.common import _classification_reliability
 
         # Minority class has 0% recall
         y_full = pd.Series([0] * 85 + [1] * 15)
@@ -418,7 +404,7 @@ class RegressionReliabilityTest(TestCase):
     """Tests for _regression_reliability()."""
 
     def test_basic(self):
-        from agents_api.dsw.common import _regression_reliability
+        from agents_api.analysis.common import _regression_reliability
 
         y_full = pd.Series(np.random.RandomState(42).normal(0, 1, 100))
         y_test = y_full[:20]
@@ -428,7 +414,7 @@ class RegressionReliabilityTest(TestCase):
         self.assertIn("reliability_warnings", r)
 
     def test_negative_r2_warning(self):
-        from agents_api.dsw.common import _regression_reliability
+        from agents_api.analysis.common import _regression_reliability
 
         y_full = pd.Series(np.random.RandomState(42).normal(0, 1, 100))
         y_test = y_full[:20]
@@ -439,7 +425,7 @@ class RegressionReliabilityTest(TestCase):
         self.assertTrue(any("negative" in w["msg"].lower() for w in warnings))
 
     def test_near_perfect_r2_warning(self):
-        from agents_api.dsw.common import _regression_reliability
+        from agents_api.analysis.common import _regression_reliability
 
         y_full = pd.Series(range(100), dtype=float)
         y_test = y_full[:20]
@@ -447,12 +433,10 @@ class RegressionReliabilityTest(TestCase):
         metrics = {"r2": 0.999, "rmse": 0.001}
         r = _regression_reliability(y_full, y_test, y_pred, metrics)
         warnings = r["reliability_warnings"]
-        self.assertTrue(
-            any("leakage" in w["msg"].lower() or "0.99" in w["msg"] for w in warnings)
-        )
+        self.assertTrue(any("leakage" in w["msg"].lower() or "0.99" in w["msg"] for w in warnings))
 
     def test_low_r2_warning(self):
-        from agents_api.dsw.common import _regression_reliability
+        from agents_api.analysis.common import _regression_reliability
 
         y_full = pd.Series(np.random.RandomState(42).normal(0, 1, 100))
         y_test = y_full[:20]
@@ -460,12 +444,10 @@ class RegressionReliabilityTest(TestCase):
         metrics = {"r2": 0.05, "rmse": 1.0}
         r = _regression_reliability(y_full, y_test, y_pred, metrics)
         warnings = r["reliability_warnings"]
-        self.assertTrue(
-            any("10%" in w["msg"] or "explains" in w["msg"].lower() for w in warnings)
-        )
+        self.assertTrue(any("10%" in w["msg"] or "explains" in w["msg"].lower() for w in warnings))
 
     def test_high_rmse_warning(self):
-        from agents_api.dsw.common import _regression_reliability
+        from agents_api.analysis.common import _regression_reliability
 
         y_full = pd.Series(range(100), dtype=float)
         y_test = y_full[:20]
@@ -475,7 +457,7 @@ class RegressionReliabilityTest(TestCase):
         self.assertIn("reliability_warnings", r)
 
     def test_systematic_bias_warning(self):
-        from agents_api.dsw.common import _regression_reliability
+        from agents_api.analysis.common import _regression_reliability
 
         y_full = pd.Series(np.random.RandomState(42).normal(50, 10, 100))
         y_test = y_full[:20]
@@ -490,7 +472,7 @@ class DataSkepticismTest(TestCase):
     """Tests for _data_skepticism()."""
 
     def test_normal_dataset(self):
-        from agents_api.dsw.common import _data_skepticism
+        from agents_api.analysis.common import _data_skepticism
 
         X = pd.DataFrame({"a": range(200), "b": range(200)})
         y = pd.Series(range(200))
@@ -498,7 +480,7 @@ class DataSkepticismTest(TestCase):
         self.assertIsInstance(r, list)
 
     def test_high_dimensionality_critical(self):
-        from agents_api.dsw.common import _data_skepticism
+        from agents_api.analysis.common import _data_skepticism
 
         X = pd.DataFrame(np.random.RandomState(42).normal(0, 1, (20, 15)))
         y = pd.Series(range(20))
@@ -506,7 +488,7 @@ class DataSkepticismTest(TestCase):
         self.assertTrue(any(w["level"] == "critical" for w in r))
 
     def test_high_dimensionality_high(self):
-        from agents_api.dsw.common import _data_skepticism
+        from agents_api.analysis.common import _data_skepticism
 
         X = pd.DataFrame(np.random.RandomState(42).normal(0, 1, (50, 15)))
         y = pd.Series(range(50))
@@ -514,7 +496,7 @@ class DataSkepticismTest(TestCase):
         self.assertTrue(any("dimensionality" in w["msg"].lower() for w in r))
 
     def test_small_dataset_warning(self):
-        from agents_api.dsw.common import _data_skepticism
+        from agents_api.analysis.common import _data_skepticism
 
         X = pd.DataFrame({"a": range(30), "b": range(30)})
         y = pd.Series(range(30))
@@ -522,7 +504,7 @@ class DataSkepticismTest(TestCase):
         self.assertTrue(any("small" in w["msg"].lower() for w in r))
 
     def test_medium_dataset_warning(self):
-        from agents_api.dsw.common import _data_skepticism
+        from agents_api.analysis.common import _data_skepticism
 
         X = pd.DataFrame({"a": range(80), "b": range(80)})
         y = pd.Series(range(80))
@@ -530,7 +512,7 @@ class DataSkepticismTest(TestCase):
         self.assertTrue(any("small" in w["msg"].lower() for w in r))
 
     def test_feature_importance_concentration(self):
-        from agents_api.dsw.common import _data_skepticism
+        from agents_api.analysis.common import _data_skepticism
 
         X = pd.DataFrame({"a": range(200), "b": range(200)})
         y = pd.Series(range(200))
@@ -540,14 +522,10 @@ class DataSkepticismTest(TestCase):
             {"feature": "c", "importance": 0.05},
         ]
         r = _data_skepticism(X, y, importances=importances)
-        self.assertTrue(
-            any(
-                "dominat" in w["msg"].lower() or "single" in w["msg"].lower() for w in r
-            )
-        )
+        self.assertTrue(any("dominat" in w["msg"].lower() or "single" in w["msg"].lower() for w in r))
 
     def test_collinearity_detection(self):
-        from agents_api.dsw.common import _data_skepticism
+        from agents_api.analysis.common import _data_skepticism
 
         vals = np.random.RandomState(42).normal(0, 1, 200)
         X = pd.DataFrame(
@@ -559,15 +537,10 @@ class DataSkepticismTest(TestCase):
         )
         y = pd.Series(range(200))
         r = _data_skepticism(X, y)
-        self.assertTrue(
-            any(
-                "collinear" in w["msg"].lower() or "correlation" in w["msg"].lower()
-                for w in r
-            )
-        )
+        self.assertTrue(any("collinear" in w["msg"].lower() or "correlation" in w["msg"].lower() for w in r))
 
     def test_leakage_suspect_names(self):
-        from agents_api.dsw.common import _data_skepticism
+        from agents_api.analysis.common import _data_skepticism
 
         X = pd.DataFrame({"record_id": range(200), "b": range(200)})
         y = pd.Series(range(200))
@@ -577,19 +550,14 @@ class DataSkepticismTest(TestCase):
             {"feature": "c", "importance": 0.1},
         ]
         r = _data_skepticism(X, y, importances=importances)
-        self.assertTrue(
-            any(
-                "leakage" in w["msg"].lower() or "identifier" in w["msg"].lower()
-                for w in r
-            )
-        )
+        self.assertTrue(any("leakage" in w["msg"].lower() or "identifier" in w["msg"].lower() for w in r))
 
 
 class DuplicateAuditTest(TestCase):
     """Tests for _duplicate_audit()."""
 
     def test_no_duplicates(self):
-        from agents_api.dsw.common import _duplicate_audit
+        from agents_api.analysis.common import _duplicate_audit
 
         X = pd.DataFrame({"a": range(50), "b": range(50)})
         y = pd.Series(range(50))
@@ -599,7 +567,7 @@ class DuplicateAuditTest(TestCase):
         self.assertEqual(r["n_exact_duplicates"], 0)
 
     def test_with_exact_duplicates(self):
-        from agents_api.dsw.common import _duplicate_audit
+        from agents_api.analysis.common import _duplicate_audit
 
         data = list(range(30)) + list(range(10))  # 10 exact dups
         X = pd.DataFrame({"a": data, "b": data})
@@ -608,7 +576,7 @@ class DuplicateAuditTest(TestCase):
         self.assertGreater(r["n_exact_duplicates"], 0)
 
     def test_id_like_column_detected(self):
-        from agents_api.dsw.common import _duplicate_audit
+        from agents_api.analysis.common import _duplicate_audit
 
         X = pd.DataFrame(
             {
@@ -621,18 +589,16 @@ class DuplicateAuditTest(TestCase):
         self.assertIn("record_id", r["id_columns"])
 
     def test_monotonic_high_cardinality_detected(self):
-        from agents_api.dsw.common import _duplicate_audit
+        from agents_api.analysis.common import _duplicate_audit
 
-        X = pd.DataFrame(
-            {"seq": range(50), "other": np.random.RandomState(42).normal(0, 1, 50)}
-        )
+        X = pd.DataFrame({"seq": range(50), "other": np.random.RandomState(42).normal(0, 1, 50)})
         y = pd.Series([0, 1] * 25)
         r = _duplicate_audit(X, y)
         # monotonic + high cardinality should be flagged
         self.assertIsInstance(r["id_columns"], list)
 
     def test_near_duplicate_detection(self):
-        from agents_api.dsw.common import _duplicate_audit
+        from agents_api.analysis.common import _duplicate_audit
 
         vals = np.random.RandomState(42).normal(0, 1, 30).tolist()
         vals_dup = [v + 1e-5 for v in vals[:10]]  # near dups
@@ -642,7 +608,7 @@ class DuplicateAuditTest(TestCase):
         self.assertIsInstance(r, dict)
 
     def test_perfect_separator_detection(self):
-        from agents_api.dsw.common import _duplicate_audit
+        from agents_api.analysis.common import _duplicate_audit
 
         # Create a feature that perfectly separates classes
         y = pd.Series([0] * 25 + [1] * 25)
@@ -660,7 +626,7 @@ class BuildMLDiagnosticsTest(TestCase):
     """Tests for _build_ml_diagnostics() — classification and regression."""
 
     def test_classification_binary(self):
-        from agents_api.dsw.common import (
+        from agents_api.analysis.common import (
             _auto_train,
             _build_ml_diagnostics,
             _clean_for_ml,
@@ -669,14 +635,12 @@ class BuildMLDiagnosticsTest(TestCase):
         df = _cls_df()
         X, y, lm = _clean_for_ml(df, "target")
         model, _, _, task, X_te, y_te, y_pred = _auto_train(X, y, task="classification")
-        plots = _build_ml_diagnostics(
-            model, X_te, y_te, y_pred, list(X.columns), task, label_map=lm
-        )
+        plots = _build_ml_diagnostics(model, X_te, y_te, y_pred, list(X.columns), task, label_map=lm)
         self.assertIsInstance(plots, list)
         self.assertGreater(len(plots), 0)
 
     def test_classification_multiclass(self):
-        from agents_api.dsw.common import (
+        from agents_api.analysis.common import (
             _auto_train,
             _build_ml_diagnostics,
             _clean_for_ml,
@@ -685,14 +649,12 @@ class BuildMLDiagnosticsTest(TestCase):
         df = _multi_df()
         X, y, lm = _clean_for_ml(df, "target")
         model, _, _, task, X_te, y_te, y_pred = _auto_train(X, y, task="classification")
-        plots = _build_ml_diagnostics(
-            model, X_te, y_te, y_pred, list(X.columns), task, label_map=lm
-        )
+        plots = _build_ml_diagnostics(model, X_te, y_te, y_pred, list(X.columns), task, label_map=lm)
         self.assertIsInstance(plots, list)
         self.assertGreater(len(plots), 0)
 
     def test_regression(self):
-        from agents_api.dsw.common import (
+        from agents_api.analysis.common import (
             _auto_train,
             _build_ml_diagnostics,
             _clean_for_ml,
@@ -708,7 +670,7 @@ class BuildMLDiagnosticsTest(TestCase):
         self.assertGreaterEqual(len(plots), 5)
 
     def test_regression_plot_titles(self):
-        from agents_api.dsw.common import (
+        from agents_api.analysis.common import (
             _auto_train,
             _build_ml_diagnostics,
             _clean_for_ml,
@@ -724,7 +686,7 @@ class BuildMLDiagnosticsTest(TestCase):
         self.assertTrue(any("Q-Q" in t for t in titles))
 
     def test_classification_plot_titles(self):
-        from agents_api.dsw.common import (
+        from agents_api.analysis.common import (
             _auto_train,
             _build_ml_diagnostics,
             _clean_for_ml,
@@ -733,9 +695,7 @@ class BuildMLDiagnosticsTest(TestCase):
         df = _cls_df()
         X, y, lm = _clean_for_ml(df, "target")
         model, _, _, task, X_te, y_te, y_pred = _auto_train(X, y, task="classification")
-        plots = _build_ml_diagnostics(
-            model, X_te, y_te, y_pred, list(X.columns), task, label_map=lm
-        )
+        plots = _build_ml_diagnostics(model, X_te, y_te, y_pred, list(X.columns), task, label_map=lm)
         titles = [p.get("title", "") for p in plots]
         self.assertTrue(any("Confusion" in t for t in titles))
 
@@ -744,7 +704,7 @@ class BayesianModelBeliefsTest(TestCase):
     """Tests for _bayesian_model_beliefs()."""
 
     def test_classification_beliefs(self):
-        from agents_api.dsw.common import _bayesian_model_beliefs
+        from agents_api.analysis.common import _bayesian_model_beliefs
 
         X = pd.DataFrame({"a": range(200), "b": range(200)})
         y = pd.Series([0] * 100 + [1] * 100)
@@ -767,7 +727,7 @@ class BayesianModelBeliefsTest(TestCase):
         self.assertLessEqual(r["model_confidence"], 0.99)
 
     def test_regression_beliefs(self):
-        from agents_api.dsw.common import _bayesian_model_beliefs
+        from agents_api.analysis.common import _bayesian_model_beliefs
 
         X = pd.DataFrame({"a": range(200), "b": range(200)})
         y = pd.Series(np.random.RandomState(42).normal(50, 10, 200))
@@ -781,7 +741,7 @@ class BayesianModelBeliefsTest(TestCase):
         self.assertIsInstance(r["gauge_plot"], dict)
 
     def test_leakage_concern_classification(self):
-        from agents_api.dsw.common import _bayesian_model_beliefs
+        from agents_api.analysis.common import _bayesian_model_beliefs
 
         X = pd.DataFrame({"a": range(200), "b": range(200)})
         y = pd.Series([0, 1] * 100)
@@ -795,7 +755,7 @@ class BayesianModelBeliefsTest(TestCase):
         self.assertIn("leakage", concerns)
 
     def test_leakage_concern_regression(self):
-        from agents_api.dsw.common import _bayesian_model_beliefs
+        from agents_api.analysis.common import _bayesian_model_beliefs
 
         X = pd.DataFrame({"a": range(200), "b": range(200)})
         y = pd.Series(range(200), dtype=float)
@@ -805,7 +765,7 @@ class BayesianModelBeliefsTest(TestCase):
         self.assertIn("leakage", concerns)
 
     def test_not_learning_classification(self):
-        from agents_api.dsw.common import _bayesian_model_beliefs
+        from agents_api.analysis.common import _bayesian_model_beliefs
 
         X = pd.DataFrame({"a": range(200), "b": range(200)})
         y = pd.Series([0] * 150 + [1] * 50)
@@ -817,13 +777,11 @@ class BayesianModelBeliefsTest(TestCase):
         r = _bayesian_model_beliefs(metrics, X, y, [], "classification")
         concerns = [b["concern"] for b in r["beliefs"]]
         self.assertTrue(
-            "not_learning" in concerns
-            or "accuracy_illusion" in concerns
-            or "minority_blindness" in concerns
+            "not_learning" in concerns or "accuracy_illusion" in concerns or "minority_blindness" in concerns
         )
 
     def test_not_learning_regression(self):
-        from agents_api.dsw.common import _bayesian_model_beliefs
+        from agents_api.analysis.common import _bayesian_model_beliefs
 
         X = pd.DataFrame({"a": range(200), "b": range(200)})
         y = pd.Series(np.random.RandomState(42).normal(50, 10, 200))
@@ -833,7 +791,7 @@ class BayesianModelBeliefsTest(TestCase):
         self.assertIn("not_learning", concerns)
 
     def test_imprecision_concern(self):
-        from agents_api.dsw.common import _bayesian_model_beliefs
+        from agents_api.analysis.common import _bayesian_model_beliefs
 
         X = pd.DataFrame({"a": range(200), "b": range(200)})
         y = pd.Series(np.random.RandomState(42).normal(50, 10, 200))
@@ -843,7 +801,7 @@ class BayesianModelBeliefsTest(TestCase):
         self.assertIn("imprecision", concerns)
 
     def test_overfit_risk(self):
-        from agents_api.dsw.common import _bayesian_model_beliefs
+        from agents_api.analysis.common import _bayesian_model_beliefs
 
         X = pd.DataFrame(np.random.RandomState(42).normal(0, 1, (20, 10)))
         y = pd.Series([0, 1] * 10)
@@ -857,7 +815,7 @@ class BayesianModelBeliefsTest(TestCase):
         self.assertIn("overfit_risk", concerns)
 
     def test_small_sample_concern(self):
-        from agents_api.dsw.common import _bayesian_model_beliefs
+        from agents_api.analysis.common import _bayesian_model_beliefs
 
         X = pd.DataFrame({"a": range(30), "b": range(30)})
         y = pd.Series([0, 1] * 15)
@@ -871,7 +829,7 @@ class BayesianModelBeliefsTest(TestCase):
         self.assertIn("small_sample", concerns)
 
     def test_cv_std_instability(self):
-        from agents_api.dsw.common import _bayesian_model_beliefs
+        from agents_api.analysis.common import _bayesian_model_beliefs
 
         X = pd.DataFrame({"a": range(200), "b": range(200)})
         y = pd.Series([0, 1] * 100)
@@ -885,7 +843,7 @@ class BayesianModelBeliefsTest(TestCase):
         self.assertIn("unstable_performance", concerns)
 
     def test_bias_concern_regression(self):
-        from agents_api.dsw.common import _bayesian_model_beliefs
+        from agents_api.analysis.common import _bayesian_model_beliefs
 
         X = pd.DataFrame({"a": range(200), "b": range(200)})
         y = pd.Series(np.random.RandomState(42).normal(50, 10, 200))
@@ -895,7 +853,7 @@ class BayesianModelBeliefsTest(TestCase):
         self.assertIn("bias", concerns)
 
     def test_gauge_color_high_confidence(self):
-        from agents_api.dsw.common import _bayesian_model_beliefs
+        from agents_api.analysis.common import _bayesian_model_beliefs
 
         X = pd.DataFrame({"a": range(500), "b": range(500)})
         y = pd.Series([0, 1] * 250)
@@ -910,7 +868,7 @@ class BayesianModelBeliefsTest(TestCase):
         self.assertIn("data", gauge)
 
     def test_single_feature_dominance(self):
-        from agents_api.dsw.common import _bayesian_model_beliefs
+        from agents_api.analysis.common import _bayesian_model_beliefs
 
         X = pd.DataFrame({"a": range(200), "b": range(200)})
         y = pd.Series([0, 1] * 100)
@@ -929,7 +887,7 @@ class BayesianModelBeliefsTest(TestCase):
         self.assertIn("single_feature", concerns)
 
     def test_no_concerns(self):
-        from agents_api.dsw.common import _bayesian_model_beliefs
+        from agents_api.analysis.common import _bayesian_model_beliefs
 
         X = pd.DataFrame(np.random.RandomState(42).normal(0, 1, (500, 3)))
         y = pd.Series([0, 1] * 250)
@@ -952,25 +910,21 @@ class PermutationHistogramTest(TestCase):
     """Tests for _build_permutation_histogram()."""
 
     def test_basic(self):
-        from agents_api.dsw.common import _build_permutation_histogram
+        from agents_api.analysis.common import _build_permutation_histogram
 
-        r = _build_permutation_histogram(
-            0.85, [0.5, 0.52, 0.48, 0.55, 0.51], 0.01, "accuracy"
-        )
+        r = _build_permutation_histogram(0.85, [0.5, 0.52, 0.48, 0.55, 0.51], 0.01, "accuracy")
         self.assertIsInstance(r, dict)
         self.assertIn("data", r)
         self.assertIn("layout", r)
 
     def test_with_baseline(self):
-        from agents_api.dsw.common import _build_permutation_histogram
+        from agents_api.analysis.common import _build_permutation_histogram
 
-        r = _build_permutation_histogram(
-            0.85, [0.5] * 10, 0.01, "accuracy", baseline=0.5
-        )
+        r = _build_permutation_histogram(0.85, [0.5] * 10, 0.01, "accuracy", baseline=0.5)
         self.assertEqual(len(r["data"]), 3)  # histogram + model + baseline
 
     def test_high_pvalue(self):
-        from agents_api.dsw.common import _build_permutation_histogram
+        from agents_api.analysis.common import _build_permutation_histogram
 
         r = _build_permutation_histogram(0.52, [0.5] * 10, 0.90, "balanced_accuracy")
         self.assertIn("data", r)
@@ -980,25 +934,25 @@ class ConcernSigmoidTest(TestCase):
     """Tests for _concern_sigmoid()."""
 
     def test_center_returns_half(self):
-        from agents_api.dsw.common import _concern_sigmoid
+        from agents_api.analysis.common import _concern_sigmoid
 
         r = _concern_sigmoid(0.5, center=0.5, steepness=10)
         self.assertAlmostEqual(r, 0.5, places=3)
 
     def test_high_value_near_one(self):
-        from agents_api.dsw.common import _concern_sigmoid
+        from agents_api.analysis.common import _concern_sigmoid
 
         r = _concern_sigmoid(10, center=0.5, steepness=10)
         self.assertGreater(r, 0.99)
 
     def test_low_value_near_zero(self):
-        from agents_api.dsw.common import _concern_sigmoid
+        from agents_api.analysis.common import _concern_sigmoid
 
         r = _concern_sigmoid(-10, center=0.5, steepness=10)
         self.assertLess(r, 0.01)
 
     def test_negative_steepness(self):
-        from agents_api.dsw.common import _concern_sigmoid
+        from agents_api.analysis.common import _concern_sigmoid
 
         r = _concern_sigmoid(0.01, center=0.05, steepness=-40)
         self.assertGreater(r, 0.5)
@@ -1008,7 +962,7 @@ class GenerateDataFromSchemaTest(TestCase):
     """Tests for _generate_data_from_schema()."""
 
     def test_classification_schema(self):
-        from agents_api.dsw.common import _generate_data_from_schema
+        from agents_api.analysis.common import _generate_data_from_schema
 
         schema = {
             "name": "test",
@@ -1040,7 +994,7 @@ class GenerateDataFromSchemaTest(TestCase):
         self.assertIn("y", df.columns)
 
     def test_regression_schema(self):
-        from agents_api.dsw.common import _generate_data_from_schema
+        from agents_api.analysis.common import _generate_data_from_schema
 
         schema = {
             "name": "test",
@@ -1072,7 +1026,7 @@ class GenerateDataFromSchemaTest(TestCase):
         self.assertTrue(np.issubdtype(df["y"].dtype, np.number))
 
     def test_multiclass_schema(self):
-        from agents_api.dsw.common import _generate_data_from_schema
+        from agents_api.analysis.common import _generate_data_from_schema
 
         schema = {
             "name": "test",
@@ -1097,7 +1051,7 @@ class GenerateDataFromSchemaTest(TestCase):
         self.assertGreater(df["label"].nunique(), 1)
 
     def test_categorical_feature(self):
-        from agents_api.dsw.common import _generate_data_from_schema
+        from agents_api.analysis.common import _generate_data_from_schema
 
         schema = {
             "name": "test",
@@ -1122,7 +1076,7 @@ class GenerateDataFromSchemaTest(TestCase):
         self.assertTrue(set(df["cat"].unique()).issubset({"X", "Y", "Z"}))
 
     def test_poisson_distribution(self):
-        from agents_api.dsw.common import _generate_data_from_schema
+        from agents_api.analysis.common import _generate_data_from_schema
 
         schema = {
             "name": "test",
@@ -1142,7 +1096,7 @@ class GenerateDataFromSchemaTest(TestCase):
         self.assertEqual(len(df), 50)
 
     def test_unknown_distribution_fallback(self):
-        from agents_api.dsw.common import _generate_data_from_schema
+        from agents_api.analysis.common import _generate_data_from_schema
 
         schema = {
             "name": "test",
@@ -1161,7 +1115,7 @@ class BayesianShadowDeepTest(TestCase):
     """Deep coverage for _bayesian_shadow() — all shadow types."""
 
     def test_ttest_paired(self):
-        from agents_api.dsw.common import _bayesian_shadow
+        from agents_api.analysis.common import _bayesian_shadow
 
         x = np.random.RandomState(42).normal(100, 15, 30)
         y = x + np.random.RandomState(43).normal(5, 3, 30)
@@ -1170,7 +1124,7 @@ class BayesianShadowDeepTest(TestCase):
             self.assertIn("bf10", r)
 
     def test_anova(self):
-        from agents_api.dsw.common import _bayesian_shadow
+        from agents_api.analysis.common import _bayesian_shadow
 
         g1 = np.random.RandomState(42).normal(10, 2, 20)
         g2 = np.random.RandomState(43).normal(15, 2, 20)
@@ -1181,7 +1135,7 @@ class BayesianShadowDeepTest(TestCase):
             self.assertIn("bf_label", r)
 
     def test_proportion(self):
-        from agents_api.dsw.common import _bayesian_shadow
+        from agents_api.analysis.common import _bayesian_shadow
 
         r = _bayesian_shadow("proportion", x=70, n=100, p0=0.5)
         if r is not None:
@@ -1189,30 +1143,28 @@ class BayesianShadowDeepTest(TestCase):
             self.assertIn("credible_interval", r)
 
     def test_chi2(self):
-        from agents_api.dsw.common import _bayesian_shadow
+        from agents_api.analysis.common import _bayesian_shadow
 
         r = _bayesian_shadow("chi2", chi2_stat=15.0, dof=4, n_obs=100)
         if r is not None:
             self.assertIn("bf10", r)
 
     def test_regression_shadow(self):
-        from agents_api.dsw.common import _bayesian_shadow
+        from agents_api.analysis.common import _bayesian_shadow
 
-        r = _bayesian_shadow(
-            "regression", r_squared=0.75, n_obs=100, k_predictors=3, ss_total=1000.0
-        )
+        r = _bayesian_shadow("regression", r_squared=0.75, n_obs=100, k_predictors=3, ss_total=1000.0)
         if r is not None:
             self.assertIn("bf10", r)
 
     def test_variance(self):
-        from agents_api.dsw.common import _bayesian_shadow
+        from agents_api.analysis.common import _bayesian_shadow
 
         r = _bayesian_shadow("variance", f_stat=3.5, df1=4, df2=45, n_obs=50)
         if r is not None:
             self.assertIn("bf10", r)
 
     def test_nonparametric(self):
-        from agents_api.dsw.common import _bayesian_shadow
+        from agents_api.analysis.common import _bayesian_shadow
 
         r = _bayesian_shadow("nonparametric", effect_r=0.5, n_obs=50)
         if r is not None:
@@ -1220,7 +1172,7 @@ class BayesianShadowDeepTest(TestCase):
             self.assertIn("credible_interval", r)
 
     def test_bf_label_extreme(self):
-        from agents_api.dsw.common import _bayesian_shadow
+        from agents_api.analysis.common import _bayesian_shadow
 
         r = _bayesian_shadow("chi2", chi2_stat=100.0, dof=1, n_obs=200)
         if r is not None:
@@ -1239,7 +1191,7 @@ class BayesianShadowDeepTest(TestCase):
             )
 
     def test_bf_favoring_null(self):
-        from agents_api.dsw.common import _bayesian_shadow
+        from agents_api.analysis.common import _bayesian_shadow
 
         r = _bayesian_shadow("chi2", chi2_stat=0.01, dof=1, n_obs=200)
         if r is not None:
@@ -1250,21 +1202,21 @@ class EvidenceGradeDeepTest(TestCase):
     """Deep coverage for _evidence_grade()."""
 
     def test_moderate_evidence(self):
-        from agents_api.dsw.common import _evidence_grade
+        from agents_api.analysis.common import _evidence_grade
 
         r = _evidence_grade(0.01, bf10=5.0, effect_magnitude="medium")
         if r is not None:
             self.assertIn("grade", r)
 
     def test_contradictory_evidence(self):
-        from agents_api.dsw.common import _evidence_grade
+        from agents_api.analysis.common import _evidence_grade
 
         r = _evidence_grade(0.001, bf10=0.2, effect_magnitude="large")
         if r is not None:
             self.assertIn("grade", r)
 
     def test_pvalue_only_borderline(self):
-        from agents_api.dsw.common import _evidence_grade
+        from agents_api.analysis.common import _evidence_grade
 
         r = _evidence_grade(0.049)
         if r is not None:
@@ -1275,75 +1227,75 @@ class EffectMagnitudeDeepTest(TestCase):
     """Deep coverage for _effect_magnitude() — all effect types."""
 
     def test_cramers_v_large(self):
-        from agents_api.dsw.common import _effect_magnitude
+        from agents_api.analysis.common import _effect_magnitude
 
         label, m = _effect_magnitude(0.6, "cramers_v")
         self.assertEqual(label, "large")
         self.assertTrue(m)
 
     def test_cramers_v_small(self):
-        from agents_api.dsw.common import _effect_magnitude
+        from agents_api.analysis.common import _effect_magnitude
 
         label, m = _effect_magnitude(0.15, "cramers_v")
         self.assertEqual(label, "small")
         self.assertFalse(m)
 
     def test_cramers_v_negligible(self):
-        from agents_api.dsw.common import _effect_magnitude
+        from agents_api.analysis.common import _effect_magnitude
 
         label, m = _effect_magnitude(0.05, "cramers_v")
         self.assertEqual(label, "negligible")
 
     def test_cramers_v_medium(self):
-        from agents_api.dsw.common import _effect_magnitude
+        from agents_api.analysis.common import _effect_magnitude
 
         label, m = _effect_magnitude(0.35, "cramers_v")
         self.assertEqual(label, "medium")
 
     def test_r_squared_large(self):
-        from agents_api.dsw.common import _effect_magnitude
+        from agents_api.analysis.common import _effect_magnitude
 
         label, m = _effect_magnitude(0.30, "r_squared")
         self.assertEqual(label, "large")
 
     def test_r_squared_medium(self):
-        from agents_api.dsw.common import _effect_magnitude
+        from agents_api.analysis.common import _effect_magnitude
 
         label, m = _effect_magnitude(0.15, "r_squared")
         self.assertEqual(label, "medium")
 
     def test_r_squared_small(self):
-        from agents_api.dsw.common import _effect_magnitude
+        from agents_api.analysis.common import _effect_magnitude
 
         label, m = _effect_magnitude(0.05, "r_squared")
         self.assertEqual(label, "small")
 
     def test_r_squared_negligible(self):
-        from agents_api.dsw.common import _effect_magnitude
+        from agents_api.analysis.common import _effect_magnitude
 
         label, m = _effect_magnitude(0.01, "r_squared")
         self.assertEqual(label, "negligible")
 
     def test_eta_squared_large(self):
-        from agents_api.dsw.common import _effect_magnitude
+        from agents_api.analysis.common import _effect_magnitude
 
         label, m = _effect_magnitude(0.20, "eta_squared")
         self.assertEqual(label, "large")
 
     def test_eta_squared_small(self):
-        from agents_api.dsw.common import _effect_magnitude
+        from agents_api.analysis.common import _effect_magnitude
 
         label, m = _effect_magnitude(0.03, "eta_squared")
         self.assertEqual(label, "small")
 
     def test_eta_squared_negligible(self):
-        from agents_api.dsw.common import _effect_magnitude
+        from agents_api.analysis.common import _effect_magnitude
 
         label, m = _effect_magnitude(0.005, "eta_squared")
         self.assertEqual(label, "negligible")
 
     def test_unknown_effect_type(self):
-        from agents_api.dsw.common import _effect_magnitude
+        from agents_api.analysis.common import _effect_magnitude
 
         label, m = _effect_magnitude(0.5, "unknown_type")
         self.assertEqual(label, "unknown")
@@ -1354,35 +1306,33 @@ class PracticalBlockDeepTest(TestCase):
     """Deep coverage for _practical_block() — all branches."""
 
     def test_significant_small_effect(self):
-        from agents_api.dsw.common import _practical_block
+        from agents_api.analysis.common import _practical_block
 
         r = _practical_block("Cohen's d", 0.3, "cohens_d", 0.01)
         self.assertIn("small", r.lower())
 
     def test_significant_negligible_effect(self):
-        from agents_api.dsw.common import _practical_block
+        from agents_api.analysis.common import _practical_block
 
         r = _practical_block("Cohen's d", 0.05, "cohens_d", 0.01)
         self.assertIn("negligible", r.lower())
 
     def test_nonsignificant_large_effect(self):
-        from agents_api.dsw.common import _practical_block
+        from agents_api.analysis.common import _practical_block
 
         r = _practical_block("Cohen's d", 1.0, "cohens_d", 0.10)
         self.assertIn("large", r.lower())
 
     def test_nonsignificant_negligible(self):
-        from agents_api.dsw.common import _practical_block
+        from agents_api.analysis.common import _practical_block
 
         r = _practical_block("Cohen's d", 0.05, "cohens_d", 0.50)
         self.assertIn("negligible", r.lower())
 
     def test_with_context(self):
-        from agents_api.dsw.common import _practical_block
+        from agents_api.analysis.common import _practical_block
 
-        r = _practical_block(
-            "eta^2", 0.10, "eta_squared", 0.01, context="Manufacturing yield."
-        )
+        r = _practical_block("eta^2", 0.10, "eta_squared", 0.01, context="Manufacturing yield.")
         self.assertIn("Manufacturing yield", r)
 
 
@@ -1390,13 +1340,13 @@ class CheckNormalityDeepTest(TestCase):
     """Deep coverage for _check_normality() — large dataset branch."""
 
     def test_small_data_returns_none(self):
-        from agents_api.dsw.common import _check_normality
+        from agents_api.analysis.common import _check_normality
 
         r = _check_normality([1, 2, 3])
         self.assertIsNone(r)
 
     def test_large_data_uses_dagostino(self):
-        from agents_api.dsw.common import _check_normality
+        from agents_api.analysis.common import _check_normality
 
         data = np.random.RandomState(42).exponential(1, 6000)
         r = _check_normality(data)
@@ -1404,11 +1354,9 @@ class CheckNormalityDeepTest(TestCase):
             self.assertIn("D'Agostino", r.get("_test", ""))
 
     def test_handles_nan_in_data(self):
-        from agents_api.dsw.common import _check_normality
+        from agents_api.analysis.common import _check_normality
 
-        data = np.concatenate(
-            [np.random.RandomState(42).normal(0, 1, 50), [np.nan, np.nan]]
-        )
+        data = np.concatenate([np.random.RandomState(42).normal(0, 1, 50), [np.nan, np.nan]])
         r = _check_normality(data)
         # Should not raise
         if r is not None:
@@ -1419,13 +1367,13 @@ class CheckOutliersDeepTest(TestCase):
     """Deep coverage for _check_outliers()."""
 
     def test_constant_data_returns_none(self):
-        from agents_api.dsw.common import _check_outliers
+        from agents_api.analysis.common import _check_outliers
 
         r = _check_outliers([5] * 50)
         self.assertIsNone(r)
 
     def test_error_level_outliers(self):
-        from agents_api.dsw.common import _check_outliers
+        from agents_api.analysis.common import _check_outliers
 
         data = list(np.random.RandomState(42).normal(0, 1, 80)) + [100] * 10
         r = _check_outliers(data)
@@ -1437,23 +1385,21 @@ class CrossValidateDeepTest(TestCase):
     """Deep cross_validate coverage."""
 
     def test_normality_failed_explanation(self):
-        from agents_api.dsw.common import _cross_validate
+        from agents_api.analysis.common import _cross_validate
 
-        r = _cross_validate(
-            0.001, 0.10, "t-test", "Mann-Whitney", normality_failed=True
-        )
+        r = _cross_validate(0.001, 0.10, "t-test", "Mann-Whitney", normality_failed=True)
         self.assertEqual(r["level"], "contradiction")
         self.assertIn("Non-normality", r["detail"])
 
     def test_borderline_pvalue(self):
-        from agents_api.dsw.common import _cross_validate
+        from agents_api.analysis.common import _cross_validate
 
         r = _cross_validate(0.04, 0.06, "t-test", "Wilcoxon")
         self.assertEqual(r["level"], "contradiction")
         self.assertIn("borderline", r["detail"].lower())
 
     def test_both_nonsignificant_agreement(self):
-        from agents_api.dsw.common import _cross_validate
+        from agents_api.analysis.common import _cross_validate
 
         r = _cross_validate(0.50, 0.60, "t-test", "Mann-Whitney")
         self.assertEqual(r["level"], "info")
@@ -1466,7 +1412,7 @@ class CrossValidateDeepTest(TestCase):
 
 def _run_rel(analysis_id, config, data_dict=None):
     """Run reliability analysis — no exception masking (TST-001 §11.6)."""
-    from agents_api.dsw.reliability import run_reliability_analysis
+    from agents_api.analysis.reliability import run_reliability_analysis
 
     if data_dict is None:
         df = _ttf_df()
@@ -1803,9 +1749,7 @@ class RepairableSystemsTest(TestCase):
         r = _run_rel("repairable_systems", {"time": "time"}, {"time": events})
         if "error" not in r:
             summary = r.get("summary", "")
-            self.assertTrue(
-                "Laplace" in summary or "TREND" in summary or "trend" in summary.lower()
-            )
+            self.assertTrue("Laplace" in summary or "TREND" in summary or "trend" in summary.lower())
 
 
 class WarrantyTest(TestCase):
@@ -1981,9 +1925,7 @@ class CompetingRisksTest(TestCase):
         )
         self.assertIsInstance(r, dict)
         summary = r.get("summary", "")
-        self.assertTrue(
-            "No failure" in summary or "error" in summary.lower() or "error" in str(r)
-        )
+        self.assertTrue("No failure" in summary or "error" in summary.lower() or "error" in str(r))
 
     def test_competing_risks_three_modes(self):
         n = 90

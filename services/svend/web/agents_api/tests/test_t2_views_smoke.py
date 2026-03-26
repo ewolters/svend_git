@@ -58,9 +58,7 @@ class SynaraViewsSmokeTest(TestCase):
         return str(p.id)
 
     def test_hypotheses_list_unauth(self):
-        res = self.anon.get(
-            "/api/synara/00000000-0000-0000-0000-000000000000/hypotheses/"
-        )
+        res = self.anon.get("/api/synara/00000000-0000-0000-0000-000000000000/hypotheses/")
         self.assertIn(res.status_code, [401, 403])
 
     def test_hypotheses_list_auth(self):
@@ -235,7 +233,7 @@ class VizEngineCoverageTest(TestCase):
 
     def _run_viz(self, analysis_id, config, data_dict):
         """Run viz analysis — no exception masking (TST-001 §11.6)."""
-        from agents_api.dsw.viz import run_visualization
+        from agents_api.analysis.viz import run_visualization
 
         df = pd.DataFrame(data_dict)
         return run_visualization(df, analysis_id, config)
@@ -280,9 +278,7 @@ class VizEngineCoverageTest(TestCase):
         self.assertIsInstance(r, dict)
 
     def test_qq(self):
-        r = self._run_viz(
-            "qq", {"var1": "x"}, {"x": list(np.random.RandomState(42).normal(0, 1, 50))}
-        )
+        r = self._run_viz("qq", {"var1": "x"}, {"x": list(np.random.RandomState(42).normal(0, 1, 50))})
         self.assertIsInstance(r, dict)
 
 
@@ -296,7 +292,7 @@ class SimulationEngineCoverageTest(TestCase):
 
     def _run_sim(self, analysis_id, config, data_dict=None):
         """Run simulation — no exception masking (TST-001 §11.6)."""
-        from agents_api.dsw.simulation import run_simulation
+        from agents_api.analysis.simulation import run_simulation
 
         df = pd.DataFrame(data_dict) if data_dict else pd.DataFrame()
         return run_simulation(df, analysis_id, config, user=None)

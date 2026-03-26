@@ -24,9 +24,7 @@ SECURE_OFF = override_settings(SECURE_SSL_REDIRECT=False)
 
 def _make_user(email, tier=Tier.PRO, password="testpass123!", **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(
-        username=username, email=email, password=password, **kwargs
-    )
+    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -388,7 +386,7 @@ class DTypeAnalysisTest(TestCase):
 
     def test_run_d_chart_basic(self):
         """D-chart processes sample data without error."""
-        from agents_api.dsw.d_type import run_d_chart
+        from agents_api.analysis.d_type import run_d_chart
 
         rng = np.random.RandomState(42)
         df = pd.DataFrame({"measurement": rng.normal(100, 5, 100)})
@@ -400,7 +398,7 @@ class DTypeAnalysisTest(TestCase):
 
     def test_run_d_cpk_basic(self):
         """D-Cpk processes data with spec limits."""
-        from agents_api.dsw.d_type import run_d_cpk
+        from agents_api.analysis.d_type import run_d_cpk
 
         rng = np.random.RandomState(42)
         df = pd.DataFrame({"measurement": rng.normal(100, 5, 100)})

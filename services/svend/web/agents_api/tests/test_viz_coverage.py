@@ -22,7 +22,7 @@ TIME_60 = list(range(60))
 
 def _run(analysis_id, config, data_dict):
     """Run visualization — no exception masking (TST-001 §11.6)."""
-    from agents_api.dsw.viz import run_visualization
+    from agents_api.analysis.viz import run_visualization
 
     df = pd.DataFrame(data_dict)
     return run_visualization(df, analysis_id, config)
@@ -74,9 +74,7 @@ class BasicVisualizationTest(TestCase):
 
     def test_pareto(self):
         categories = (
-            np.random.RandomState(42)
-            .choice(["Defect_A", "Defect_B", "Defect_C", "Defect_D", "Defect_E"], 100)
-            .tolist()
+            np.random.RandomState(42).choice(["Defect_A", "Defect_B", "Defect_C", "Defect_D", "Defect_E"], 100).tolist()
         )
         r = _run(
             "pareto",

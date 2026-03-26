@@ -3,7 +3,7 @@
 Split from education.py to stay under architecture file size limits.
 """
 
-from agents_api.dsw.education import _extend
+from . import _extend
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SPC Module

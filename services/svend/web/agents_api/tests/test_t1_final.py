@@ -36,7 +36,7 @@ EVENTS_50 = np.random.RandomState(43).choice([0, 1], 50, p=[0.3, 0.7]).tolist()
 
 def _run_bayes(analysis_id, config, data_dict):
     """Direct call to bayesian engine (no HTTP overhead)."""
-    from agents_api.dsw.bayesian import run_bayesian_analysis
+    from agents_api.analysis.bayesian import run_bayesian_analysis
 
     df = pd.DataFrame(data_dict)
     return run_bayesian_analysis(df, analysis_id, config)
@@ -72,9 +72,7 @@ class DispatchCoverageTest(TestCase):
 
     # ── JSON parsing error (line 64-67) ──
     def test_invalid_json(self):
-        resp = self.client.post(
-            "/api/dsw/analysis/", data="not json{{{", content_type="application/json"
-        )
+        resp = self.client.post("/api/dsw/analysis/", data="not json{{{", content_type="application/json")
         self.assertEqual(resp.status_code, 400)
 
     # ── No data loaded (line 128-129) ──
@@ -84,9 +82,7 @@ class DispatchCoverageTest(TestCase):
 
     # ── Unknown analysis type (line 201-202) ──
     def test_unknown_type(self):
-        resp = self._post(
-            {"type": "unknown_type", "analysis": "x", "data": {"x": [1, 2, 3]}}
-        )
+        resp = self._post({"type": "unknown_type", "analysis": "x", "data": {"x": [1, 2, 3]}})
         self.assertEqual(resp.status_code, 400)
 
     # ── Inline data loading (line 87-94) + stats routing (line 134-137) ──
@@ -242,7 +238,7 @@ class StandardizeBranchTest(TestCase):
     """Exercise uncovered branches in standardize.py."""
 
     def _std(self, result, atype="stats", aid="descriptive"):
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         return standardize_output(result, atype, aid)
 
@@ -297,7 +293,7 @@ class StandardizeBranchTest(TestCase):
 
     # ── narrative_from_summary with separator-only lines (line 238-242) ──
     def test_narrative_strips_separators(self):
-        from agents_api.dsw.standardize import _narrative_from_summary
+        from agents_api.analysis.standardize import _narrative_from_summary
 
         text = "Verdict line\n=========\n---\nBody content here"
         result = _narrative_from_summary(text)
@@ -307,7 +303,7 @@ class StandardizeBranchTest(TestCase):
 
     # ── narrative_from_summary with empty content (line 244-245) ──
     def test_narrative_empty_returns_empty_dict(self):
-        from agents_api.dsw.standardize import _narrative_from_summary
+        from agents_api.analysis.standardize import _narrative_from_summary
 
         result = _narrative_from_summary("")
         self.assertEqual(result["verdict"], "")
@@ -315,14 +311,14 @@ class StandardizeBranchTest(TestCase):
 
     # ── narrative_from_summary with only separators ──
     def test_narrative_only_separators(self):
-        from agents_api.dsw.standardize import _narrative_from_summary
+        from agents_api.analysis.standardize import _narrative_from_summary
 
         result = _narrative_from_summary("===\n---\n***\n###")
         self.assertEqual(result["verdict"], "")
 
     # ── narrative_from_summary with HTML and box-drawing chars ──
     def test_narrative_strips_html_and_box(self):
-        from agents_api.dsw.standardize import _narrative_from_summary
+        from agents_api.analysis.standardize import _narrative_from_summary
 
         text = "<b>Bold</b>\n═══╔══╗\nBody text"
         result = _narrative_from_summary(text)
@@ -357,7 +353,7 @@ class StandardizeBoundsTest(TestCase):
     """Exercise _validate_statistics_bounds branches."""
 
     def _validate(self, result):
-        from agents_api.dsw.standardize import _validate_statistics_bounds
+        from agents_api.analysis.standardize import _validate_statistics_bounds
 
         _validate_statistics_bounds(result)
         return result
@@ -440,7 +436,7 @@ class StandardizeExtractPValueTest(TestCase):
     """Exercise _extract_p_value branches."""
 
     def _extract(self, result):
-        from agents_api.dsw.standardize import _extract_p_value
+        from agents_api.analysis.standardize import _extract_p_value
 
         return _extract_p_value(result)
 
@@ -464,7 +460,7 @@ class StandardizeClassifyEffectTest(TestCase):
     """Exercise _classify_effect branches."""
 
     def _classify(self, result):
-        from agents_api.dsw.standardize import _classify_effect
+        from agents_api.analysis.standardize import _classify_effect
 
         return _classify_effect(result)
 
@@ -479,47 +475,33 @@ class StandardizeClassifyEffectTest(TestCase):
         self.assertEqual(self._classify({"statistics": {"cohens_d": 0.3}}), "small")
 
     def test_cohens_d_negligible(self):
-        self.assertEqual(
-            self._classify({"statistics": {"cohens_d": 0.1}}), "negligible"
-        )
+        self.assertEqual(self._classify({"statistics": {"cohens_d": 0.1}}), "negligible")
 
     # ── Eta squared branches ──
     def test_eta_large(self):
         self.assertEqual(self._classify({"statistics": {"eta_squared": 0.2}}), "large")
 
     def test_eta_medium(self):
-        self.assertEqual(
-            self._classify({"statistics": {"eta_squared": 0.08}}), "medium"
-        )
+        self.assertEqual(self._classify({"statistics": {"eta_squared": 0.08}}), "medium")
 
     def test_eta_small(self):
         self.assertEqual(self._classify({"statistics": {"eta_squared": 0.02}}), "small")
 
     def test_eta_negligible(self):
-        self.assertEqual(
-            self._classify({"statistics": {"eta_squared": 0.005}}), "negligible"
-        )
+        self.assertEqual(self._classify({"statistics": {"eta_squared": 0.005}}), "negligible")
 
     # ── Effect r branches ──
     def test_effect_r_large(self):
-        self.assertEqual(
-            self._classify({"statistics": {"effect_size_r": 0.6}}), "large"
-        )
+        self.assertEqual(self._classify({"statistics": {"effect_size_r": 0.6}}), "large")
 
     def test_effect_r_medium(self):
-        self.assertEqual(
-            self._classify({"statistics": {"effect_size_r": 0.35}}), "medium"
-        )
+        self.assertEqual(self._classify({"statistics": {"effect_size_r": 0.35}}), "medium")
 
     def test_effect_r_small(self):
-        self.assertEqual(
-            self._classify({"statistics": {"effect_size_r": 0.15}}), "small"
-        )
+        self.assertEqual(self._classify({"statistics": {"effect_size_r": 0.15}}), "small")
 
     def test_effect_r_negligible(self):
-        self.assertEqual(
-            self._classify({"statistics": {"effect_size_r": 0.05}}), "negligible"
-        )
+        self.assertEqual(self._classify({"statistics": {"effect_size_r": 0.05}}), "negligible")
 
     # ── R-squared branches ──
     def test_r2_large(self):
@@ -532,9 +514,7 @@ class StandardizeClassifyEffectTest(TestCase):
         self.assertEqual(self._classify({"statistics": {"r_squared": 0.05}}), "small")
 
     def test_r2_negligible(self):
-        self.assertEqual(
-            self._classify({"statistics": {"r_squared": 0.01}}), "negligible"
-        )
+        self.assertEqual(self._classify({"statistics": {"r_squared": 0.01}}), "negligible")
 
     # ── No statistics ──
     def test_no_statistics(self):
@@ -548,7 +528,7 @@ class StandardizeNormalizeWhatIfTest(TestCase):
     """Exercise _normalize_what_if branches."""
 
     def _normalize(self, result, entry=None):
-        from agents_api.dsw.standardize import _normalize_what_if
+        from agents_api.analysis.standardize import _normalize_what_if
 
         return _normalize_what_if(result, entry)
 
@@ -772,9 +752,7 @@ class BayesianAnovaBranchTest(TestCase):
         """Three well-separated groups → BF > 10."""
         rng = np.random.RandomState(42)
         data = {
-            "y": list(rng.normal(10, 1, 20))
-            + list(rng.normal(20, 1, 20))
-            + list(rng.normal(30, 1, 20)),
+            "y": list(rng.normal(10, 1, 20)) + list(rng.normal(20, 1, 20)) + list(rng.normal(30, 1, 20)),
             "g": ["A"] * 20 + ["B"] * 20 + ["C"] * 20,
         }
         r = _run_bayes("bayes_anova", {"response": "y", "factor": "g"}, data)

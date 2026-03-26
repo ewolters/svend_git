@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 from django.test import TestCase
 
-from agents_api.dsw.common import (
+from agents_api.analysis.common import (
     COLOR_BAD,
     COLOR_GOLD,
     COLOR_GOOD,
@@ -169,14 +169,14 @@ GROUPS_50 = ["A"] * 25 + ["B"] * 25
 
 def _pipeline(result, analysis_type, analysis_id):
     """Apply the standardize_output pipeline (VIS-001 §11.1)."""
-    from agents_api.dsw.standardize import standardize_output
+    from agents_api.analysis.standardize import standardize_output
 
     return standardize_output(result, analysis_type, analysis_id)
 
 
 def _run_stats(analysis_id, config, data_dict):
     """Run statistical analysis through full pipeline (TST-001 §11.6)."""
-    from agents_api.dsw.stats import run_statistical_analysis
+    from agents_api.analysis.stats import run_statistical_analysis
 
     df = pd.DataFrame(data_dict)
     result = run_statistical_analysis(df, analysis_id, config)
@@ -185,7 +185,7 @@ def _run_stats(analysis_id, config, data_dict):
 
 def _run_spc(analysis_id, config, data_dict):
     """Run SPC analysis through full pipeline."""
-    from agents_api.dsw.spc import run_spc_analysis
+    from agents_api.analysis.spc import run_spc_analysis
 
     df = pd.DataFrame(data_dict)
     result = run_spc_analysis(df, analysis_id, config)
@@ -194,7 +194,7 @@ def _run_spc(analysis_id, config, data_dict):
 
 def _run_bayesian(analysis_id, config, data_dict):
     """Run Bayesian analysis through full pipeline."""
-    from agents_api.dsw.bayesian import run_bayesian_analysis
+    from agents_api.analysis.bayesian import run_bayesian_analysis
 
     df = pd.DataFrame(data_dict)
     result = run_bayesian_analysis(df, analysis_id, config)
@@ -203,7 +203,7 @@ def _run_bayesian(analysis_id, config, data_dict):
 
 def _run_ml(analysis_id, config, data_dict):
     """Run ML analysis through full pipeline."""
-    from agents_api.dsw.ml import run_ml_analysis
+    from agents_api.analysis.ml import run_ml_analysis
 
     df = pd.DataFrame(data_dict)
     result = run_ml_analysis(df, analysis_id, config, user=None)
@@ -212,7 +212,7 @@ def _run_ml(analysis_id, config, data_dict):
 
 def _run_viz(analysis_id, config, data_dict):
     """Run visualization analysis through full pipeline."""
-    from agents_api.dsw.viz import run_visualization
+    from agents_api.analysis.viz import run_visualization
 
     df = pd.DataFrame(data_dict)
     result = run_visualization(df, analysis_id, config)
@@ -221,7 +221,7 @@ def _run_viz(analysis_id, config, data_dict):
 
 def _run_sim(analysis_id, config, data_dict=None):
     """Run simulation analysis through full pipeline."""
-    from agents_api.dsw.simulation import run_simulation
+    from agents_api.analysis.simulation import run_simulation
 
     df = pd.DataFrame(data_dict) if data_dict else pd.DataFrame()
     result = run_simulation(df, analysis_id, config, user=None)
@@ -385,7 +385,7 @@ class ColorPaletteTest(TestCase):
 
     def test_normalization(self):
         """VIS-001 §4.2: Off-palette colors are normalized to palette equivalents."""
-        from agents_api.dsw.chart_defaults import _normalize_color
+        from agents_api.analysis.chart_defaults import _normalize_color
 
         # Known off-palette → palette mappings
         self.assertEqual(_normalize_color("#d63031"), COLOR_BAD)
@@ -419,16 +419,12 @@ class LegendPositionTest(TestCase):
     def test_legend_helper(self):
         """Verify _is_legend_inside_chart detection logic."""
         # Inside chart — FAIL
-        self.assertTrue(
-            _is_legend_inside_chart({"x": 0.98, "y": 0.98, "xanchor": "right"})
-        )
+        self.assertTrue(_is_legend_inside_chart({"x": 0.98, "y": 0.98, "xanchor": "right"}))
         self.assertTrue(_is_legend_inside_chart({"x": 1, "y": 0.5}))
         # Below chart — OK
         self.assertFalse(_is_legend_inside_chart({"y": -0.25, "orientation": "h"}))
         # Above chart horizontal — OK
-        self.assertFalse(
-            _is_legend_inside_chart({"y": 1.15, "orientation": "h", "x": 0.5})
-        )
+        self.assertFalse(_is_legend_inside_chart({"y": 1.15, "orientation": "h", "x": 0.5}))
         # Empty/None — OK
         self.assertFalse(_is_legend_inside_chart({}))
         self.assertFalse(_is_legend_inside_chart(None))
@@ -469,9 +465,7 @@ class DimensionsTest(TestCase):
             layout = plot.get("layout", {})
             h = layout.get("height")
             if h is not None:
-                self.assertIn(
-                    h, (300, 350), f"plot[{i}] height={h}, expected 300 or 350"
-                )
+                self.assertIn(h, (300, 350), f"plot[{i}] height={h}, expected 300 or 350")
 
 
 # ── Typography Tests (VIS-001 §8) ───────────────────────────────────────
@@ -498,7 +492,7 @@ class PostProcessingTest(TestCase):
 
     def test_apply_chart_defaults_sets_bgcolor(self):
         """Verify apply_chart_defaults enforces transparent background."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {
             "data": [{"type": "scatter", "x": [1, 2], "y": [3, 4]}],
@@ -510,7 +504,7 @@ class PostProcessingTest(TestCase):
 
     def test_apply_chart_defaults_sets_legend(self):
         """Verify apply_chart_defaults sets legend when missing."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"data": [{"type": "scatter", "x": [1], "y": [1]}], "layout": {}}
         apply_chart_defaults(plot)
@@ -520,7 +514,7 @@ class PostProcessingTest(TestCase):
 
     def test_apply_chart_defaults_fixes_inside_legend(self):
         """Verify apply_chart_defaults replaces inside-chart legends."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {
             "data": [{"type": "scatter", "x": [1], "y": [1]}],
@@ -533,7 +527,7 @@ class PostProcessingTest(TestCase):
 
     def test_apply_chart_defaults_normalizes_colors(self):
         """Verify apply_chart_defaults normalizes off-palette trace colors."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {
             "data": [
@@ -548,7 +542,7 @@ class PostProcessingTest(TestCase):
 
     def test_standardize_output_applies_defaults(self):
         """Verify standardize_output() calls apply_chart_defaults on plots."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = {
             "summary": "Test",

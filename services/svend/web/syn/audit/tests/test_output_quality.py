@@ -14,17 +14,17 @@ from unittest.mock import patch
 
 from django.test import SimpleTestCase
 
+from agents_api.analysis.standardize import (
+    _BOUNDED_METRICS,
+    REQUIRED_FIELDS,
+    _validate_statistics_bounds,
+    standardize_output,
+)
 from agents_api.calibration import (
     REFERENCE_POOL,
     Expectation,
     _check_expectation,
     run_calibration,
-)
-from agents_api.dsw.standardize import (
-    _BOUNDED_METRICS,
-    REQUIRED_FIELDS,
-    _validate_statistics_bounds,
-    standardize_output,
 )
 from syn.audit.compliance import ALL_CHECKS
 
@@ -76,15 +76,11 @@ class CaseStructureTest(SimpleTestCase):
         for case in REFERENCE_POOL:
             self.assertTrue(case.case_id, "Missing case_id")
             self.assertTrue(case.category, f"{case.case_id}: missing category")
-            self.assertTrue(
-                case.analysis_type, f"{case.case_id}: missing analysis_type"
-            )
+            self.assertTrue(case.analysis_type, f"{case.case_id}: missing analysis_type")
             self.assertTrue(case.analysis_id, f"{case.case_id}: missing analysis_id")
             self.assertIsInstance(case.config, dict, f"{case.case_id}: config not dict")
             self.assertIsInstance(case.data, dict, f"{case.case_id}: data not dict")
-            self.assertGreaterEqual(
-                len(case.expectations), 1, f"{case.case_id}: no expectations"
-            )
+            self.assertGreaterEqual(len(case.expectations), 1, f"{case.case_id}: no expectations")
 
     def test_case_id_format(self):
         """Case IDs match pattern CAL-{CATEGORY}-{NNN}."""
@@ -125,18 +121,14 @@ class ExpectationTypesTest(SimpleTestCase):
     def test_greater_than(self):
         """greater_than comparison: actual > expected."""
         result = {"statistics": {"p_value": 0.45}}
-        exp = Expectation(
-            key="statistics.p_value", expected=0.05, comparison="greater_than"
-        )
+        exp = Expectation(key="statistics.p_value", expected=0.05, comparison="greater_than")
         check = _check_expectation(result, exp)
         self.assertTrue(check["passed"])
 
     def test_less_than(self):
         """less_than comparison: actual < expected."""
         result = {"statistics": {"p_value": 0.003}}
-        exp = Expectation(
-            key="statistics.p_value", expected=0.05, comparison="less_than"
-        )
+        exp = Expectation(key="statistics.p_value", expected=0.05, comparison="less_than")
         check = _check_expectation(result, exp)
         self.assertTrue(check["passed"])
 
@@ -294,9 +286,7 @@ class CoherenceTest(SimpleTestCase):
             out = standardize_output(result, "stats", "ttest")
         # With p=0.001, evidence_grade should be generated
         if out.get("evidence_grade"):
-            self.assertIn(
-                out["evidence_grade"], ("Strong", "Moderate", "Weak", "Inconclusive")
-            )
+            self.assertIn(out["evidence_grade"], ("Strong", "Moderate", "Weak", "Inconclusive"))
 
     def test_guide_observation_populated(self):
         """guide_observation auto-populated from summary when missing."""
@@ -330,13 +320,11 @@ class DSWQualityTest(SimpleTestCase):
     def test_pvalue_analyses_produce_pvalue(self):
         """Analyses marked has_pvalue=True in registry are documented."""
         try:
-            from agents_api.dsw.registry import get_all_with_pvalue
+            from agents_api.analysis.registry import get_all_with_pvalue
 
             pvalue_analyses = get_all_with_pvalue()
             # At minimum, core inference analyses should be registered
-            self.assertGreater(
-                len(pvalue_analyses), 0, "No analyses with has_pvalue=True found"
-            )
+            self.assertGreater(len(pvalue_analyses), 0, "No analyses with has_pvalue=True found")
         except ImportError:
             self.skipTest("ANALYSIS_REGISTRY not available")
 

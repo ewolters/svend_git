@@ -41,9 +41,7 @@ def _read(path):
 
 def _make_user(email, tier=Tier.PRO, password="testpass123!", **kwargs):
     username = kwargs.pop("username", email.split("@")[0])
-    user = User.objects.create_user(
-        username=username, email=email, password=password, **kwargs
-    )
+    user = User.objects.create_user(username=username, email=email, password=password, **kwargs)
     user.tier = tier
     user.save(update_fields=["tier"])
     return user
@@ -190,9 +188,7 @@ class DataSourceFunctionalTest(TestCase):
             ),
             content_type="application/json",
         )
-        self.assertIn(
-            res.status_code, (200, 500)
-        )  # 200 if simulation succeeds, 500 if config issue
+        self.assertIn(res.status_code, (200, 500))  # 200 if simulation succeeds, 500 if config issue
 
     def test_empty_df_for_bayesian(self):
         """Bayesian analysis runs without data."""
@@ -208,9 +204,7 @@ class DataSourceFunctionalTest(TestCase):
             content_type="application/json",
         )
         # Bayesian with no data and empty df may produce runtime error but should not be 400 "No data loaded"
-        self.assertNotEqual(
-            _err_msg(res), "No data loaded. Please load a dataset first."
-        )
+        self.assertNotEqual(_err_msg(res), "No data loaded. Please load a dataset first.")
 
     def test_no_data_rejects_stats(self):
         """Stats analysis with no data source rejects with 400."""
@@ -269,9 +263,7 @@ class DispatchRoutingFunctionalTest(TestCase):
             payload["data"] = data
         else:
             payload["data"] = self.sample_data
-        return self.client.post(
-            self.url, json.dumps(payload), content_type="application/json"
-        )
+        return self.client.post(self.url, json.dumps(payload), content_type="application/json")
 
     def test_stats_route_produces_output(self):
         """type=stats routes to stats module and produces summary."""
@@ -281,16 +273,12 @@ class DispatchRoutingFunctionalTest(TestCase):
 
     def test_ml_route_produces_output(self):
         """type=ml routes to ML module."""
-        res = self._post(
-            "ml", "regression", config={"predictors": ["x"], "response": "y"}
-        )
+        res = self._post("ml", "regression", config={"predictors": ["x"], "response": "y"})
         self.assertIn(res.status_code, (200, 500))
 
     def test_spc_route_produces_output(self):
         """type=spc routes to SPC module."""
-        res = self._post(
-            "spc", "capability", config={"column": "x", "lsl": 44, "usl": 56}
-        )
+        res = self._post("spc", "capability", config={"column": "x", "lsl": 44, "usl": 56})
         self.assertEqual(res.status_code, 200)
 
     def test_bayesian_route_produces_output(self):
@@ -308,9 +296,7 @@ class DispatchRoutingFunctionalTest(TestCase):
             "simulation",
             "monte_carlo",
             config={
-                "distributions": [
-                    {"name": "t", "type": "normal", "params": {"mean": 10, "std": 2}}
-                ],
+                "distributions": [{"name": "t", "type": "normal", "params": {"mean": 10, "std": 2}}],
                 "formula": "t",
                 "n_simulations": 100,
             },
@@ -399,9 +385,7 @@ class ProjectResolutionFunctionalTest(TestCase):
 
         user = _make_user("resolve2@dsw.test")
         project = Project.objects.create(title="Test Project 2", user=user)
-        problem = Problem.objects.create(
-            user=user, title="Test Problem", core_project=project
-        )
+        problem = Problem.objects.create(user=user, title="Test Problem", core_project=project)
         result = _resolve_project(str(problem.id), user=user)
         self.assertEqual(result.id, project.id)
 
@@ -568,9 +552,7 @@ class EvidenceBridgeFunctionalTest(TestCase):
         for module in ["stats.py", "ml.py", "spc.py", "bayesian.py"]:
             mod_path = DSW_DIR / module
             if mod_path.exists():
-                src = inspect.getsource(
-                    __import__(f"agents_api.dsw.{module[:-3]}", fromlist=[""])
-                )
+                src = inspect.getsource(__import__(f"agents_api.dsw.{module[:-3]}", fromlist=[""]))
                 self.assertNotIn(
                     "add_finding_to_problem",
                     src,
@@ -835,25 +817,25 @@ def _run_analysis(analysis_type, analysis_id, df=None, config=None):
 
     # Import the right module
     if analysis_type == "stats":
-        from agents_api.dsw.stats import run_statistical_analysis
+        from agents_api.analysis.stats import run_statistical_analysis
 
         result = run_statistical_analysis(df, analysis_id, config)
     elif analysis_type == "spc":
-        from agents_api.dsw.spc import run_spc_analysis
+        from agents_api.analysis.spc import run_spc_analysis
 
         result = run_spc_analysis(df, analysis_id, config)
     elif analysis_type == "ml":
-        from agents_api.dsw.ml import run_ml_analysis
+        from agents_api.analysis.ml import run_ml_analysis
 
         result = run_ml_analysis(df, analysis_id, config, user=None)
     elif analysis_type == "viz":
-        from agents_api.dsw.viz import run_visualization
+        from agents_api.analysis.viz import run_visualization
 
         result = run_visualization(df, analysis_id, config)
     else:
         result = {"summary": "test"}
 
-    from agents_api.dsw.standardize import standardize_output
+    from agents_api.analysis.standardize import standardize_output
 
     return standardize_output(result, analysis_type, analysis_id)
 
@@ -863,7 +845,7 @@ class OutputSchemaTest(SimpleTestCase):
 
     def test_mandatory_keys_present(self):
         """standardize_output() fills all mandatory keys."""
-        from agents_api.dsw.standardize import REQUIRED_FIELDS, standardize_output
+        from agents_api.analysis.standardize import REQUIRED_FIELDS, standardize_output
 
         result = standardize_output({"summary": "test"}, "stats", "ttest")
         for key in REQUIRED_FIELDS:
@@ -871,7 +853,7 @@ class OutputSchemaTest(SimpleTestCase):
 
     def test_education_always_present(self):
         """Education key present and non-None after standardization."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output({"summary": "test output"}, "stats", "ttest")
         self.assertIsNotNone(
@@ -881,11 +863,9 @@ class OutputSchemaTest(SimpleTestCase):
 
     def test_narrative_always_present(self):
         """Narrative generated from summary with non-empty verdict."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
-        result = standardize_output(
-            {"summary": "Test result line 1\nLine 2"}, "stats", "ttest"
-        )
+        result = standardize_output({"summary": "Test result line 1\nLine 2"}, "stats", "ttest")
         self.assertIsNotNone(result.get("narrative"))
         self.assertEqual(result["narrative"]["verdict"], "Test result line 1")
         self.assertTrue(
@@ -900,9 +880,7 @@ class OutputSchemaTest(SimpleTestCase):
 
         np.random.seed(42)
         df = pd.DataFrame({"measurement": np.random.normal(50, 2, 100)})
-        result = _run_analysis(
-            "spc", "capability", df, {"column": "measurement", "lsl": 44, "usl": 56}
-        )
+        result = _run_analysis("spc", "capability", df, {"column": "measurement", "lsl": 44, "usl": 56})
 
         self.assertIsNotNone(
             result.get("education"),
@@ -944,18 +922,13 @@ class OutputSchemaTest(SimpleTestCase):
                 "after": np.random.normal(55, 5, 30),
             }
         )
-        result = _run_analysis(
-            "stats", "ttest", df, {"var1": "before", "mu": 50, "alpha": 0.05}
-        )
+        result = _run_analysis("stats", "ttest", df, {"var1": "before", "mu": 50, "alpha": 0.05})
 
         self.assertIsNotNone(result.get("education"), "t-test missing education")
         self.assertIsNotNone(result.get("narrative"), "t-test missing narrative")
 
         # t-test has p_value — should have evidence grade and shadow
-        if (
-            result.get("p_value") is not None
-            or (result.get("statistics") or {}).get("p_value") is not None
-        ):
+        if result.get("p_value") is not None or (result.get("statistics") or {}).get("p_value") is not None:
             self.assertIsNotNone(
                 result.get("evidence_grade"),
                 "t-test with p-value missing evidence_grade",
@@ -973,9 +946,7 @@ class OutputSchemaTest(SimpleTestCase):
         np.random.seed(42)
         x = np.random.normal(0, 1, 50)
         df = pd.DataFrame({"x": x, "y": 2 * x + np.random.normal(0, 0.5, 50)})
-        result = _run_analysis(
-            "stats", "regression", df, {"predictors": ["x"], "response": "y"}
-        )
+        result = _run_analysis("stats", "regression", df, {"predictors": ["x"], "response": "y"})
 
         self.assertIsNotNone(result.get("education"), "Regression missing education")
         self.assertIsNotNone(result.get("narrative"), "Regression missing narrative")
@@ -986,8 +957,8 @@ class RegistryTest(SimpleTestCase):
 
     def test_all_dispatch_types_registered(self):
         """All dispatch route types have at least one registry entry."""
-        from agents_api.dsw.dispatch import run_analysis
-        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.analysis.dispatch import run_analysis
+        from agents_api.analysis.registry import ANALYSIS_REGISTRY
 
         # Get the source of dispatch to find route types
         src = inspect.getsource(run_analysis)
@@ -1004,14 +975,12 @@ class RegistryTest(SimpleTestCase):
 
     def test_registry_has_required_fields(self):
         """Every registry entry has the required metadata fields."""
-        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.analysis.registry import ANALYSIS_REGISTRY
 
         required = {"module", "category", "has_pvalue", "effect_type", "shadow_type"}
         for key, entry in ANALYSIS_REGISTRY.items():
             for field in required:
-                self.assertIn(
-                    field, entry, f"Registry entry {key} missing field '{field}'"
-                )
+                self.assertIn(field, entry, f"Registry entry {key} missing field '{field}'")
 
 
 class PostProcessorTest(SimpleTestCase):
@@ -1019,17 +988,17 @@ class PostProcessorTest(SimpleTestCase):
 
     def test_standardize_called_on_dispatch(self):
         """dispatch.py imports and calls standardize_output."""
-        from agents_api.dsw.dispatch import run_analysis
+        from agents_api.analysis.dispatch import run_analysis
 
         src = inspect.getsource(run_analysis)
         self.assertIn("standardize_output", src)
 
     def test_missing_education_filled(self):
         """Post-processor injects education from centralized store."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output({}, "stats", "ttest")
-        from agents_api.dsw.education import get_education
+        from agents_api.analysis.education import get_education
 
         edu = get_education("stats", "ttest")
         if edu:
@@ -1040,16 +1009,14 @@ class PostProcessorTest(SimpleTestCase):
 
     def test_missing_narrative_generated(self):
         """Post-processor generates narrative from summary."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
-        result = standardize_output(
-            {"summary": "A detailed test result"}, "stats", "ttest"
-        )
+        result = standardize_output({"summary": "A detailed test result"}, "stats", "ttest")
         self.assertIsNotNone(result.get("narrative"))
 
     def test_narrative_has_nonempty_verdict(self):
         """Generated narrative has verdict >= 10 characters."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output(
             {"summary": "One-Sample t-Test: t(29) = 2.45, p = 0.021"},
@@ -1066,7 +1033,7 @@ class PostProcessorTest(SimpleTestCase):
 
     def test_guide_observation_nonempty(self):
         """guide_observation >= 10 chars when summary exists."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output(
             {"summary": "Process capability Cpk = 1.33. Process is capable."},
@@ -1074,9 +1041,7 @@ class PostProcessorTest(SimpleTestCase):
             "capability",
         )
         obs = result.get("guide_observation", "")
-        self.assertTrue(
-            len(obs) >= 10, f"guide_observation too short: '{obs}' ({len(obs)} chars)"
-        )
+        self.assertTrue(len(obs) >= 10, f"guide_observation too short: '{obs}' ({len(obs)} chars)")
 
 
 class EducationTest(SimpleTestCase):
@@ -1084,8 +1049,8 @@ class EducationTest(SimpleTestCase):
 
     def test_all_registered_analyses_have_education(self):
         """Every registered analysis has education content."""
-        from agents_api.dsw.education import get_education
-        from agents_api.dsw.registry import ANALYSIS_REGISTRY
+        from agents_api.analysis.education import get_education
+        from agents_api.analysis.registry import ANALYSIS_REGISTRY
 
         missing = []
         for atype, aid in ANALYSIS_REGISTRY:
@@ -1100,18 +1065,16 @@ class EducationTest(SimpleTestCase):
 
     def test_education_has_required_fields(self):
         """Education entries have title and content."""
-        from agents_api.dsw.education import EDUCATION_CONTENT
+        from agents_api.analysis.education import EDUCATION_CONTENT
 
         for key, entry in EDUCATION_CONTENT.items():
             self.assertIn("title", entry, f"Education {key} missing 'title'")
             self.assertIn("content", entry, f"Education {key} missing 'content'")
-            self.assertTrue(
-                len(entry["content"]) > 10, f"Education {key} has empty content"
-            )
+            self.assertTrue(len(entry["content"]) > 10, f"Education {key} has empty content")
 
     def test_education_content_depth(self):
         """Education content >= 200 characters (not shallow stubs)."""
-        from agents_api.dsw.education import EDUCATION_CONTENT
+        from agents_api.analysis.education import EDUCATION_CONTENT
 
         shallow = []
         for key, entry in EDUCATION_CONTENT.items():
@@ -1126,7 +1089,7 @@ class EducationTest(SimpleTestCase):
 
     def test_education_has_dl_structure(self):
         """Education content uses <dl> definition lists."""
-        from agents_api.dsw.education import EDUCATION_CONTENT
+        from agents_api.analysis.education import EDUCATION_CONTENT
 
         no_dl = []
         for key, entry in EDUCATION_CONTENT.items():
@@ -1141,7 +1104,7 @@ class EducationTest(SimpleTestCase):
 
     def test_education_title_length(self):
         """Education titles >= 15 characters."""
-        from agents_api.dsw.education import EDUCATION_CONTENT
+        from agents_api.analysis.education import EDUCATION_CONTENT
 
         short = []
         for key, entry in EDUCATION_CONTENT.items():
@@ -1156,7 +1119,10 @@ class ChartDefaultsTest(SimpleTestCase):
 
     def test_height_standardized(self):
         """apply_chart_defaults sets standard height."""
-        from agents_api.dsw.chart_defaults import CHART_HEIGHT, apply_chart_defaults
+        from agents_api.analysis.chart_defaults import (
+            CHART_HEIGHT,
+            apply_chart_defaults,
+        )
 
         plot = {"data": [], "layout": {}}
         apply_chart_defaults(plot)
@@ -1164,7 +1130,7 @@ class ChartDefaultsTest(SimpleTestCase):
 
     def test_legend_placement(self):
         """Legend defaults to bottom-left horizontal."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"data": [], "layout": {}}
         apply_chart_defaults(plot)
@@ -1172,8 +1138,8 @@ class ChartDefaultsTest(SimpleTestCase):
 
     def test_colors_from_palette(self):
         """Trace colors come from SVEND_COLORS palette."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
-        from agents_api.dsw.common import SVEND_COLORS
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.common import SVEND_COLORS
 
         plot = {"data": [{"type": "bar", "x": [1], "y": [1]}], "layout": {}}
         apply_chart_defaults(plot)
@@ -1181,7 +1147,7 @@ class ChartDefaultsTest(SimpleTestCase):
 
     def test_transparent_background(self):
         """Charts have transparent background for theme compatibility."""
-        from agents_api.dsw.chart_defaults import apply_chart_defaults
+        from agents_api.analysis.chart_defaults import apply_chart_defaults
 
         plot = {"data": [], "layout": {}}
         apply_chart_defaults(plot)
@@ -1190,14 +1156,15 @@ class ChartDefaultsTest(SimpleTestCase):
 
     def test_margins_applied(self):
         """Charts have standard margins."""
-        from agents_api.dsw.chart_defaults import CHART_MARGINS, apply_chart_defaults
+        from agents_api.analysis.chart_defaults import (
+            CHART_MARGINS,
+            apply_chart_defaults,
+        )
 
         plot = {"data": [], "layout": {}}
         apply_chart_defaults(plot)
         for key, val in CHART_MARGINS.items():
-            self.assertEqual(
-                plot["layout"]["margin"][key], val, f"Margin {key} should be {val}"
-            )
+            self.assertEqual(plot["layout"]["margin"][key], val, f"Margin {key} should be {val}")
 
     def test_real_analysis_charts_styled(self):
         """Charts from a real analysis have defaults applied after standardization."""
@@ -1206,9 +1173,7 @@ class ChartDefaultsTest(SimpleTestCase):
 
         np.random.seed(42)
         df = pd.DataFrame({"measurement": np.random.normal(50, 2, 100)})
-        result = _run_analysis(
-            "spc", "capability", df, {"column": "measurement", "lsl": 44, "usl": 56}
-        )
+        result = _run_analysis("spc", "capability", df, {"column": "measurement", "lsl": 44, "usl": 56})
         plots = result.get("plots", [])
         for i, plot in enumerate(plots):
             if isinstance(plot, dict) and "layout" in plot:
@@ -1226,7 +1191,7 @@ class NewStatisticsTest(SimpleTestCase):
 
     def test_pvalue_analyses_have_evidence_grade(self):
         """Post-processor generates evidence_grade when p_value present."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output(
             {
@@ -1244,7 +1209,7 @@ class NewStatisticsTest(SimpleTestCase):
 
     def test_pvalue_analyses_have_bayesian_shadow(self):
         """Post-processor generates bayesian_shadow for shadow-eligible analyses with sufficient stats."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output(
             {
@@ -1266,16 +1231,14 @@ class WhatIfTest(SimpleTestCase):
 
     def test_tier1_analyses_have_whatif(self):
         """Post-processor creates what_if stub for tier 1 analyses."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output({"summary": "t"}, "stats", "power_z")
-        self.assertIsNotNone(
-            result.get("what_if"), "what_if not generated for tier 1 analysis"
-        )
+        self.assertIsNotNone(result.get("what_if"), "what_if not generated for tier 1 analysis")
 
     def test_whatif_schema_valid(self):
         """what_if dict has required schema fields."""
-        from agents_api.dsw.standardize import standardize_output
+        from agents_api.analysis.standardize import standardize_output
 
         result = standardize_output(
             {
